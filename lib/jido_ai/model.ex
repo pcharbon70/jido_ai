@@ -202,7 +202,9 @@ defmodule Jido.AI.Model do
   @doc false
   defp get_provider_info(provider) do
     case Jido.AI.Provider.Registry.get_provider(provider) do
-      {:ok, mod} -> {:ok, mod.api_url()}
+      {:ok, mod} ->
+        {:ok, mod.api_url()}
+
       {:error, _} ->
         # Fallback to hardcoded URLs for providers not yet implemented as modules
         case provider do
@@ -227,18 +229,28 @@ defmodule Jido.AI.Model do
         # Fallback to hardcoded providers for backward compatibility
         try do
           atom = String.to_existing_atom(str)
+
           case atom do
-            provider when provider in [
-              :openai, :anthropic, :openrouter, :cloudflare, 
-              :google, :fake, :error_provider, :stream_error
-            ] ->
+            provider
+            when provider in [
+                   :openai,
+                   :anthropic,
+                   :openrouter,
+                   :cloudflare,
+                   :google,
+                   :fake,
+                   :error_provider,
+                   :stream_error
+                 ] ->
               {:ok, provider}
+
             _ ->
               {:error, "Unknown provider: #{str}"}
           end
         rescue
           ArgumentError -> {:error, "Unknown provider: #{str}"}
         end
+
       atom ->
         {:ok, atom}
     end

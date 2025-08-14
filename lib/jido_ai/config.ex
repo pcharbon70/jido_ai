@@ -236,4 +236,19 @@ defmodule Jido.AI.Config do
   def get_timeout(key, default) do
     Application.get_env(@env_app, key, default)
   end
+
+  @spec get_receive_timeout(integer()) :: integer()
+  def get_receive_timeout(default \\ 60_000) do
+    get_timeout(@config_receive_timeout, default)
+  end
+
+  @spec get_pool_timeout(integer()) :: integer()
+  def get_pool_timeout(default \\ 30_000) do
+    get_timeout(@config_pool_timeout, default)
+  end
+
+  @spec get_stream_inactivity_timeout(integer()) :: integer()
+  def get_stream_inactivity_timeout(default \\ 15_000) do
+    get_timeout(@config_stream_inactivity_timeout, default)
+  end
 end

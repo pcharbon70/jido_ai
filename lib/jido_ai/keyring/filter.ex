@@ -50,7 +50,7 @@ defmodule Jido.AI.Keyring.Filter do
           IO.chardata()
   def format(level, message, _ts, metadata) do
     msg = sanitize_logger_message(message)
-    md  = sanitize_data(metadata)
+    md = sanitize_data(metadata)
     ["[", to_string(level), "] ", msg, " ", inspect(md), "\n"] |> IO.iodata_to_binary()
   end
 
@@ -189,11 +189,20 @@ defmodule Jido.AI.Keyring.Filter do
         true
 
       String.length(value) > 50 and String.contains?(value, ".") and
-        Regex.match?(~r/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, value) -> true
-      Regex.match?(~r/^(gh[pousr]_|glpat-|gho_|ghu_|ghs_|ghr_)/, value) -> true
-      Regex.match?(~r/^AKIA[0-9A-Z]{16}$/, value) -> true
-      Regex.match?(~r/^sk-[A-Za-z0-9]{32,}$/, value) -> true
-      true -> false
+          Regex.match?(~r/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, value) ->
+        true
+
+      Regex.match?(~r/^(gh[pousr]_|glpat-|gho_|ghu_|ghs_|ghr_)/, value) ->
+        true
+
+      Regex.match?(~r/^AKIA[0-9A-Z]{16}$/, value) ->
+        true
+
+      Regex.match?(~r/^sk-[A-Za-z0-9]{32,}$/, value) ->
+        true
+
+      true ->
+        false
     end
   end
 
@@ -201,8 +210,10 @@ defmodule Jido.AI.Keyring.Filter do
 
   defp sanitize_logger_message(fun) when is_function(fun, 0),
     do: sanitize_logger_message(fun.())
+
   defp sanitize_logger_message(iodata) when is_binary(iodata) or is_list(iodata),
     do: iodata |> IO.iodata_to_binary() |> sanitize_data()
+
   defp sanitize_logger_message(other),
     do: other |> to_string() |> sanitize_data()
 end
