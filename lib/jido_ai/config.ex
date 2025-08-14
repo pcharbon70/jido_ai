@@ -53,6 +53,9 @@ defmodule Jido.AI.Config do
   @config_default_provider :default_provider
   @config_api_key :api_key
   @config_http_client :http_client
+  @config_receive_timeout :receive_timeout
+  @config_pool_timeout    :pool_timeout
+  @config_stream_inactivity_timeout :stream_inactivity_timeout
 
   @doc """
   Gets the complete configuration keyword list for a provider.
@@ -181,7 +184,7 @@ defmodule Jido.AI.Config do
   same interface as Req (post/2, stream!/2, etc.) to work correctly.
 
   """
-  @spec get_http_client() :: Req | Req.Test
+  @spec get_http_client() :: module()
   def get_http_client do
     Application.get_env(@env_app, @config_http_client, Req)
   end
@@ -210,5 +213,27 @@ defmodule Jido.AI.Config do
       nil -> Keyring.get(keyring_server, key, default)
       value -> value
     end
+  end
+
+  @doc """
+  Gets a timeout configuration value.
+
+  Simplified getter for timeout-specific configuration values with
+  Application environment precedence.
+
+  ## Parameters
+
+    * `key` - The timeout configuration key atom
+    * `default` - Default timeout value in milliseconds
+
+  ## Examples
+
+      Config.get_timeout(:receive_timeout, 5000)
+      Config.get_timeout(:pool_timeout, 30_000)
+
+  """
+  @spec get_timeout(atom(), integer()) :: integer()
+  def get_timeout(key, default) do
+    Application.get_env(@env_app, key, default)
   end
 end
