@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
 
       # Sync models from models.dev
       mix jido.ai.model_sync
-      
+
       # Verbose output
       mix jido.ai.model_sync --verbose
 
@@ -31,7 +31,7 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
   @models_dev_api "https://models.dev/api.json"
 
   # Directory structure
-  @providers_dir "priv/models_dev/providers"
+  @providers_dir "priv/models_dev"
 
   @impl Mix.Task
   def run(args) do
@@ -107,8 +107,9 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
         provider_json = %{
           "provider" => %{
             "id" => provider_id,
-            "name" => format_provider_name(provider_id),
-            "model_count" => length(models)
+            "name" => provider_data["name"] || format_provider_name(provider_id),
+            "model_count" => length(models),
+            "env" => provider_data["env"] || []
           },
           "models" => models
         }
