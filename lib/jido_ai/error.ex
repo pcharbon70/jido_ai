@@ -1,19 +1,51 @@
 defmodule Jido.AI.Error do
   @moduledoc """
-  Custom error type for Jido.AI operations.
+  Error handling system for Jido.AI using Splode.
   """
 
-  defexception [:message, :type]
+  use Splode,
+    error_classes: [
+      invalid: Jido.AI.Error.Invalid,
+      api: Jido.AI.Error.API,
+      unknown: Jido.AI.Error.Unknown
+    ],
+    unknown_error: Jido.AI.Error.Unknown.Unknown
 
-  @type t :: %__MODULE__{
-          message: String.t(),
-          type: atom() | nil
-        }
-
-  def new(message, type \\ nil) do
-    %__MODULE__{message: message, type: type}
+  defmodule Invalid do
+    use Splode.ErrorClass, class: :invalid
   end
 
-  @impl true
-  def message(%__MODULE__{message: message}), do: message
+  defmodule API do
+    use Splode.ErrorClass, class: :api
+  end
+
+  defmodule Unknown do
+    use Splode.ErrorClass, class: :unknown
+  end
+
+  defmodule Invalid.Parameter do
+    use Splode.Error, fields: [:parameter], class: :invalid
+
+    def message(%{parameter: parameter}) do
+      "Invalid parameter: #{parameter}"
+    end
+  end
+
+  defmodule API.Request do
+    use Splode.Error, fields: [:reason], class: :api
+
+    def message(%{reason: reason}) do
+      "API request failed: #{reason}"
+    end
+  end
+
+  defmodule Unknown.Unknown do
+    use Splode.Error, fields: [:error], class: :unknown
+
+    def message(%{error: error}) do
+      "Unknown error: #{inspect(error)}"
+    end
+  end
+
+
 end

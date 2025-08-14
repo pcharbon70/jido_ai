@@ -61,6 +61,7 @@ defmodule Jido.Ai.MixProject do
       {:dotenvy, "~> 1.1.0"},
       {:nimble_options, "~> 1.1"},
       {:solid, "~> 1.0"},
+      {:splode, "~> 0.2.4"},
       {:typed_struct, "~> 0.3.0"},
 
       # Clients
