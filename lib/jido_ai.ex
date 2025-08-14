@@ -370,7 +370,7 @@ defmodule Jido.AI do
   defp merge_model_options(model, opts) do
     # Get api_key from keyring if not provided in model or opts
     api_key = model.api_key || Keyword.get(opts, :api_key) || api_key(model.provider)
-    
+
     model_opts =
       []
       |> maybe_put(:temperature, model.temperature)

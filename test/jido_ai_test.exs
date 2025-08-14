@@ -143,7 +143,8 @@ defmodule Jido.AITest do
     end
 
     test "handles invalid model spec" do
-      assert {:error, "Invalid model specification. Expected format: 'provider:model'"} = AI.generate_text("invalid", "hello")
+      assert {:error, "Invalid model specification. Expected format: 'provider:model'"} =
+               AI.generate_text("invalid", "hello")
     end
 
     test "merges opts with model parameters" do
@@ -187,7 +188,8 @@ defmodule Jido.AITest do
     end
 
     test "handles invalid model spec in streaming" do
-      assert {:error, "Invalid model specification. Expected format: 'provider:model'"} = AI.stream_text("invalid", "hello")
+      assert {:error, "Invalid model specification. Expected format: 'provider:model'"} =
+               AI.stream_text("invalid", "hello")
     end
   end
 

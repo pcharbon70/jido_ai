@@ -35,8 +35,13 @@ defmodule Jido.AI.Provider.BaseTest do
     test "makes successful HTTP request" do
       mock_http_success()
 
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello", temperature: 0.7,
-              url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        model: "gpt-4",
+        api_key: "test-key",
+        prompt: "Hello",
+        temperature: 0.7,
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:ok, "Generated response"} = Base.generate_text_request(opts)
     end
@@ -44,8 +49,12 @@ defmodule Jido.AI.Provider.BaseTest do
     test "handles HTTP error responses" do
       mock_http_error(400, %{"error" => %{"message" => "Bad request"}})
 
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello",
-              url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        model: "gpt-4",
+        api_key: "test-key",
+        prompt: "Hello",
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:error, %Jido.AI.Error.API.Request{}} = Base.generate_text_request(opts)
     end
@@ -54,8 +63,12 @@ defmodule Jido.AI.Provider.BaseTest do
       stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, fn _, _ -> {:error, %Req.TransportError{reason: :timeout}} end)
 
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello",
-              url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        model: "gpt-4",
+        api_key: "test-key",
+        prompt: "Hello",
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:error, %Jido.AI.Error.API.Request{}} = Base.generate_text_request(opts)
     end
@@ -74,8 +87,15 @@ defmodule Jido.AI.Provider.BaseTest do
       stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, mock_req)
 
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello", temperature: 0.8, 
-              max_tokens: 1000, top_p: 0.9, url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        model: "gpt-4",
+        api_key: "test-key",
+        prompt: "Hello",
+        temperature: 0.8,
+        max_tokens: 1000,
+        top_p: 0.9,
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:ok, _} = Base.generate_text_request(opts)
     end
@@ -198,7 +218,11 @@ defmodule Jido.AI.Provider.BaseTest do
     test "returns error when model missing" do
       stub(Jido.AI.Config, :get_http_client, fn -> Req end)
 
-      opts = [api_key: "test-key", prompt: "Hello", url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        api_key: "test-key",
+        prompt: "Hello",
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
                Base.stream_text_request(opts)
@@ -208,8 +232,12 @@ defmodule Jido.AI.Provider.BaseTest do
       stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, fn _, _ -> {:ok, %Req.Response{status: 200, body: %{}}} end)
 
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello",
-              url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        model: "gpt-4",
+        api_key: "test-key",
+        prompt: "Hello",
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:ok, stream} = Base.stream_text_request(opts)
       assert is_function(stream, 2)
@@ -219,15 +247,17 @@ defmodule Jido.AI.Provider.BaseTest do
       stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, fn _, _ -> {:ok, %Req.Response{status: 200, body: %{}}} end)
 
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello",
-              url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        model: "gpt-4",
+        api_key: "test-key",
+        prompt: "Hello",
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:ok, stream} = Base.stream_text_request(opts)
       assert is_function(stream, 2)
     end
   end
-
-
 
   describe "request building integration" do
     test "builds correct OpenAI chat completion request" do
@@ -246,8 +276,14 @@ defmodule Jido.AI.Provider.BaseTest do
       stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, mock_req)
 
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello", temperature: 0.7, 
-              max_tokens: 100, url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        model: "gpt-4",
+        api_key: "test-key",
+        prompt: "Hello",
+        temperature: 0.7,
+        max_tokens: 100,
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:ok, _} = Base.generate_text_request(opts)
     end
@@ -267,8 +303,12 @@ defmodule Jido.AI.Provider.BaseTest do
       stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, mock_req)
 
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Stream test",
-              url: "https://api.openai.com/v1/chat/completions"]
+      opts = [
+        model: "gpt-4",
+        api_key: "test-key",
+        prompt: "Stream test",
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:ok, stream} = Base.stream_text_request(opts)
       assert is_function(stream, 2)
@@ -305,8 +345,6 @@ defmodule Jido.AI.Provider.BaseTest do
     end
   end
 
-
-
   describe "integration with provider models" do
     test "works with different provider model structures" do
       providers_and_models = [
@@ -318,8 +356,12 @@ defmodule Jido.AI.Provider.BaseTest do
       for {model, prompt} <- providers_and_models do
         mock_http_success()
 
-        opts = [api_key: "test-key", prompt: prompt, model: model,
-                url: "https://api.openai.com/v1/chat/completions"]
+        opts = [
+          api_key: "test-key",
+          prompt: prompt,
+          model: model,
+          url: "https://api.openai.com/v1/chat/completions"
+        ]
 
         # Should not error on different model structures
         assert {:ok, _} = Base.generate_text_request(opts)
@@ -332,8 +374,13 @@ defmodule Jido.AI.Provider.BaseTest do
       mock_http_success()
 
       long_prompt = String.duplicate("This is a very long prompt. ", 1000)
-      opts = [api_key: "test-key", prompt: long_prompt, model: "gpt-4",
-              url: "https://api.openai.com/v1/chat/completions"]
+
+      opts = [
+        api_key: "test-key",
+        prompt: long_prompt,
+        model: "gpt-4",
+        url: "https://api.openai.com/v1/chat/completions"
+      ]
 
       assert {:ok, _} = Base.generate_text_request(opts)
     end
@@ -350,8 +397,13 @@ defmodule Jido.AI.Provider.BaseTest do
       ]
 
       for prompt <- special_prompts do
-        opts = [api_key: "test-key", prompt: prompt, model: "gpt-4",
-                url: "https://api.openai.com/v1/chat/completions"]
+        opts = [
+          api_key: "test-key",
+          prompt: prompt,
+          model: "gpt-4",
+          url: "https://api.openai.com/v1/chat/completions"
+        ]
+
         assert {:ok, _} = Base.generate_text_request(opts)
       end
     end
@@ -366,8 +418,13 @@ defmodule Jido.AI.Provider.BaseTest do
       ]
 
       for params <- boundary_cases do
-        opts = [api_key: "test-key", prompt: "test", model: "gpt-4",
-                url: "https://api.openai.com/v1/chat/completions"] ++ params
+        opts =
+          [
+            api_key: "test-key",
+            prompt: "test",
+            model: "gpt-4",
+            url: "https://api.openai.com/v1/chat/completions"
+          ] ++ params
 
         assert {:ok, _} = Base.generate_text_request(opts)
       end
