@@ -103,7 +103,7 @@ defmodule Jido.AI.Keyring do
 
     # Populate ETS table with environment values and LiveBook variants
     Enum.each(keys, fn {key, value} ->
-      :ets.insert(env_table, {key, value})
+      :ets.insert(env_table, {to_string(key), value})
       # Also insert LiveBook prefixed version
       livebook_key = to_livebook_key(key)
       :ets.insert(env_table, {livebook_key, value})
@@ -204,7 +204,7 @@ defmodule Jido.AI.Keyring do
   Returns the value if found, otherwise returns the default value.
   """
   @spec get(GenServer.server(), atom(), term()) :: term()
-  def get(server, key, default) when is_atom(key) and is_atom(server) do
+  def get(server, key, default) when is_atom(key) do
     get(server, key, default, self())
   end
 
@@ -241,29 +241,35 @@ defmodule Jido.AI.Keyring do
   """
   @spec get_env_value(GenServer.server(), atom(), term()) :: term()
   def get_env_value(server \\ @default_name, key, default \\ nil) when is_atom(key) do
-    # Get the ETS table reference from the GenServer state
-    case GenServer.call(server, :get_env_table) do
-      {:error, :env_table_not_found} ->
-        default
+    env_table = env_table_name(server)
 
-      env_table when is_atom(env_table) or is_reference(env_table) ->
-        # First try the regular key in ETS (fast lookup)
-        case :ets.lookup(env_table, key) do
-          [{^key, value}] ->
-            value
-
-          [] ->
-            # If not found, try the LiveBook prefixed version
-            livebook_key = to_livebook_key(key)
-
-            case :ets.lookup(env_table, livebook_key) do
-              [{^livebook_key, value}] -> value
-              [] -> default
-            end
+    case :ets.whereis(env_table) do
+      :undefined ->
+        # Fallback for rare race conditions
+        case GenServer.call(server, :get_env_table) do
+          {:error, :env_table_not_found} -> default
+          table -> do_env_lookup(table, key, default)
         end
 
-      _ ->
-        default
+      _table ->
+        do_env_lookup(env_table, key, default)
+    end
+  end
+
+  def env_table_name(server \\ @default_name),
+    do: generate_env_table_name(server)
+
+  defp do_env_lookup(table, key, default) do
+    bin_key = norm_key(key)
+
+    case :ets.lookup(table, bin_key) do
+      [{^bin_key, v}] -> v
+      [] ->
+        lb = "lb_" <> bin_key
+        case :ets.lookup(table, lb) do
+          [{^lb, v}] -> v
+          [] -> default
+        end
     end
   end
 
@@ -387,7 +393,7 @@ defmodule Jido.AI.Keyring do
 
     # Update the ETS table with only the new variables
     Enum.each(atom_env_vars, fn {key, value} ->
-      :ets.insert(env_table, {key, value})
+      :ets.insert(env_table, {to_string(key), value})
       # Also insert LiveBook prefixed version
       livebook_key = to_livebook_key(key)
       :ets.insert(env_table, {livebook_key, value})
@@ -462,7 +468,7 @@ defmodule Jido.AI.Keyring do
   end
 
   @spec has_value?(atom(), GenServer.server()) :: boolean()
-  def has_value?(key, server) when is_atom(key) and is_atom(server) do
+  def has_value?(key, server) when is_atom(key) do
     value = get(server, key, nil, self())
     value_exists?(value)
   end
@@ -490,10 +496,12 @@ defmodule Jido.AI.Keyring do
   def terminate(_reason, _state), do: :ok
 
   @doc false
-  @spec to_livebook_key(atom()) :: atom()
+  @spec to_livebook_key(atom()) :: String.t()
   defp to_livebook_key(key) do
-    # Convert the key to a string, prefix with "lb_", and convert back to atom
+    # Convert the key to a string and prefix with "lb_"
     "lb_#{key}"
-    |> String.to_atom()
   end
+
+  defp norm_key(k) when is_atom(k), do: Atom.to_string(k)
+  defp norm_key(k) when is_binary(k), do: k
 end
