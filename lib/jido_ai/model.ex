@@ -228,7 +228,10 @@ defmodule Jido.AI.Model do
         try do
           atom = String.to_existing_atom(str)
           case atom do
-            provider when provider in [:openai, :anthropic, :openrouter, :cloudflare, :google, :fake, :error_provider, :stream_error] ->
+            provider when provider in [
+              :openai, :anthropic, :openrouter, :cloudflare, 
+              :google, :fake, :error_provider, :stream_error
+            ] ->
               {:ok, provider}
             _ ->
               {:error, "Unknown provider: #{str}"}
@@ -236,7 +239,7 @@ defmodule Jido.AI.Model do
         rescue
           ArgumentError -> {:error, "Unknown provider: #{str}"}
         end
-      atom -> 
+      atom ->
         {:ok, atom}
     end
   end

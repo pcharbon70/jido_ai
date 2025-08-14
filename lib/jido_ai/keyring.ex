@@ -505,6 +505,6 @@ defmodule Jido.AI.Keyring do
     "lb_#{key}"
   end
 
+  @spec norm_key(atom()) :: String.t()
   defp norm_key(k) when is_atom(k), do: Atom.to_string(k)
-  defp norm_key(k) when is_binary(k), do: k
 end

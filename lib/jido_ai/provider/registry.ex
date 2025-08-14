@@ -24,7 +24,7 @@ defmodule Jido.AI.Provider.Registry do
       {:error, "Provider not found: nonexistent"}
 
   """
-  @spec get_provider(atom()) :: {:ok, module()} | {:error, Jido.AI.Error.Invalid.Parameter.t()}
+  @spec get_provider(atom()) :: {:ok, module()} | {:error, Exception.t()}
   def get_provider(provider_id) do
     case :persistent_term.get(@registry_key, %{}) do
       %{^provider_id => module} ->

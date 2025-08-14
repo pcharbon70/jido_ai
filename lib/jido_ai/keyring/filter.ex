@@ -46,9 +46,9 @@ defmodule Jido.AI.Keyring.Filter do
   This function is used as a logger formatter to automatically sanitize
   log messages and metadata before they are output.
   """
-  @spec format(Logger.level(), Logger.message(), Logger.Formatter.time(), Logger.metadata()) ::
+  @spec format(Logger.level(), Logger.message(), term(), Logger.metadata()) ::
           IO.chardata()
-  def format(level, message, ts, metadata) do
+  def format(level, message, _ts, metadata) do
     msg = sanitize_logger_message(message)
     md  = sanitize_data(metadata)
     ["[", to_string(level), "] ", msg, " ", inspect(md), "\n"] |> IO.iodata_to_binary()
