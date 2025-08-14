@@ -116,7 +116,7 @@ defmodule Jido.AI.Provider.RegistryTest do
   describe "get_provider/1" do
     test "returns error for non-existent provider" do
       result = Registry.get_provider(:nonexistent)
-      assert {:error, "Provider not found: nonexistent"} = result
+      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = result
     end
 
     test "returns provider module for registered provider" do
@@ -132,7 +132,7 @@ defmodule Jido.AI.Provider.RegistryTest do
 
       Registry.clear()
       result = Registry.get_provider(:openai)
-      assert {:error, "Provider not found: openai"} = result
+      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = result
     end
 
     test "handles multiple providers correctly" do
@@ -141,7 +141,7 @@ defmodule Jido.AI.Provider.RegistryTest do
 
       assert {:ok, TestOpenAI} = Registry.get_provider(:openai)
       assert {:ok, TestAnthropic} = Registry.get_provider(:anthropic)
-      assert {:error, "Provider not found: google"} = Registry.get_provider(:google)
+      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = Registry.get_provider(:google)
     end
   end
 
@@ -180,6 +180,22 @@ defmodule Jido.AI.Provider.RegistryTest do
       providers = Registry.list_providers()
       # We can't guarantee what providers will be discovered, but initialize should work
       assert is_list(providers)
+    end
+  end
+
+  describe "reload/0" do
+    test "reload calls initialize and returns :ok" do
+      assert Registry.reload() == :ok
+    end
+
+    test "reload is idempotent" do
+      Registry.reload()
+      providers_first = Registry.list_providers()
+
+      Registry.reload()
+      providers_second = Registry.list_providers()
+
+      assert Enum.sort(providers_first) == Enum.sort(providers_second)
     end
   end
 

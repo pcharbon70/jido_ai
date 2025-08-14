@@ -24,11 +24,12 @@ defmodule Jido.AI.Provider.Registry do
       {:error, "Provider not found: nonexistent"}
 
   """
-  @spec get_provider(atom()) :: {:ok, module()} | {:error, String.t()}
+  @spec get_provider(atom()) :: {:ok, module()} | {:error, Jido.AI.Error.Invalid.Parameter.t()}
   def get_provider(provider_id) do
     case :persistent_term.get(@registry_key, %{}) do
       %{^provider_id => module} -> {:ok, module}
-      _ -> {:error, "Provider not found: #{provider_id}"}
+      _ -> {:error,
+             Jido.AI.Error.Invalid.Parameter.exception(parameter: "provider #{provider_id}")}
     end
   end
 
@@ -99,6 +100,9 @@ defmodule Jido.AI.Provider.Registry do
 
     :ok
   end
+
+  @spec reload() :: :ok
+  def reload, do: initialize()
 
   @doc """
   Clears the provider registry.
