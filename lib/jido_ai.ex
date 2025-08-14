@@ -25,8 +25,14 @@ defmodule Jido.AI do
 
   ## Model and Chat API
 
-      # Create models
-      model = Jido.AI.model(:openai, model: "gpt-4o")
+      # Create models - multiple formats supported
+      {:ok, model} = Jido.AI.model("openrouter:anthropic/claude-3.5-sonnet")
+      {:ok, model} = Jido.AI.model({:openai, model: "gpt-4o", temperature: 0.7})
+      {:ok, model} = Jido.AI.model({:openrouter, model: "anthropic/claude-3.5-sonnet", max_tokens: 2000})
+
+      # Text generation - flexible model specs
+      {:ok, text} = Jido.AI.generate_text("openrouter:anthropic/claude-3.5-sonnet", "Hello!", [])
+      {:ok, text} = Jido.AI.generate_text({:openrouter, model: "anthropic/claude-3.5-sonnet"}, "Tell me a joke", [])
 
       # Chat completions
       Jido.AI.chat(model, messages)
@@ -34,7 +40,7 @@ defmodule Jido.AI do
 
   """
 
-  alias Jido.AI.Keyring
+  alias Jido.AI.{Keyring, Model}
 
   # ===========================================================================
   # Configuration API - Simple facades for common operations
@@ -216,4 +222,163 @@ defmodule Jido.AI do
   def list_keys do
     Keyring.list(Keyring)
   end
+
+  # ===========================================================================
+  # Model API - Developer sugar for creating models
+  # ===========================================================================
+
+  @doc """
+  Creates a model from various input formats for maximum developer ergonomics.
+
+  Supports multiple input formats:
+  - String format: `"provider:model"` (e.g., "openrouter:anthropic/claude-3.5-sonnet")
+  - Tuple format: `{provider, opts}` where provider is atom and opts is keyword list
+  - Existing Model struct (returns as-is)
+
+  ## Examples
+
+      # String format - super concise
+      Jido.AI.model("openrouter:anthropic/claude-3.5-sonnet")
+
+      # Tuple format - flexible with options
+      Jido.AI.model({:openrouter, model: "anthropic/claude-3.5-sonnet", temperature: 0.7})
+
+      # With additional configuration
+      Jido.AI.model({:openai, model: "gpt-4", max_tokens: 2000, temperature: 0.5})
+
+  """
+  @spec model(Model.t() | {atom(), keyword()} | String.t()) ::
+          {:ok, Model.t()} | {:error, String.t()}
+  def model(spec) do
+    Model.from(spec)
+  end
+
+  @doc """
+  Generates text using an AI model with maximum developer ergonomics.
+
+  Accepts flexible model specifications and generates text using the appropriate provider.
+  Currently supports OpenRouter provider.
+
+  ## Parameters
+
+    * `model_spec` - Model specification in various formats:
+      - Model struct: `%Jido.AI.Model{}`
+      - String format: `"openrouter:anthropic/claude-3.5-sonnet"`
+      - Tuple format: `{:openrouter, model: "anthropic/claude-3.5-sonnet", temperature: 0.7}`
+    * `prompt` - Text prompt to generate from (string)
+    * `opts` - Additional options (keyword list)
+
+  ## Examples
+
+      # String format - super concise
+      {:ok, response} = Jido.AI.generate_text(
+        "openrouter:anthropic/claude-3.5-sonnet",
+        "Hello, world!",
+        []
+      )
+
+      # Tuple format with model-specific options
+      {:ok, response} = Jido.AI.generate_text(
+        {:openrouter, model: "anthropic/claude-3.5-sonnet", temperature: 0.7},
+        "Tell me a joke",
+        []
+      )
+
+      # With additional generation options
+      {:ok, response} = Jido.AI.generate_text(
+        {:openrouter, model: "anthropic/claude-3.5-sonnet"},
+        "Write a haiku",
+        max_tokens: 100
+      )
+
+  """
+  @spec generate_text(Model.t() | {atom(), keyword()} | String.t(), String.t(), keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  def generate_text(model_spec, prompt, opts \\ []) when is_binary(prompt) and is_list(opts) do
+    with {:ok, model} <- ensure_model_struct(model_spec),
+         {:ok, provider_module} <- get_provider_module(model.provider) do
+      # Merge model options with provided opts
+      merged_opts = merge_model_options(model, opts)
+
+      # Call the provider's generate_text function
+      provider_module.generate_text(model.model, prompt, merged_opts)
+    end
+  end
+
+  @doc """
+  Streams text using an AI model with maximum developer ergonomics.
+
+  Accepts flexible model specifications and streams text using the appropriate provider.
+  Returns a Stream that emits text chunks as they arrive.
+
+  ## Parameters
+
+    * `model_spec` - Model specification in various formats:
+      - Model struct: `%Jido.AI.Model{}`
+      - String format: `"openrouter:anthropic/claude-3.5-sonnet"`
+      - Tuple format: `{:openrouter, model: "anthropic/claude-3.5-sonnet", temperature: 0.7}`
+    * `prompt` - Text prompt to generate from (string)
+    * `opts` - Additional options (keyword list)
+
+  ## Examples
+
+      # String format - super concise
+      {:ok, stream} = Jido.AI.stream_text(
+        "openrouter:anthropic/claude-3.5-sonnet",
+        "Hello, world!",
+        []
+      )
+      
+      # Consume the stream
+      stream |> Enum.each(&IO.write/1)
+
+      # Tuple format with model-specific options
+      {:ok, stream} = Jido.AI.stream_text(
+        {:openrouter, model: "anthropic/claude-3.5-sonnet", temperature: 0.7},
+        "Tell me a joke",
+        []
+      )
+
+  """
+  @spec stream_text(Model.t() | {atom(), keyword()} | String.t(), String.t(), keyword()) ::
+          {:ok, Stream.t()} | {:error, term()}
+  def stream_text(model_spec, prompt, opts \\ []) when is_binary(prompt) and is_list(opts) do
+    with {:ok, model} <- ensure_model_struct(model_spec),
+         {:ok, provider_module} <- get_provider_module(model.provider) do
+      # Merge model options with provided opts
+      merged_opts = merge_model_options(model, opts)
+
+      # Call the provider's stream_text function
+      provider_module.stream_text(model.model, prompt, merged_opts)
+    end
+  end
+
+  @doc false
+  @spec ensure_model_struct(Model.t() | {atom(), keyword()} | String.t()) ::
+          {:ok, Model.t()} | {:error, String.t()}
+  defp ensure_model_struct(%Model{} = model), do: {:ok, model}
+  defp ensure_model_struct(model_spec), do: model(model_spec)
+
+  @doc false
+  @spec get_provider_module(atom()) :: {:ok, atom()} | {:error, String.t()}
+  defp get_provider_module(provider) do
+    Jido.AI.Provider.Registry.get_provider(provider)
+  end
+
+  @doc false
+  @spec merge_model_options(Model.t(), keyword()) :: keyword()
+  defp merge_model_options(model, opts) do
+    model_opts =
+      []
+      |> maybe_put(:temperature, model.temperature)
+      |> maybe_put(:max_tokens, model.max_tokens)
+      |> maybe_put(:api_key, model.api_key)
+
+    # Provided opts take precedence over model defaults
+    Keyword.merge(model_opts, opts)
+  end
+
+  @doc false
+  defp maybe_put(opts, _key, nil), do: opts
+  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
 end
