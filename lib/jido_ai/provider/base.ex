@@ -235,11 +235,16 @@ defmodule Jido.AI.Provider.Base do
 
       http_client = Config.get_http_client()
 
+      recv_to = Keyword.get(opts, :receive_timeout,
+                  Config.get_timeout(:receive_timeout, 60_000))
+      pool_to = Keyword.get(opts, :pool_timeout,
+                  Config.get_timeout(:pool_timeout, 30_000))
+
       case http_client.post(url,
              json: Map.new(request_opts),
              auth: {:bearer, api_key},
-             receive_timeout: 60_000,
-             pool_timeout: 30_000
+             receive_timeout: recv_to,
+             pool_timeout: pool_to
            ) do
         {:ok, response} -> extract_text_response(response)
         {:error, reason} -> {:error, Error.API.Request.exception(reason: inspect(reason))}
@@ -297,12 +302,17 @@ defmodule Jido.AI.Provider.Base do
             Task.async(fn ->
               http_client = Config.get_http_client()
 
+              recv_to = Keyword.get(opts, :receive_timeout,
+                          Config.get_timeout(:receive_timeout, 60_000))
+              pool_to = Keyword.get(opts, :pool_timeout,
+                          Config.get_timeout(:pool_timeout, 30_000))
+
               try do
                 http_client.post(url,
                   json: Map.new(request_opts),
                   auth: {:bearer, api_key},
-                  receive_timeout: 60_000,
-                  pool_timeout: 30_000,
+                  receive_timeout: recv_to,
+                  pool_timeout: pool_to,
                   into: fn {:data, data}, {req, resp} ->
                     buffer = Req.Request.get_private(req, :sse_buffer, "")
                     {events, new_buffer} = ServerSentEvents.parse(buffer <> data)
@@ -322,6 +332,9 @@ defmodule Jido.AI.Provider.Base do
             end)
           end,
           fn task ->
+            inactivity_to = Keyword.get(opts, :stream_inactivity_timeout,
+                              Config.get_timeout(:stream_inactivity_timeout, 15_000))
+
             receive do
               :done ->
                 {:halt, task}
@@ -332,7 +345,7 @@ defmodule Jido.AI.Provider.Base do
               {:events, events} ->
                 {parse_stream_events(events), task}
             after
-              15_000 -> {:halt, task}
+              inactivity_to -> {:halt, task}
             end
           end,
           fn task ->
@@ -390,23 +403,9 @@ defmodule Jido.AI.Provider.Base do
   end
 
   defp put_api_key_from_env(opts, provider_info) do
-    case provider_info.env do
-      [env_var | _] when is_atom(env_var) ->
-        # Convert env var to atom format expected by keyring
-        keyring_key =
-          env_var
-          |> Atom.to_string()
-          |> String.downcase()
-          |> String.replace(~r/[^a-z0-9_]/, "_")
-          |> String.to_atom()
-
-        case Jido.AI.Keyring.get(keyring_key) do
-          nil -> opts
-          api_key -> Keyword.put(opts, :api_key, api_key)
-        end
-
-      _ ->
-        opts
+    case Jido.AI.Config.get_api_key(provider_info.id) do
+      nil -> opts
+      key -> Keyword.put_new(opts, :api_key, key)
     end
   end
 
