@@ -37,7 +37,7 @@ defmodule Jido.AI.Provider.Base do
 
   """
 
-  alias Jido.AI.{Provider, Error}
+  alias Jido.AI.{Provider, Error, Config}
 
   @doc "Returns provider information"
   @callback provider_info() :: Provider.t()
@@ -46,10 +46,12 @@ defmodule Jido.AI.Provider.Base do
   @callback api_url() :: String.t()
 
   @doc "Generates text from a string prompt"
-  @callback generate_text(String.t(), String.t(), keyword()) :: {:ok, String.t()} | {:error, Error.t()}
+  @callback generate_text(String.t(), String.t(), keyword()) ::
+              {:ok, String.t()} | {:error, Error.t()}
 
   @doc "Streams text from a string prompt, returning an Elixir Stream"
-  @callback stream_text(String.t(), String.t(), keyword()) :: {:ok, Stream.t()} | {:error, Error.t()}
+  @callback stream_text(String.t(), String.t(), keyword()) ::
+              {:ok, Stream.t()} | {:error, Error.t()}
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
@@ -57,37 +59,44 @@ defmodule Jido.AI.Provider.Base do
       alias Jido.AI.Provider
 
       # Extract required options
-      json_filename = opts[:json] || raise ArgumentError, "expected :json option with JSON filename"
+      json_filename =
+        opts[:json] || raise ArgumentError, "expected :json option with JSON filename"
+
       base_url = opts[:base_url] || raise ArgumentError, "expected :base_url option"
-      
+
       # Build full JSON path
       json_path = Path.join(:code.priv_dir(:jido_ai), "models_dev/#{json_filename}")
-      
+
       # Mark file as external resource for recompilation
       @external_resource json_path
 
       # Load JSON data at compile time
-      {provider_meta, models_map} = 
+      {provider_meta, models_map} =
         case File.read(json_path) do
           {:ok, json_content} ->
             data = Jason.decode!(json_content)
             provider_data = data["provider"] || %{}
-            
-            models = 
+
+            models =
               data
               |> Map.get("models", [])
               |> Enum.map(fn model -> {model["id"], model} end)
               |> Map.new()
-            
+
             {provider_data, models}
+
           {:error, reason} ->
             Logger.warning("Failed to load provider JSON #{json_path}: #{inspect(reason)}")
             {%{}, %{}}
         end
 
       # Extract provider metadata with option overrides
-      id_atom = String.to_atom(opts[:id] || provider_meta["id"] || raise ArgumentError, "provider id not found")
-      name = opts[:name] || provider_meta["name"] || (Atom.to_string(id_atom) |> Macro.camelize())
+      id_atom =
+        String.to_atom(
+          opts[:id] || provider_meta["id"] || raise(ArgumentError, "provider id not found")
+        )
+
+      name = opts[:name] || provider_meta["name"] || Atom.to_string(id_atom) |> Macro.camelize()
       env_vars = opts[:env] || provider_meta["env"] || []
       env_atoms = env_vars |> Enum.map(&String.to_atom/1)
 
@@ -104,11 +113,12 @@ defmodule Jido.AI.Provider.Base do
       @behaviour Jido.AI.Provider.Base
 
       # Import helper functions
-      import Jido.AI.Provider.Base, only: [
-        generate_text_request: 1,
-        stream_text_request: 1,
-        extract_text_response: 1
-      ]
+      import Jido.AI.Provider.Base,
+        only: [
+          generate_text_request: 1,
+          stream_text_request: 1,
+          extract_text_response: 1
+        ]
 
       # Implement callbacks using compile-time data
       @impl true
@@ -129,7 +139,7 @@ defmodule Jido.AI.Provider.Base do
       end
 
       # Make callbacks overridable
-      defoverridable [generate_text: 3, stream_text: 3]
+      defoverridable generate_text: 3, stream_text: 3
     end
   end
 
@@ -156,14 +166,15 @@ defmodule Jido.AI.Provider.Base do
   def default_generate_text(provider_module, model, prompt, opts \\ []) do
     provider_info = provider_module.provider_info()
     api_url = provider_module.api_url()
-    
+
     # Build request options
-    request_opts = opts
-    |> Keyword.put(:prompt, prompt)
-    |> Keyword.put(:model, model)
-    |> Keyword.put(:url, api_url <> "/chat/completions")
-    |> put_api_key_from_env(provider_info)
-    
+    request_opts =
+      opts
+      |> Keyword.put(:prompt, prompt)
+      |> Keyword.put(:model, model)
+      |> Keyword.put(:url, api_url <> "/chat/completions")
+      |> put_api_key_from_env(provider_info)
+
     generate_text_request(request_opts)
   end
 
@@ -173,14 +184,15 @@ defmodule Jido.AI.Provider.Base do
   def default_stream_text(provider_module, model, prompt, opts \\ []) do
     provider_info = provider_module.provider_info()
     api_url = provider_module.api_url()
-    
+
     # Build request options
-    request_opts = opts
-    |> Keyword.put(:prompt, prompt)
-    |> Keyword.put(:model, model)
-    |> Keyword.put(:url, api_url <> "/chat/completions")
-    |> put_api_key_from_env(provider_info)
-    
+    request_opts =
+      opts
+      |> Keyword.put(:prompt, prompt)
+      |> Keyword.put(:model, model)
+      |> Keyword.put(:url, api_url <> "/chat/completions")
+      |> put_api_key_from_env(provider_info)
+
     stream_text_request(request_opts)
   end
 
@@ -213,20 +225,22 @@ defmodule Jido.AI.Provider.Base do
          {:ok, url} <- get_required_opt(opts, :url),
          {:ok, _model} <- get_required_opt(opts, :model),
          {:ok, prompt} <- get_required_opt(opts, :prompt) do
-
       # Convert prompt to messages format
       messages = [%{role: "user", content: prompt}]
 
-      request_opts = opts
-      |> Keyword.put(:messages, messages)
-      |> Keyword.take(@chat_completion_opts)
+      request_opts =
+        opts
+        |> Keyword.put(:messages, messages)
+        |> Keyword.take(@chat_completion_opts)
+
+      http_client = Config.get_http_client()
       
-      case Req.post(url,
-        json: Map.new(request_opts),
-        auth: {:bearer, api_key},
-        receive_timeout: 60_000,
-        pool_timeout: 30_000
-      ) do
+      case http_client.post(url,
+             json: Map.new(request_opts),
+             auth: {:bearer, api_key},
+             receive_timeout: 60_000,
+             pool_timeout: 30_000
+           ) do
         {:ok, response} -> extract_text_response(response)
         {:error, reason} -> {:error, Error.API.Request.exception(reason: inspect(reason))}
       end
@@ -266,58 +280,66 @@ defmodule Jido.AI.Provider.Base do
          {:ok, url} <- get_required_opt(opts, :url),
          {:ok, _model} <- get_required_opt(opts, :model),
          {:ok, prompt} <- get_required_opt(opts, :prompt) do
-
       # Convert prompt to messages format
       messages = [%{role: "user", content: prompt}]
 
-      request_opts = opts
-      |> Keyword.put(:messages, messages)
-      |> Keyword.put(:stream, true)
-      |> Keyword.take(@chat_completion_opts ++ [:stream])
-      
-      stream = Stream.resource(
-        fn ->
-          pid = self()
-          
-          Task.async(fn ->
-            try do
-              Req.post(url,
-                json: Map.new(request_opts),
-                auth: {:bearer, api_key},
-                receive_timeout: 60_000,
-                pool_timeout: 30_000,
-                into: fn {:data, data}, {req, resp} ->
-                  buffer = Req.Request.get_private(req, :sse_buffer, "")
-                  {events, new_buffer} = ServerSentEvents.parse(buffer <> data)
-                  
-                  if events != [] do
-                    send(pid, {:events, events})
+      request_opts =
+        opts
+        |> Keyword.put(:messages, messages)
+        |> Keyword.put(:stream, true)
+        |> Keyword.take(@chat_completion_opts ++ [:stream])
+
+      stream =
+        Stream.resource(
+          fn ->
+            pid = self()
+
+            Task.async(fn ->
+              http_client = Config.get_http_client()
+              
+              try do
+                http_client.post(url,
+                  json: Map.new(request_opts),
+                  auth: {:bearer, api_key},
+                  receive_timeout: 60_000,
+                  pool_timeout: 30_000,
+                  into: fn {:data, data}, {req, resp} ->
+                    buffer = Req.Request.get_private(req, :sse_buffer, "")
+                    {events, new_buffer} = ServerSentEvents.parse(buffer <> data)
+
+                    if events != [] do
+                      send(pid, {:events, events})
+                    end
+
+                    {:cont, {Req.Request.put_private(req, :sse_buffer, new_buffer), resp}}
                   end
-                  
-                  {:cont, {Req.Request.put_private(req, :sse_buffer, new_buffer), resp}}
-                end
-              )
-            rescue
-              e -> send(pid, {:error, e})
+                )
+              rescue
+                e -> send(pid, {:error, e})
+              after
+                send(pid, :done)
+              end
+            end)
+          end,
+          fn task ->
+            receive do
+              :done ->
+                {:halt, task}
+
+              {:error, error} ->
+                throw({:error, Error.API.Request.exception(reason: inspect(error))})
+
+              {:events, events} ->
+                {parse_stream_events(events), task}
             after
-              send(pid, :done)
+              15_000 -> {:halt, task}
             end
-          end)
-        end,
-        fn task ->
-          receive do
-            :done -> {:halt, task}
-            {:error, error} -> throw({:error, Error.API.Request.exception(reason: inspect(error))})
-            {:events, events} -> {parse_stream_events(events), task}
-          after
-            15_000 -> {:halt, task}
+          end,
+          fn task ->
+            Task.await(task, 15_000)
           end
-        end,
-        fn task ->
-          Task.await(task, 15_000)
-        end
-      )
-      
+        )
+
       {:ok, stream}
     else
       {:error, _} = error -> error
@@ -346,6 +368,7 @@ defmodule Jido.AI.Provider.Base do
     case body do
       %{"choices" => [%{"message" => %{"content" => content}} | _]} ->
         {:ok, content}
+
       _ ->
         {:error, Error.API.Request.exception(reason: "Invalid response format")}
     end
@@ -370,17 +393,19 @@ defmodule Jido.AI.Provider.Base do
     case provider_info.env do
       [env_var | _] when is_atom(env_var) ->
         # Convert env var to atom format expected by keyring
-        keyring_key = env_var
-        |> Atom.to_string()
-        |> String.downcase()
-        |> String.replace(~r/[^a-z0-9_]/, "_")
-        |> String.to_atom()
-        
+        keyring_key =
+          env_var
+          |> Atom.to_string()
+          |> String.downcase()
+          |> String.replace(~r/[^a-z0-9_]/, "_")
+          |> String.to_atom()
+
         case Jido.AI.Keyring.get(keyring_key) do
           nil -> opts
           api_key -> Keyword.put(opts, :api_key, api_key)
         end
-      _ -> 
+
+      _ ->
         opts
     end
   end
@@ -389,17 +414,22 @@ defmodule Jido.AI.Provider.Base do
     events
     |> Enum.flat_map(fn event ->
       case event do
-        %{data: "[DONE]"} -> 
+        %{data: "[DONE]"} ->
           []
+
         %{data: data} when is_binary(data) ->
           case Jason.decode(data) do
-            {:ok, %{"choices" => [%{"delta" => %{"content" => content}} | _]}} when is_binary(content) ->
+            {:ok, %{"choices" => [%{"delta" => %{"content" => content}} | _]}}
+            when is_binary(content) ->
               [content]
+
             {:ok, _} ->
               []
+
             {:error, _} ->
               []
           end
+
         _ ->
           []
       end
