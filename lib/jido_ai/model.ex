@@ -185,12 +185,11 @@ defmodule Jido.AI.Model do
   def from(provider_model_string) when is_binary(provider_model_string) do
     case String.split(provider_model_string, ":", parts: 2) do
       [provider_str, model_name] ->
-        try do
-          provider = String.to_existing_atom(provider_str)
-          from({provider, [model: model_name]})
-        rescue
-          ArgumentError ->
-            {:error, "Unknown provider: #{provider_str}"}
+        with {:ok, provider} <- parse_provider(provider_str),
+             {:ok, base_url} <- get_provider_info(provider) do
+          from({provider, [model: model_name, base_url: base_url]})
+        else
+          {:error, reason} -> {:error, reason}
         end
 
       _ ->
@@ -201,18 +200,44 @@ defmodule Jido.AI.Model do
   def from(_), do: {:error, "Invalid model specification"}
 
   @doc false
-  @spec get_provider_info(atom()) :: {:ok, String.t()} | {:error, String.t()}
   defp get_provider_info(provider) do
-    case provider do
-      :openai -> {:ok, "https://api.openai.com/v1"}
-      :anthropic -> {:ok, "https://api.anthropic.com/v1"}
-      :openrouter -> {:ok, "https://openrouter.ai/api/v1"}
-      :cloudflare -> {:ok, "https://api.cloudflare.com/client/v4/accounts"}
-      :google -> {:ok, "https://generativelanguage.googleapis.com/v1"}
-      :fake -> {:ok, "https://fake.test/v1"}
-      :error_provider -> {:ok, "https://error.test/v1"}
-      :stream_error -> {:ok, "https://stream-error.test/v1"}
-      _ -> {:error, "No adapter found for provider #{provider}"}
+    case Jido.AI.Provider.Registry.get_provider(provider) do
+      {:ok, mod} -> {:ok, mod.api_url()}
+      {:error, _} ->
+        # Fallback to hardcoded URLs for providers not yet implemented as modules
+        case provider do
+          :openai -> {:ok, "https://api.openai.com/v1"}
+          :anthropic -> {:ok, "https://api.anthropic.com/v1"}
+          :openrouter -> {:ok, "https://openrouter.ai/api/v1"}
+          :cloudflare -> {:ok, "https://api.cloudflare.com/client/v4/accounts"}
+          :google -> {:ok, "https://generativelanguage.googleapis.com/v1"}
+          :fake -> {:ok, "https://fake.test/v1"}
+          :error_provider -> {:ok, "https://error.test/v1"}
+          :stream_error -> {:ok, "https://stream-error.test/v1"}
+          _ -> {:error, "No adapter found for provider #{provider}"}
+        end
+    end
+  end
+
+  defp parse_provider(str) do
+    # First try the registry
+    case Jido.AI.Provider.Registry.list_providers()
+         |> Enum.find(&(&1 |> Atom.to_string() == str)) do
+      nil ->
+        # Fallback to hardcoded providers for backward compatibility
+        try do
+          atom = String.to_existing_atom(str)
+          case atom do
+            provider when provider in [:openai, :anthropic, :openrouter, :cloudflare, :google, :fake, :error_provider, :stream_error] ->
+              {:ok, provider}
+            _ ->
+              {:error, "Unknown provider: #{str}"}
+          end
+        rescue
+          ArgumentError -> {:error, "Unknown provider: #{str}"}
+        end
+      atom -> 
+        {:ok, atom}
     end
   end
 end

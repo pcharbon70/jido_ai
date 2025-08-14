@@ -263,9 +263,12 @@ defmodule Jido.AI.Keyring do
     bin_key = norm_key(key)
 
     case :ets.lookup(table, bin_key) do
-      [{^bin_key, v}] -> v
+      [{^bin_key, v}] ->
+        v
+
       [] ->
         lb = "lb_" <> bin_key
+
         case :ets.lookup(table, lb) do
           [{^lb, v}] -> v
           [] -> default

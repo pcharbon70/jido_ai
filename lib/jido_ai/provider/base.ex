@@ -235,10 +235,8 @@ defmodule Jido.AI.Provider.Base do
 
       http_client = Config.get_http_client()
 
-      recv_to = Keyword.get(opts, :receive_timeout,
-                  Config.get_timeout(:receive_timeout, 60_000))
-      pool_to = Keyword.get(opts, :pool_timeout,
-                  Config.get_timeout(:pool_timeout, 30_000))
+      recv_to = Keyword.get(opts, :receive_timeout, Config.get_timeout(:receive_timeout, 60_000))
+      pool_to = Keyword.get(opts, :pool_timeout, Config.get_timeout(:pool_timeout, 30_000))
 
       case http_client.post(url,
              json: Map.new(request_opts),
@@ -302,10 +300,11 @@ defmodule Jido.AI.Provider.Base do
             Task.async(fn ->
               http_client = Config.get_http_client()
 
-              recv_to = Keyword.get(opts, :receive_timeout,
-                          Config.get_timeout(:receive_timeout, 60_000))
-              pool_to = Keyword.get(opts, :pool_timeout,
-                          Config.get_timeout(:pool_timeout, 30_000))
+              recv_to =
+                Keyword.get(opts, :receive_timeout, Config.get_timeout(:receive_timeout, 60_000))
+
+              pool_to =
+                Keyword.get(opts, :pool_timeout, Config.get_timeout(:pool_timeout, 30_000))
 
               try do
                 http_client.post(url,
@@ -332,8 +331,12 @@ defmodule Jido.AI.Provider.Base do
             end)
           end,
           fn task ->
-            inactivity_to = Keyword.get(opts, :stream_inactivity_timeout,
-                              Config.get_timeout(:stream_inactivity_timeout, 15_000))
+            inactivity_to =
+              Keyword.get(
+                opts,
+                :stream_inactivity_timeout,
+                Config.get_timeout(:stream_inactivity_timeout, 15_000)
+              )
 
             receive do
               :done ->

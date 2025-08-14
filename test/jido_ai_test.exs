@@ -8,6 +8,8 @@ defmodule Jido.AITest do
   doctest Jido.AI
 
   defmodule FakeProvider do
+    def api_url, do: "https://fake.test/v1"
+
     def generate_text(model, prompt, opts) do
       {:ok, "#{model}:#{prompt}:#{inspect(opts)}"}
     end
@@ -110,7 +112,7 @@ defmodule Jido.AITest do
     end
 
     test "returns error for unknown provider" do
-      assert {:error, "No adapter found for provider unknown"} = AI.model("unknown:model")
+      assert {:error, "Unknown provider: unknown"} = AI.model("unknown:model")
     end
   end
 
@@ -132,6 +134,7 @@ defmodule Jido.AITest do
       stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
 
       defmodule ErrorProvider do
+        def api_url, do: "https://error.test/v1"
         def generate_text(_, _, _), do: {:error, %Jido.AI.Error.API.Request{reason: "API Error"}}
         def provider_info, do: %{id: :error_provider, env: []}
       end
@@ -177,6 +180,7 @@ defmodule Jido.AITest do
       stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
 
       defmodule StreamErrorProvider do
+        def api_url, do: "https://stream-error.test/v1"
         def stream_text(_, _, _), do: {:error, %Jido.AI.Error.API.Request{reason: "Stream Error"}}
         def provider_info, do: %{id: :stream_error, env: []}
       end
@@ -232,7 +236,7 @@ defmodule Jido.AITest do
 
   describe "error handling" do
     test "handles provider not found gracefully" do
-      assert {:error, "No adapter found for provider nonexistent"} = AI.model("nonexistent:model")
+      assert {:error, "Unknown provider: nonexistent"} = AI.model("nonexistent:model")
     end
 
     test "handles malformed model specs" do

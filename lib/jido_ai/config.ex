@@ -54,7 +54,7 @@ defmodule Jido.AI.Config do
   @config_api_key :api_key
   @config_http_client :http_client
   @config_receive_timeout :receive_timeout
-  @config_pool_timeout    :pool_timeout
+  @config_pool_timeout :pool_timeout
   @config_stream_inactivity_timeout :stream_inactivity_timeout
 
   @doc """

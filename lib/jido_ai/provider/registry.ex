@@ -27,9 +27,11 @@ defmodule Jido.AI.Provider.Registry do
   @spec get_provider(atom()) :: {:ok, module()} | {:error, Jido.AI.Error.Invalid.Parameter.t()}
   def get_provider(provider_id) do
     case :persistent_term.get(@registry_key, %{}) do
-      %{^provider_id => module} -> {:ok, module}
-      _ -> {:error,
-             Jido.AI.Error.Invalid.Parameter.exception(parameter: "provider #{provider_id}")}
+      %{^provider_id => module} ->
+        {:ok, module}
+
+      _ ->
+        {:error, Jido.AI.Error.Invalid.Parameter.exception(parameter: "provider #{provider_id}")}
     end
   end
 
