@@ -46,6 +46,4 @@ defmodule Jido.AI.Error do
       "Unknown error: #{inspect(error)}"
     end
   end
-
-
 end

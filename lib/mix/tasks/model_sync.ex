@@ -144,7 +144,6 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
   defp format_provider_name(provider_id) do
     provider_id
     |> String.split(["-", "_"])
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 end

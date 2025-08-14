@@ -51,14 +51,14 @@ defmodule Jido.AI.Provider do
 
   Returns `{:ok, value}` if found, `{:error, Error.t()}` if not found.
   """
-  @spec get_key(t(), GenServer.server()) :: {:ok, String.t()} | {:error, Error.t()}
+  @spec get_key(t(), GenServer.server()) :: {:ok, String.t()} | {:error, Exception.t()}
   def get_key(%__MODULE__{env: env_vars, id: provider_id}, keyring_server \\ Keyring) do
     case find_env_value(env_vars, keyring_server) do
       nil ->
         {:error,
-         Error.new(
-           "No environment variable found for provider '#{provider_id}'. Expected one of: #{Enum.join(env_vars, ", ")}",
-           :missing_env_var
+         Error.Invalid.Parameter.exception(
+           parameter:
+             "Environment variable for provider '#{provider_id}'. Expected one of: #{Enum.join(env_vars, ", ")}"
          )}
 
       value ->
@@ -76,7 +76,7 @@ defmodule Jido.AI.Provider do
 
   Returns `{:ok, provider}` if valid, `{:error, Error.t()}` if invalid.
   """
-  @spec validate_key(t(), GenServer.server()) :: {:ok, t()} | {:error, Error.t()}
+  @spec validate_key(t(), GenServer.server()) :: {:ok, t()} | {:error, Exception.t()}
   def validate_key(%__MODULE__{} = provider, keyring_server \\ Keyring) do
     case get_key(provider, keyring_server) do
       {:ok, _value} -> {:ok, provider}

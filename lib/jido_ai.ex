@@ -341,7 +341,7 @@ defmodule Jido.AI do
 
   """
   @spec stream_text(Model.t() | {atom(), keyword()} | String.t(), String.t(), keyword()) ::
-          {:ok, Stream.t()} | {:error, term()}
+          {:ok, Enumerable.t()} | {:error, term()}
   def stream_text(model_spec, prompt, opts \\ []) when is_binary(prompt) and is_list(opts) do
     with {:ok, model} <- ensure_model_struct(model_spec),
          {:ok, provider_module} <- get_provider_module(model.provider) do

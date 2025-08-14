@@ -51,7 +51,7 @@ defmodule Jido.AI.Provider.Base do
 
   @doc "Streams text from a string prompt, returning an Elixir Stream"
   @callback stream_text(String.t(), String.t(), keyword()) ::
-              {:ok, Stream.t()} | {:error, Error.t()}
+              {:ok, Enumerable.t()} | {:error, Error.t()}
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
@@ -234,7 +234,7 @@ defmodule Jido.AI.Provider.Base do
         |> Keyword.take(@chat_completion_opts)
 
       http_client = Config.get_http_client()
-      
+
       case http_client.post(url,
              json: Map.new(request_opts),
              auth: {:bearer, api_key},
@@ -274,7 +274,7 @@ defmodule Jido.AI.Provider.Base do
       ["Hello", " there", "!"]
 
   """
-  @spec stream_text_request(keyword()) :: {:ok, Stream.t()} | {:error, Error.t()}
+  @spec stream_text_request(keyword()) :: {:ok, Enumerable.t()} | {:error, Error.t()}
   def stream_text_request(opts \\ []) do
     with {:ok, api_key} <- get_required_opt(opts, :api_key),
          {:ok, url} <- get_required_opt(opts, :url),
@@ -296,7 +296,7 @@ defmodule Jido.AI.Provider.Base do
 
             Task.async(fn ->
               http_client = Config.get_http_client()
-              
+
               try do
                 http_client.post(url,
                   json: Map.new(request_opts),

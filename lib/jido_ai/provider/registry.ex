@@ -127,11 +127,11 @@ defmodule Jido.AI.Provider.Registry do
       {:ok, modules} -> modules
       :undefined -> []
     end
-    |> Enum.filter(&is_provider_module?/1)
+    |> Enum.filter(&provider_module?/1)
   end
 
-  @spec is_provider_module?(module()) :: boolean()
-  defp is_provider_module?(module) do
+  @spec provider_module?(module()) :: boolean()
+  defp provider_module?(module) do
     # Check if module implements Jido.AI.Provider.Base behaviour
     try do
       behaviours = module.__info__(:attributes)[:behaviour] || []
