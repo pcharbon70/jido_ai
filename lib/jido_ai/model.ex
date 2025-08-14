@@ -209,6 +209,9 @@ defmodule Jido.AI.Model do
       :openrouter -> {:ok, "https://openrouter.ai/api/v1"}
       :cloudflare -> {:ok, "https://api.cloudflare.com/client/v4/accounts"}
       :google -> {:ok, "https://generativelanguage.googleapis.com/v1"}
+      :fake -> {:ok, "https://fake.test/v1"}
+      :error_provider -> {:ok, "https://error.test/v1"}
+      :stream_error -> {:ok, "https://stream-error.test/v1"}
       _ -> {:error, "No adapter found for provider #{provider}"}
     end
   end

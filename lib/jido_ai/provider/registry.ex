@@ -63,7 +63,7 @@ defmodule Jido.AI.Provider.Registry do
     current_providers = :persistent_term.get(@registry_key, %{})
     updated_providers = Map.put(current_providers, provider_id, module)
     :persistent_term.put(@registry_key, updated_providers)
-    Logger.debug("Registered AI provider: #{provider_id} -> #{module}")
+    # Logger.debug("Registered AI provider: #{provider_id} -> #{module}")
     :ok
   end
 
@@ -75,8 +75,6 @@ defmodule Jido.AI.Provider.Registry do
   """
   @spec initialize() :: :ok
   def initialize do
-    Logger.debug("Initializing AI provider registry...")
-
     # Discover provider modules
     providers = discover_providers()
 
@@ -98,10 +96,6 @@ defmodule Jido.AI.Provider.Registry do
 
     # Store in persistent_term
     :persistent_term.put(@registry_key, registry_map)
-
-    Logger.info(
-      "Registered #{map_size(registry_map)} AI providers: #{Map.keys(registry_map) |> Enum.join(", ")}"
-    )
 
     :ok
   end

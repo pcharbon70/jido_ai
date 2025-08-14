@@ -62,7 +62,7 @@ defmodule Jido.AI do
   @spec api_key(atom()) :: String.t() | nil
   def api_key(provider \\ :openai) do
     key = :"#{provider}_api_key"
-    Keyring.get(Keyring, key)
+    Keyring.get(Keyring, key, nil)
   end
 
   @doc """
@@ -368,11 +368,14 @@ defmodule Jido.AI do
   @doc false
   @spec merge_model_options(Model.t(), keyword()) :: keyword()
   defp merge_model_options(model, opts) do
+    # Get api_key from keyring if not provided in model or opts
+    api_key = model.api_key || Keyword.get(opts, :api_key) || api_key(model.provider)
+    
     model_opts =
       []
       |> maybe_put(:temperature, model.temperature)
       |> maybe_put(:max_tokens, model.max_tokens)
-      |> maybe_put(:api_key, model.api_key)
+      |> maybe_put(:api_key, api_key)
 
     # Provided opts take precedence over model defaults
     Keyword.merge(model_opts, opts)

@@ -124,8 +124,12 @@ defmodule Jido.AI.Keyring.Filter do
         end
       end)
     else
-      # Handle regular lists
-      Enum.map(data, &sanitize_data/1)
+      # Handle regular lists - but only if it's actually a list
+      try do
+        Enum.map(data, &sanitize_data/1)
+      rescue
+        _ -> data
+      end
     end
   end
 
@@ -144,6 +148,12 @@ defmodule Jido.AI.Keyring.Filter do
       data
     end
   end
+
+  def sanitize_data(data) when is_atom(data), do: data
+  def sanitize_data(data) when is_number(data), do: data
+  def sanitize_data(data) when is_pid(data), do: data
+  def sanitize_data(data) when is_reference(data), do: data
+  def sanitize_data(data) when is_function(data), do: data
 
   def sanitize_data(data), do: data
 

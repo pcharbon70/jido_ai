@@ -109,10 +109,6 @@ defmodule Jido.AI.Keyring do
       :ets.insert(env_table, {livebook_key, value})
     end)
 
-    Logger.debug(
-      "[Jido.AI.Keyring] Initializing environment variables with ETS optimization (table: #{env_table_name})"
-    )
-
     {:ok, %{keys: keys, registry: registry, env_table: env_table, env_table_name: env_table_name}}
   end
 
@@ -186,7 +182,38 @@ defmodule Jido.AI.Keyring do
 
   ## Parameters
 
-    * `server` - The server to query (default: #{@default_name})
+    * `key` - The key to look up (as an atom)
+    * `default` - The default value if key is not found
+
+  Returns the value if found, otherwise returns the default value.
+  """
+  @spec get(atom(), term()) :: term()
+  def get(key, default \\ nil) when is_atom(key) do
+    get(@default_name, key, default, self())
+  end
+
+  @doc """
+  Gets a value from the keyring with custom server.
+
+  ## Parameters
+
+    * `server` - The server to query
+    * `key` - The key to look up (as an atom)
+    * `default` - The default value if key is not found
+
+  Returns the value if found, otherwise returns the default value.
+  """
+  @spec get(GenServer.server(), atom(), term()) :: term()
+  def get(server, key, default) when is_atom(key) and is_atom(server) do
+    get(server, key, default, self())
+  end
+
+  @doc """
+  Gets a value from the keyring with custom server and pid.
+
+  ## Parameters
+
+    * `server` - The server to query
     * `key` - The key to look up (as an atom)
     * `default` - The default value if key is not found
     * `pid` - The process ID to check session values for (default: current process)
@@ -194,7 +221,7 @@ defmodule Jido.AI.Keyring do
   Returns the value if found, otherwise returns the default value.
   """
   @spec get(GenServer.server(), atom(), term(), pid()) :: term()
-  def get(server \\ @default_name, key, default \\ nil, pid \\ self()) when is_atom(key) do
+  def get(server, key, default, pid) when is_atom(key) do
     case get_session_value(server, key, pid) do
       nil -> get_env_value(server, key, default)
       value -> value
@@ -344,18 +371,21 @@ defmodule Jido.AI.Keyring do
 
   @impl true
   def handle_call(
-        {:set_test_env_vars, env_vars},
+        {:clear_and_set_test_env_vars, env_vars},
         _from,
-        %{keys: keys, env_table: env_table} = state
+        %{env_table: env_table} = state
       )
       when is_map(env_vars) do
+    # Clear all existing environment variables
+    :ets.delete_all_objects(env_table)
+
     atom_env_vars =
       Enum.reduce(env_vars, %{}, fn {key, value}, acc ->
         atom_key = env_var_to_atom(key)
         Map.put(acc, atom_key, value)
       end)
 
-    # Update both the state and the ETS table
+    # Update the ETS table with only the new variables
     Enum.each(atom_env_vars, fn {key, value} ->
       :ets.insert(env_table, {key, value})
       # Also insert LiveBook prefixed version
@@ -363,8 +393,30 @@ defmodule Jido.AI.Keyring do
       :ets.insert(env_table, {livebook_key, value})
     end)
 
-    new_keys = Map.merge(keys, atom_env_vars)
-    {:reply, :ok, %{state | keys: new_keys}}
+    # Replace the state keys entirely
+    {:reply, :ok, %{state | keys: atom_env_vars}}
+  end
+
+  # Backward compatibility for old handler name
+  @impl true
+  def handle_call({:set_test_env_vars, env_vars}, from, state) do
+    handle_call({:clear_and_set_test_env_vars, env_vars}, from, state)
+  end
+
+  @doc """
+  Sets test environment variables for testing purposes.
+  This replaces all existing environment variables with the provided ones.
+
+  ## Parameters
+
+    * `env_vars` - A map of environment variables to set
+    * `server` - The keyring server name (optional)
+
+  Returns :ok on success.
+  """
+  @spec set_test_env_vars(map(), atom()) :: :ok
+  def set_test_env_vars(env_vars, server \\ @default_name) when is_map(env_vars) do
+    GenServer.call(server, {:set_test_env_vars, env_vars})
   end
 
   @doc """
@@ -387,15 +439,42 @@ defmodule Jido.AI.Keyring do
   end
 
   @doc """
-  Checks if a value exists and is non-empty.
+  Checks if a key has a value and the value is non-empty.
 
-  Returns `true` if the value is a non-empty string, `false` otherwise.
+  ## Parameters
+
+    * `key` - The key to check
+    * `server` - The keyring server to query (default: #{@default_name})
+
+  Returns `true` if the key has a non-empty value, `false` otherwise.
   """
-  @spec has_value?(term()) :: boolean()
-  def has_value?(nil), do: false
+  @spec has_value?(atom()) :: boolean()
+  def has_value?(key) when is_atom(key) do
+    has_value?(key, @default_name)
+  end
+
+  @spec has_value?(String.t()) :: boolean()
   def has_value?(""), do: false
-  def has_value?(value) when is_binary(value), do: true
-  def has_value?(_), do: false
+
+  def has_value?(key) when is_binary(key) do
+    atom_key = String.to_atom(key)
+    has_value?(atom_key)
+  end
+
+  @spec has_value?(atom(), GenServer.server()) :: boolean()
+  def has_value?(key, server) when is_atom(key) and is_atom(server) do
+    value = get(server, key, nil, self())
+    value_exists?(value)
+  end
+
+  @doc """
+  Checks if a value exists.
+
+  Returns `true` if the value is not nil, `false` otherwise.
+  """
+  @spec value_exists?(term()) :: boolean()
+  def value_exists?(nil), do: false
+  def value_exists?(_), do: true
 
   @impl true
   @spec terminate(term(), map()) :: :ok
