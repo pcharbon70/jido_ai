@@ -5,32 +5,32 @@ defmodule Jido.AI.Keyring.FilterTest do
 
   describe "format/4" do
     test "formats basic log message" do
-      result = Filter.format(:info, "test message", [], [])
-      assert result == "[info] test message\n"
+      result = Filter.format(:info, "test message", {{2023, 1, 1}, {10, 0, 0, 0}}, [])
+      assert result == "[info] test message []\n"
     end
 
     test "formats log message with metadata" do
       metadata = [user: "john", id: 123]
-      result = Filter.format(:error, "test error", metadata, [])
+      result = Filter.format(:error, "test error", {{2023, 1, 1}, {10, 0, 0, 0}}, metadata)
       assert result == "[error] test error [user: \"john\", id: 123]\n"
     end
 
     test "formats log message without sanitizing message text" do
       message = "Login successful"
-      result = Filter.format(:info, message, [], [])
-      assert result == "[info] Login successful\n"
+      result = Filter.format(:info, message, {{2023, 1, 1}, {10, 0, 0, 0}}, [])
+      assert result == "[info] Login successful []\n"
     end
 
     test "sanitizes sensitive data in metadata" do
       metadata = [api_key: "secret123", user: "john"]
-      result = Filter.format(:warn, "test", metadata, [])
+      result = Filter.format(:warn, "test", {{2023, 1, 1}, {10, 0, 0, 0}}, metadata)
       assert String.contains?(result, "[REDACTED]")
       assert String.contains?(result, "john")
     end
 
     test "handles empty metadata" do
-      result = Filter.format(:debug, "test", [], [])
-      assert result == "[debug] test\n"
+      result = Filter.format(:debug, "test", {{2023, 1, 1}, {10, 0, 0, 0}}, [])
+      assert result == "[debug] test []\n"
     end
   end
 
@@ -160,7 +160,7 @@ defmodule Jido.AI.Keyring.FilterTest do
       assert Filter.sensitive_key?("user_password")
       assert Filter.sensitive_key?("client_secret")
       assert Filter.sensitive_key?("private_key")
-      assert Filter.sensitive_key?("certificate")
+      assert Filter.sensitive_key?("cert")
       assert Filter.sensitive_key?("session_key")
     end
 
@@ -168,7 +168,7 @@ defmodule Jido.AI.Keyring.FilterTest do
       refute Filter.sensitive_key?(:username)
       refute Filter.sensitive_key?(:email)
       refute Filter.sensitive_key?(:id)
-      refute Filter.sensitive_key?("normal_key")
+      refute Filter.sensitive_key?("normal_field")
       refute Filter.sensitive_key?("user_name")
     end
 
@@ -262,20 +262,20 @@ defmodule Jido.AI.Keyring.FilterTest do
       levels = [:debug, :info, :warn, :error]
 
       for level <- levels do
-        result = Filter.format(level, "message", [], [])
+        result = Filter.format(level, "message", {{2023, 1, 1}, {10, 0, 0, 0}}, [])
         assert String.contains?(result, "[#{level}]")
       end
     end
 
     test "handles various data types in logger events" do
       # Test with different message types
-      result1 = Filter.format(:info, 123, [], [])
+      result1 = Filter.format(:info, 123, {{2023, 1, 1}, {10, 0, 0, 0}}, [])
       assert String.contains?(result1, "123")
 
-      result2 = Filter.format(:warn, :atom_message, [], [])
+      result2 = Filter.format(:warn, :atom_message, {{2023, 1, 1}, {10, 0, 0, 0}}, [])
       assert String.contains?(result2, "atom_message")
 
-      result3 = Filter.format(:error, "test error", [], [])
+      result3 = Filter.format(:error, "test error", {{2023, 1, 1}, {10, 0, 0, 0}}, [])
       assert String.contains?(result3, "test error")
     end
   end

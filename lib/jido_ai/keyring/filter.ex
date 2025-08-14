@@ -28,17 +28,15 @@ defmodule Jido.AI.Keyring.Filter do
   # Get sensitive patterns - defined as function to avoid compile-time reference issues
   defp sensitive_patterns do
     [
-      ~r/.*api_?key.*/i,
-      ~r/.*token.*/i,
-      ~r/.*password.*/i,
-      ~r/.*secret.*/i,
-      ~r/.*pass$/i,
-      ~r/.*auth.*/i,
-      ~r/.*bearer.*/i,
-      ~r/.*private_key.*/i,
-      ~r/.*cert.*/i,
-      ~r/.*pem.*/i,
-      ~r/^(private|encryption|signing|access|session)_key$/i
+      ~r/(^|[^a-z0-9])api[_-]?key($|[^a-z0-9])/i,
+      ~r/(^|[^a-z0-9])(access|session)?[_-]?token($|[^a-z0-9])/i,
+      ~r/(^|[^a-z0-9])bearer($|[^a-z0-9])/i,
+      ~r/(^|[^a-z0-9])auth($|[^a-z0-9])/i,
+      ~r/(^|[^a-z0-9])password|pass(word)?($|[^a-z0-9])/i,
+      ~r/(^|[^a-z0-9])secret($|[^a-z0-9])/i,
+      ~r/(^|[^a-z0-9])(private|encryption|signing|access|session)?[_-]?key($|[^a-z0-9])/i,
+      ~r/(^|[^a-z0-9])cert($|[^a-z0-9])/i,
+      ~r/(^|[^a-z0-9])pem($|[^a-z0-9])/i
     ]
   end
 
@@ -48,21 +46,12 @@ defmodule Jido.AI.Keyring.Filter do
   This function is used as a logger formatter to automatically sanitize
   log messages and metadata before they are output.
   """
-  @spec format(Logger.level(), Logger.message(), Logger.metadata(), keyword()) :: IO.chardata()
-  def format(level, message, metadata, _opts) do
-    # Sanitize both message and metadata
-    sanitized_message = sanitize_data(message)
-
-    # Sanitize metadata - keep all metadata and just sanitize the sensitive parts
-    sanitized_metadata = sanitize_data(metadata)
-
-    formatted_metadata =
-      case sanitized_metadata do
-        [] -> ""
-        md -> " " <> inspect(md)
-      end
-
-    "[#{level}] #{sanitized_message}#{formatted_metadata}\n"
+  @spec format(Logger.level(), Logger.message(), Logger.Formatter.time(), Logger.metadata()) ::
+          IO.chardata()
+  def format(level, message, ts, metadata) do
+    msg = sanitize_logger_message(message)
+    md  = sanitize_data(metadata)
+    ["[", to_string(level), "] ", msg, " ", inspect(md), "\n"] |> IO.iodata_to_binary()
   end
 
   @doc """
@@ -199,27 +188,21 @@ defmodule Jido.AI.Keyring.Filter do
       String.length(value) > 20 and Regex.match?(~r/^[A-Za-z0-9+\/=_-]+$/, value) ->
         true
 
-      # JWT tokens (have dots separating parts)
       String.length(value) > 50 and String.contains?(value, ".") and
-          Regex.match?(~r/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, value) ->
-        true
-
-      # GitHub/GitLab tokens (start with specific prefixes)
-      Regex.match?(~r/^(gh[pousr]_|glpat-|gho_|ghu_|ghs_|ghr_)/, value) ->
-        true
-
-      # AWS access keys
-      Regex.match?(~r/^AKIA[0-9A-Z]{16}$/, value) ->
-        true
-
-      # Common API key patterns
-      Regex.match?(~r/^sk-[A-Za-z0-9]{32,}$/, value) ->
-        true
-
-      true ->
-        false
+        Regex.match?(~r/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, value) -> true
+      Regex.match?(~r/^(gh[pousr]_|glpat-|gho_|ghu_|ghs_|ghr_)/, value) -> true
+      Regex.match?(~r/^AKIA[0-9A-Z]{16}$/, value) -> true
+      Regex.match?(~r/^sk-[A-Za-z0-9]{32,}$/, value) -> true
+      true -> false
     end
   end
 
   def looks_like_sensitive_value?(_), do: false
+
+  defp sanitize_logger_message(fun) when is_function(fun, 0),
+    do: sanitize_logger_message(fun.())
+  defp sanitize_logger_message(iodata) when is_binary(iodata) or is_list(iodata),
+    do: iodata |> IO.iodata_to_binary() |> sanitize_data()
+  defp sanitize_logger_message(other),
+    do: other |> to_string() |> sanitize_data()
 end
