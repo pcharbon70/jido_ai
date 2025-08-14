@@ -28,7 +28,7 @@ defmodule Jido.AI.Model do
     field(:temperature, float() | nil)
     field(:max_tokens, non_neg_integer() | nil)
     field(:max_retries, non_neg_integer() | nil)
-    
+
     # Metadata fields from models.dev schema
     field(:id, String.t())
     field(:name, String.t())
@@ -50,34 +50,33 @@ defmodule Jido.AI.Model do
     field(:limit, limit())
   end
 
-  @cost_schema NimbleOptions.new!([
-    input: [type: {:or, [:integer, :float]}, required: true],
-    output: [type: {:or, [:integer, :float]}, required: true],
-    cache_read: [type: {:or, [:integer, :float]}, required: false],
-    cache_write: [type: {:or, [:integer, :float]}, required: false]
-  ])
+  @cost_schema NimbleOptions.new!(
+                 input: [type: {:or, [:integer, :float]}, required: true],
+                 output: [type: {:or, [:integer, :float]}, required: true],
+                 cache_read: [type: {:or, [:integer, :float]}, required: false],
+                 cache_write: [type: {:or, [:integer, :float]}, required: false]
+               )
 
-  @limit_schema NimbleOptions.new!([
-    context: [type: :non_neg_integer, required: true],
-    output: [type: :non_neg_integer, required: true]
-  ])
+  @limit_schema NimbleOptions.new!(
+                  context: [type: :non_neg_integer, required: true],
+                  output: [type: :non_neg_integer, required: true]
+                )
 
-  @schema NimbleOptions.new!([
-    id: [type: :string, required: true],
-    name: [type: :string, required: true],
-    attachment: [type: :boolean, required: true],
-    reasoning: [type: :boolean, required: true],
-    supports_temperature: [type: :boolean, required: true],
-    tool_call: [type: :boolean, required: true],
-    knowledge: [type: :string, required: false],
-    release_date: [type: :string, required: true],
-    last_updated: [type: :string, required: true],
-    modalities: [type: :map, required: true],
-    open_weights: [type: :boolean, required: true],
-    cost: [type: {:custom, __MODULE__, :validate_cost, []}, required: false],
-    limit: [type: {:custom, __MODULE__, :validate_limit, []}, required: true]
-  ])
-
+  @schema NimbleOptions.new!(
+            id: [type: :string, required: true],
+            name: [type: :string, required: true],
+            attachment: [type: :boolean, required: true],
+            reasoning: [type: :boolean, required: true],
+            supports_temperature: [type: :boolean, required: true],
+            tool_call: [type: :boolean, required: true],
+            knowledge: [type: :string, required: false],
+            release_date: [type: :string, required: true],
+            last_updated: [type: :string, required: true],
+            modalities: [type: :map, required: true],
+            open_weights: [type: :boolean, required: true],
+            cost: [type: {:custom, __MODULE__, :validate_cost, []}, required: false],
+            limit: [type: {:custom, __MODULE__, :validate_limit, []}, required: true]
+          )
 
   @doc """
   Validates that a model struct conforms to the schema requirements using NimbleOptions.
@@ -147,7 +146,7 @@ defmodule Jido.AI.Model do
 
   def from({provider, opts}) when is_atom(provider) and is_list(opts) do
     model_name = Keyword.get(opts, :model)
-    
+
     if is_nil(model_name) do
       {:error, "model is required in options"}
     else
@@ -174,8 +173,9 @@ defmodule Jido.AI.Model do
             open_weights: false,
             limit: %{context: 128_000, output: 4096}
           }
+
           {:ok, model}
-        
+
         {:error, reason} ->
           {:error, reason}
       end
@@ -192,7 +192,7 @@ defmodule Jido.AI.Model do
           ArgumentError ->
             {:error, "Unknown provider: #{provider_str}"}
         end
-      
+
       _ ->
         {:error, "Invalid model specification. Expected format: 'provider:model'"}
     end
@@ -212,5 +212,4 @@ defmodule Jido.AI.Model do
       _ -> {:error, "No adapter found for provider #{provider}"}
     end
   end
-
 end

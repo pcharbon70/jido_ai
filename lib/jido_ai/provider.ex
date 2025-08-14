@@ -17,13 +17,13 @@ defmodule Jido.AI.Provider do
     field(:models, %{String.t() => Model.t()})
   end
 
-  @schema NimbleOptions.new!([
-    id: [type: :atom, required: true],
-    env: [type: {:list, :atom}, required: true],
-    name: [type: :string, required: true],
-    doc: [type: :string, required: true],
-    models: [type: :map, required: true]
-  ])
+  @schema NimbleOptions.new!(
+            id: [type: :atom, required: true],
+            env: [type: {:list, :atom}, required: true],
+            name: [type: :string, required: true],
+            doc: [type: :string, required: true],
+            models: [type: :map, required: true]
+          )
 
   @doc """
   Validates that a provider struct conforms to the schema requirements using NimbleOptions.
@@ -31,6 +31,7 @@ defmodule Jido.AI.Provider do
   @spec validate(t()) :: {:ok, t()} | {:error, NimbleOptions.ValidationError.t()}
   def validate(%__MODULE__{} = provider) do
     provider_map = Map.from_struct(provider)
+
     case NimbleOptions.validate(provider_map, @schema) do
       {:ok, _validated} -> {:ok, provider}
       error -> error
@@ -54,8 +55,12 @@ defmodule Jido.AI.Provider do
   def get_key(%__MODULE__{env: env_vars, id: provider_id}, keyring_server \\ Keyring) do
     case find_env_value(env_vars, keyring_server) do
       nil ->
-        {:error, Error.new("No environment variable found for provider '#{provider_id}'. Expected one of: #{Enum.join(env_vars, ", ")}", :missing_env_var)}
-      
+        {:error,
+         Error.new(
+           "No environment variable found for provider '#{provider_id}'. Expected one of: #{Enum.join(env_vars, ", ")}",
+           :missing_env_var
+         )}
+
       value ->
         {:ok, value}
     end

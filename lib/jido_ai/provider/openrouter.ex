@@ -1,7 +1,7 @@
 defmodule Jido.AI.Provider.OpenRouter do
   @moduledoc """
   OpenRouter provider implementation for text generation.
-  
+
   OpenRouter acts as a proxy for multiple AI providers, providing
   unified access to models from various companies.
 
@@ -14,7 +14,7 @@ defmodule Jido.AI.Provider.OpenRouter do
       {:ok, "Hello! How can I help you today?"}
 
   """
-  
+
   use Jido.AI.Provider.Base,
     json: "openrouter.json",
     base_url: "https://openrouter.ai/api/v1"
