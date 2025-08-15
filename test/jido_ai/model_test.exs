@@ -1,7 +1,7 @@
 defmodule Jido.AI.ModelTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
-  import JidoAI.TestUtils
+  import Jido.AI.TestUtils
 
   doctest Jido.AI.Model
 

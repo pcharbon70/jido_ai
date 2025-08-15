@@ -37,7 +37,7 @@ defmodule Jido.AI.Provider.Base do
 
   """
 
-  alias Jido.AI.{Provider, Error, Config}
+  alias Jido.AI.{Provider, Error}
 
   @doc "Returns provider information"
   @callback provider_info() :: Provider.t()
@@ -233,10 +233,10 @@ defmodule Jido.AI.Provider.Base do
         |> Keyword.put(:messages, messages)
         |> Keyword.take(@chat_completion_opts)
 
-      http_client = Config.get_http_client()
+      http_client = Jido.AI.config([:http_client], Req)
 
-      recv_to = Keyword.get(opts, :receive_timeout, Config.get_timeout(:receive_timeout, 60_000))
-      pool_to = Keyword.get(opts, :pool_timeout, Config.get_timeout(:pool_timeout, 30_000))
+      recv_to = Keyword.get(opts, :receive_timeout, Jido.AI.config([:receive_timeout], 60_000))
+      pool_to = Keyword.get(opts, :pool_timeout, Jido.AI.config([:pool_timeout], 30_000))
 
       case http_client.post(url,
              json: Map.new(request_opts),
@@ -298,13 +298,13 @@ defmodule Jido.AI.Provider.Base do
             pid = self()
 
             Task.async(fn ->
-              http_client = Config.get_http_client()
+              http_client = Jido.AI.config([:http_client], Req)
 
               recv_to =
-                Keyword.get(opts, :receive_timeout, Config.get_timeout(:receive_timeout, 60_000))
+                Keyword.get(opts, :receive_timeout, Jido.AI.config([:receive_timeout], 60_000))
 
               pool_to =
-                Keyword.get(opts, :pool_timeout, Config.get_timeout(:pool_timeout, 30_000))
+                Keyword.get(opts, :pool_timeout, Jido.AI.config([:pool_timeout], 30_000))
 
               try do
                 http_client.post(url,
@@ -335,7 +335,7 @@ defmodule Jido.AI.Provider.Base do
               Keyword.get(
                 opts,
                 :stream_inactivity_timeout,
-                Config.get_timeout(:stream_inactivity_timeout, 15_000)
+                Jido.AI.config([:stream_inactivity_timeout], 15_000)
               )
 
             receive do
@@ -406,7 +406,7 @@ defmodule Jido.AI.Provider.Base do
   end
 
   defp put_api_key_from_env(opts, provider_info) do
-    case Jido.AI.Config.get_api_key(provider_info.id) do
+    case Jido.AI.config([provider_info.id, :api_key]) do
       nil -> opts
       key -> Keyword.put_new(opts, :api_key, key)
     end

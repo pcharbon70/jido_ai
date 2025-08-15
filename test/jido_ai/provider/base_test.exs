@@ -1,13 +1,13 @@
 defmodule Jido.AI.Provider.BaseTest do
   use ExUnit.Case, async: true
   import Mimic
-  import JidoAI.TestUtils
+  import Jido.AI.TestUtils
 
   alias Jido.AI.Provider.Base
 
   setup do
-    copy(Jido.AI.Config)
     copy(Jido.AI.Keyring)
+    Application.put_env(:jido_ai, :http_client, Req)
     :ok
   end
 
@@ -15,8 +15,6 @@ defmodule Jido.AI.Provider.BaseTest do
 
   describe "generate_text_request/1" do
     test "returns error when api_key missing" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
-
       opts = [model: "gpt-4", prompt: "test", api_key: nil]
 
       assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
@@ -24,8 +22,6 @@ defmodule Jido.AI.Provider.BaseTest do
     end
 
     test "returns error when prompt missing" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
-
       opts = [model: "gpt-4", api_key: "test-key", prompt: nil]
 
       assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
@@ -60,7 +56,6 @@ defmodule Jido.AI.Provider.BaseTest do
     end
 
     test "handles network errors" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, fn _, _ -> {:error, %Req.TransportError{reason: :timeout}} end)
 
       opts = [
@@ -84,7 +79,6 @@ defmodule Jido.AI.Provider.BaseTest do
         mock_success_response()
       end
 
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, mock_req)
 
       opts = [
@@ -189,8 +183,6 @@ defmodule Jido.AI.Provider.BaseTest do
 
   describe "stream_text_request/1" do
     test "returns error when api_key missing" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
-
       opts = [model: "gpt-4", prompt: "test", api_key: nil]
 
       assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
@@ -198,8 +190,6 @@ defmodule Jido.AI.Provider.BaseTest do
     end
 
     test "returns error when prompt missing" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
-
       opts = [model: "gpt-4", api_key: "test-key", prompt: nil]
 
       assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
@@ -207,8 +197,6 @@ defmodule Jido.AI.Provider.BaseTest do
     end
 
     test "returns error when url missing" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
-
       opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello"]
 
       assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
@@ -216,8 +204,6 @@ defmodule Jido.AI.Provider.BaseTest do
     end
 
     test "returns error when model missing" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
-
       opts = [
         api_key: "test-key",
         prompt: "Hello",
@@ -229,7 +215,6 @@ defmodule Jido.AI.Provider.BaseTest do
     end
 
     test "returns stream for HTTP request" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, fn _, _ -> {:ok, %Req.Response{status: 200, body: %{}}} end)
 
       opts = [
@@ -244,7 +229,6 @@ defmodule Jido.AI.Provider.BaseTest do
     end
 
     test "returns ok with stream structure" do
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, fn _, _ -> {:ok, %Req.Response{status: 200, body: %{}}} end)
 
       opts = [
@@ -273,7 +257,6 @@ defmodule Jido.AI.Provider.BaseTest do
         mock_success_response()
       end
 
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, mock_req)
 
       opts = [
@@ -300,7 +283,6 @@ defmodule Jido.AI.Provider.BaseTest do
         {:ok, %Req.Response{status: 200, body: %{}}}
       end
 
-      stub(Jido.AI.Config, :get_http_client, fn -> Req end)
       stub(Req, :post, mock_req)
 
       opts = [

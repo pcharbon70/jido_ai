@@ -1,4 +1,4 @@
-defmodule JidoAI.TestUtils do
+defmodule Jido.AI.TestUtils do
   @moduledoc """
   Test support utilities for the JidoAI package.
 
@@ -316,7 +316,7 @@ defmodule JidoAI.TestUtils do
   Mocks a successful HTTP request with default OpenAI response.
   """
   def mock_http_success do
-    stub(Jido.AI.Config, :get_http_client, fn -> Req end)
+    Application.put_env(:jido_ai, :http_client, Req)
 
     stub(Req, :post, fn _client, _opts ->
       mock_success_response()
@@ -347,7 +347,7 @@ defmodule JidoAI.TestUtils do
   def mock_http_error(status_or_url, body_or_error_reason \\ :timeout)
 
   def mock_http_error(status, body) when is_integer(status) do
-    stub(Jido.AI.Config, :get_http_client, fn -> Req end)
+    Application.put_env(:jido_ai, :http_client, Req)
 
     stub(Req, :post, fn _client, _opts ->
       {:ok, %Req.Response{status: status, body: body}}
@@ -380,7 +380,7 @@ defmodule JidoAI.TestUtils do
   Mocks SSE stream with the given chunks.
   """
   def mock_sse_stream(chunks) do
-    stub(Jido.AI.Config, :get_http_client, fn -> Req end)
+    Application.put_env(:jido_ai, :http_client, Req)
 
     stub(Req, :post, fn _client, _opts ->
       # Create a stream from the chunks

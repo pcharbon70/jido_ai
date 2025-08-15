@@ -1,7 +1,7 @@
 defmodule Jido.AITest do
   use ExUnit.Case, async: true
   import Mimic
-  import JidoAI.TestUtils
+  import Jido.AI.TestUtils
 
   alias Jido.AI
 
@@ -59,28 +59,20 @@ defmodule Jido.AITest do
     end
   end
 
-  describe "model_name/1" do
-    test "returns default when not configured" do
-      stub(Jido.AI.Keyring, :get, fn _, _, default -> default end)
-      assert AI.model_name(:openai) == "gpt-4o"
+  describe "provider/1" do
+    test "returns provider module from registry" do
+      assert {:ok, FakeProvider} = AI.provider(:fake)
     end
 
-    test "returns configured model name" do
-      stub(Jido.AI.Keyring, :get, fn
-        Jido.AI.Keyring, :openai_model, "gpt-4o" -> "gpt-4"
-        _, _, default -> default
-      end)
-
-      assert AI.model_name(:openai) == "gpt-4"
+    test "returns error for unknown provider" do
+      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = AI.provider(:unknown)
     end
+  end
 
-    test "respects keyring override" do
-      stub(Jido.AI.Keyring, :get, fn
-        Jido.AI.Keyring, :openai_model, "gpt-4o" -> "custom-model"
-        _, _, default -> default
-      end)
-
-      assert AI.model_name(:openai) == "custom-model"
+  describe "list_keys/0" do
+    test "delegates to keyring" do
+      stub(Jido.AI.Keyring, :list, fn Jido.AI.Keyring -> [:key1, :key2] end)
+      assert AI.list_keys() == [:key1, :key2]
     end
   end
 
@@ -208,29 +200,6 @@ defmodule Jido.AITest do
 
       {:ok, result} = AI.generate_text(model, "hello")
       assert result =~ "api_key: \"fake-secret\""
-    end
-
-    test "model_name uses keyring configuration" do
-      stub(Jido.AI.Keyring, :get, fn
-        Jido.AI.Keyring, :fake_model, "gpt-4o" -> "custom-model"
-        _, _, default -> default
-      end)
-
-      assert AI.model_name(:fake) == "custom-model"
-    end
-  end
-
-  describe "session configuration" do
-    test "session values override global config" do
-      stub(Jido.AI.Keyring, :get, fn
-        Jido.AI.Keyring, :fake_api_key, nil -> "session-key"
-        _, _, default -> default
-      end)
-
-      model = {:fake, model: "fake-model"}
-
-      {:ok, result} = AI.generate_text(model, "hello")
-      assert result =~ "api_key: \"session-key\""
     end
   end
 

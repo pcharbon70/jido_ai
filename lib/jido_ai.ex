@@ -1,11 +1,12 @@
 defmodule Jido.AI do
   @moduledoc """
-  High-level AI interface with ergonomic APIs for chat, models, and configuration.
+  Jido AI interface with ergonomic APIs for models, providers, and text generation.
 
   This module provides a simplified facade for common AI operations, including:
-  - Provider configuration and API key management
+  - Provider registry access
+  - API key management
   - Model creation and configuration
-  - Chat completion and streaming
+  - Text generation and streaming
 
   ## Configuration API
 
@@ -13,17 +14,13 @@ defmodule Jido.AI do
       Jido.AI.api_key(:openai)
       Jido.AI.api_key(:anthropic)
 
-      # Get model names with defaults
-      Jido.AI.model_name(:openai)  # "gpt-4o"
-      Jido.AI.model_name(:anthropic)  # "claude-3-5-sonnet-20241022"
+      # Get provider from registry
+      {:ok, provider_module} = Jido.AI.provider(:openai)
 
-      # Get provider configuration
-      Jido.AI.provider_config(:openai)
+      # List all configuration keys
+      Jido.AI.list_keys()
 
-      # Get any configuration key
-      Jido.AI.config(:max_tokens, 1000)
-
-  ## Model and Chat API
+  ## Model and Text Generation API
 
       # Create models - multiple formats supported
       {:ok, model} = Jido.AI.model("openrouter:anthropic/claude-3.5-sonnet")
@@ -34,9 +31,8 @@ defmodule Jido.AI do
       {:ok, text} = Jido.AI.generate_text("openrouter:anthropic/claude-3.5-sonnet", "Hello!", [])
       {:ok, text} = Jido.AI.generate_text({:openrouter, model: "anthropic/claude-3.5-sonnet"}, "Tell me a joke", [])
 
-      # Chat completions
-      Jido.AI.chat(model, messages)
-      Jido.AI.stream(model, messages)
+      # Text streaming
+      {:ok, stream} = Jido.AI.stream_text("openrouter:anthropic/claude-3.5-sonnet", "Hello!", [])
 
   """
 
@@ -66,154 +62,6 @@ defmodule Jido.AI do
   end
 
   @doc """
-  Gets the default model name for a specific provider.
-
-  ## Parameters
-
-    * `provider` - The AI provider (default: :openai)
-
-  ## Examples
-
-      Jido.AI.model_name(:openai)     # "gpt-4o"
-      Jido.AI.model_name(:anthropic)  # "claude-3-5-sonnet-20241022"
-
-  """
-  @spec model_name(atom()) :: String.t()
-  def model_name(provider \\ :openai) do
-    default_model =
-      case provider do
-        :openai -> "gpt-4o"
-        :anthropic -> "claude-3-5-sonnet-20241022"
-        :azure -> "gpt-4o"
-        :ollama -> "llama3.2"
-        _ -> "gpt-4o"
-      end
-
-    key = :"#{provider}_model"
-    Keyring.get(Keyring, key, default_model)
-  end
-
-  @doc """
-  Gets the complete configuration for a specific provider.
-
-  ## Parameters
-
-    * `provider` - The AI provider
-
-  ## Examples
-
-      Jido.AI.provider_config(:openai)
-      # %{api_key: "sk-...", model: "gpt-4o", base_url: "https://api.openai.com/v1"}
-
-  """
-  @spec provider_config(atom()) :: map()
-  def provider_config(provider) do
-    Keyring.get(Keyring, provider, %{})
-  end
-
-  @doc """
-  Gets a configuration value with an optional default.
-
-  This is the most general configuration accessor.
-
-  ## Parameters
-
-    * `key` - The configuration key (atom)
-    * `default` - Default value if key not found (default: nil)
-
-  ## Examples
-
-      Jido.AI.config(:max_tokens, 1000)
-      Jido.AI.config(:temperature, 0.7)
-
-  """
-  @spec config(atom(), term()) :: term()
-  def config(key, default \\ nil) do
-    Keyring.get(Keyring, key, default)
-  end
-
-  # ===========================================================================
-  # Session Management - Direct delegation to Keyring
-  # ===========================================================================
-
-  @doc """
-  Sets a session-specific configuration value.
-
-  ## Parameters
-
-    * `key` - The configuration key (atom)
-    * `value` - The value to store
-
-  ## Examples
-
-      Jido.AI.set_session_value(:temperature, 0.9)
-
-  """
-  @spec set_session_value(atom(), term()) :: :ok
-  def set_session_value(key, value) do
-    Keyring.set_session_value(Keyring, key, value)
-  end
-
-  @doc """
-  Gets a session-specific configuration value.
-
-  ## Parameters
-
-    * `key` - The configuration key (atom)
-    * `pid` - Process ID (default: current process)
-
-  """
-  @spec get_session_value(atom(), pid()) :: term() | nil
-  def get_session_value(key, pid \\ self()) do
-    Keyring.get_session_value(Keyring, key, pid)
-  end
-
-  @doc """
-  Clears a session-specific configuration value.
-
-  ## Parameters
-
-    * `key` - The configuration key (atom)
-    * `pid` - Process ID (default: current process)
-
-  """
-  @spec clear_session_value(atom(), pid()) :: :ok
-  def clear_session_value(key, pid \\ self()) do
-    Keyring.clear_session_value(Keyring, key, pid)
-  end
-
-  @doc """
-  Clears all session-specific configuration values for the current process.
-
-  ## Parameters
-
-    * `pid` - Process ID (default: current process)
-
-  """
-  @spec clear_all_session_values(pid()) :: :ok
-  def clear_all_session_values(pid \\ self()) do
-    Keyring.clear_all_session_values(Keyring, pid)
-  end
-
-  # ===========================================================================
-  # Backward compatibility with cleaner names
-  # ===========================================================================
-
-  @doc """
-  Gets a configuration value (alias for config/2).
-
-  ## Examples
-
-      Jido.AI.get(:my_setting)
-      Jido.AI.get(:my_setting, "default")
-
-  """
-  @spec get(atom(), term()) :: term()
-  def get(key, default \\ nil) do
-    config(key, default)
-  end
-
-  @doc """
   Lists all available configuration keys.
 
   Returns a list of atoms representing available configuration keys.
@@ -223,9 +71,94 @@ defmodule Jido.AI do
     Keyring.list(Keyring)
   end
 
+  @doc """
+  Gets configuration values using atom list paths with Keyring fallback.
+
+  Supports various configuration access patterns:
+  - Simple keys: `[:http_client]` 
+  - Provider configs: `[:openai]` 
+  - Nested provider settings: `[:openai, :api_key]`
+  - Timeout configs: `[:receive_timeout]`
+
+  ## Examples
+
+      # Get provider config
+      Jido.AI.config([:openai])
+      
+      # Get specific provider setting
+      Jido.AI.config([:openai, :base_url])
+      
+      # Get timeout with default
+      Jido.AI.config([:receive_timeout], 60_000)
+      
+      # Get API key with Keyring fallback
+      Jido.AI.config([:openai, :api_key])
+  """
+  @spec config(list(atom()), term()) :: term()
+  def config(keyspace, default \\ nil)
+
+  def config([main_key | rest] = keyspace, default) when is_list(keyspace) do
+    case Application.get_env(:jido_ai, main_key) do
+      nil when rest == [] ->
+        # For simple keys like [:http_client], try keyring fallback
+        Keyring.get(Keyring, main_key, default)
+
+      nil ->
+        # For nested keys like [:openai, :api_key], check keyring with provider format
+        if length(rest) == 1 and hd(rest) == :api_key do
+          key = :"#{main_key}_api_key"
+          Keyring.get(Keyring, key, default)
+        else
+          default
+        end
+
+      main when rest == [] ->
+        main
+
+      main when is_list(main) ->
+        Enum.reduce(rest, main, fn next_key, current ->
+          case Keyword.fetch(current, next_key) do
+            {:ok, val} ->
+              val
+
+            :error ->
+              # For :api_key, try keyring fallback with provider format
+              if next_key == :api_key do
+                key = :"#{main_key}_api_key"
+                Keyring.get(Keyring, key, default)
+              else
+                default
+              end
+          end
+        end)
+
+      _main ->
+        default
+    end
+  end
+
   # ===========================================================================
   # Model API - Developer sugar for creating models
   # ===========================================================================
+
+  @doc """
+  Gets a provider module from the provider registry.
+
+  ## Parameters
+
+    * `provider` - The AI provider atom
+
+  ## Examples
+
+      {:ok, provider_module} = Jido.AI.provider(:openai)
+      {:ok, provider_module} = Jido.AI.provider(:anthropic)
+      {:error, "Provider not found: unknown"} = Jido.AI.provider(:unknown)
+
+  """
+  @spec provider(atom()) :: {:ok, module()} | {:error, String.t()}
+  def provider(provider) do
+    Jido.AI.Provider.Registry.get_provider(provider)
+  end
 
   @doc """
   Creates a model from various input formats for maximum developer ergonomics.
@@ -296,7 +229,7 @@ defmodule Jido.AI do
           {:ok, String.t()} | {:error, term()}
   def generate_text(model_spec, prompt, opts \\ []) when is_binary(prompt) and is_list(opts) do
     with {:ok, model} <- ensure_model_struct(model_spec),
-         {:ok, provider_module} <- get_provider_module(model.provider) do
+         {:ok, provider_module} <- provider(model.provider) do
       # Merge model options with provided opts
       merged_opts = merge_model_options(model, opts)
 
@@ -328,7 +261,7 @@ defmodule Jido.AI do
         "Hello, world!",
         []
       )
-      
+
       # Consume the stream
       stream |> Enum.each(&IO.write/1)
 
@@ -344,7 +277,7 @@ defmodule Jido.AI do
           {:ok, Enumerable.t()} | {:error, term()}
   def stream_text(model_spec, prompt, opts \\ []) when is_binary(prompt) and is_list(opts) do
     with {:ok, model} <- ensure_model_struct(model_spec),
-         {:ok, provider_module} <- get_provider_module(model.provider) do
+         {:ok, provider_module} <- provider(model.provider) do
       # Merge model options with provided opts
       merged_opts = merge_model_options(model, opts)
 
@@ -358,12 +291,6 @@ defmodule Jido.AI do
           {:ok, Model.t()} | {:error, String.t()}
   defp ensure_model_struct(%Model{} = model), do: {:ok, model}
   defp ensure_model_struct(model_spec), do: model(model_spec)
-
-  @doc false
-  @spec get_provider_module(atom()) :: {:ok, atom()} | {:error, String.t()}
-  defp get_provider_module(provider) do
-    Jido.AI.Provider.Registry.get_provider(provider)
-  end
 
   @doc false
   @spec merge_model_options(Model.t(), keyword()) :: keyword()
