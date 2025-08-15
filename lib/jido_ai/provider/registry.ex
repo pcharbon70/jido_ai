@@ -17,22 +17,65 @@ defmodule Jido.AI.Provider.Registry do
 
   ## Examples
 
-      iex> Jido.AI.Provider.Registry.get_provider(:openrouter)
+      iex> Jido.AI.Provider.Registry.fetch(:openrouter)
       {:ok, Jido.AI.Provider.OpenRouter}
 
-      iex> Jido.AI.Provider.Registry.get_provider(:nonexistent)
-      {:error, "Provider not found: nonexistent"}
+      iex> Jido.AI.Provider.Registry.fetch(:nonexistent)
+      {:error, :not_found}
 
   """
-  @spec get_provider(atom()) :: {:ok, module()} | {:error, Exception.t()}
-  def get_provider(provider_id) do
+  @spec fetch(atom()) :: {:ok, module()} | {:error, :not_found}
+  def fetch(provider_id) when is_atom(provider_id) do
     case :persistent_term.get(@registry_key, %{}) do
       %{^provider_id => module} ->
         {:ok, module}
 
       _ ->
+        {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Gets the provider module for the given provider ID, raising if not found.
+
+  ## Examples
+
+      iex> Jido.AI.Provider.Registry.fetch!(:openrouter)
+      Jido.AI.Provider.OpenRouter
+
+      iex> Jido.AI.Provider.Registry.fetch!(:nonexistent)
+      ** (RuntimeError) Provider not found: :nonexistent
+
+  """
+  @spec fetch!(atom()) :: module() | no_return()
+  def fetch!(provider_id) do
+    case fetch(provider_id) do
+      {:ok, module} -> module
+      {:error, :not_found} -> raise "Provider not found: #{inspect(provider_id)}"
+    end
+  end
+
+  @doc """
+  Gets the provider module for the given provider ID.
+
+  This is deprecated, use `fetch/1` or `fetch!/1` instead.
+  """
+  @spec get_provider(atom()) :: {:ok, module()} | {:error, Exception.t()}
+  def get_provider(provider_id) when is_atom(provider_id) do
+    case fetch(provider_id) do
+      {:ok, module} ->
+        {:ok, module}
+
+      {:error, :not_found} ->
         {:error, Jido.AI.Error.Invalid.Parameter.exception(parameter: "provider #{provider_id}")}
     end
+  end
+
+  def get_provider(provider_id) do
+    {:error,
+     Jido.AI.Error.Invalid.Parameter.exception(
+       parameter: "provider #{provider_id} (must be atom)"
+     )}
   end
 
   @doc """
@@ -61,13 +104,28 @@ defmodule Jido.AI.Provider.Registry do
       :ok
 
   """
-  @spec register(atom(), module()) :: :ok
-  def register(provider_id, module) do
+  @spec register(atom(), module()) :: :ok | {:error, {:already_registered, module()}}
+  def register(provider_id, module) when is_atom(provider_id) and is_atom(module) do
     current_providers = :persistent_term.get(@registry_key, %{})
-    updated_providers = Map.put(current_providers, provider_id, module)
-    :persistent_term.put(@registry_key, updated_providers)
-    # Logger.debug("Registered AI provider: #{provider_id} -> #{module}")
-    :ok
+
+    case Map.get(current_providers, provider_id) do
+      nil ->
+        :persistent_term.put(@registry_key, Map.put(current_providers, provider_id, module))
+        :ok
+
+      ^module ->
+        # Idempotent registration
+        :ok
+
+      other ->
+        Logger.warning("Attempted to overwrite provider",
+          provider_id: provider_id,
+          existing: other,
+          attempted: module
+        )
+
+        {:error, {:already_registered, other}}
+    end
   end
 
   @doc """
@@ -78,27 +136,34 @@ defmodule Jido.AI.Provider.Registry do
   """
   @spec initialize() :: :ok
   def initialize do
-    # Discover provider modules
     providers = discover_providers()
 
-    # Register each provider
-    registry_map =
+    # Use Task.async_stream for parallel provider info extraction
+    {registry_map, failed_modules} =
       providers
-      |> Enum.map(fn module ->
-        try do
-          provider_info = module.provider_info()
-          {provider_info.id, module}
-        rescue
-          e ->
-            Logger.warning("Failed to get provider info from #{module}: #{inspect(e)}")
-            nil
-        end
+      |> Task.async_stream(&extract_provider_info/1, ordered: false, timeout: 5000)
+      |> Enum.reduce({%{}, []}, fn
+        {:ok, {:ok, {id, module}}}, {acc, failed} ->
+          {Map.put(acc, id, module), failed}
+
+        {:ok, {:error, {module, error}}}, {acc, failed} ->
+          {acc, [{module, error} | failed]}
+
+        {:exit, reason}, {acc, failed} ->
+          {acc, [{:unknown_module, reason} | failed]}
       end)
-      |> Enum.reject(&is_nil/1)
-      |> Map.new()
+
+    # Log any failures in a batch
+    unless Enum.empty?(failed_modules) do
+      Logger.warning("Failed to register some providers",
+        failed_count: length(failed_modules),
+        failures: failed_modules
+      )
+    end
 
     # Store in persistent_term
     :persistent_term.put(@registry_key, registry_map)
+    Logger.debug("Provider registry initialized", provider_count: map_size(registry_map))
 
     :ok
   end
@@ -119,20 +184,34 @@ defmodule Jido.AI.Provider.Registry do
 
   # Private functions
 
-  @spec discover_providers() :: [module()]
-  defp discover_providers do
-    # Get all loaded modules that implement our behaviour
-    :application.get_key(:jido_ai, :modules)
-    |> case do
-      {:ok, modules} -> modules
-      :undefined -> []
+  @doc false
+  @spec extract_provider_info(module()) ::
+          {:ok, {atom(), module()}} | {:error, {module(), term()}}
+  def extract_provider_info(module) do
+    try do
+      provider_info = module.provider_info()
+      {:ok, {provider_info.id, module}}
+    rescue
+      error ->
+        {:error, {module, Exception.message(error)}}
+    catch
+      :exit, reason ->
+        {:error, {module, reason}}
     end
-    |> Enum.filter(&provider_module?/1)
   end
 
+  @doc false
+  @spec discover_providers() :: [module()]
+  def discover_providers do
+    case :application.get_key(:jido_ai, :modules) do
+      {:ok, modules} -> Enum.filter(modules, &provider_module?/1)
+      :undefined -> []
+    end
+  end
+
+  @doc false
   @spec provider_module?(module()) :: boolean()
-  defp provider_module?(module) do
-    # Check if module implements Jido.AI.Provider.Base behaviour
+  def provider_module?(module) do
     try do
       behaviours = module.__info__(:attributes)[:behaviour] || []
       Jido.AI.Provider.Base in behaviours

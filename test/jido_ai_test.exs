@@ -32,6 +32,7 @@ defmodule Jido.AITest do
 
     on_exit(fn ->
       Jido.AI.Provider.Registry.clear()
+      Jido.AI.Provider.Registry.initialize()
     end)
 
     :ok
@@ -40,22 +41,32 @@ defmodule Jido.AITest do
   describe "api_key/1" do
     test "returns nil when no key configured" do
       stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
-      assert AI.api_key(:openai) == nil
+      assert AI.api_key(:openai_api_key) == nil
     end
 
-    test "returns provider-specific key when available" do
+    test "returns key when available (atom)" do
       stub(Jido.AI.Keyring, :get, fn
         Jido.AI.Keyring, :openai_api_key, nil -> "provider-key"
-        Jido.AI.Keyring, :api_key, nil -> "general-key"
       end)
 
-      assert AI.api_key(:openai) == "provider-key"
+      assert AI.api_key(:openai_api_key) == "provider-key"
     end
 
-    test "falls back to general api_key" do
-      stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
+    test "returns key when available (string)" do
+      stub(Jido.AI.Keyring, :get, fn
+        "anthropic_api_key", nil -> "anthropic-key"
+      end)
 
-      assert AI.api_key(:openai) == nil
+      assert AI.api_key("anthropic_api_key") == "anthropic-key"
+    end
+
+    test "handles case-insensitive string keys" do
+      stub(Jido.AI.Keyring, :get, fn
+        "openai_api_key", nil -> "case-insensitive-key"
+      end)
+
+      assert AI.api_key("OPENAI_API_KEY") == "case-insensitive-key"
+      assert AI.api_key("OpenAI_API_Key") == "case-insensitive-key"
     end
   end
 
@@ -65,14 +76,14 @@ defmodule Jido.AITest do
     end
 
     test "returns error for unknown provider" do
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = AI.provider(:unknown)
+      assert {:error, :not_found} = AI.provider(:unknown)
     end
   end
 
   describe "list_keys/0" do
     test "delegates to keyring" do
-      stub(Jido.AI.Keyring, :list, fn Jido.AI.Keyring -> [:key1, :key2] end)
-      assert AI.list_keys() == [:key1, :key2]
+      stub(Jido.AI.Keyring, :list, fn Jido.AI.Keyring -> ["key1", "key2"] end)
+      assert AI.list_keys() == ["key1", "key2"]
     end
   end
 

@@ -234,11 +234,16 @@ defmodule Jido.AI.Provider.Base do
         |> Keyword.take(@chat_completion_opts)
 
       http_client = Jido.AI.config([:http_client], Req)
+      http_options = Jido.AI.config([:http_options], [])
 
       recv_to = Keyword.get(opts, :receive_timeout, Jido.AI.config([:receive_timeout], 60_000))
       pool_to = Keyword.get(opts, :pool_timeout, Jido.AI.config([:pool_timeout], 30_000))
 
-      case http_client.post(url,
+      # Create client with base configuration including any test plugs
+      client = http_client.new(http_options)
+
+      case http_client.post(client,
+             url: url,
              json: Map.new(request_opts),
              auth: {:bearer, api_key},
              receive_timeout: recv_to,

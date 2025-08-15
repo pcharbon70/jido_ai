@@ -36,37 +36,44 @@ defmodule Jido.AI do
 
   """
 
-  alias Jido.AI.{Keyring, Model}
+  alias Jido.AI.{Keyring, Model, Provider}
 
   # ===========================================================================
   # Configuration API - Simple facades for common operations
   # ===========================================================================
 
   @doc """
-  Gets the API key for a specific provider.
+  Gets a configuration value from the keyring.
+
+  Key lookup is case-insensitive and accepts both atoms and strings.
 
   ## Parameters
 
-    * `provider` - The AI provider (default: :openai)
+    * `key` - The configuration key (atom or string, case-insensitive)
 
   ## Examples
 
-      Jido.AI.api_key(:openai)
-      Jido.AI.api_key(:anthropic)
+      Jido.AI.api_key(:openai_api_key)
+      Jido.AI.api_key("ANTHROPIC_API_KEY")
+      Jido.AI.api_key("OpenAI_API_Key")
 
   """
-  @spec api_key(atom()) :: String.t() | nil
-  def api_key(provider \\ :openai) do
-    key = :"#{provider}_api_key"
+  @spec api_key(atom() | String.t()) :: String.t() | nil
+  def api_key(key) when is_atom(key) do
     Keyring.get(Keyring, key, nil)
+  end
+
+  def api_key(key) when is_binary(key) do
+    normalized = String.downcase(key)
+    Keyring.get(normalized, nil)
   end
 
   @doc """
   Lists all available configuration keys.
 
-  Returns a list of atoms representing available configuration keys.
+  Returns a list of strings representing available configuration keys.
   """
-  @spec list_keys() :: [atom()]
+  @spec list_keys() :: [String.t()]
   def list_keys do
     Keyring.list(Keyring)
   end
@@ -157,7 +164,7 @@ defmodule Jido.AI do
   """
   @spec provider(atom()) :: {:ok, module()} | {:error, String.t()}
   def provider(provider) do
-    Jido.AI.Provider.Registry.get_provider(provider)
+    Jido.AI.Provider.Registry.fetch(provider)
   end
 
   @doc """
@@ -295,14 +302,23 @@ defmodule Jido.AI do
   @doc false
   @spec merge_model_options(Model.t(), keyword()) :: keyword()
   defp merge_model_options(model, opts) do
-    # Get api_key from keyring if not provided in model or opts
-    api_key = model.api_key || Keyword.get(opts, :api_key) || api_key(model.provider)
+    # Get api_key from keyring or opts
+    provider_key = :"#{model.provider}_api_key"
+    api_key = Keyword.get(opts, :api_key) || api_key(provider_key)
+
+    # Get base_url from provider registry
+    base_url =
+      case Provider.Registry.fetch(model.provider) do
+        {:ok, mod} when is_atom(mod) -> mod.api_url()
+        {:error, _} -> nil
+      end
 
     model_opts =
       []
       |> maybe_put(:temperature, model.temperature)
       |> maybe_put(:max_tokens, model.max_tokens)
       |> maybe_put(:api_key, api_key)
+      |> maybe_put(:base_url, base_url)
 
     # Provided opts take precedence over model defaults
     Keyword.merge(model_opts, opts)

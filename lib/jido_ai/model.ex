@@ -20,11 +20,9 @@ defmodule Jido.AI.Model do
         }
 
   typedstruct do
-    # Runtime fields for API calls
+    # Runtime fields for API calls - provider reference only
     field(:provider, atom())
     field(:model, String.t())
-    field(:base_url, String.t())
-    field(:api_key, String.t() | nil)
     field(:temperature, float() | nil)
     field(:max_tokens, non_neg_integer() | nil)
     field(:max_retries, non_neg_integer() | nil)
@@ -63,6 +61,11 @@ defmodule Jido.AI.Model do
                 )
 
   @schema NimbleOptions.new!(
+            provider: [type: :atom, required: true],
+            model: [type: :string, required: true],
+            temperature: [type: {:or, [:integer, :float]}, required: false],
+            max_tokens: [type: :non_neg_integer, required: false],
+            max_retries: [type: :non_neg_integer, required: false],
             id: [type: :string, required: true],
             name: [type: :string, required: true],
             attachment: [type: :boolean, required: true],
@@ -97,10 +100,29 @@ defmodule Jido.AI.Model do
   def validate_date_format(nil), do: {:ok, nil}
 
   def validate_date_format(value) when is_binary(value) do
-    if Regex.match?(~r/^\d{4}-\d{2}(-\d{2})?$/, value) do
-      {:ok, value}
-    else
-      {:error, "must be in YYYY-MM or YYYY-MM-DD format"}
+    # Use Calendar.ISO for more robust date validation
+    case String.split(value, "-") do
+      [year, month] ->
+        with {year_int, ""} <- Integer.parse(year),
+             {month_int, ""} <- Integer.parse(month),
+             true <- Calendar.ISO.valid_date?(year_int, month_int, 1) do
+          {:ok, value}
+        else
+          _ -> {:error, "must be in valid YYYY-MM format"}
+        end
+
+      [year, month, day] ->
+        with {year_int, ""} <- Integer.parse(year),
+             {month_int, ""} <- Integer.parse(month),
+             {day_int, ""} <- Integer.parse(day),
+             true <- Calendar.ISO.valid_date?(year_int, month_int, day_int) do
+          {:ok, value}
+        else
+          _ -> {:error, "must be in valid YYYY-MM-DD format"}
+        end
+
+      _ ->
+        {:error, "must be in YYYY-MM or YYYY-MM-DD format"}
     end
   end
 
@@ -150,16 +172,15 @@ defmodule Jido.AI.Model do
     if is_nil(model_name) do
       {:error, "model is required in options"}
     else
-      case get_provider_info(provider) do
-        {:ok, base_url} ->
+      # Validate provider exists
+      case validate_provider(provider) do
+        :ok ->
           model = %__MODULE__{
             provider: provider,
             model: model_name,
-            base_url: base_url,
             temperature: Keyword.get(opts, :temperature),
             max_tokens: Keyword.get(opts, :max_tokens),
-            max_retries: Keyword.get(opts, :max_retries),
-            api_key: Keyword.get(opts, :api_key),
+            max_retries: Keyword.get(opts, :max_retries, 3),
             # Defaults for metadata fields
             id: to_string(model_name),
             name: to_string(model_name),
@@ -185,10 +206,8 @@ defmodule Jido.AI.Model do
   def from(provider_model_string) when is_binary(provider_model_string) do
     case String.split(provider_model_string, ":", parts: 2) do
       [provider_str, model_name] ->
-        with {:ok, provider} <- parse_provider(provider_str),
-             {:ok, base_url} <- get_provider_info(provider) do
-          from({provider, [model: model_name, base_url: base_url]})
-        else
+        case parse_provider(provider_str) do
+          {:ok, provider} -> from({provider, [model: model_name]})
           {:error, reason} -> {:error, reason}
         end
 
@@ -199,53 +218,72 @@ defmodule Jido.AI.Model do
 
   def from(_), do: {:error, "Invalid model specification"}
 
-  @doc false
-  defp get_provider_info(provider) do
-    case Jido.AI.Provider.Registry.get_provider(provider) do
-      {:ok, mod} ->
-        {:ok, mod.api_url()}
+  @doc """
+  Creates a model from JSON data with validation.
+  Raises an exception if validation fails.
+  """
+  @spec from_json!(map()) :: t()
+  def from_json!(json_data) when is_map(json_data) do
+    case from_json(json_data) do
+      {:ok, model} -> model
+      {:error, error} -> raise ArgumentError, "Invalid model JSON: #{error}"
+    end
+  end
 
-      {:error, _} ->
-        # Fallback to hardcoded URLs for providers not yet implemented as modules
-        case provider do
-          :openai -> {:ok, "https://api.openai.com/v1"}
-          :anthropic -> {:ok, "https://api.anthropic.com/v1"}
-          :openrouter -> {:ok, "https://openrouter.ai/api/v1"}
-          :cloudflare -> {:ok, "https://api.cloudflare.com/client/v4/accounts"}
-          :google -> {:ok, "https://generativelanguage.googleapis.com/v1"}
-          :fake -> {:ok, "https://fake.test/v1"}
-          :error_provider -> {:ok, "https://error.test/v1"}
-          :stream_error -> {:ok, "https://stream-error.test/v1"}
-          _ -> {:error, "No adapter found for provider #{provider}"}
-        end
+  @doc """
+  Creates a model from JSON data with validation.
+  """
+  @spec from_json(map()) :: {:ok, t()} | {:error, String.t()}
+  def from_json(json_data) when is_map(json_data) do
+    try do
+      provider = json_data["provider"] && String.to_existing_atom(json_data["provider"])
+
+      model = %__MODULE__{
+        provider: provider,
+        model: json_data["provider_model_id"],
+        temperature: json_data["temperature"],
+        max_tokens: json_data["max_tokens"],
+        max_retries: json_data["max_retries"] || 3,
+        id: json_data["id"],
+        name: json_data["name"],
+        attachment: json_data["attachment"] || false,
+        reasoning: json_data["reasoning"] || false,
+        supports_temperature: json_data["supports_temperature"] || true,
+        tool_call: json_data["tool_call"] || false,
+        knowledge: json_data["knowledge"],
+        release_date: json_data["release_date"] || "2024-01",
+        last_updated: json_data["last_updated"] || "2024-01",
+        modalities: json_data["modalities"] || %{input: [:text], output: [:text]},
+        open_weights: json_data["open_weights"] || false,
+        cost: json_data["cost"],
+        limit: json_data["limit"] || %{context: 128_000, output: 4096}
+      }
+
+      validate(model)
+    rescue
+      ArgumentError -> {:error, "Invalid provider: #{json_data["provider"]}"}
+    end
+  end
+
+  @doc false
+  defp validate_provider(provider) do
+    case Jido.AI.Provider.Registry.fetch(provider) do
+      {:ok, _} -> :ok
+      {:error, _} -> {:error, "Unknown provider: #{provider}"}
     end
   end
 
   defp parse_provider(str) do
-    # First try the registry
     case Jido.AI.Provider.Registry.list_providers()
          |> Enum.find(&(&1 |> Atom.to_string() == str)) do
       nil ->
-        # Fallback to hardcoded providers for backward compatibility
         try do
           atom = String.to_existing_atom(str)
 
-          case atom do
-            provider
-            when provider in [
-                   :openai,
-                   :anthropic,
-                   :openrouter,
-                   :cloudflare,
-                   :google,
-                   :fake,
-                   :error_provider,
-                   :stream_error
-                 ] ->
-              {:ok, provider}
-
-            _ ->
-              {:error, "Unknown provider: #{str}"}
+          validate_provider(atom)
+          |> case do
+            :ok -> {:ok, atom}
+            {:error, reason} -> {:error, reason}
           end
         rescue
           ArgumentError -> {:error, "Unknown provider: #{str}"}

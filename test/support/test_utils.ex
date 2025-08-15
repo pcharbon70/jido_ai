@@ -6,11 +6,11 @@ defmodule Jido.AI.TestUtils do
   - Isolated Keyring setup/teardown
   - Provider registry management
   - Common test fixtures
-  - HTTP mocking helpers
+  - HTTP mocking helpers using Req.Test
   """
 
   import ExUnit.Assertions
-  import Mimic
+  import Plug.Conn, only: [put_status: 2, put_resp_header: 3, send_resp: 3]
 
   ## Keyring Test Utilities
 
@@ -91,11 +91,9 @@ defmodule Jido.AI.TestUtils do
     %Jido.AI.Model{
       provider: :openai,
       model: "gpt-4",
-      base_url: "https://api.openai.com/v1",
-      api_key: nil,
       temperature: nil,
       max_tokens: nil,
-      max_retries: nil,
+      max_retries: 3,
       id: "gpt-4",
       name: "GPT-4",
       attachment: false,
@@ -132,11 +130,9 @@ defmodule Jido.AI.TestUtils do
     %Jido.AI.Model{
       provider: :anthropic,
       model: "claude-3-sonnet",
-      base_url: "https://api.anthropic.com/v1",
-      api_key: nil,
       temperature: nil,
       max_tokens: nil,
-      max_retries: nil,
+      max_retries: 3,
       id: "claude-3-sonnet",
       name: "Claude 3 Sonnet",
       attachment: false,
@@ -173,11 +169,9 @@ defmodule Jido.AI.TestUtils do
     %Jido.AI.Model{
       provider: :google,
       model: "gemini-pro",
-      base_url: "https://generativelanguage.googleapis.com/v1",
-      api_key: nil,
       temperature: nil,
       max_tokens: nil,
-      max_retries: nil,
+      max_retries: 3,
       id: "gemini-pro",
       name: "Gemini Pro",
       attachment: false,
@@ -214,11 +208,9 @@ defmodule Jido.AI.TestUtils do
     %Jido.AI.Model{
       provider: :mistral,
       model: "mistral-large",
-      base_url: "https://api.mistral.ai/v1",
-      api_key: nil,
       temperature: nil,
       max_tokens: nil,
-      max_retries: nil,
+      max_retries: 3,
       id: "mistral-large",
       name: "Mistral Large",
       attachment: false,
@@ -255,11 +247,9 @@ defmodule Jido.AI.TestUtils do
     %Jido.AI.Model{
       provider: :fake,
       model: "fake-model",
-      base_url: "https://api.fake.com/v1",
-      api_key: nil,
       temperature: nil,
       max_tokens: nil,
-      max_retries: nil,
+      max_retries: 3,
       id: "fake-model",
       name: "Fake Model",
       attachment: false,
@@ -299,98 +289,106 @@ defmodule Jido.AI.TestUtils do
     Map.merge(base_config, Map.new(opts))
   end
 
-  ## HTTP Mocking Helpers (using Req instead of HTTPoison)
+  ## HTTP Mocking Helpers (using Req.Test)
 
   @doc """
-  Sets up HTTP mocking using Mimic for Req requests.
+  Sets up HTTP mocking using Req.Test.
   Returns a cleanup function.
   """
   def setup_http_mocking do
-    Mimic.copy(Req)
-
-    # Mimic automatically resets after each test
+    # Req.Test is automatically set up via test_helper.exs
+    # Return no-op cleanup function
     fn -> :ok end
   end
 
   @doc """
-  Mocks a successful HTTP request with default OpenAI response.
+  Stubs a successful HTTP request with default OpenAI response.
   """
   def mock_http_success do
-    Application.put_env(:jido_ai, :http_client, Req)
-
-    stub(Req, :post, fn _client, _opts ->
-      mock_success_response()
+    Req.Test.stub(:base_test, fn conn ->
+      conn
+      |> Req.Test.json(%{
+        "choices" => [
+          %{"message" => %{"content" => "Generated response"}}
+        ]
+      })
     end)
   end
 
   @doc """
-  Mocks a successful HTTP request with the given response.
+  Stubs a successful HTTP request with the given response.
   """
   def mock_http_success(url, response_body, opts \\ []) do
     status_code = Keyword.get(opts, :status_code, 200)
-    headers = Keyword.get(opts, :headers, [{"content-type", "application/json"}])
 
-    Req
-    |> Mimic.expect(:post, fn ^url, _options ->
-      {:ok,
-       %Req.Response{
-         status: status_code,
-         body: response_body,
-         headers: headers
-       }}
+    Req.Test.stub(:base_test, fn conn ->
+      # Verify URL matches if provided
+      if url && conn.request_path != URI.parse(url).path do
+        conn |> put_status(404) |> Req.Test.json(%{error: "URL not found"})
+      else
+        conn
+        |> put_status(status_code)
+        |> Req.Test.json(response_body)
+      end
     end)
   end
 
   @doc """
-  Mocks an HTTP error response with status and body or transport error.
+  Stubs an HTTP error response with status and body or transport error.
   """
   def mock_http_error(status_or_url, body_or_error_reason \\ :timeout)
 
   def mock_http_error(status, body) when is_integer(status) do
-    Application.put_env(:jido_ai, :http_client, Req)
-
-    stub(Req, :post, fn _client, _opts ->
-      {:ok, %Req.Response{status: status, body: body}}
+    Req.Test.stub(:base_test, fn conn ->
+      conn
+      |> put_status(status)
+      |> Req.Test.json(body)
     end)
   end
 
   def mock_http_error(url, error_reason) when is_binary(url) do
-    Req
-    |> Mimic.expect(:post, fn ^url, _options ->
-      {:error, %Req.TransportError{reason: error_reason}}
+    Req.Test.stub(:base_test, fn conn ->
+      # Verify URL matches if provided
+      if url && conn.request_path != URI.parse(url).path do
+        conn |> put_status(404) |> Req.Test.json(%{error: "URL not found"})
+      else
+        Req.Test.transport_error(conn, error_reason)
+      end
     end)
   end
 
   @doc """
-  Mocks an HTTP response with a specific status code and error body.
+  Stubs an HTTP response with a specific status code and error body.
   """
   def mock_http_error_response(url, status_code, error_body) do
-    Req
-    |> Mimic.expect(:post, fn ^url, _options ->
-      {:ok,
-       %Req.Response{
-         status: status_code,
-         body: error_body,
-         headers: [{"content-type", "application/json"}]
-       }}
+    Req.Test.stub(:base_test, fn conn ->
+      # Verify URL matches if provided
+      if url && conn.request_path != URI.parse(url).path do
+        conn |> put_status(404) |> Req.Test.json(%{error: "URL not found"})
+      else
+        conn
+        |> put_status(status_code)
+        |> Req.Test.json(error_body)
+      end
     end)
   end
 
   @doc """
-  Mocks SSE stream with the given chunks.
+  Stubs SSE stream with the given chunks.
   """
   def mock_sse_stream(chunks) do
-    Application.put_env(:jido_ai, :http_client, Req)
-
-    stub(Req, :post, fn _client, _opts ->
+    Req.Test.stub(:base_test, fn conn ->
       # Create a stream from the chunks
       stream = Stream.map(chunks, fn chunk -> chunk end)
-      {:ok, %Req.Response{status: 200, body: stream}}
+
+      conn
+      |> put_resp_header("content-type", "text/event-stream")
+      |> send_resp(200, stream)
     end)
   end
 
   @doc """
-  Mocks SSE response with content chunks.
+  Stubs SSE response with content chunks.
   """
   def mock_sse_response(content_chunks) do
     chunks =
@@ -398,23 +396,24 @@ defmodule Jido.AI.TestUtils do
         "data: {\"choices\":[{\"delta\":{\"content\":\"#{content}\"}}]}\n\n"
       end) ++ ["data: [DONE]\n\n"]
 
-    stream = Stream.map(chunks, fn chunk -> chunk end)
-    {:ok, %Req.Response{status: 200, body: stream}}
+    Req.Test.stub(:base_test, fn conn ->
+      stream = Stream.map(chunks, fn chunk -> chunk end)
+
+      conn
+      |> put_resp_header("content-type", "text/event-stream")
+      |> send_resp(200, stream)
+    end)
   end
 
   @doc """
-  Returns a mock success response.
+  Returns a mock success response data structure.
   """
   def mock_success_response do
-    {:ok,
-     %Req.Response{
-       status: 200,
-       body: %{
-         "choices" => [
-           %{"message" => %{"content" => "Generated response"}}
-         ]
-       }
-     }}
+    %{
+      "choices" => [
+        %{"message" => %{"content" => "Generated response"}}
+      ]
+    }
   end
 
   @doc """

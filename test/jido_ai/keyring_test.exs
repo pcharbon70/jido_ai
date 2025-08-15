@@ -151,8 +151,8 @@ defmodule Jido.AI.KeyringTest do
       })
 
       keys = Keyring.list()
-      assert :api_key in keys
-      assert :model in keys
+      assert "api_key" in keys
+      assert "model" in keys
       assert length(keys) == 2
     end
 
@@ -162,7 +162,7 @@ defmodule Jido.AI.KeyringTest do
       Keyring.set_session_value(:session_only, "session_only_value")
 
       keys = Keyring.list()
-      assert keys == [:api_key]
+      assert keys == ["api_key"]
     end
 
     test "includes LiveBook keys in list" do
@@ -172,8 +172,22 @@ defmodule Jido.AI.KeyringTest do
       })
 
       keys = Keyring.list()
-      assert :api_key in keys
-      assert :lb_lb_key in keys
+      assert "api_key" in keys
+      assert "lb_lb_key" in keys
+    end
+
+    test "returns string keys consistently" do
+      Keyring.set_test_env_vars(%{
+        "STRING_KEY" => "value1",
+        "ANOTHER_KEY" => "value2"
+      })
+
+      keys = Keyring.list()
+
+      # Verify all keys are strings
+      assert Enum.all?(keys, &is_binary/1)
+      assert "string_key" in keys
+      assert "another_key" in keys
     end
   end
 
@@ -331,8 +345,8 @@ defmodule Jido.AI.KeyringTest do
       })
 
       keys = Keyring.list()
-      assert :regular_key in keys
-      assert :lb_lb_key in keys
+      assert "regular_key" in keys
+      assert "lb_lb_key" in keys
     end
   end
 
@@ -418,6 +432,70 @@ defmodule Jido.AI.KeyringTest do
 
       # All reads should return the same value
       assert Enum.all?(results, &(&1 == "shared_value"))
+    end
+  end
+
+  describe "string-based key system" do
+    test "set_test_env_vars works with string keys" do
+      Keyring.set_test_env_vars(%{
+        "OPENAI_API_KEY" => "test-key-1",
+        "ANTHROPIC_API_KEY" => "test-key-2"
+      })
+
+      # Verify values can be retrieved with atom keys (backward compatibility)
+      assert Keyring.get(:openai_api_key, "default") == "test-key-1"
+      assert Keyring.get(:anthropic_api_key, "default") == "test-key-2"
+
+      # Verify list returns string keys
+      keys = Keyring.list()
+      assert "openai_api_key" in keys
+      assert "anthropic_api_key" in keys
+      assert Enum.all?(keys, &is_binary/1)
+    end
+
+    test "backward compatibility - atom inputs still work for get operations" do
+      Keyring.set_test_env_vars(%{"TEST_COMPAT_KEY" => "compat_value"})
+
+      # Atom keys should still work for get operations
+      assert Keyring.get(:test_compat_key, "default") == "compat_value"
+      assert Keyring.has_value?(:test_compat_key) == true
+    end
+
+    test "string-based system normalizes keys consistently" do
+      # Test various key formats that should normalize to the same thing
+      Keyring.set_test_env_vars(%{
+        "TEST_NORMALIZATION" => "value1",
+        # This should override the first
+        "test_normalization" => "value2"
+      })
+
+      # Both atom and string access should work and return the same value
+      assert Keyring.get(:test_normalization, "default") == "value2"
+      assert Keyring.get("test_normalization", "default") == "value2"
+
+      # List should contain normalized string key
+      keys = Keyring.list()
+      assert "test_normalization" in keys
+      # Should only have one entry (not duplicates)
+      assert length(Enum.filter(keys, &(&1 == "test_normalization"))) == 1
+    end
+
+    test "verifies list returns only string keys, never atoms" do
+      Keyring.set_test_env_vars(%{
+        "MIXED_CASE_KEY" => "value1",
+        "ANOTHER_TEST_KEY" => "value2"
+      })
+
+      keys = Keyring.list()
+
+      # All keys should be strings
+      assert Enum.all?(keys, &is_binary/1)
+      # No atoms should be present
+      refute Enum.any?(keys, &is_atom/1)
+
+      # Verify specific keys are strings
+      assert "mixed_case_key" in keys
+      assert "another_test_key" in keys
     end
   end
 

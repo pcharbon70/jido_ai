@@ -9,18 +9,22 @@ defmodule Jido.AI.Provider do
 
   alias Jido.AI.{Model, Keyring, Error}
 
+  @derive {Jason.Encoder, only: [:id, :name, :base_url, :env, :doc]}
+
   typedstruct do
     field(:id, atom())
-    field(:env, [atom()])
     field(:name, String.t())
+    field(:base_url, String.t())
+    field(:env, [atom()])
     field(:doc, String.t())
     field(:models, %{String.t() => Model.t()})
   end
 
   @schema NimbleOptions.new!(
             id: [type: :atom, required: true],
-            env: [type: {:list, :atom}, required: true],
             name: [type: :string, required: true],
+            base_url: [type: :string, required: true],
+            env: [type: {:list, :atom}, required: true],
             doc: [type: :string, required: true],
             models: [type: :map, required: true]
           )
@@ -81,6 +85,25 @@ defmodule Jido.AI.Provider do
     case get_key(provider, keyring_server) do
       {:ok, _value} -> {:ok, provider}
       {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Validates that a provider has its required environment variable set.
+  Raises an exception if validation fails.
+
+  ## Parameters
+
+    * `provider` - The provider struct
+    * `keyring_server` - The Keyring server to query (default: Jido.AI.Keyring)
+
+  Returns the provider if valid, raises exception if invalid.
+  """
+  @spec validate_key!(t(), GenServer.server()) :: t()
+  def validate_key!(provider, keyring_server \\ Keyring) do
+    case validate_key(provider, keyring_server) do
+      {:ok, provider} -> provider
+      {:error, error} -> raise error
     end
   end
 

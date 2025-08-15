@@ -33,6 +33,30 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
   # Directory structure
   @providers_dir "priv/models_dev"
 
+  # Provider-specific configuration (missing from models.dev)
+  @provider_config %{
+    "openai" => %{
+      "base_url" => "https://api.openai.com/v1",
+      "env" => ["OPENAI_API_KEY"]
+    },
+    "anthropic" => %{
+      "base_url" => "https://api.anthropic.com/v1",
+      "env" => ["ANTHROPIC_API_KEY"]
+    },
+    "openrouter" => %{
+      "base_url" => "https://openrouter.ai/api/v1",
+      "env" => ["OPENROUTER_API_KEY"]
+    },
+    "google" => %{
+      "base_url" => "https://generativelanguage.googleapis.com/v1",
+      "env" => ["GOOGLE_API_KEY"]
+    },
+    "cloudflare" => %{
+      "base_url" => "https://api.cloudflare.com/client/v4/accounts",
+      "env" => ["CLOUDFLARE_API_KEY"]
+    }
+  }
+
   @impl Mix.Task
   def run(args) do
     Application.ensure_all_started(:jido_ai)
@@ -103,15 +127,17 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
 
       if length(models) > 0 do
         provider_file = Path.join(@providers_dir, "#{provider_id}.json")
+        config = Map.get(@provider_config, provider_id, %{})
 
         provider_json = %{
           "provider" => %{
             "id" => provider_id,
             "name" => provider_data["name"] || format_provider_name(provider_id),
-            "model_count" => length(models),
-            "env" => provider_data["env"] || []
+            "base_url" => config["base_url"],
+            "env" => config["env"] || [],
+            "doc" => provider_data["description"] || "AI model provider"
           },
-          "models" => models
+          "models" => prune_model_fields(models)
         }
 
         File.write!(provider_file, Jason.encode!(provider_json, pretty: true))
@@ -132,6 +158,29 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
         "provider" => provider_id,
         "provider_model_id" => model_data["id"]
       })
+    end)
+  end
+
+  # Fields we don't need from models.dev that should be filtered out
+  @unused_fields ~w[
+    npm
+    packageName
+    license
+    repository
+    bugs
+    homepage
+    engines
+    keywords
+    exports
+    dependencies
+  ]
+
+  defp prune_model_fields(models) do
+    models
+    |> Enum.map(fn model ->
+      Enum.reduce(@unused_fields, model, fn field, acc ->
+        Map.delete(acc, field)
+      end)
     end)
   end
 

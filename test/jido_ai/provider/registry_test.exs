@@ -53,12 +53,14 @@ defmodule Jido.AI.Provider.RegistryTest do
       assert registry[:anthropic] == TestAnthropic
     end
 
-    test "overwrites existing provider registration" do
+    test "returns error when attempting to overwrite existing provider registration" do
       Registry.register(:openai, TestOpenAI)
-      Registry.register(:openai, TestOpenAIV2)
+      result = Registry.register(:openai, TestOpenAIV2)
+
+      assert {:error, {:already_registered, TestOpenAI}} = result
 
       registry = :persistent_term.get(@registry_key, %{})
-      assert registry[:openai] == TestOpenAIV2
+      assert registry[:openai] == TestOpenAI
     end
 
     test "is idempotent with same parameters" do
@@ -113,7 +115,60 @@ defmodule Jido.AI.Provider.RegistryTest do
     end
   end
 
-  describe "get_provider/1" do
+  describe "fetch/1" do
+    test "returns error for non-existent provider" do
+      result = Registry.fetch(:nonexistent)
+      assert {:error, :not_found} = result
+    end
+
+    test "returns provider module for registered provider" do
+      Registry.register(:openai, TestOpenAI)
+
+      result = Registry.fetch(:openai)
+      assert {:ok, TestOpenAI} = result
+    end
+
+    test "returns error after provider is cleared" do
+      Registry.register(:openai, TestOpenAI)
+      assert {:ok, TestOpenAI} = Registry.fetch(:openai)
+
+      Registry.clear()
+      result = Registry.fetch(:openai)
+      assert {:error, :not_found} = result
+    end
+
+    test "handles multiple providers correctly" do
+      Registry.register(:openai, TestOpenAI)
+      Registry.register(:anthropic, TestAnthropic)
+
+      assert {:ok, TestOpenAI} = Registry.fetch(:openai)
+      assert {:ok, TestAnthropic} = Registry.fetch(:anthropic)
+      assert {:error, :not_found} = Registry.fetch(:google)
+    end
+  end
+
+  describe "fetch!/1" do
+    test "raises for non-existent provider" do
+      assert_raise RuntimeError, "Provider not found: :nonexistent", fn ->
+        Registry.fetch!(:nonexistent)
+      end
+    end
+
+    test "returns provider module for registered provider" do
+      Registry.register(:openai, TestOpenAI)
+      assert Registry.fetch!(:openai) == TestOpenAI
+    end
+
+    test "handles multiple providers correctly" do
+      Registry.register(:openai, TestOpenAI)
+      Registry.register(:anthropic, TestAnthropic)
+
+      assert Registry.fetch!(:openai) == TestOpenAI
+      assert Registry.fetch!(:anthropic) == TestAnthropic
+    end
+  end
+
+  describe "get_provider/1 (deprecated)" do
     test "returns error for non-existent provider" do
       result = Registry.get_provider(:nonexistent)
       assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = result
@@ -281,18 +336,22 @@ defmodule Jido.AI.Provider.RegistryTest do
   end
 
   describe "edge cases" do
-    test "handles atom vs string provider IDs" do
+    test "only accepts atom provider IDs" do
       Registry.register(:openai, TestOpenAI)
-      Registry.register("anthropic", TestAnthropic)
+
+      # String keys should cause function clause error due to guards
+      assert_raise FunctionClauseError, fn ->
+        Registry.register("anthropic", TestAnthropic)
+      end
 
       # Only atoms should work for lookups
       assert {:ok, TestOpenAI} = Registry.get_provider(:openai)
       assert {:error, _} = Registry.get_provider("openai")
 
-      # String key should be treated as separate entry
+      # Only atom key should be registered
       providers = Registry.list_providers()
       assert :openai in providers
-      assert "anthropic" in providers
+      refute "anthropic" in providers
     end
 
     test "handles nil and invalid module atoms" do

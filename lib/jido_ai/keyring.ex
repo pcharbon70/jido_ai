@@ -33,23 +33,6 @@ defmodule Jido.AI.Keyring do
   @default_name __MODULE__
   @default_env_table_prefix :jido_ai_env_cache
 
-  @doc false
-  @spec ensure_session_registry(atom()) :: atom()
-  defp ensure_session_registry(registry_name) do
-    if :ets.whereis(registry_name) == :undefined do
-      :ets.new(registry_name, [:set, :public, :named_table])
-    end
-  end
-
-  @doc false
-  @spec generate_env_table_name(atom()) :: atom()
-  defp generate_env_table_name(name) do
-    case name do
-      @default_name -> @default_env_table_prefix
-      _ -> :"#{@default_env_table_prefix}_#{name}"
-    end
-  end
-
   @doc """
   Returns the child specification for starting the keyring under a supervisor.
   """
@@ -103,7 +86,7 @@ defmodule Jido.AI.Keyring do
 
     # Populate ETS table with environment values and LiveBook variants
     Enum.each(keys, fn {key, value} ->
-      :ets.insert(env_table, {to_string(key), value})
+      :ets.insert(env_table, {key, value})
       # Also insert LiveBook prefixed version
       livebook_key = to_livebook_key(key)
       :ets.insert(env_table, {livebook_key, value})
@@ -128,8 +111,8 @@ defmodule Jido.AI.Keyring do
         ])
 
       Enum.reduce(env_sources, %{}, fn {key, value}, acc ->
-        atom_key = env_var_to_atom(key)
-        Map.put(acc, atom_key, value)
+        str_key = normalize_env_key(key)
+        Map.put(acc, str_key, value)
       end)
     rescue
       _ -> %{}
@@ -149,30 +132,37 @@ defmodule Jido.AI.Keyring do
   end
 
   @doc false
-  @spec env_var_to_atom(String.t()) :: atom()
-  defp env_var_to_atom(env_var) do
+  @spec normalize_env_key(String.t()) :: String.t()
+  defp normalize_env_key(env_var) do
     env_var
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9_]/, "_")
-    |> String.to_atom()
   end
 
   @doc false
   defp load_from_app_env do
     case Application.get_env(:jido_ai, :keyring) do
-      nil -> %{}
-      config when is_map(config) -> config
-      _ -> %{}
+      nil ->
+        %{}
+
+      config when is_map(config) ->
+        Enum.reduce(config, %{}, fn {key, value}, acc ->
+          str_key = norm_key(key)
+          Map.put(acc, str_key, value)
+        end)
+
+      _ ->
+        %{}
     end
   end
 
   @doc """
   Lists all available keys in the keyring.
 
-  Returns a list of atoms representing the available environment-level keys.
+  Returns a list of strings representing the available environment-level keys.
   Does not include session-specific overrides.
   """
-  @spec list(GenServer.server()) :: [atom()]
+  @spec list(GenServer.server()) :: [String.t()]
   def list(server \\ @default_name) do
     GenServer.call(server, :list_keys)
   end
@@ -187,8 +177,8 @@ defmodule Jido.AI.Keyring do
 
   Returns the value if found, otherwise returns the default value.
   """
-  @spec get(atom(), term()) :: term()
-  def get(key, default \\ nil) when is_atom(key) do
+  @spec get(atom() | String.t(), term()) :: term()
+  def get(key, default \\ nil) when is_atom(key) or is_binary(key) do
     get(@default_name, key, default, self())
   end
 
@@ -203,8 +193,8 @@ defmodule Jido.AI.Keyring do
 
   Returns the value if found, otherwise returns the default value.
   """
-  @spec get(GenServer.server(), atom(), term()) :: term()
-  def get(server, key, default) when is_atom(key) do
+  @spec get(GenServer.server(), atom() | String.t(), term()) :: term()
+  def get(server, key, default) when is_atom(key) or is_binary(key) do
     get(server, key, default, self())
   end
 
@@ -220,8 +210,8 @@ defmodule Jido.AI.Keyring do
 
   Returns the value if found, otherwise returns the default value.
   """
-  @spec get(GenServer.server(), atom(), term(), pid()) :: term()
-  def get(server, key, default, pid) when is_atom(key) do
+  @spec get(GenServer.server(), atom() | String.t(), term(), pid()) :: term()
+  def get(server, key, default, pid) when is_atom(key) or is_binary(key) do
     case get_session_value(server, key, pid) do
       nil -> get_env_value(server, key, default)
       value -> value
@@ -234,13 +224,14 @@ defmodule Jido.AI.Keyring do
   ## Parameters
 
     * `server` - The server to query (default: #{@default_name})
-    * `key` - The key to look up (as an atom)
+    * `key` - The key to look up (as an atom or string)
     * `default` - The default value if key is not found
 
   Returns the environment value if found, otherwise returns the default value.
   """
-  @spec get_env_value(GenServer.server(), atom(), term()) :: term()
-  def get_env_value(server \\ @default_name, key, default \\ nil) when is_atom(key) do
+  @spec get_env_value(GenServer.server(), atom() | String.t(), term()) :: term()
+  def get_env_value(server \\ @default_name, key, default \\ nil)
+      when is_atom(key) or is_binary(key) do
     env_table = env_table_name(server)
 
     case :ets.whereis(env_table) do
@@ -283,16 +274,18 @@ defmodule Jido.AI.Keyring do
   ## Parameters
 
     * `server` - The server to query (default: #{@default_name})
-    * `key` - The key to set (as an atom)
+    * `key` - The key to set (as an atom or string)
     * `value` - The value to store
     * `pid` - The process ID to associate with this value (default: current process)
 
   Returns `:ok`.
   """
-  @spec set_session_value(GenServer.server(), atom(), term(), pid()) :: :ok
-  def set_session_value(server \\ @default_name, key, value, pid \\ self()) when is_atom(key) do
+  @spec set_session_value(GenServer.server(), atom() | String.t(), term(), pid()) :: :ok
+  def set_session_value(server \\ @default_name, key, value, pid \\ self())
+      when is_atom(key) or is_binary(key) do
     registry = GenServer.call(server, :get_registry)
-    :ets.insert(registry, {{pid, key}, value})
+    normalized_key = if is_binary(key), do: String.to_atom(key), else: key
+    :ets.insert(registry, {{pid, normalized_key}, value})
     :ok
   end
 
@@ -307,12 +300,14 @@ defmodule Jido.AI.Keyring do
 
   Returns the session value if found, otherwise returns `nil`.
   """
-  @spec get_session_value(GenServer.server(), atom(), pid()) :: term() | nil
-  def get_session_value(server \\ @default_name, key, pid \\ self()) when is_atom(key) do
+  @spec get_session_value(GenServer.server(), atom() | String.t(), pid()) :: term() | nil
+  def get_session_value(server \\ @default_name, key, pid \\ self())
+      when is_atom(key) or is_binary(key) do
     registry = GenServer.call(server, :get_registry)
+    normalized_key = if is_binary(key), do: String.to_atom(key), else: key
 
-    case :ets.lookup(registry, {pid, key}) do
-      [{{^pid, ^key}, value}] -> value
+    case :ets.lookup(registry, {pid, normalized_key}) do
+      [{{^pid, ^normalized_key}, value}] -> value
       [] -> nil
     end
   end
@@ -328,10 +323,12 @@ defmodule Jido.AI.Keyring do
 
   Returns `:ok`.
   """
-  @spec clear_session_value(GenServer.server(), atom(), pid()) :: :ok
-  def clear_session_value(server \\ @default_name, key, pid \\ self()) when is_atom(key) do
+  @spec clear_session_value(GenServer.server(), atom() | String.t(), pid()) :: :ok
+  def clear_session_value(server \\ @default_name, key, pid \\ self())
+      when is_atom(key) or is_binary(key) do
     registry = GenServer.call(server, :get_registry)
-    :ets.delete(registry, {pid, key})
+    normalized_key = if is_binary(key), do: String.to_atom(key), else: key
+    :ets.delete(registry, {pid, normalized_key})
     :ok
   end
 
@@ -388,22 +385,22 @@ defmodule Jido.AI.Keyring do
     # Clear all existing environment variables
     :ets.delete_all_objects(env_table)
 
-    atom_env_vars =
+    str_env_vars =
       Enum.reduce(env_vars, %{}, fn {key, value}, acc ->
-        atom_key = env_var_to_atom(key)
-        Map.put(acc, atom_key, value)
+        str_key = normalize_env_key(key)
+        Map.put(acc, str_key, value)
       end)
 
     # Update the ETS table with only the new variables
-    Enum.each(atom_env_vars, fn {key, value} ->
-      :ets.insert(env_table, {to_string(key), value})
+    Enum.each(str_env_vars, fn {key, value} ->
+      :ets.insert(env_table, {key, value})
       # Also insert LiveBook prefixed version
       livebook_key = to_livebook_key(key)
       :ets.insert(env_table, {livebook_key, value})
     end)
 
     # Replace the state keys entirely
-    {:reply, :ok, %{state | keys: atom_env_vars}}
+    {:reply, :ok, %{state | keys: str_env_vars}}
   end
 
   # Backward compatibility for old handler name
@@ -499,12 +496,29 @@ defmodule Jido.AI.Keyring do
   def terminate(_reason, _state), do: :ok
 
   @doc false
-  @spec to_livebook_key(atom()) :: String.t()
+  @spec ensure_session_registry(atom()) :: atom()
+  defp ensure_session_registry(registry_name) do
+    if :ets.whereis(registry_name) == :undefined do
+      :ets.new(registry_name, [:set, :public, :named_table])
+    end
+  end
+
+  @doc false
+  @spec generate_env_table_name(atom()) :: atom()
+  defp generate_env_table_name(name) do
+    case name do
+      @default_name -> @default_env_table_prefix
+      _ -> :"#{@default_env_table_prefix}_#{name}"
+    end
+  end
+
+  @doc false
+  @spec to_livebook_key(String.t()) :: String.t()
   defp to_livebook_key(key) do
-    # Convert the key to a string and prefix with "lb_"
     "lb_#{key}"
   end
 
-  @spec norm_key(atom()) :: String.t()
+  @spec norm_key(atom() | String.t()) :: String.t()
   defp norm_key(k) when is_atom(k), do: Atom.to_string(k)
+  defp norm_key(k) when is_binary(k), do: k
 end
