@@ -33,7 +33,8 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
         Jido.AI.generate_object(
           model,
           "Generate a person",
-          schema
+          schema,
+          []
         )
 
       # FakeProvider returns a map with schema-compliant fake data
@@ -90,7 +91,8 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
         Jido.AI.generate_object(
           ModelFixtures.fake(),
           "Generate data",
-          schema
+          schema,
+          []
         )
 
       assert {:ok, _data} = result
@@ -100,7 +102,8 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
         Jido.AI.generate_object(
           "fake:fake-model",
           "Generate data",
-          schema
+          schema,
+          []
         )
 
       # This might fail due to provider registry, which is expected
@@ -111,7 +114,8 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
         Jido.AI.generate_object(
           {:fake, model: "fake-model"},
           "Generate data",
-          schema
+          schema,
+          []
         )
 
       # This might fail due to provider registry, which is expected
@@ -292,7 +296,8 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
         Jido.AI.generate_object(
           "invalid:format:too:many:colons",
           "Generate data",
-          schema
+          schema,
+          []
         )
 
       assert {:error, _error} = result
@@ -302,7 +307,8 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
         Jido.AI.generate_object(
           "nonexistent:model",
           "Generate data",
-          schema
+          schema,
+          []
         )
 
       assert {:error, _error} = result
@@ -333,7 +339,8 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
         Jido.AI.generate_object(
           ModelFixtures.fake(),
           "Generate response",
-          schema
+          schema,
+          []
         )
 
       assert {:ok, _data} = result
@@ -348,7 +355,8 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
         Jido.AI.generate_object(
           ModelFixtures.fake(),
           messages,
-          schema
+          schema,
+          []
         )
 
       assert {:ok, _data} = result

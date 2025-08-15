@@ -480,7 +480,8 @@ defmodule Jido.AI do
           String.t() | [Message.t()],
           keyword()
         ) :: {:ok, String.t()} | {:error, term()}
-  def generate_text(model_spec, prompt, opts) when (is_binary(prompt) or is_list(prompt)) and is_list(opts) do
+  def generate_text(model_spec, prompt, opts)
+      when (is_binary(prompt) or is_list(prompt)) and is_list(opts) do
     opts = process_tool_options(opts)
 
     with {:ok, model} <- ensure_model_struct(model_spec),
@@ -560,7 +561,8 @@ defmodule Jido.AI do
           String.t() | [Message.t()],
           keyword()
         ) :: {:ok, Enumerable.t()} | {:error, term()}
-  def stream_text(model_spec, prompt, opts) when (is_binary(prompt) or is_list(prompt)) and is_list(opts) do
+  def stream_text(model_spec, prompt, opts)
+      when (is_binary(prompt) or is_list(prompt)) and is_list(opts) do
     opts = process_tool_options(opts)
 
     with {:ok, model} <- ensure_model_struct(model_spec),
@@ -652,7 +654,6 @@ defmodule Jido.AI do
 
   """
 
-  # 4-arity: model_spec, prompt, schema, opts
   @spec generate_object(
           Model.t() | {atom(), keyword()} | String.t(),
           String.t() | [Message.t()],
@@ -676,16 +677,6 @@ defmodule Jido.AI do
           {:error, error}
       end
     end
-  end
-
-  # 3-arity: model_spec, prompt, schema (backward compatible)
-  @spec generate_object(
-          Model.t() | {atom(), keyword()} | String.t(),
-          String.t() | [Message.t()],
-          keyword()
-        ) :: {:ok, map()} | {:error, term()}
-  def generate_object(model_spec, prompt, schema) when (is_binary(prompt) or is_list(prompt)) and is_list(schema) do
-    generate_object(model_spec, prompt, schema, [])
   end
 
   @doc """
@@ -771,15 +762,7 @@ defmodule Jido.AI do
     end
   end
 
-  # 3-arity: model_spec, prompt, schema (backward compatible)
-  @spec stream_object(
-          Model.t() | {atom(), keyword()} | String.t(),
-          String.t() | [Message.t()],
-          keyword()
-        ) :: {:ok, Enumerable.t()} | {:error, term()}
-  def stream_object(model_spec, prompt, schema) when (is_binary(prompt) or is_list(prompt)) and is_list(schema) do
-    stream_object(model_spec, prompt, schema, [])
-  end
+
 
   @doc false
   @spec ensure_model_struct(Model.t() | {atom(), keyword()} | String.t()) ::

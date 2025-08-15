@@ -88,18 +88,18 @@ defmodule Jido.AI.ObjectSchema do
       ]
 
   """
+  use TypedStruct
 
   alias Jido.AI.Error.SchemaValidation
 
-  @derive {Jason.Encoder, only: [:output_type, :properties, :enum_values]}
-  defstruct [:output_type, :properties, :enum_values, :schema]
-
-  @type t :: %__MODULE__{
-          output_type: :object | :array | :enum | :no_schema,
-          properties: keyword() | nil,
-          enum_values: [String.t()] | nil,
-          schema: NimbleOptions.t() | nil
-        }
+  typedstruct do
+    @derive {Jason.Encoder, only: [:output_type, :properties, :enum_values]}
+    
+    field(:output_type, :object | :array | :enum | :no_schema)
+    field(:properties, keyword() | nil)
+    field(:enum_values, [String.t()] | nil)
+    field(:schema, NimbleOptions.t() | nil)
+  end
 
   @type schema_opts :: [
           output_type: :object | :array | :enum | :no_schema,
