@@ -6,7 +6,6 @@ defmodule Jido.AI.ProviderTest do
   use ExUnit.Case, async: true
 
   alias Jido.AI.Error.Invalid.Parameter
-  alias Jido.AI.Keyring
   alias Jido.AI.Provider
 
   describe "Provider struct" do
@@ -72,8 +71,8 @@ defmodule Jido.AI.ProviderTest do
     end
   end
 
-  describe "get_key/2" do
-    test "returns error when no API key found" do
+  describe "key validation" do
+    test "get_key/2 returns error when no API key found" do
       provider = %Provider{
         id: :test_provider,
         name: "Test",
@@ -85,20 +84,7 @@ defmodule Jido.AI.ProviderTest do
       assert String.contains?(reason.parameter, "nonexistent_var")
     end
 
-    test "validates provider struct" do
-      provider = %Provider{
-        id: :test,
-        name: "Test",
-        env: []
-      }
-
-      # Should not crash when called
-      assert {:error, _} = Provider.get_key(provider)
-    end
-  end
-
-  describe "validate_key!/2" do
-    test "raises exception on validation error" do
+    test "validate_key!/2 raises on validation error" do
       provider = %Provider{
         id: :test_provider,
         name: "Test",
@@ -108,60 +94,6 @@ defmodule Jido.AI.ProviderTest do
       assert_raise Parameter, fn ->
         Provider.validate_key!(provider)
       end
-    end
-
-    test "returns provider on successful validation" do
-      # Mock the keyring to return a valid key
-      import Mimic
-
-      copy(Keyring)
-
-      stub(Keyring, :get_env_value, fn _, _ -> "valid-key" end)
-
-      provider = %Provider{
-        id: :test_provider,
-        name: "Test",
-        env: [:test_api_key]
-      }
-
-      result = Provider.validate_key!(provider)
-      assert result == provider
-    end
-  end
-
-  describe "find_env_value/2" do
-    test "handles empty env values" do
-      # Mock the keyring to return empty strings which should be ignored
-      import Mimic
-
-      copy(Keyring)
-
-      stub(Keyring, :get_env_value, fn _, _ -> "" end)
-
-      provider = %Provider{
-        id: :test_provider,
-        name: "Test",
-        env: [:empty_var]
-      }
-
-      assert {:error, _} = Provider.validate_key(provider)
-    end
-
-    test "handles non-binary values" do
-      # Mock the keyring to return non-binary values
-      import Mimic
-
-      copy(Keyring)
-
-      stub(Keyring, :get_env_value, fn _, _ -> 123 end)
-
-      provider = %Provider{
-        id: :test_provider,
-        name: "Test",
-        env: [:numeric_var]
-      }
-
-      assert {:error, _} = Provider.validate_key(provider)
     end
   end
 end

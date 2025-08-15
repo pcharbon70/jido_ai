@@ -8,6 +8,65 @@ defmodule Jido.AI.TestSupport.Assertions do
   alias Jido.AI.Model
 
   @doc """
+  Extracts value from `{:ok, value}` tuple or fails the test.
+
+  ## Examples
+
+      result = some_function()
+      value = assert_ok(result)  # Fails if result is not {:ok, _}
+  """
+  defmacro assert_ok(result) do
+    quote do
+      case unquote(result) do
+        {:ok, value} -> value
+        other -> flunk("Expected {:ok, _}, got: #{inspect(other)}")
+      end
+    end
+  end
+
+  @doc """
+  Matches `{:error, %ErrorModule{}}` pattern or fails the test.
+
+  ## Examples
+
+      result = some_function()
+      assert_error(result, Jido.AI.Error.APIError)
+      assert_error(result, %Jido.AI.Error.APIError{status: 429})
+  """
+  defmacro assert_error(result, expected_error) when is_atom(expected_error) do
+    quote do
+      case unquote(result) do
+        {:error, %{__struct__: error_module} = error} ->
+          assert error_module == unquote(expected_error),
+                 "Expected error module #{inspect(unquote(expected_error))}, got #{inspect(error_module)}"
+
+          error
+
+        {:error, other} ->
+          flunk("Expected {:error, %#{inspect(unquote(expected_error))}{}}, got {:error, #{inspect(other)}}")
+
+        other ->
+          flunk("Expected {:error, %#{inspect(unquote(expected_error))}{}}, got: #{inspect(other)}")
+      end
+    end
+  end
+
+  defmacro assert_error(result, expected_pattern) do
+    quote do
+      case unquote(result) do
+        {:error, error} = result ->
+          assert match?(unquote(expected_pattern), error),
+                 "Error #{inspect(error)} does not match pattern #{inspect(unquote(expected_pattern))}"
+
+          error
+
+        other ->
+          flunk("Expected {:error, _} matching #{inspect(unquote(expected_pattern))}, got: #{inspect(other)}")
+      end
+    end
+  end
+
+  @doc """
   Asserts that an HTTP request was made with the expected structure.
 
   The assertion function receives the request and body, allowing verification
