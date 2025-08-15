@@ -6,17 +6,23 @@ defmodule Jido.AI.GenerateObjectIntegrationTest do
   or complex NimbleOptions schema validation that may have issues in the main codebase.
   """
 
-  use ExUnit.Case, async: true
-
-
+  use ExUnit.Case, async: false
 
   alias Jido.AI.Error.{SchemaValidation}
+  alias Jido.AI.Test.FakeProvider
   alias Jido.AI.Test.Fixtures.ModelFixtures
   alias Jido.AI.{ObjectSchema}
 
   # Set up fake provider for testing
   setup do
     # Register fake provider for testing
+    Jido.AI.Provider.Registry.register(:fake, FakeProvider)
+
+    on_exit(fn ->
+      Jido.AI.Provider.Registry.clear()
+      Jido.AI.Provider.Registry.initialize()
+    end)
+
     fake_model = ModelFixtures.fake()
     {:ok, model: fake_model}
   end

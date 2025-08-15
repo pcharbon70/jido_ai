@@ -6,6 +6,18 @@ defmodule Jido.AI.ProviderOptionsIntegrationTest do
   alias Jido.AI.Test.FakeProvider
   alias Jido.AI.{ContentPart, Message}
 
+  setup do
+    # Register fake provider for testing
+    Jido.AI.Provider.Registry.register(:fake, FakeProvider)
+
+    on_exit(fn ->
+      Jido.AI.Provider.Registry.clear()
+      Jido.AI.Provider.Registry.initialize()
+    end)
+
+    :ok
+  end
+
   describe "provider options integration" do
     test "function level provider_options work with generate_text" do
       model = fake()

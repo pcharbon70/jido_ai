@@ -6,7 +6,7 @@ defmodule Jido.AI.SystemPromptTest do
   which adds explicit system_prompt parameter support while maintaining backward compatibility.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   use Jido.AI.TestSupport.HTTPCase
 
   import Jido.AI.Test.Fixtures.ModelFixtures
@@ -36,7 +36,8 @@ defmodule Jido.AI.SystemPromptTest do
     test "3-arity with system prompt option works" do
       stub(Keyring, :get, fn _, _, _ -> nil end)
 
-      result = assert_ok(AI.generate_text("fake:fake-model", "Hello", system_prompt: "You are helpful"))
+      result =
+        assert_ok(AI.generate_text("fake:fake-model", "Hello", system_prompt: "You are helpful"))
 
       assert result =~ "system:You are helpful:"
       assert result =~ "fake-model"
@@ -57,7 +58,12 @@ defmodule Jido.AI.SystemPromptTest do
       stub(Keyring, :get, fn _, _, _ -> nil end)
 
       result =
-        assert_ok(AI.generate_text("fake:fake-model", "Hello", system_prompt: "You are helpful", max_tokens: 100))
+        assert_ok(
+          AI.generate_text("fake:fake-model", "Hello",
+            system_prompt: "You are helpful",
+            max_tokens: 100
+          )
+        )
 
       assert result =~ "system:You are helpful:"
       assert result =~ "fake-model"
@@ -69,7 +75,9 @@ defmodule Jido.AI.SystemPromptTest do
       stub(Keyring, :get, fn _, _, _ -> nil end)
 
       messages = [%Message{role: :user, content: "Hello there"}]
-      result = assert_ok(AI.generate_text("fake:fake-model", messages, system_prompt: "You are helpful"))
+
+      result =
+        assert_ok(AI.generate_text("fake:fake-model", messages, system_prompt: "You are helpful"))
 
       assert result =~ "system:You are helpful:"
       assert result =~ "fake-model"
@@ -103,7 +111,9 @@ defmodule Jido.AI.SystemPromptTest do
     test "3-arity with system prompt option works" do
       stub(Keyring, :get, fn _, _, _ -> nil end)
 
-      stream = assert_ok(AI.stream_text("fake:fake-model", "Hello", system_prompt: "You are helpful"))
+      stream =
+        assert_ok(AI.stream_text("fake:fake-model", "Hello", system_prompt: "You are helpful"))
+
       chunks = Enum.to_list(stream)
 
       assert chunks == ["chunk_1", "chunk_2", "chunk_3"]
@@ -122,7 +132,12 @@ defmodule Jido.AI.SystemPromptTest do
       stub(Keyring, :get, fn _, _, _ -> nil end)
 
       stream =
-        assert_ok(AI.stream_text("fake:fake-model", "Hello", system_prompt: "You are helpful", max_tokens: 100))
+        assert_ok(
+          AI.stream_text("fake:fake-model", "Hello",
+            system_prompt: "You are helpful",
+            max_tokens: 100
+          )
+        )
 
       chunks = Enum.to_list(stream)
 

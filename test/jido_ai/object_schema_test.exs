@@ -9,7 +9,6 @@ defmodule Jido.AI.ObjectSchemaTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
 
-
   import StreamData
 
   alias Jido.AI.Error.SchemaValidation

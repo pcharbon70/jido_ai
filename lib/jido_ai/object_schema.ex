@@ -94,7 +94,7 @@ defmodule Jido.AI.ObjectSchema do
 
   typedstruct do
     @derive {Jason.Encoder, only: [:output_type, :properties, :enum_values]}
-    
+
     field(:output_type, :object | :array | :enum | :no_schema)
     field(:properties, keyword() | nil)
     field(:enum_values, [String.t()] | nil)
