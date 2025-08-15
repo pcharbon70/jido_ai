@@ -18,7 +18,7 @@ defmodule Jido.AI.ProviderContractTest do
   describe "Base macro contract" do
     test "generates provider_info with correct structure" do
       info = StubProvider.provider_info()
-      
+
       assert info.id == :stub_provider
       assert info.name == "Stub Provider"
       assert info.base_url == "https://example.com"
