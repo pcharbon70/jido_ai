@@ -31,6 +31,26 @@ config :instructor,
   ]
 ```
 
+## Playground
+
+Jido AI includes a built-in chat interface for testing and showcasing streaming capabilities:
+
+```bash
+# Start the playground with default settings
+mix jido.ai.playground
+
+# Or use the alias
+mix playground
+
+# Specify a different model
+mix playground --model anthropic:claude-3.5-sonnet
+
+# Run on a different port
+mix playground --port 4000
+```
+
+This launches a Phoenix LiveView chat interface at http://localhost:4001 where you can interact with AI models using Jido AI's `stream_text` functionality. The playground provides a clean, responsive chat interface that demonstrates real-time streaming responses.
+
 ## Supported Providers
 
 Jido AI supports multiple LLM providers:

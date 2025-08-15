@@ -74,6 +74,10 @@ defmodule Jido.Ai.MixProject do
       {:langchain, "~> 0.3.1"},
       {:server_sent_events, "~> 0.2.1"},
 
+      # Phoenix Playground (dev only)
+      {:phoenix_playground, "~> 0.1.7", only: [:dev]},
+      {:earmark, "~> 1.4", only: [:dev]},
+
       # Testing
       {:credo, "~> 1.7", only: [:dev, :test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
@@ -97,6 +101,7 @@ defmodule Jido.Ai.MixProject do
     [
       # test: "test --trace",
       docs: "docs -f html --open",
+      playground: "jido.ai.playground",
       q: ["quality"],
       quality: [
         "format",
