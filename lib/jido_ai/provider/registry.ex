@@ -6,6 +6,8 @@ defmodule Jido.AI.Provider.Registry do
   automatic discovery and registration at compile/runtime.
   """
 
+  alias Jido.AI.Error.Invalid
+
   require Logger
 
   @registry_key {__MODULE__, :providers}
@@ -59,23 +61,23 @@ defmodule Jido.AI.Provider.Registry do
   Gets the provider module for the given provider ID.
 
   This is deprecated, use `fetch/1` or `fetch!/1` instead.
+
+  Returns an error for non-atom provider IDs since provider IDs must be atoms.
   """
   @spec get_provider(atom()) :: {:ok, module()} | {:error, Exception.t()}
+  @spec get_provider(term()) :: {:error, Exception.t()}
   def get_provider(provider_id) when is_atom(provider_id) do
     case fetch(provider_id) do
       {:ok, module} ->
         {:ok, module}
 
       {:error, :not_found} ->
-        {:error, Jido.AI.Error.Invalid.Parameter.exception(parameter: "provider #{provider_id}")}
+        {:error, Invalid.Parameter.exception(parameter: "provider #{provider_id}")}
     end
   end
 
   def get_provider(provider_id) do
-    {:error,
-     Jido.AI.Error.Invalid.Parameter.exception(
-       parameter: "provider #{provider_id} (must be atom)"
-     )}
+    {:error, Invalid.Parameter.exception(parameter: "provider #{provider_id} (must be atom)")}
   end
 
   @doc """
@@ -118,10 +120,8 @@ defmodule Jido.AI.Provider.Registry do
         :ok
 
       other ->
-        Logger.warning("Attempted to overwrite provider",
-          provider_id: provider_id,
-          existing: other,
-          attempted: module
+        Logger.warning(
+          "Attempted to overwrite provider #{provider_id}: existing=#{inspect(other)}, attempted=#{inspect(module)}"
         )
 
         {:error, {:already_registered, other}}
@@ -154,16 +154,13 @@ defmodule Jido.AI.Provider.Registry do
       end)
 
     # Log any failures in a batch
-    unless Enum.empty?(failed_modules) do
-      Logger.warning("Failed to register some providers",
-        failed_count: length(failed_modules),
-        failures: failed_modules
-      )
+    if !Enum.empty?(failed_modules) do
+      Logger.warning("Failed to register #{length(failed_modules)} providers: #{inspect(failed_modules)}")
     end
 
     # Store in persistent_term
     :persistent_term.put(@registry_key, registry_map)
-    Logger.debug("Provider registry initialized", provider_count: map_size(registry_map))
+    Logger.debug("Provider registry initialized with #{map_size(registry_map)} providers")
 
     :ok
   end
@@ -188,16 +185,14 @@ defmodule Jido.AI.Provider.Registry do
   @spec extract_provider_info(module()) ::
           {:ok, {atom(), module()}} | {:error, {module(), term()}}
   def extract_provider_info(module) do
-    try do
-      provider_info = module.provider_info()
-      {:ok, {provider_info.id, module}}
-    rescue
-      error ->
-        {:error, {module, Exception.message(error)}}
-    catch
-      :exit, reason ->
-        {:error, {module, reason}}
-    end
+    provider_info = module.provider_info()
+    {:ok, {provider_info.id, module}}
+  rescue
+    error ->
+      {:error, {module, Exception.message(error)}}
+  catch
+    :exit, reason ->
+      {:error, {module, reason}}
   end
 
   @doc false
@@ -212,11 +207,9 @@ defmodule Jido.AI.Provider.Registry do
   @doc false
   @spec provider_module?(module()) :: boolean()
   def provider_module?(module) do
-    try do
-      behaviours = module.__info__(:attributes)[:behaviour] || []
-      Jido.AI.Provider.Base in behaviours
-    rescue
-      _ -> false
-    end
+    behaviours = module.__info__(:attributes)[:behaviour] || []
+    Jido.AI.Provider.Base in behaviours
+  rescue
+    _ -> false
   end
 end

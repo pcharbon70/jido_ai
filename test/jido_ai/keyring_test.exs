@@ -4,7 +4,7 @@ defmodule Jido.AI.KeyringTest do
   alias Jido.AI.Keyring
 
   @session_registry :jido_ai_keyring_sessions
-  @default_name Jido.AI.Keyring
+  @default_name Keyring
 
   setup do
     # Clear any existing state - Keyring is started by Application

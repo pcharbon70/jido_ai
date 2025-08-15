@@ -1,4 +1,5 @@
 defmodule Mix.Tasks.Jido.Ai.ModelSync do
+  @shortdoc "Synchronize model data from models.dev API"
   @moduledoc """
   Simplified model synchronization task.
 
@@ -23,9 +24,8 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
   """
 
   use Mix.Task
-  require Logger
 
-  @shortdoc "Synchronize model data from models.dev API"
+  require Logger
 
   # API endpoint
   @models_dev_api "https://models.dev/api.json"
@@ -85,14 +85,12 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
   @doc """
   Execute the synchronization process.
   """
+  @spec execute_sync(boolean()) :: :ok | {:error, term()}
   def execute_sync(verbose? \\ false) do
     File.mkdir_p!(@providers_dir)
 
-    with {:ok, models_data} <- fetch_models_dev_data(verbose?),
-         :ok <- save_provider_files(models_data, verbose?) do
-      :ok
-    else
-      {:error, reason} -> {:error, reason}
+    with {:ok, models_data} <- fetch_models_dev_data(verbose?) do
+      save_provider_files(models_data, verbose?)
     end
   end
 
@@ -105,9 +103,7 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
           provider_count = map_size(data)
           model_count = count_total_models(data)
 
-          IO.puts(
-            "✅ Downloaded models.dev data: #{provider_count} providers, #{model_count} models"
-          )
+          IO.puts("✅ Downloaded models.dev data: #{provider_count} providers, #{model_count} models")
         end
 
         {:ok, data}
@@ -125,7 +121,7 @@ defmodule Mix.Tasks.Jido.Ai.ModelSync do
     |> Enum.each(fn {provider_id, provider_data} ->
       models = process_provider_models(provider_data["models"] || %{}, provider_id)
 
-      if length(models) > 0 do
+      if not Enum.empty?(models) do
         provider_file = Path.join(@providers_dir, "#{provider_id}.json")
         config = Map.get(@provider_config, provider_id, %{})
 

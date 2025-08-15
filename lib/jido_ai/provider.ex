@@ -7,7 +7,8 @@ defmodule Jido.AI.Provider do
   """
   use TypedStruct
 
-  alias Jido.AI.{Model, Keyring, Error}
+  alias Jido.AI.Error.Invalid
+  alias Jido.AI.{Keyring, Model}
 
   @derive {Jason.Encoder, only: [:id, :name, :base_url, :env, :doc]}
 
@@ -60,7 +61,7 @@ defmodule Jido.AI.Provider do
     case find_env_value(env_vars, keyring_server) do
       nil ->
         {:error,
-         Error.Invalid.Parameter.exception(
+         Invalid.Parameter.exception(
            parameter:
              "Environment variable for provider '#{provider_id}'. Expected one of: #{Enum.join(env_vars, ", ")}"
          )}

@@ -1,11 +1,27 @@
 defmodule Jido.AI.ModelTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
+
   import Jido.AI.TestUtils
 
-  doctest Jido.AI.Model
-
   alias Jido.AI.Model
+  alias Jido.AI.Provider.OpenAI
+  alias Jido.AI.Test.FakeProvider
+
+  doctest Model
+
+  setup do
+    # Register providers needed for tests
+    Jido.AI.Provider.Registry.register(:openai, OpenAI)
+    Jido.AI.Provider.Registry.register(:fake, FakeProvider)
+
+    on_exit(fn ->
+      Jido.AI.Provider.Registry.clear()
+      Jido.AI.Provider.Registry.initialize()
+    end)
+
+    :ok
+  end
 
   describe "from/1" do
     test "accepts valid struct and returns it unchanged" do
@@ -95,7 +111,7 @@ defmodule Jido.AI.ModelTest do
 
   describe "validate/1" do
     test "returns error for required fields missing" do
-      incomplete_model = %Jido.AI.Model{}
+      incomplete_model = %Model{}
       assert {:error, _} = Model.validate(incomplete_model)
     end
 
@@ -169,6 +185,77 @@ defmodule Jido.AI.ModelTest do
     end
   end
 
+  describe "validation functions" do
+    test "validate_date_format/1 accepts valid dates" do
+      valid_dates = ["2024-01", "2024-12-31", "2023-06-15"]
+
+      for date <- valid_dates do
+        assert {:ok, ^date} = Model.validate_date_format(date)
+      end
+    end
+
+    test "validate_date_format/1 accepts nil" do
+      assert {:ok, nil} = Model.validate_date_format(nil)
+    end
+
+    test "validate_date_format/1 rejects invalid formats" do
+      invalid_dates = ["not-a-date", "invalid", 123, [], %{}]
+
+      for date <- invalid_dates do
+        assert {:error, _} = Model.validate_date_format(date)
+      end
+    end
+
+    test "validate_cost/1 accepts valid cost maps" do
+      valid_costs = [
+        %{input: 0.1, output: 0.2},
+        %{input: 0.1, output: 0.2, cache_read: 0.05, cache_write: 0.15}
+      ]
+
+      for cost <- valid_costs do
+        assert {:ok, ^cost} = Model.validate_cost(cost)
+      end
+    end
+
+    test "validate_cost/1 accepts nil" do
+      assert {:ok, nil} = Model.validate_cost(nil)
+    end
+
+    test "validate_cost/1 rejects invalid costs" do
+      invalid_costs = ["not-a-map", 123, [], %{invalid: "keys"}]
+
+      for cost <- invalid_costs do
+        assert {:error, _} = Model.validate_cost(cost)
+      end
+    end
+
+    test "validate_limit/1 accepts valid limit maps" do
+      valid_limit = %{context: 4096, output: 2048}
+      assert {:ok, ^valid_limit} = Model.validate_limit(valid_limit)
+    end
+
+    test "validate_limit/1 rejects invalid limits" do
+      invalid_limits = ["not-a-map", 123, [], %{invalid: "keys"}, %{}]
+
+      for limit <- invalid_limits do
+        assert {:error, _} = Model.validate_limit(limit)
+      end
+    end
+  end
+
+  describe "from_json functions" do
+    test "from_json/1 handles invalid JSON" do
+      invalid_data = %{"invalid" => "structure"}
+      assert {:error, _} = Model.from_json(invalid_data)
+    end
+
+    test "from_json functions exist and are callable" do
+      # Test that the functions exist without complex validation 
+      assert function_exported?(Model, :from_json, 1)
+      assert function_exported?(Model, :from_json!, 1)
+    end
+  end
+
   describe "edge cases" do
     test "handles special characters in model names" do
       special_names = [
@@ -221,7 +308,7 @@ defmodule Jido.AI.ModelTest do
 
   describe "provider defaults" do
     test "applies same defaults for all providers" do
-      providers = [:openai, :anthropic, :google]
+      providers = [:openai, :fake]
 
       for provider <- providers do
         assert {:ok, model} = Model.from({provider, model: "test-model"})

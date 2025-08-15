@@ -12,18 +12,22 @@ defmodule Jido.AI.Error do
     unknown_error: Jido.AI.Error.Unknown.Unknown
 
   defmodule Invalid do
+    @moduledoc "Error class for invalid input parameters and configurations."
     use Splode.ErrorClass, class: :invalid
   end
 
   defmodule API do
+    @moduledoc "Error class for API-related failures and HTTP errors."
     use Splode.ErrorClass, class: :api
   end
 
   defmodule Unknown do
+    @moduledoc "Error class for unexpected or unhandled errors."
     use Splode.ErrorClass, class: :unknown
   end
 
   defmodule Invalid.Parameter do
+    @moduledoc "Error for invalid or missing parameters."
     use Splode.Error, fields: [:parameter], class: :invalid
 
     def message(%{parameter: parameter}) do
@@ -32,6 +36,7 @@ defmodule Jido.AI.Error do
   end
 
   defmodule API.Request do
+    @moduledoc "Error for API request failures, HTTP errors, and network issues."
     use Splode.Error, fields: [:reason], class: :api
 
     def message(%{reason: reason}) do
@@ -40,6 +45,7 @@ defmodule Jido.AI.Error do
   end
 
   defmodule Unknown.Unknown do
+    @moduledoc "Error for unexpected or unhandled errors."
     use Splode.Error, fields: [:error], class: :unknown
 
     def message(%{error: error}) do

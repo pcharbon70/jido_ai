@@ -36,7 +36,7 @@ defmodule Jido.AI do
 
   """
 
-  alias Jido.AI.{Keyring, Model, Provider}
+  alias Jido.AI.{Keyring, Model}
 
   # ===========================================================================
   # Configuration API - Simple facades for common operations
@@ -197,7 +197,6 @@ defmodule Jido.AI do
   Generates text using an AI model with maximum developer ergonomics.
 
   Accepts flexible model specifications and generates text using the appropriate provider.
-  Currently supports OpenRouter provider.
 
   ## Parameters
 
@@ -237,11 +236,7 @@ defmodule Jido.AI do
   def generate_text(model_spec, prompt, opts \\ []) when is_binary(prompt) and is_list(opts) do
     with {:ok, model} <- ensure_model_struct(model_spec),
          {:ok, provider_module} <- provider(model.provider) do
-      # Merge model options with provided opts
-      merged_opts = merge_model_options(model, opts)
-
-      # Call the provider's generate_text function
-      provider_module.generate_text(model.model, prompt, merged_opts)
+      provider_module.generate_text(model, prompt, opts)
     end
   end
 
@@ -285,11 +280,7 @@ defmodule Jido.AI do
   def stream_text(model_spec, prompt, opts \\ []) when is_binary(prompt) and is_list(opts) do
     with {:ok, model} <- ensure_model_struct(model_spec),
          {:ok, provider_module} <- provider(model.provider) do
-      # Merge model options with provided opts
-      merged_opts = merge_model_options(model, opts)
-
-      # Call the provider's stream_text function
-      provider_module.stream_text(model.model, prompt, merged_opts)
+      provider_module.stream_text(model, prompt, opts)
     end
   end
 
@@ -298,33 +289,4 @@ defmodule Jido.AI do
           {:ok, Model.t()} | {:error, String.t()}
   defp ensure_model_struct(%Model{} = model), do: {:ok, model}
   defp ensure_model_struct(model_spec), do: model(model_spec)
-
-  @doc false
-  @spec merge_model_options(Model.t(), keyword()) :: keyword()
-  defp merge_model_options(model, opts) do
-    # Get api_key from keyring or opts
-    provider_key = :"#{model.provider}_api_key"
-    api_key = Keyword.get(opts, :api_key) || api_key(provider_key)
-
-    # Get base_url from provider registry
-    base_url =
-      case Provider.Registry.fetch(model.provider) do
-        {:ok, mod} when is_atom(mod) -> mod.api_url()
-        {:error, _} -> nil
-      end
-
-    model_opts =
-      []
-      |> maybe_put(:temperature, model.temperature)
-      |> maybe_put(:max_tokens, model.max_tokens)
-      |> maybe_put(:api_key, api_key)
-      |> maybe_put(:base_url, base_url)
-
-    # Provided opts take precedence over model defaults
-    Keyword.merge(model_opts, opts)
-  end
-
-  @doc false
-  defp maybe_put(opts, _key, nil), do: opts
-  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
 end

@@ -97,6 +97,7 @@ defmodule Jido.AI.Model do
   @doc """
   Validates date format (YYYY-MM or YYYY-MM-DD).
   """
+  @spec validate_date_format(String.t() | nil) :: {:ok, String.t() | nil} | {:error, String.t()}
   def validate_date_format(nil), do: {:ok, nil}
 
   def validate_date_format(value) when is_binary(value) do
@@ -131,6 +132,7 @@ defmodule Jido.AI.Model do
   @doc """
   Validates cost structure with required input/output and optional cache fields.
   """
+  @spec validate_cost(map() | nil) :: {:ok, cost() | nil} | {:error, String.t()}
   def validate_cost(nil), do: {:ok, nil}
 
   def validate_cost(cost) when is_map(cost) do
@@ -142,6 +144,7 @@ defmodule Jido.AI.Model do
   @doc """
   Validates limit structure with context and output fields.
   """
+  @spec validate_limit(map()) :: {:ok, limit()} | {:error, String.t()}
   def validate_limit(limit) when is_map(limit) do
     NimbleOptions.validate(limit, @limit_schema)
   end
@@ -235,34 +238,32 @@ defmodule Jido.AI.Model do
   """
   @spec from_json(map()) :: {:ok, t()} | {:error, String.t()}
   def from_json(json_data) when is_map(json_data) do
-    try do
-      provider = json_data["provider"] && String.to_existing_atom(json_data["provider"])
+    provider = json_data["provider"] && String.to_existing_atom(json_data["provider"])
 
-      model = %__MODULE__{
-        provider: provider,
-        model: json_data["provider_model_id"],
-        temperature: json_data["temperature"],
-        max_tokens: json_data["max_tokens"],
-        max_retries: json_data["max_retries"] || 3,
-        id: json_data["id"],
-        name: json_data["name"],
-        attachment: json_data["attachment"] || false,
-        reasoning: json_data["reasoning"] || false,
-        supports_temperature: json_data["supports_temperature"] || true,
-        tool_call: json_data["tool_call"] || false,
-        knowledge: json_data["knowledge"],
-        release_date: json_data["release_date"] || "2024-01",
-        last_updated: json_data["last_updated"] || "2024-01",
-        modalities: json_data["modalities"] || %{input: [:text], output: [:text]},
-        open_weights: json_data["open_weights"] || false,
-        cost: json_data["cost"],
-        limit: json_data["limit"] || %{context: 128_000, output: 4096}
-      }
+    model = %__MODULE__{
+      provider: provider,
+      model: json_data["provider_model_id"],
+      temperature: json_data["temperature"],
+      max_tokens: json_data["max_tokens"],
+      max_retries: json_data["max_retries"] || 3,
+      id: json_data["id"],
+      name: json_data["name"],
+      attachment: json_data["attachment"] || false,
+      reasoning: json_data["reasoning"] || false,
+      supports_temperature: json_data["supports_temperature"] || true,
+      tool_call: json_data["tool_call"] || false,
+      knowledge: json_data["knowledge"],
+      release_date: json_data["release_date"] || "2024-01",
+      last_updated: json_data["last_updated"] || "2024-01",
+      modalities: json_data["modalities"] || %{input: [:text], output: [:text]},
+      open_weights: json_data["open_weights"] || false,
+      cost: json_data["cost"],
+      limit: json_data["limit"] || %{context: 128_000, output: 4096}
+    }
 
-      validate(model)
-    rescue
-      ArgumentError -> {:error, "Invalid provider: #{json_data["provider"]}"}
-    end
+    validate(model)
+  rescue
+    ArgumentError -> {:error, "Invalid provider: #{json_data["provider"]}"}
   end
 
   @doc false

@@ -1,7 +1,9 @@
 import Config
 
+alias Jido.AI.Keyring.Filter
+
 config :logger, :console,
-  format: {Jido.AI.Keyring.Filter, :format},
+  format: {Filter, :format},
   metadata: [:module]
 
 # Test environment - suppress debug logs during tests

@@ -1,6 +1,7 @@
 defmodule Jido.AI.Provider.RegistryTest do
   use ExUnit.Case, async: false
 
+  alias Jido.AI.Error.Invalid.Parameter
   alias Jido.AI.Provider.Registry
 
   # Registry key constant
@@ -171,7 +172,7 @@ defmodule Jido.AI.Provider.RegistryTest do
   describe "get_provider/1 (deprecated)" do
     test "returns error for non-existent provider" do
       result = Registry.get_provider(:nonexistent)
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = result
+      assert {:error, %Parameter{}} = result
     end
 
     test "returns provider module for registered provider" do
@@ -187,7 +188,7 @@ defmodule Jido.AI.Provider.RegistryTest do
 
       Registry.clear()
       result = Registry.get_provider(:openai)
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = result
+      assert {:error, %Parameter{}} = result
     end
 
     test "handles multiple providers correctly" do
@@ -196,7 +197,7 @@ defmodule Jido.AI.Provider.RegistryTest do
 
       assert {:ok, TestOpenAI} = Registry.get_provider(:openai)
       assert {:ok, TestAnthropic} = Registry.get_provider(:anthropic)
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} = Registry.get_provider(:google)
+      assert {:error, %Parameter{}} = Registry.get_provider(:google)
     end
   end
 

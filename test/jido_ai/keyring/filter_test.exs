@@ -37,8 +37,7 @@ defmodule Jido.AI.Keyring.FilterTest do
   describe "filter_sensitive_data/1" do
     test "filters logger event tuple" do
       log_event =
-        {:info, self(),
-         {Logger, "api_key: secret123", {{2023, 1, 1}, {12, 0, 0, 0}}, [token: "abc123"]}}
+        {:info, self(), {Logger, "api_key: secret123", {{2023, 1, 1}, {12, 0, 0, 0}}, [token: "abc123"]}}
 
       {level, gl, {Logger, filtered_msg, _ts, filtered_md}} =
         Filter.filter_sensitive_data(log_event)
@@ -183,9 +182,7 @@ defmodule Jido.AI.Keyring.FilterTest do
     test "identifies long base64-like strings" do
       assert Filter.looks_like_sensitive_value?("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")
 
-      assert Filter.looks_like_sensitive_value?(
-               "U2FsdGVkX1+vupppZksvRf5pq5g5XjFRIipRkwB0K1Y96Qsv2L"
-             )
+      assert Filter.looks_like_sensitive_value?("U2FsdGVkX1+vupppZksvRf5pq5g5XjFRIipRkwB0K1Y96Qsv2L")
 
       assert Filter.looks_like_sensitive_value?("dGVzdF9hcGlfa2V5XzEyMzQ1Njc4OTA")
     end

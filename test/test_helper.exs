@@ -3,7 +3,7 @@ ExUnit.configure(
   exclude: [
     # Exclude integration tests by default
     :integration,
-    # Exclude slow tests by default  
+    # Exclude slow tests by default
     :slow,
     # Exclude tests that hit real APIs
     :external_api,

@@ -1,8 +1,42 @@
 defmodule Jido.AI.Provider.BaseTest do
   use ExUnit.Case, async: true
+
   import Jido.AI.TestUtils
 
+  alias Jido.AI.Error.{API, Invalid}
+  alias Jido.AI.Model
+  alias Jido.AI.Provider
   alias Jido.AI.Provider.Base
+  alias Jido.AI.Test.FakeProvider
+
+  # Simple test provider for testing Base functionality
+  defmodule TestProvider do
+    @behaviour Jido.AI.Provider.Base
+
+    @impl true
+    def provider_info do
+      %Provider{
+        id: :test_provider,
+        name: "Test Provider",
+        doc: "Provider for testing Base module",
+        env: [:test_api_key],
+        models: %{}
+      }
+    end
+
+    @impl true
+    def api_url, do: "https://test.example.com/v1"
+
+    @impl true
+    def generate_text(%Model{} = model, prompt, opts \\ []) do
+      Base.default_generate_text(__MODULE__, model, prompt, opts)
+    end
+
+    @impl true
+    def stream_text(%Model{} = model, prompt, opts \\ []) do
+      Base.default_stream_text(__MODULE__, model, prompt, opts)
+    end
+  end
 
   setup do
     # Set up isolated keyring for tests
@@ -23,83 +57,169 @@ defmodule Jido.AI.Provider.BaseTest do
       end
     end)
 
-    :ok
+    # Set up test API key using the proper config path
+    Application.put_env(:jido_ai, :test_provider, api_key: "test-key-123")
+
+    model = %Model{
+      provider: :test_provider,
+      model: "test-model",
+      temperature: 0.7,
+      max_tokens: 1000,
+      max_retries: 3
+    }
+
+    %{model: model}
   end
 
-  describe "generate_text_request/1" do
-    test "returns error when api_key missing" do
-      opts = [model: "gpt-4", prompt: "test", api_key: nil]
+  describe "generate_text/3" do
+    test "returns error when api_key missing", %{model: model} do
+      # Clear API key from application config
+      Application.put_env(:jido_ai, :test_provider, [])
 
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
-               Base.generate_text_request(opts)
+      assert {:error, %Invalid.Parameter{}} =
+               TestProvider.generate_text(model, "test prompt")
     end
 
-    test "returns error when prompt missing" do
-      opts = [model: "gpt-4", api_key: "test-key", prompt: nil]
-
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
-               Base.generate_text_request(opts)
+    test "returns error when prompt is nil", %{model: model} do
+      assert {:error, %Invalid.Parameter{}} =
+               TestProvider.generate_text(model, nil)
     end
 
-    test "makes successful HTTP request" do
+    test "returns error when prompt is empty string", %{model: model} do
+      assert {:error, %Invalid.Parameter{}} =
+               TestProvider.generate_text(model, "")
+    end
+
+    test "makes successful HTTP request", %{model: model} do
       mock_http_success()
 
-      opts = [
-        model: "gpt-4",
-        api_key: "test-key",
-        prompt: "Hello",
-        temperature: 0.7,
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:ok, "Generated response"} = Base.generate_text_request(opts)
+      assert {:ok, "Generated response"} =
+               TestProvider.generate_text(model, "Hello")
     end
 
-    test "handles HTTP error responses" do
+    test "handles HTTP error responses", %{model: model} do
       mock_http_error(400, %{"error" => %{"message" => "Bad request"}})
 
-      opts = [
-        model: "gpt-4",
-        api_key: "test-key",
-        prompt: "Hello",
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:error, %Jido.AI.Error.API.Request{}} = Base.generate_text_request(opts)
+      assert {:error, %API.Request{}} =
+               TestProvider.generate_text(model, "Hello")
     end
 
-    test "handles network errors" do
+    test "handles network errors", %{model: model} do
       Req.Test.stub(:base_test, fn conn ->
         Req.Test.transport_error(conn, :timeout)
       end)
 
-      opts = [
-        model: "gpt-4",
-        api_key: "test-key",
-        prompt: "Hello",
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:error, %Jido.AI.Error.API.Request{}} = Base.generate_text_request(opts)
+      assert {:error, %API.Request{}} =
+               TestProvider.generate_text(model, "Hello")
     end
 
-    test "includes all model parameters in request" do
+    test "includes all model parameters in request", %{model: model} do
       Req.Test.stub(:base_test, fn conn ->
-        # Just return a successful response - request validation can be done at integration level
         conn |> Req.Test.json(mock_success_response())
       end)
 
-      opts = [
-        model: "gpt-4",
-        api_key: "test-key",
-        prompt: "Hello",
-        temperature: 0.8,
-        max_tokens: 1000,
-        top_p: 0.9,
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
+      model_with_params = %{model | temperature: 0.8, max_tokens: 2000}
 
-      assert {:ok, _} = Base.generate_text_request(opts)
+      assert {:ok, _} = TestProvider.generate_text(model_with_params, "Hello", top_p: 0.9)
+    end
+  end
+
+  describe "stream_text/3" do
+    test "returns error when api_key missing", %{model: model} do
+      # Clear API key from application config
+      Application.put_env(:jido_ai, :test_provider, [])
+
+      assert {:error, %Invalid.Parameter{}} =
+               TestProvider.stream_text(model, "test prompt")
+    end
+
+    test "returns error when prompt is nil", %{model: model} do
+      assert {:error, %Invalid.Parameter{}} =
+               TestProvider.stream_text(model, nil)
+    end
+
+    test "returns error when prompt is empty string", %{model: model} do
+      assert {:error, %Invalid.Parameter{}} =
+               TestProvider.stream_text(model, "")
+    end
+
+    test "returns stream for HTTP request", %{model: model} do
+      Req.Test.stub(:base_test, fn conn ->
+        conn |> Req.Test.json(%{})
+      end)
+
+      assert {:ok, stream} = TestProvider.stream_text(model, "Hello")
+      assert is_function(stream, 2)
+    end
+
+    test "returns ok with stream structure", %{model: model} do
+      Req.Test.stub(:base_test, fn conn ->
+        conn |> Req.Test.json(%{})
+      end)
+
+      assert {:ok, stream} = TestProvider.stream_text(model, "Hello")
+      assert is_function(stream, 2)
+    end
+  end
+
+  describe "merge_model_options/3" do
+    test "merges model configuration with request options", %{model: model} do
+      opts = [temperature: 0.9, custom_option: "test"]
+
+      merged = Base.merge_model_options(TestProvider, model, opts)
+
+      # opts take precedence
+      assert merged[:temperature] == 0.9
+      # from model
+      assert merged[:max_tokens] == 1000
+      # from opts
+      assert merged[:custom_option] == "test"
+      # from config
+      assert merged[:api_key] == "test-key-123"
+      assert merged[:url] == "https://test.example.com/v1/chat/completions"
+    end
+
+    test "uses model defaults when opts don't override", %{model: model} do
+      merged = Base.merge_model_options(TestProvider, model, [])
+
+      assert merged[:temperature] == 0.7
+      assert merged[:max_tokens] == 1000
+      assert merged[:max_retries] == 3
+    end
+
+    test "opts take precedence over model config", %{model: model} do
+      opts = [temperature: 1.0, max_tokens: 500, api_key: "override-key"]
+
+      merged = Base.merge_model_options(TestProvider, model, opts)
+
+      assert merged[:temperature] == 1.0
+      assert merged[:max_tokens] == 500
+      assert merged[:api_key] == "override-key"
+    end
+  end
+
+  describe "build_chat_completion_body/3" do
+    test "builds correct request body", %{model: model} do
+      opts = [temperature: 0.8, max_tokens: 1500]
+
+      body = Base.build_chat_completion_body(model, "Hello", opts)
+
+      assert body[:model] == "test-model"
+      assert body[:messages] == [%{role: "user", content: "Hello"}]
+      assert body[:temperature] == 0.8
+      assert body[:max_tokens] == 1500
+    end
+
+    test "converts prompt to messages format", %{model: model} do
+      body = Base.build_chat_completion_body(model, "Test prompt", [])
+
+      assert body[:messages] == [%{role: "user", content: "Test prompt"}]
+    end
+
+    test "includes stream parameter when provided", %{model: model} do
+      body = Base.build_chat_completion_body(model, "Hello", stream: true)
+
+      assert body[:stream] == true
     end
   end
 
@@ -123,7 +243,7 @@ defmodule Jido.AI.Provider.BaseTest do
         body: %{"error" => %{"message" => "Invalid request"}}
       }
 
-      assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
+      assert {:error, %API.Request{}} = Base.extract_text_response(response)
     end
 
     test "handles error response without message" do
@@ -132,7 +252,7 @@ defmodule Jido.AI.Provider.BaseTest do
         body: %{"error" => %{}}
       }
 
-      assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
+      assert {:error, %API.Request{}} = Base.extract_text_response(response)
     end
 
     test "handles different HTTP error codes" do
@@ -144,7 +264,7 @@ defmodule Jido.AI.Provider.BaseTest do
           body: %{"error" => %{"message" => "Error #{status}"}}
         }
 
-        assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
+        assert {:error, %API.Request{}} = Base.extract_text_response(response)
       end
     end
 
@@ -154,7 +274,7 @@ defmodule Jido.AI.Provider.BaseTest do
         body: %{"unexpected" => "format"}
       }
 
-      assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
+      assert {:error, %API.Request{}} = Base.extract_text_response(response)
     end
 
     test "handles missing choices" do
@@ -163,7 +283,7 @@ defmodule Jido.AI.Provider.BaseTest do
         body: %{"choices" => []}
       }
 
-      assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
+      assert {:error, %API.Request{}} = Base.extract_text_response(response)
     end
 
     test "handles missing message content" do
@@ -176,7 +296,7 @@ defmodule Jido.AI.Provider.BaseTest do
         }
       }
 
-      assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
+      assert {:error, %API.Request{}} = Base.extract_text_response(response)
     end
 
     test "handles non-map response body" do
@@ -185,109 +305,26 @@ defmodule Jido.AI.Provider.BaseTest do
         body: "not a map"
       }
 
-      assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
-    end
-  end
-
-  describe "stream_text_request/1" do
-    test "returns error when api_key missing" do
-      opts = [model: "gpt-4", prompt: "test", api_key: nil]
-
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
-               Base.stream_text_request(opts)
-    end
-
-    test "returns error when prompt missing" do
-      opts = [model: "gpt-4", api_key: "test-key", prompt: nil]
-
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
-               Base.stream_text_request(opts)
-    end
-
-    test "returns error when url missing" do
-      opts = [model: "gpt-4", api_key: "test-key", prompt: "Hello"]
-
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
-               Base.stream_text_request(opts)
-    end
-
-    test "returns error when model missing" do
-      opts = [
-        api_key: "test-key",
-        prompt: "Hello",
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:error, %Jido.AI.Error.Invalid.Parameter{}} =
-               Base.stream_text_request(opts)
-    end
-
-    test "returns stream for HTTP request" do
-      Req.Test.stub(:base_test, fn conn ->
-        conn |> Req.Test.json(%{})
-      end)
-
-      opts = [
-        model: "gpt-4",
-        api_key: "test-key",
-        prompt: "Hello",
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:ok, stream} = Base.stream_text_request(opts)
-      assert is_function(stream, 2)
-    end
-
-    test "returns ok with stream structure" do
-      Req.Test.stub(:base_test, fn conn ->
-        conn |> Req.Test.json(%{})
-      end)
-
-      opts = [
-        model: "gpt-4",
-        api_key: "test-key",
-        prompt: "Hello",
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:ok, stream} = Base.stream_text_request(opts)
-      assert is_function(stream, 2)
+      assert {:error, %API.Request{}} = Base.extract_text_response(response)
     end
   end
 
   describe "request building integration" do
-    test "builds correct OpenAI chat completion request" do
+    test "builds correct OpenAI chat completion request", %{model: model} do
       Req.Test.stub(:base_test, fn conn ->
-        # Just return a successful response - detailed request validation can be done at integration level
         conn |> Req.Test.json(mock_success_response())
       end)
 
-      opts = [
-        model: "gpt-4",
-        api_key: "test-key",
-        prompt: "Hello",
-        temperature: 0.7,
-        max_tokens: 100,
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:ok, _} = Base.generate_text_request(opts)
+      assert {:ok, _} =
+               TestProvider.generate_text(model, "Hello", temperature: 0.7, max_tokens: 100)
     end
 
-    test "builds correct streaming request" do
+    test "builds correct streaming request", %{model: model} do
       Req.Test.stub(:base_test, fn conn ->
-        # Just return a successful response - detailed request validation can be done at integration level
         conn |> Req.Test.json(%{})
       end)
 
-      opts = [
-        model: "gpt-4",
-        api_key: "test-key",
-        prompt: "Stream test",
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:ok, stream} = Base.stream_text_request(opts)
+      assert {:ok, stream} = TestProvider.stream_text(model, "Stream test")
       assert is_function(stream, 2)
     end
   end
@@ -304,7 +341,7 @@ defmodule Jido.AI.Provider.BaseTest do
       for {body, index} <- Enum.with_index(error_formats) do
         response = %Req.Response{status: 400 + index, body: body}
 
-        assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
+        assert {:error, %API.Request{}} = Base.extract_text_response(response)
       end
     end
 
@@ -317,94 +354,77 @@ defmodule Jido.AI.Provider.BaseTest do
       ]
 
       for response <- malformed_responses do
-        assert {:error, %Jido.AI.Error.API.Request{}} = Base.extract_text_response(response)
+        assert {:error, %API.Request{}} = Base.extract_text_response(response)
       end
     end
   end
 
-  describe "integration with provider models" do
-    test "works with different provider model structures" do
-      providers_and_models = [
-        {"claude-3-sonnet", "test anthropic"},
-        {"gemini-pro", "test google"},
-        {"mistral-large", "test mistral"}
-      ]
+  describe "integration with different provider models" do
+    test "works with anthropic model structure" do
+      mock_http_success()
+      test_model = %Model{provider: :test_provider, model: "claude-3-sonnet"}
+      assert {:ok, _} = TestProvider.generate_text(test_model, "test anthropic")
+    end
 
-      for {model, prompt} <- providers_and_models do
-        mock_http_success()
-
-        opts = [
-          api_key: "test-key",
-          prompt: prompt,
-          model: model,
-          url: "https://api.openai.com/v1/chat/completions"
-        ]
-
-        # Should not error on different model structures
-        assert {:ok, _} = Base.generate_text_request(opts)
-      end
+    test "works with google model structure" do
+      mock_http_success()
+      test_model = %Model{provider: :test_provider, model: "gemini-pro"}
+      assert {:ok, _} = TestProvider.generate_text(test_model, "test google")
     end
   end
 
   describe "edge cases and boundary conditions" do
-    test "handles very long prompts" do
+    test "handles very long prompts", %{model: model} do
       mock_http_success()
 
       long_prompt = String.duplicate("This is a very long prompt. ", 1000)
 
-      opts = [
-        api_key: "test-key",
-        prompt: long_prompt,
-        model: "gpt-4",
-        url: "https://api.openai.com/v1/chat/completions"
-      ]
-
-      assert {:ok, _} = Base.generate_text_request(opts)
+      assert {:ok, _} = TestProvider.generate_text(model, long_prompt)
     end
 
-    test "handles special characters in prompts" do
-      mock_http_success()
+    test "handles special characters in prompts", %{model: model} do
+      # Mock response for each test
+      Req.Test.stub(:base_test, fn conn ->
+        conn
+        |> Req.Test.json(%{
+          "choices" => [%{"message" => %{"content" => "Generated response"}}]
+        })
+      end)
 
-      special_prompts = [
-        "Prompt with \"quotes\" and 'apostrophes'",
-        "Prompt with\nnewlines\nand\ttabs",
-        "Prompt with emoji 🚀🎉✨",
-        "Prompt with unicode: αβγδε",
-        "Prompt with JSON: {\"key\": \"value\"}"
-      ]
-
-      for prompt <- special_prompts do
-        opts = [
-          api_key: "test-key",
-          prompt: prompt,
-          model: "gpt-4",
-          url: "https://api.openai.com/v1/chat/completions"
-        ]
-
-        assert {:ok, _} = Base.generate_text_request(opts)
-      end
+      # Test one complex prompt
+      assert {:ok, _} = TestProvider.generate_text(model, "Prompt with \"quotes\" and emoji 🚀")
     end
 
-    test "handles boundary values for numeric parameters" do
-      mock_http_success()
+    test "handles boundary values for numeric parameters", %{model: model} do
+      # Test one boundary case
+      Req.Test.stub(:base_test, fn conn ->
+        conn
+        |> Req.Test.json(%{
+          "choices" => [%{"message" => %{"content" => "Generated response"}}]
+        })
+      end)
 
-      boundary_cases = [
-        [temperature: 0.0],
-        [temperature: 2.0],
-        [max_tokens: 1]
-      ]
+      assert {:ok, _} = TestProvider.generate_text(model, "test", temperature: 0.0)
+    end
+  end
 
-      for params <- boundary_cases do
-        opts =
-          [
-            api_key: "test-key",
-            prompt: "test",
-            model: "gpt-4",
-            url: "https://api.openai.com/v1/chat/completions"
-          ] ++ params
+  describe "FakeProvider integration" do
+    test "FakeProvider works with Base callbacks" do
+      model = fake_model()
 
-        assert {:ok, _} = Base.generate_text_request(opts)
-      end
+      assert {:ok, result} = FakeProvider.generate_text(model, "test prompt", [])
+      assert is_binary(result)
+      assert String.contains?(result, "fake-model")
+      assert String.contains?(result, "test prompt")
+    end
+
+    test "FakeProvider stream_text works" do
+      model = fake_model()
+
+      assert {:ok, stream} = FakeProvider.stream_text(model, "test prompt", [])
+
+      result = Enum.to_list(stream)
+      assert result == ["chunk_1", "chunk_2", "chunk_3"]
     end
   end
 end

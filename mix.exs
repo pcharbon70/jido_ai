@@ -55,6 +55,7 @@ defmodule Jido.Ai.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     require Logger
+
     use_local_deps = System.get_env("LOCAL_JIDO_DEPS") == "true" || false
 
     deps = [
@@ -85,12 +86,14 @@ defmodule Jido.Ai.MixProject do
       {:mimic, "~> 2.0", only: [:dev, :test]},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:quokka, "~> 2.10", only: [:dev, :test], runtime: false},
       {:sobelow, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:stream_data, "~> 1.1", only: [:dev, :test]}
     ]
 
     if use_local_deps do
       require Logger
+
       Logger.warning("Using local Jido dependencies")
 
       deps ++

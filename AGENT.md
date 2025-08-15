@@ -41,6 +41,30 @@ _API is modeled after the Vercel AI SDK_
 - `Jido.AI.generate_text(model_spec, prompt, opts)` - Generate text with any model spec
 - `Jido.AI.stream_text(model_spec, prompt, opts)` - Stream text generation
 
+### Model Creation Syntactic Sugar
+
+The `Model.from/1` function provides flexible model creation from various input formats:
+
+**String Format**: `"provider:model"` for quick model references
+```elixir
+Model.from("openrouter:anthropic/claude-3.5-sonnet")
+Model.from("openai:gpt-4o")
+Model.from("google:gemini-1.5-pro")
+```
+
+**Tuple Format**: `{provider, opts}` for custom configuration
+```elixir
+Model.from({:openrouter, model: "anthropic/claude-3.5-sonnet", temperature: 0.7})
+Model.from({:openai, model: "gpt-4o", max_tokens: 4000, max_retries: 5})
+```
+
+**Struct Passthrough**: Existing Model structs are returned as-is
+```elixir
+Model.from(%Model{provider: :openai, model: "gpt-4o"})  # Returns the struct unchanged
+```
+
+This syntactic sugar allows developers to quickly reference models without needing to construct full Model structs, while maintaining type safety and provider validation.
+
 ## Code Style
 - **Formatting**: Uses [`mix format`](.formatter.exs), line length max 120 chars
 - **Types**: Add `@spec` to all public functions, use `@type` for custom types
@@ -50,6 +74,7 @@ _API is modeled after the Vercel AI SDK_
 - **Error Handling**: Return `{:ok, result}` or `{:error, reason}` tuples, use `with` for complex flows
 - **Imports**: Group aliases at module top, prefer explicit over wildcard imports
 - **Naming**: `snake_case` for functions/variables, `PascalCase` for modules
+- **Logging**: Avoid Logger metadata - integrate all fields into log message strings instead of using keyword lists
 
 ## Data Architecture
 

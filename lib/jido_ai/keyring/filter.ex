@@ -208,12 +208,10 @@ defmodule Jido.AI.Keyring.Filter do
 
   def looks_like_sensitive_value?(_), do: false
 
-  defp sanitize_logger_message(fun) when is_function(fun, 0),
-    do: sanitize_logger_message(fun.())
+  defp sanitize_logger_message(fun) when is_function(fun, 0), do: sanitize_logger_message(fun.())
 
   defp sanitize_logger_message(iodata) when is_binary(iodata) or is_list(iodata),
     do: iodata |> IO.iodata_to_binary() |> sanitize_data()
 
-  defp sanitize_logger_message(other),
-    do: other |> to_string() |> sanitize_data()
+  defp sanitize_logger_message(other), do: other |> to_string() |> sanitize_data()
 end

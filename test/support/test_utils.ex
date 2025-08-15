@@ -13,6 +13,9 @@ defmodule Jido.AI.TestUtils do
   import Plug.Conn, only: [put_status: 2, put_resp_header: 3, send_resp: 3]
 
   ## Keyring Test Utilities
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
+  alias JidoAI.Provider.Test
 
   @doc """
   Sets up an isolated keyring for testing.
@@ -28,10 +31,10 @@ defmodule Jido.AI.TestUtils do
   """
   def setup_isolated_keyring do
     # Clear any existing keys
-    Jido.AI.Keyring.clear_all_session_values()
+    Keyring.clear_all_session_values()
 
     # Return cleanup function
-    fn -> Jido.AI.Keyring.clear_all_session_values() end
+    fn -> Keyring.clear_all_session_values() end
   end
 
   @doc """
@@ -41,10 +44,10 @@ defmodule Jido.AI.TestUtils do
     cleanup_fn = setup_isolated_keyring()
 
     # Add test keys via session values
-    Jido.AI.Keyring.set_session_value(:openai_api_key, "test-openai-key")
-    Jido.AI.Keyring.set_session_value(:anthropic_api_key, "test-anthropic-key")
-    Jido.AI.Keyring.set_session_value(:google_api_key, "test-google-key")
-    Jido.AI.Keyring.set_session_value(:mistral_api_key, "test-mistral-key")
+    Keyring.set_session_value(:openai_api_key, "test-openai-key")
+    Keyring.set_session_value(:anthropic_api_key, "test-anthropic-key")
+    Keyring.set_session_value(:google_api_key, "test-google-key")
+    Keyring.set_session_value(:mistral_api_key, "test-mistral-key")
 
     cleanup_fn
   end
@@ -88,7 +91,7 @@ defmodule Jido.AI.TestUtils do
   Returns a test Jido.AI.Model struct for OpenAI GPT-4.
   """
   def openai_gpt4_model do
-    %Jido.AI.Model{
+    %Model{
       provider: :openai,
       model: "gpt-4",
       temperature: nil,
@@ -127,7 +130,7 @@ defmodule Jido.AI.TestUtils do
   Returns a test Jido.AI.Model struct for Anthropic Claude.
   """
   def anthropic_claude_model do
-    %Jido.AI.Model{
+    %Model{
       provider: :anthropic,
       model: "claude-3-sonnet",
       temperature: nil,
@@ -166,7 +169,7 @@ defmodule Jido.AI.TestUtils do
   Returns a test Jido.AI.Model struct for Google Gemini.
   """
   def google_gemini_model do
-    %Jido.AI.Model{
+    %Model{
       provider: :google,
       model: "gemini-pro",
       temperature: nil,
@@ -205,7 +208,7 @@ defmodule Jido.AI.TestUtils do
   Returns a test Jido.AI.Model struct for Mistral.
   """
   def mistral_large_model do
-    %Jido.AI.Model{
+    %Model{
       provider: :mistral,
       model: "mistral-large",
       temperature: nil,
@@ -244,7 +247,7 @@ defmodule Jido.AI.TestUtils do
   Returns a test Jido.AI.Model struct for a fake provider (testing).
   """
   def fake_model do
-    %Jido.AI.Model{
+    %Model{
       provider: :fake,
       model: "fake-model",
       temperature: nil,
@@ -279,7 +282,7 @@ defmodule Jido.AI.TestUtils do
   def test_provider(name, opts \\ []) do
     base_config = %{
       name: name,
-      module: Keyword.get(opts, :module, JidoAI.Provider.Test),
+      module: Keyword.get(opts, :module, Test),
       api_key_name: to_string(name),
       base_url: Keyword.get(opts, :base_url, "https://api.#{name}.com"),
       headers: Keyword.get(opts, :headers, %{"Content-Type" => "application/json"}),

@@ -1,34 +1,25 @@
 defmodule Jido.AITest do
   use ExUnit.Case, async: true
-  import Mimic
+
   import Jido.AI.TestUtils
+  import Mimic
 
   alias Jido.AI
+  alias Jido.AI.Error.API.Request
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
+  alias Jido.AI.Provider.OpenAI
+  alias Jido.AI.Test.FakeProvider
 
   doctest Jido.AI
-
-  defmodule FakeProvider do
-    def api_url, do: "https://fake.test/v1"
-
-    def generate_text(model, prompt, opts) do
-      {:ok, "#{model}:#{prompt}:#{inspect(opts)}"}
-    end
-
-    def stream_text(_model, _prompt, _opts) do
-      {:ok, Stream.iterate(1, &(&1 + 1)) |> Stream.take(3) |> Stream.map(&"chunk_#{&1}")}
-    end
-
-    def provider_info do
-      %{id: :fake, env: [], models: [%{id: "fake-model"}]}
-    end
-  end
 
   setup :verify_on_exit!
 
   setup do
-    copy(Jido.AI.Keyring)
-    # Register a fake provider for testing
+    copy(Keyring)
+    # Register providers for testing
     Jido.AI.Provider.Registry.register(:fake, FakeProvider)
+    Jido.AI.Provider.Registry.register(:openai, OpenAI)
 
     on_exit(fn ->
       Jido.AI.Provider.Registry.clear()
@@ -40,20 +31,20 @@ defmodule Jido.AITest do
 
   describe "api_key/1" do
     test "returns nil when no key configured" do
-      stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
+      stub(Keyring, :get, fn _, _, _ -> nil end)
       assert AI.api_key(:openai_api_key) == nil
     end
 
     test "returns key when available (atom)" do
-      stub(Jido.AI.Keyring, :get, fn
-        Jido.AI.Keyring, :openai_api_key, nil -> "provider-key"
+      stub(Keyring, :get, fn
+        Keyring, :openai_api_key, nil -> "provider-key"
       end)
 
       assert AI.api_key(:openai_api_key) == "provider-key"
     end
 
     test "returns key when available (string)" do
-      stub(Jido.AI.Keyring, :get, fn
+      stub(Keyring, :get, fn
         "anthropic_api_key", nil -> "anthropic-key"
       end)
 
@@ -61,7 +52,7 @@ defmodule Jido.AITest do
     end
 
     test "handles case-insensitive string keys" do
-      stub(Jido.AI.Keyring, :get, fn
+      stub(Keyring, :get, fn
         "openai_api_key", nil -> "case-insensitive-key"
       end)
 
@@ -82,14 +73,14 @@ defmodule Jido.AITest do
 
   describe "list_keys/0" do
     test "delegates to keyring" do
-      stub(Jido.AI.Keyring, :list, fn Jido.AI.Keyring -> ["key1", "key2"] end)
+      stub(Keyring, :list, fn Keyring -> ["key1", "key2"] end)
       assert AI.list_keys() == ["key1", "key2"]
     end
   end
 
   describe "model/1" do
     test "accepts string format" do
-      stub(Jido.AI.Keyring, :get, fn _, _, default -> default end)
+      stub(Keyring, :get, fn _, _, default -> default end)
 
       assert {:ok, model} = AI.model("fake:fake-model")
       assert model.provider == :fake
@@ -97,7 +88,7 @@ defmodule Jido.AITest do
     end
 
     test "accepts tuple format" do
-      stub(Jido.AI.Keyring, :get, fn _, _, default -> default end)
+      stub(Keyring, :get, fn _, _, default -> default end)
 
       assert {:ok, model} = AI.model({:fake, model: "fake-model", temperature: 0.8})
       assert model.provider == :fake
@@ -108,6 +99,20 @@ defmodule Jido.AITest do
     test "accepts struct format" do
       model_struct = openai_gpt4_model()
       assert {:ok, ^model_struct} = AI.model(model_struct)
+    end
+
+    test "handles Model struct directly in text generation" do
+      stub(Keyring, :get, fn _, _, _ -> nil end)
+
+      model_struct = %Model{
+        provider: :fake,
+        model: "test-model",
+        temperature: 0.5
+      }
+
+      # This should hit the ensure_model_struct(%Model{} = model) clause
+      {:ok, result} = AI.generate_text(model_struct, "hello")
+      assert result =~ "test-model"
     end
 
     test "returns error for invalid format" do
@@ -121,7 +126,7 @@ defmodule Jido.AITest do
 
   describe "generate_text/3" do
     test "delegates to provider with merged opts" do
-      stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
+      stub(Keyring, :get, fn _, _, _ -> nil end)
 
       model = {:fake, model: "fake-model", temperature: 0.3}
 
@@ -134,18 +139,18 @@ defmodule Jido.AITest do
     end
 
     test "propagates provider errors" do
-      stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
+      stub(Keyring, :get, fn _, _, _ -> nil end)
 
       defmodule ErrorProvider do
         def api_url, do: "https://error.test/v1"
-        def generate_text(_, _, _), do: {:error, %Jido.AI.Error.API.Request{reason: "API Error"}}
+        def generate_text(_, _, _), do: {:error, %Request{reason: "API Error"}}
         def provider_info, do: %{id: :error_provider, env: []}
       end
 
       Jido.AI.Provider.Registry.register(:error_provider, ErrorProvider)
 
       model = {:error_provider, model: "test"}
-      assert {:error, %Jido.AI.Error.API.Request{}} = AI.generate_text(model, "hello")
+      assert {:error, %Request{}} = AI.generate_text(model, "hello")
     end
 
     test "handles invalid model spec" do
@@ -154,7 +159,7 @@ defmodule Jido.AITest do
     end
 
     test "merges opts with model parameters" do
-      stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
+      stub(Keyring, :get, fn _, _, _ -> nil end)
 
       model = {:fake, model: "fake-model", temperature: 0.3, max_tokens: 100}
 
@@ -169,7 +174,7 @@ defmodule Jido.AITest do
 
   describe "stream_text/3" do
     test "delegates to provider with merged opts" do
-      stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
+      stub(Keyring, :get, fn _, _, _ -> nil end)
 
       model = {:fake, model: "fake-model"}
 
@@ -180,18 +185,18 @@ defmodule Jido.AITest do
     end
 
     test "propagates provider stream errors" do
-      stub(Jido.AI.Keyring, :get, fn _, _, _ -> nil end)
+      stub(Keyring, :get, fn _, _, _ -> nil end)
 
       defmodule StreamErrorProvider do
         def api_url, do: "https://stream-error.test/v1"
-        def stream_text(_, _, _), do: {:error, %Jido.AI.Error.API.Request{reason: "Stream Error"}}
+        def stream_text(_, _, _), do: {:error, %Request{reason: "Stream Error"}}
         def provider_info, do: %{id: :stream_error, env: []}
       end
 
       Jido.AI.Provider.Registry.register(:stream_error, StreamErrorProvider)
 
       model = {:stream_error, model: "test"}
-      assert {:error, %Jido.AI.Error.API.Request{}} = AI.stream_text(model, "hello")
+      assert {:error, %Request{}} = AI.stream_text(model, "hello")
     end
 
     test "handles invalid model spec in streaming" do
@@ -200,10 +205,42 @@ defmodule Jido.AITest do
     end
   end
 
+  describe "config/2" do
+    test "handles nested config with non-api_key fallback" do
+      # This should hit line 118 (default for non-api_key nested configs)
+      result = AI.config([:openai, :some_other_key], "default_value")
+      assert result == "default_value"
+    end
+
+    test "handles nested config in keyword list with non-api_key fallback" do
+      # Set up application config with keyword list
+      Application.put_env(:jido_ai, :openai, base_url: "https://api.openai.com")
+
+      # This should hit line 136 (default for non-api_key in keyword list)
+      result = AI.config([:openai, :some_other_key], "fallback_value")
+      assert result == "fallback_value"
+
+      # Clean up
+      Application.delete_env(:jido_ai, :openai)
+    end
+
+    test "handles config with non-list main value" do
+      # Set up application config with non-list value
+      Application.put_env(:jido_ai, :test_key, "string_value")
+
+      # This should hit line 142 (_main -> default)
+      result = AI.config([:test_key, :nested], "default_val")
+      assert result == "default_val"
+
+      # Clean up
+      Application.delete_env(:jido_ai, :test_key)
+    end
+  end
+
   describe "configuration integration" do
     test "uses keyring for api_key lookup" do
-      stub(Jido.AI.Keyring, :get, fn
-        Jido.AI.Keyring, :fake_api_key, nil -> "fake-secret"
+      stub(Keyring, :get, fn
+        Keyring, :fake_api_key, nil -> "fake-secret"
         _, _, default -> default
       end)
 

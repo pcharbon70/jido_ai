@@ -23,21 +23,26 @@ defmodule Jido.AI.Provider.Base do
           }
         end
 
-        # Override default generate_text if needed
+        # Override default generate_text if needed for specific models
         @impl true
-        def generate_text(opts) do
-          # Custom text generation logic
+        def generate_text(%Model{model: "special-model"} = model, prompt, opts) do
+          # Custom implementation for special-model
         end
+
+        # All other models use default implementation
+        defoverridable generate_text: 3, stream_text: 3
       end
 
   ## Callbacks
 
   * `provider_info/0` - Returns provider metadata (required)
-  * `generate_text/1` - Generates text from a prompt (default implementation provided)
+  * `generate_text/3` - Generates text from a Model and prompt (default implementation provided)
+  * `stream_text/3` - Streams text from a Model and prompt (default implementation provided)
 
   """
 
-  alias Jido.AI.{Provider, Error}
+  alias Jido.AI.Error.{API, Invalid}
+  alias Jido.AI.{Error, Model, Provider}
 
   @doc "Returns provider information"
   @callback provider_info() :: Provider.t()
@@ -45,20 +50,32 @@ defmodule Jido.AI.Provider.Base do
   @doc "Returns the API URL for this provider"
   @callback api_url() :: String.t()
 
-  @doc "Generates text from a string prompt"
-  @callback generate_text(String.t(), String.t(), keyword()) ::
+  @doc "Generates text from a Model and prompt"
+  @callback generate_text(Model.t(), String.t(), keyword()) ::
               {:ok, String.t()} | {:error, Error.t()}
 
-  @doc "Streams text from a string prompt, returning an Elixir Stream"
-  @callback stream_text(String.t(), String.t(), keyword()) ::
+  @doc "Streams text from a Model and prompt, returning an Elixir Stream"
+  @callback stream_text(Model.t(), String.t(), keyword()) ::
               {:ok, Enumerable.t()} | {:error, Error.t()}
 
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
-      require Logger
-      alias Jido.AI.Provider
+      @behaviour Jido.AI.Provider.Base
 
-      # Extract required options
+      import Jido.AI.Provider.Base,
+        only: [
+          merge_model_options: 3,
+          build_chat_completion_body: 3,
+          do_http_request: 3,
+          # Extract required options
+          do_stream_request: 3,
+          extract_text_response: 1
+        ]
+
+      alias Jido.AI.{Model, Provider}
+
+      require Logger
+
       json_filename =
         opts[:json] || raise ArgumentError, "expected :json option with JSON filename"
 
@@ -80,8 +97,7 @@ defmodule Jido.AI.Provider.Base do
             models =
               data
               |> Map.get("models", [])
-              |> Enum.map(fn model -> {model["id"], model} end)
-              |> Map.new()
+              |> Map.new(fn model -> {model["id"], model} end)
 
             {provider_data, models}
 
@@ -92,9 +108,7 @@ defmodule Jido.AI.Provider.Base do
 
       # Extract provider metadata with option overrides
       id_atom =
-        String.to_atom(
-          opts[:id] || provider_meta["id"] || raise(ArgumentError, "provider id not found")
-        )
+        String.to_atom(opts[:id] || provider_meta["id"] || raise(ArgumentError, "provider id not found"))
 
       name = opts[:name] || provider_meta["name"] || Atom.to_string(id_atom) |> Macro.camelize()
       env_vars = opts[:env] || provider_meta["env"] || []
@@ -104,21 +118,14 @@ defmodule Jido.AI.Provider.Base do
       @provider_info %Provider{
         id: id_atom,
         name: name,
+        base_url: base_url,
         doc: "",
         env: env_atoms,
         models: models_map
       }
       @base_url base_url
 
-      @behaviour Jido.AI.Provider.Base
-
       # Import helper functions
-      import Jido.AI.Provider.Base,
-        only: [
-          generate_text_request: 1,
-          stream_text_request: 1,
-          extract_text_response: 1
-        ]
 
       # Implement callbacks using compile-time data
       @impl true
@@ -129,12 +136,12 @@ defmodule Jido.AI.Provider.Base do
 
       # Provide default implementation
       @impl true
-      def generate_text(model, prompt, opts \\ []) do
+      def generate_text(%Model{} = model, prompt, opts \\ []) do
         Jido.AI.Provider.Base.default_generate_text(__MODULE__, model, prompt, opts)
       end
 
       @impl true
-      def stream_text(model, prompt, opts \\ []) do
+      def stream_text(%Model{} = model, prompt, opts \\ []) do
         Jido.AI.Provider.Base.default_stream_text(__MODULE__, model, prompt, opts)
       end
 
@@ -161,142 +168,118 @@ defmodule Jido.AI.Provider.Base do
   )a
 
   @doc """
-  Default implementation for generating text.
+  Default implementation for generating text using OpenAI-style chat completions.
   """
-  def default_generate_text(provider_module, model, prompt, opts \\ []) do
-    provider_info = provider_module.provider_info()
-    api_url = provider_module.api_url()
-
-    # Build request options
-    request_opts =
-      opts
-      |> Keyword.put(:prompt, prompt)
-      |> Keyword.put(:model, model)
-      |> Keyword.put(:url, api_url <> "/chat/completions")
-      |> put_api_key_from_env(provider_info)
-
-    generate_text_request(request_opts)
+  @spec default_generate_text(module(), Model.t(), String.t(), keyword()) :: {:ok, String.t()} | {:error, Error.t()}
+  def default_generate_text(provider_module, %Model{} = model, prompt, opts \\ []) do
+    with {:ok, _} <- validate_prompt(prompt),
+         {:ok, response} <-
+           do_http_request(
+             provider_module,
+             build_chat_completion_body(
+               model,
+               prompt,
+               merge_model_options(provider_module, model, opts)
+             ),
+             merge_model_options(provider_module, model, opts)
+           ) do
+      extract_text_response(response)
+    end
   end
 
   @doc """
-  Default implementation for streaming text.
+  Default implementation for streaming text using OpenAI-style chat completions.
   """
-  def default_stream_text(provider_module, model, prompt, opts \\ []) do
-    provider_info = provider_module.provider_info()
-    api_url = provider_module.api_url()
+  @spec default_stream_text(module(), Model.t(), String.t(), keyword()) :: {:ok, Enumerable.t()} | {:error, Error.t()}
+  def default_stream_text(provider_module, %Model{} = model, prompt, opts \\ []) do
+    with {:ok, _} <- validate_prompt(prompt) do
+      merged_opts =
+        merge_model_options(provider_module, model, opts)
+        |> Keyword.put(:stream, true)
 
-    # Build request options
-    request_opts =
-      opts
-      |> Keyword.put(:prompt, prompt)
-      |> Keyword.put(:model, model)
-      |> Keyword.put(:url, api_url <> "/chat/completions")
-      |> put_api_key_from_env(provider_info)
+      request_body = build_chat_completion_body(model, prompt, merged_opts)
 
-    stream_text_request(request_opts)
+      do_stream_request(provider_module, request_body, merged_opts)
+    end
   end
 
   @doc """
-  Generates a text completion response from the given options.
-
-  ## Options
-
-    * `:prompt` - Text prompt string (required)
-    * `:model` - Model identifier (required)
-    * `:api_key` - API key for authentication (required)
-    * `:url` - API endpoint URL (required)
-
-    * Other options from OpenAI chat completion API
-
-  ## Examples
-
-      iex> Jido.AI.Provider.Base.generate_text_request(
-      ...>   prompt: "Hello, how are you?",
-      ...>   model: "gpt-4",
-      ...>   api_key: "[REDACTED:api-key]",
-      ...>   url: "https://api.openai.com/v1/chat/completions"
-      ...> )
-      {:ok, "I'm doing well, thank you for asking!"}
-
+  Merges Model configuration with request options.
+  Model options are used as defaults, opts take precedence.
   """
-  @spec generate_text_request(keyword()) :: {:ok, String.t()} | {:error, Error.t()}
-  def generate_text_request(opts \\ []) do
+  @spec merge_model_options(module(), Model.t(), keyword()) :: keyword()
+  def merge_model_options(provider_module, %Model{} = model, opts) do
+    # Get API key from model's provider configuration or opts
+    api_key =
+      Keyword.get(opts, :api_key) ||
+        Jido.AI.config([model.provider, :api_key])
+
+    # Get base URL from provider module
+    base_url = provider_module.api_url()
+
+    model_opts =
+      []
+      |> maybe_put(:temperature, model.temperature)
+      |> maybe_put(:max_tokens, model.max_tokens)
+      |> maybe_put(:max_retries, model.max_retries)
+      |> maybe_put(:api_key, api_key)
+      |> maybe_put(:url, base_url <> "/chat/completions")
+
+    # Provided opts take precedence over model defaults
+    Keyword.merge(model_opts, opts)
+  end
+
+  @doc """
+  Builds OpenAI-style chat completion request body.
+  """
+  @spec build_chat_completion_body(Model.t(), String.t(), keyword()) :: map()
+  def build_chat_completion_body(%Model{} = model, prompt, opts) do
+    # Convert prompt to messages format
+    messages = [%{role: "user", content: prompt}]
+
+    opts
+    |> Keyword.put(:messages, messages)
+    |> Keyword.put(:model, model.model)
+    |> Keyword.take(@chat_completion_opts ++ [:stream])
+    |> Map.new()
+  end
+
+  @doc """
+  Performs HTTP request for text generation.
+  """
+  @spec do_http_request(module(), map(), keyword()) :: {:ok, struct()} | {:error, Error.t()}
+  def do_http_request(_provider_module, request_body, opts) do
     with {:ok, api_key} <- get_required_opt(opts, :api_key),
-         {:ok, url} <- get_required_opt(opts, :url),
-         {:ok, _model} <- get_required_opt(opts, :model),
-         {:ok, prompt} <- get_required_opt(opts, :prompt) do
-      # Convert prompt to messages format
-      messages = [%{role: "user", content: prompt}]
-
-      request_opts =
-        opts
-        |> Keyword.put(:messages, messages)
-        |> Keyword.take(@chat_completion_opts)
-
+         {:ok, url} <- get_required_opt(opts, :url) do
       http_client = Jido.AI.config([:http_client], Req)
       http_options = Jido.AI.config([:http_options], [])
 
       recv_to = Keyword.get(opts, :receive_timeout, Jido.AI.config([:receive_timeout], 60_000))
       pool_to = Keyword.get(opts, :pool_timeout, Jido.AI.config([:pool_timeout], 30_000))
 
-      # Create client with base configuration including any test plugs
       client = http_client.new(http_options)
 
       case http_client.post(client,
              url: url,
-             json: Map.new(request_opts),
+             json: request_body,
              auth: {:bearer, api_key},
              receive_timeout: recv_to,
              pool_timeout: pool_to
            ) do
-        {:ok, response} -> extract_text_response(response)
-        {:error, reason} -> {:error, Error.API.Request.exception(reason: inspect(reason))}
+        {:ok, response} -> {:ok, response}
+        {:error, reason} -> {:error, API.Request.exception(reason: inspect(reason))}
       end
-    else
-      {:error, _} = error -> error
     end
   end
 
   @doc """
-  Streams text completion responses from the given options.
-
-  ## Options
-
-    * `:prompt` - Text prompt string (required)
-    * `:model` - Model identifier (required)
-    * `:api_key` - API key for authentication (required)
-    * `:url` - API endpoint URL (required)
-
-    * Other options from OpenAI chat completion API
-
-  ## Examples
-
-      iex> stream = Jido.AI.Provider.Base.stream_text_request(
-      ...>   prompt: "Hello, how are you?",
-      ...>   model: "gpt-4",
-      ...>   api_key: "[REDACTED:api-key]",
-      ...>   url: "https://api.openai.com/v1/chat/completions"
-      ...> )
-      iex> {:ok, stream} = stream
-      iex> stream |> Enum.take(3)
-      ["Hello", " there", "!"]
-
+  Performs streaming HTTP request for text generation.
   """
-  @spec stream_text_request(keyword()) :: {:ok, Enumerable.t()} | {:error, Error.t()}
-  def stream_text_request(opts \\ []) do
+  @spec do_stream_request(module(), map(), keyword()) ::
+          {:ok, Enumerable.t()} | {:error, Error.t()}
+  def do_stream_request(_provider_module, request_body, opts) do
     with {:ok, api_key} <- get_required_opt(opts, :api_key),
-         {:ok, url} <- get_required_opt(opts, :url),
-         {:ok, _model} <- get_required_opt(opts, :model),
-         {:ok, prompt} <- get_required_opt(opts, :prompt) do
-      # Convert prompt to messages format
-      messages = [%{role: "user", content: prompt}]
-
-      request_opts =
-        opts
-        |> Keyword.put(:messages, messages)
-        |> Keyword.put(:stream, true)
-        |> Keyword.take(@chat_completion_opts ++ [:stream])
-
+         {:ok, url} <- get_required_opt(opts, :url) do
       stream =
         Stream.resource(
           fn ->
@@ -308,12 +291,11 @@ defmodule Jido.AI.Provider.Base do
               recv_to =
                 Keyword.get(opts, :receive_timeout, Jido.AI.config([:receive_timeout], 60_000))
 
-              pool_to =
-                Keyword.get(opts, :pool_timeout, Jido.AI.config([:pool_timeout], 30_000))
+              pool_to = Keyword.get(opts, :pool_timeout, Jido.AI.config([:pool_timeout], 30_000))
 
               try do
                 http_client.post(url,
-                  json: Map.new(request_opts),
+                  json: request_body,
                   auth: {:bearer, api_key},
                   receive_timeout: recv_to,
                   pool_timeout: pool_to,
@@ -348,7 +330,7 @@ defmodule Jido.AI.Provider.Base do
                 {:halt, task}
 
               {:error, error} ->
-                throw({:error, Error.API.Request.exception(reason: inspect(error))})
+                throw({:error, API.Request.exception(reason: inspect(error))})
 
               {:events, events} ->
                 {parse_stream_events(events), task}
@@ -362,8 +344,6 @@ defmodule Jido.AI.Provider.Base do
         )
 
       {:ok, stream}
-    else
-      {:error, _} = error -> error
     end
   end
 
@@ -391,31 +371,30 @@ defmodule Jido.AI.Provider.Base do
         {:ok, content}
 
       _ ->
-        {:error, Error.API.Request.exception(reason: "Invalid response format")}
+        {:error, API.Request.exception(reason: "Invalid response format")}
     end
   end
 
   def extract_text_response(%{status: status, body: body}) when status >= 400 do
-    {:error, Error.API.Request.exception(reason: "HTTP #{status}: #{inspect(body)}")}
+    {:error, API.Request.exception(reason: "HTTP #{status}: #{inspect(body)}")}
   end
 
   def extract_text_response(response) do
-    {:error, Error.API.Request.exception(reason: "Unexpected response: #{inspect(response)}")}
+    {:error, API.Request.exception(reason: "Unexpected response: #{inspect(response)}")}
   end
+
+  defp validate_prompt(prompt) when is_binary(prompt) and prompt != "", do: {:ok, prompt}
+  defp validate_prompt(_), do: {:error, Invalid.Parameter.exception(parameter: "prompt")}
 
   defp get_required_opt(opts, key) do
     case opts[key] do
-      nil -> {:error, Error.Invalid.Parameter.exception(parameter: Atom.to_string(key))}
+      nil -> {:error, Invalid.Parameter.exception(parameter: Atom.to_string(key))}
       value -> {:ok, value}
     end
   end
 
-  defp put_api_key_from_env(opts, provider_info) do
-    case Jido.AI.config([provider_info.id, :api_key]) do
-      nil -> opts
-      key -> Keyword.put_new(opts, :api_key, key)
-    end
-  end
+  defp maybe_put(opts, _key, nil), do: opts
+  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp parse_stream_events(events) do
     events
