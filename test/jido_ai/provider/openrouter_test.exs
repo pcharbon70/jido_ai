@@ -7,10 +7,10 @@ defmodule Jido.AI.Provider.OpenRouterTest do
 
   use Jido.AI.TestSupport.HTTPCase
 
-  alias Error.API.Request
-  alias Error.Invalid.Parameter
+  alias Jido.AI.Error.API.Request
+  alias Jido.AI.Error.Invalid.Parameter
+  alias Jido.AI.Model
   alias Jido.AI.Provider.OpenRouter
-  alias Jido.AI.{Model, Error}
 
   describe "provider configuration" do
     test "provider_info returns correct metadata" do

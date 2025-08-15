@@ -18,4 +18,7 @@ defmodule Jido.AI.Provider.OpenAI do
   use Jido.AI.Provider.Base,
     json: "openai.json",
     base_url: "https://api.openai.com/v1"
+
+  @impl true
+  def supports_json_mode?, do: true
 end

@@ -146,10 +146,28 @@ defmodule Jido.AITest do
       assert result =~ "max_tokens: 50"
     end
 
+    test "generate_text works with system_prompt option" do
+      stub(Keyring, :get, fn _, _, _ -> nil end)
+
+      model = {:fake, model: "fake-model"}
+      result = assert_ok(AI.generate_text(model, "hello", system_prompt: "You are helpful"))
+
+      assert result =~ "system:You are helpful:"
+      assert result =~ "fake-model"
+      assert result =~ "hello"
+    end
+
     test "stream_text returns chunks" do
       stub(Keyring, :get, fn _, _, _ -> nil end)
 
       stream = assert_ok(AI.stream_text({:fake, model: "fake-model"}, "hello"))
+      assert Enum.to_list(stream) == ["chunk_1", "chunk_2", "chunk_3"]
+    end
+
+    test "stream_text works with system_prompt option" do
+      stub(Keyring, :get, fn _, _, _ -> nil end)
+
+      stream = assert_ok(AI.stream_text({:fake, model: "fake-model"}, "hello", system_prompt: "You are helpful"))
       assert Enum.to_list(stream) == ["chunk_1", "chunk_2", "chunk_3"]
     end
 

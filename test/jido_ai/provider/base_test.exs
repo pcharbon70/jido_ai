@@ -8,6 +8,7 @@ defmodule Jido.AI.Provider.BaseTest do
   alias Jido.AI.Provider
   alias Jido.AI.Provider.Base
   alias Jido.AI.Test.FakeProvider
+  alias Jido.AI.{ContentPart, Message}
 
   # Simple test provider for testing Base functionality
   defmodule TestProvider do
@@ -28,13 +29,26 @@ defmodule Jido.AI.Provider.BaseTest do
     def api_url, do: "https://test.example.com/v1"
 
     @impl true
-    def generate_text(model, prompt, opts \\ []) do
+    def supports_json_mode?, do: false
+
+    @impl true
+    def generate_text(model, prompt, opts) do
       Base.default_generate_text(__MODULE__, model, prompt, opts)
     end
 
     @impl true
-    def stream_text(model, prompt, opts \\ []) do
+    def stream_text(model, prompt, opts) do
       Base.default_stream_text(__MODULE__, model, prompt, opts)
+    end
+
+    @impl true
+    def generate_object(model, prompt, schema, opts) do
+      Base.default_generate_object(__MODULE__, model, prompt, schema, opts)
+    end
+
+    @impl true
+    def stream_object(model, prompt, schema, opts) do
+      Base.default_stream_object(__MODULE__, model, prompt, schema, opts)
     end
   end
 
@@ -111,12 +125,12 @@ defmodule Jido.AI.Provider.BaseTest do
     end
   end
 
-  describe "build_chat_completion_body/3" do
+  describe "build_chat_completion_body/4" do
     test "builds correct request body" do
       model = minimal(model: "test-model")
       opts = [temperature: 0.8, max_tokens: 1500]
 
-      body = Base.build_chat_completion_body(model, "Hello", opts)
+      body = Base.build_chat_completion_body(model, "Hello", nil, opts)
 
       assert body[:model] == "test-model"
       assert body[:messages] == [%{role: "user", content: "Hello"}]
@@ -126,21 +140,21 @@ defmodule Jido.AI.Provider.BaseTest do
 
     test "converts prompt to messages format" do
       model = minimal()
-      body = Base.build_chat_completion_body(model, "Test prompt", [])
+      body = Base.build_chat_completion_body(model, "Test prompt", nil, [])
 
       assert body[:messages] == [%{role: "user", content: "Test prompt"}]
     end
 
     test "includes stream parameter when provided" do
       model = minimal()
-      body = Base.build_chat_completion_body(model, "Hello", stream: true)
+      body = Base.build_chat_completion_body(model, "Hello", nil, stream: true)
 
       assert body[:stream] == true
     end
 
     test "excludes unsupported parameters" do
       model = minimal()
-      body = Base.build_chat_completion_body(model, "Hello", unsupported_param: "value", temperature: 0.5)
+      body = Base.build_chat_completion_body(model, "Hello", nil, unsupported_param: "value", temperature: 0.5)
 
       assert body[:temperature] == 0.5
       refute Map.has_key?(body, :unsupported_param)
@@ -234,6 +248,136 @@ defmodule Jido.AI.Provider.BaseTest do
 
       assert {:error, %Invalid.Parameter{parameter: "prompt"}} =
                Base.default_stream_text(TestProvider, model, "", [])
+    end
+  end
+
+  describe "merge_provider_options/4" do
+    test "merges provider options with correct precedence" do
+      model = fake()
+
+      # Function level options
+      function_opts = [provider_options: %{fake: %{param1: "function"}}]
+
+      # Message level options (we'll use the message with parts)
+      _message = %Message{
+        role: :user,
+        content: "Hello",
+        metadata: %{provider_options: %{fake: %{param1: "message", param2: "message"}}}
+      }
+
+      # Content part level options (highest precedence)
+      content_part = ContentPart.text("Hi", metadata: %{provider_options: %{fake: %{param1: "content"}}})
+
+      message_with_parts = %Message{
+        role: :user,
+        content: [content_part],
+        metadata: %{provider_options: %{fake: %{param1: "message", param2: "message"}}}
+      }
+
+      messages_with_parts = [message_with_parts]
+
+      result = Base.merge_provider_options(model, messages_with_parts, function_opts, %{})
+
+      # Content part should override message and function options
+      assert result == %{fake: %{param1: "content", param2: "message"}}
+    end
+
+    test "returns empty map for string prompt" do
+      model = fake()
+      result = Base.merge_provider_options(model, "hello", [], %{})
+      assert result == %{}
+    end
+
+    test "merges function level options" do
+      model = fake()
+      function_opts = [provider_options: %{fake: %{temperature: 0.7}}]
+
+      result = Base.merge_provider_options(model, "hello", function_opts, %{})
+      assert result == %{fake: %{temperature: 0.7}}
+    end
+
+    test "merges message level options" do
+      model = fake()
+
+      message = %Message{
+        role: :user,
+        content: "Hello",
+        metadata: %{provider_options: %{fake: %{max_tokens: 100}}}
+      }
+
+      result = Base.merge_provider_options(model, [message], [], %{})
+      assert result == %{fake: %{max_tokens: 100}}
+    end
+
+    test "merges content part level options" do
+      model = fake()
+      part = ContentPart.text("Hi", metadata: %{provider_options: %{fake: %{detail: "high"}}})
+      message = %Message{role: :user, content: [part]}
+
+      result = Base.merge_provider_options(model, [message], [], %{})
+      assert result == %{fake: %{detail: "high"}}
+    end
+
+    test "deep merges nested provider options" do
+      model = fake()
+
+      function_opts = [provider_options: %{fake: %{nested: %{a: 1, b: 2}}}]
+
+      message = %Message{
+        role: :user,
+        content: "Hello",
+        metadata: %{provider_options: %{fake: %{nested: %{b: 3, c: 4}}}}
+      }
+
+      result = Base.merge_provider_options(model, [message], function_opts, %{})
+      assert result == %{fake: %{nested: %{a: 1, b: 3, c: 4}}}
+    end
+  end
+
+  describe "build_chat_completion_body/4 with provider options" do
+    test "includes provider options in request body" do
+      model = fake()
+
+      opts = [
+        temperature: 0.8,
+        provider_options: %{fake: %{custom_param: "test_value"}}
+      ]
+
+      body = Base.build_chat_completion_body(model, "Hello", nil, opts)
+
+      assert body[:model] == "fake-model"
+      assert body[:messages] == [%{role: "user", content: "Hello"}]
+      assert body[:temperature] == 0.8
+      assert body[:custom_param] == "test_value"
+    end
+
+    test "message level provider options appear in request body" do
+      model = fake()
+
+      message = %Message{
+        role: :user,
+        content: "Hello",
+        metadata: %{provider_options: %{fake: %{reasoning_effort: "low"}}}
+      }
+
+      body = Base.build_chat_completion_body(model, [message], nil, [])
+
+      assert body[:reasoning_effort] == "low"
+    end
+
+    test "content part provider options override message options" do
+      model = fake()
+      part = ContentPart.text("Hi", metadata: %{provider_options: %{fake: %{param: "part"}}})
+
+      message = %Message{
+        role: :user,
+        content: [part],
+        metadata: %{provider_options: %{fake: %{param: "message"}}}
+      }
+
+      body = Base.build_chat_completion_body(model, [message], nil, [])
+
+      assert body[:param] == "part"
     end
   end
 

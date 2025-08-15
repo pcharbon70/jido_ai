@@ -71,6 +71,10 @@ defmodule Jido.AI.TestSupport.HTTPCase do
 
   Uses the test_name from the test context automatically.
   """
+  def stub_sse_stream(events, test_name \\ :http_case) do
+    stub_sse(events, test_name)
+  end
+
   def stub_sse(events, test_name \\ :http_case) do
     Req.Test.stub(test_name, fn conn ->
       conn =

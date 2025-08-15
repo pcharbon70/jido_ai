@@ -139,6 +139,33 @@ The `mix jido.ai.model_sync` task fetches model metadata from models.dev which p
 - Provider `env`: Configured per provider (e.g., `["OPENAI_API_KEY"]`)
 - Missing metadata: Sensible defaults applied during Model construction
 
+### Rich Prompts & Messages (Planned)
+
+_Following Vercel AI SDK patterns for flexible prompt construction_
+
+**Message** (`Jido.AI.Message`): Represents a single message in a conversation
+
+- `role` (atom): Message sender - `:user`, `:assistant`, `:system`, or `:tool`
+- `content` (string | list): Message content - string for simple text or list of ContentPart structs for multi-modal
+- `name` (string, optional): Message author name for multi-participant conversations
+- `tool_call_id` (string, optional): Links tool results to their originating tool calls
+- `tool_calls` (list, optional): Array of tool calls made by assistant
+- `metadata` (map, optional): Provider-specific options and hints
+
+**ContentPart** (`Jido.AI.ContentPart`): Represents a piece of content within a message
+
+- Text: `%{type: :text, text: string}`
+- Image: `%{type: :image_url, url: string}` or `%{type: :image, data: binary, media_type: string}`
+- File: `%{type: :file, data: binary, media_type: string, filename: string}`
+- Tool Call: `%{type: :tool_call, tool_call_id: string, tool_name: string, input: map}`
+- Tool Result: `%{type: :tool_result, tool_call_id: string, tool_name: string, output: map}`
+
+**Prompt Types Supported**:
+
+1. `String.t()` - Simple text prompt (current, always supported)
+2. `[Message.t()]` - Array of message objects for conversations
+3. `{system_prompt :: String.t(), messages :: [Message.t()]}` - System prompt with message history
+
 ## Testing Approach
 
 ### Test Infrastructure

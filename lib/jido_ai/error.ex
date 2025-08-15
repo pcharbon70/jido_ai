@@ -7,7 +7,8 @@ defmodule Jido.AI.Error do
     error_classes: [
       invalid: Jido.AI.Error.Invalid,
       api: Jido.AI.Error.API,
-      unknown: Jido.AI.Error.Unknown
+      unknown: Jido.AI.Error.Unknown,
+      object_generation: Jido.AI.Error.ObjectGeneration
     ],
     unknown_error: Jido.AI.Error.Unknown.Unknown
 
@@ -37,7 +38,13 @@ defmodule Jido.AI.Error do
 
   defmodule API.Request do
     @moduledoc "Error for API request failures, HTTP errors, and network issues."
-    use Splode.Error, fields: [:reason], class: :api
+    use Splode.Error,
+      fields: [:reason, :status, :response_body, :request_body, :cause],
+      class: :api
+
+    def message(%{reason: reason, status: status}) when not is_nil(status) do
+      "API request failed (#{status}): #{reason}"
+    end
 
     def message(%{reason: reason}) do
       "API request failed: #{reason}"

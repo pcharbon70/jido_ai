@@ -19,5 +19,8 @@ defmodule Jido.AI.Provider.OpenRouter do
     json: "openrouter.json",
     base_url: "https://openrouter.ai/api/v1"
 
+  @impl true
+  def supports_json_mode?, do: true
+
   # Uses default implementation from Base for generate_text/3
 end

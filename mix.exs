@@ -54,11 +54,12 @@ defmodule Jido.Ai.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    require Logger
+    [
+      # Jido
+      {:jido, path: "../jido"},
+      {:jido_action, github: "agentjido/jido_action"},
 
-    use_local_deps = System.get_env("LOCAL_JIDO_DEPS") == "true" || false
-
-    deps = [
+      # Deps
       {:dotenvy, "~> 1.1.0"},
       {:nimble_options, "~> 1.1"},
       {:solid, "~> 1.0"},
@@ -90,24 +91,6 @@ defmodule Jido.Ai.MixProject do
       {:sobelow, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:stream_data, "~> 1.1", only: [:dev, :test]}
     ]
-
-    if use_local_deps do
-      require Logger
-
-      Logger.warning("Using local Jido dependencies")
-
-      deps ++
-        [
-          {:jido, path: "../jido"}
-          # {:jido_memory, path: "../jido_memory"}
-        ]
-    else
-      deps ++
-        [
-          {:jido, "~> 1.1"}
-          # {:jido_memory, github: "agentjido/jido_memory"}
-        ]
-    end
   end
 
   defp aliases do
