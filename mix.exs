@@ -75,7 +75,7 @@ defmodule Jido.Ai.MixProject do
       {:server_sent_events, "~> 0.2.1"},
 
       # Phoenix Playground (dev only)
-      {:phoenix_playground, "~> 0.1.7", only: [:dev]},
+      {:phoenix_playground, "~> 0.1.7", only: [:dev, :test]},
       {:earmark, "~> 1.4", only: [:dev]},
 
       # Testing

@@ -45,7 +45,9 @@ defmodule Jido.AI.Provider.Base do
 
   alias Jido.AI.Error.SchemaValidation
   alias Jido.AI.Error.{API, Invalid}
-  alias Jido.AI.{ContentPart, Error, Message, Model, ObjectSchema, Provider}
+  alias Jido.AI.{ContentPart, CostCalculator, Error, Message, Model, ObjectSchema, Provider, TokenCounter}
+
+  require Logger
 
   @doc "Returns provider information"
   @callback provider_info() :: Provider.t()
@@ -80,9 +82,9 @@ defmodule Jido.AI.Provider.Base do
         only: [
           merge_model_options: 3,
           build_chat_completion_body: 4,
-          do_http_request: 3,
+          do_http_request: 4,
           # Extract required options
-          do_stream_request: 3,
+          do_stream_request: 4,
           extract_text_response: 1,
           extract_object_response: 1
         ]
@@ -212,6 +214,7 @@ defmodule Jido.AI.Provider.Base do
          {:ok, response} <-
            do_http_request(
              provider_module,
+             model,
              build_chat_completion_body(
                model,
                prompt,
@@ -239,7 +242,7 @@ defmodule Jido.AI.Provider.Base do
 
       request_body = build_chat_completion_body(model, prompt, system_prompt, merged_opts)
 
-      do_stream_request(provider_module, request_body, merged_opts)
+      do_stream_request(provider_module, model, request_body, merged_opts)
     end
   end
 
@@ -267,6 +270,7 @@ defmodule Jido.AI.Provider.Base do
       with {:ok, response} <-
              do_http_request(
                provider_module,
+               model,
                build_chat_completion_body(model, prompt, system_prompt, merged_opts),
                merged_opts
              ),
@@ -345,7 +349,7 @@ defmodule Jido.AI.Provider.Base do
       request_body = build_chat_completion_body(model, prompt, system_prompt, merged_opts)
 
       # Return stream of text chunks for structured output - validation handled by consumer
-      do_stream_request(provider_module, request_body, merged_opts)
+      do_stream_request(provider_module, model, request_body, merged_opts)
     end
   end
 
@@ -490,8 +494,8 @@ defmodule Jido.AI.Provider.Base do
   @doc """
   Performs HTTP request for text generation.
   """
-  @spec do_http_request(module(), map(), keyword()) :: {:ok, struct()} | {:error, Error.t()}
-  def do_http_request(_provider_module, request_body, opts) do
+  @spec do_http_request(module(), Model.t(), map(), keyword()) :: {:ok, struct()} | {:error, Error.t()}
+  def do_http_request(_provider_module, %Model{} = model, request_body, opts) do
     with {:ok, api_key} <- get_required_opt(opts, :api_key),
          {:ok, url} <- get_required_opt(opts, :url) do
       http_client = Jido.AI.config([:http_client], Req)
@@ -499,6 +503,10 @@ defmodule Jido.AI.Provider.Base do
 
       recv_to = Keyword.get(opts, :receive_timeout, Jido.AI.config([:receive_timeout], 60_000))
       pool_to = Keyword.get(opts, :pool_timeout, Jido.AI.config([:pool_timeout], 30_000))
+
+      # Count request tokens
+      request_tokens = TokenCounter.count_request_tokens(request_body)
+      Logger.debug("🔢 Request tokens: #{request_tokens}")
 
       client = http_client.new(http_options)
 
@@ -509,8 +517,25 @@ defmodule Jido.AI.Provider.Base do
              receive_timeout: recv_to,
              pool_timeout: pool_to
            ) do
-        {:ok, response} -> {:ok, response}
-        {:error, reason} -> {:error, build_enhanced_api_error(reason, request_body)}
+        {:ok, response} ->
+          # Count response tokens
+          response_tokens = TokenCounter.count_response_tokens(response.body)
+          Logger.debug("🔢 Response tokens: #{response_tokens}")
+          Logger.debug("🔢 Total tokens: #{request_tokens + response_tokens}")
+
+          # Calculate and log cost
+          case CostCalculator.calculate_request_cost(model, request_body, response.body) do
+            nil ->
+              Logger.debug("💰 Cost: unavailable (no pricing data)")
+
+            cost ->
+              Logger.debug("💰 Cost: #{CostCalculator.format_cost(cost)}")
+          end
+
+          {:ok, response}
+
+        {:error, reason} ->
+          {:error, build_enhanced_api_error(reason, request_body)}
       end
     end
   end
@@ -518,12 +543,17 @@ defmodule Jido.AI.Provider.Base do
   @doc """
   Performs streaming HTTP request for text generation.
   """
-  @spec do_stream_request(module(), map(), keyword()) ::
+  @spec do_stream_request(module(), Model.t(), map(), keyword()) ::
           {:ok, Enumerable.t()} | {:error, Error.t()}
-  def do_stream_request(_provider_module, request_body, opts) do
+  def do_stream_request(_provider_module, %Model{} = model, request_body, opts) do
     with {:ok, api_key} <- get_required_opt(opts, :api_key),
          {:ok, url} <- get_required_opt(opts, :url) do
-      stream =
+      # Count request tokens for streaming
+      request_tokens = TokenCounter.count_request_tokens(request_body)
+      Logger.debug("🔢 Stream request tokens: #{request_tokens}")
+
+      # Create a stream wrapper that tracks total response tokens and calculates cost
+      base_stream =
         Stream.resource(
           fn ->
             pid = self()
@@ -576,7 +606,7 @@ defmodule Jido.AI.Provider.Base do
                 throw({:error, API.Request.exception(reason: inspect(error))})
 
               {:events, events} ->
-                {parse_stream_events(events), task}
+                {parse_stream_events(events, model), task}
             after
               inactivity_to -> {:halt, task}
             end
@@ -586,7 +616,9 @@ defmodule Jido.AI.Provider.Base do
           end
         )
 
-      {:ok, stream}
+      # For now, return the base stream directly
+      # Cost calculation will be handled in the playground LiveView
+      {:ok, base_stream}
     end
   end
 
@@ -744,30 +776,41 @@ defmodule Jido.AI.Provider.Base do
   defp maybe_put_list(map, _key, []), do: map
   defp maybe_put_list(map, key, value) when is_list(value), do: Map.put(map, key, value)
 
-  defp parse_stream_events(events) do
-    events
-    |> Enum.flat_map(fn event ->
-      case event do
-        %{data: "[DONE]"} ->
-          []
+  defp parse_stream_events(events, _model) do
+    {content_chunks, _total_tokens} =
+      events
+      |> Enum.reduce({[], 0}, fn event, {chunks, token_count} ->
+        case event do
+          %{data: "[DONE]"} ->
+            if token_count > 0 do
+              Logger.debug("🔢 Stream response tokens: #{token_count}")
 
-        %{data: data} when is_binary(data) ->
-          case Jason.decode(data) do
-            {:ok, %{"choices" => [%{"delta" => %{"content" => content}} | _]}}
-            when is_binary(content) ->
-              [content]
+              # Note: For streaming, we'll calculate cost after the stream completes
+              # since we need the request_body which isn't available here
+            end
 
-            {:ok, _} ->
-              []
+            {chunks, token_count}
 
-            {:error, _} ->
-              []
-          end
+          %{data: data} when is_binary(data) ->
+            case Jason.decode(data) do
+              {:ok, %{"choices" => [%{"delta" => %{"content" => content}} | _]}}
+              when is_binary(content) ->
+                chunk_tokens = TokenCounter.count_stream_tokens(content)
+                {[content | chunks], token_count + chunk_tokens}
 
-        _ ->
-          []
-      end
-    end)
+              {:ok, _} ->
+                {chunks, token_count}
+
+              {:error, _} ->
+                {chunks, token_count}
+            end
+
+          _ ->
+            {chunks, token_count}
+        end
+      end)
+
+    Enum.reverse(content_chunks)
   end
 
   # Helper functions for structured data generation
@@ -900,6 +943,4 @@ defmodule Jido.AI.Provider.Base do
     |> Map.delete("api_key")
     |> Map.put("messages", "[REDACTED]")
   end
-
-  defp sanitize_request_body(body), do: body
 end
