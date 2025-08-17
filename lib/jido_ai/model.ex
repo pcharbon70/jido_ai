@@ -175,30 +175,43 @@ defmodule Jido.AI.Model do
     if is_nil(model_name) do
       {:error, "model is required in options"}
     else
-      # Validate provider exists
+      # Validate provider exists and get provider info
       case validate_provider(provider) do
         :ok ->
-          model = %__MODULE__{
-            provider: provider,
-            model: model_name,
-            temperature: Keyword.get(opts, :temperature),
-            max_tokens: Keyword.get(opts, :max_tokens),
-            max_retries: Keyword.get(opts, :max_retries, 3),
-            # Defaults for metadata fields
-            id: to_string(model_name),
-            name: to_string(model_name),
-            attachment: false,
-            reasoning: false,
-            supports_temperature: true,
-            tool_call: false,
-            release_date: "2024-01",
-            last_updated: "2024-01",
-            modalities: %{input: [:text], output: [:text]},
-            open_weights: false,
-            limit: %{context: 128_000, output: 4096}
-          }
+          case Jido.AI.Provider.Registry.fetch(provider) do
+            {:ok, provider_module} ->
+              provider_info = provider_module.provider_info()
 
-          {:ok, model}
+              # Look up the model in the provider's models map
+              models_map = Map.get(provider_info, :models, %{})
+
+              case Map.get(models_map, model_name) do
+                nil ->
+                  # Model not found in registry, create with defaults
+                  create_default_model(provider, model_name, opts)
+
+                model_data ->
+                  # Create model from registry data with runtime overrides
+                  case model_data do
+                    %__MODULE__{} ->
+                      # Already a Model struct (e.g., from fake provider)
+                      {:ok,
+                       Map.merge(model_data, %{
+                         temperature: Keyword.get(opts, :temperature) || model_data.temperature,
+                         max_tokens: Keyword.get(opts, :max_tokens) || model_data.max_tokens,
+                         max_retries: Keyword.get(opts, :max_retries) || model_data.max_retries || 3
+                       })}
+
+                    _ ->
+                      # JSON data from models.dev
+                      create_model_from_registry(provider, model_name, model_data, opts)
+                  end
+              end
+
+            {:error, _} ->
+              # Provider module not found, create with defaults
+              create_default_model(provider, model_name, opts)
+          end
 
         {:error, reason} ->
           {:error, reason}
@@ -265,6 +278,104 @@ defmodule Jido.AI.Model do
   rescue
     ArgumentError -> {:error, "Invalid provider: #{json_data["provider"]}"}
   end
+
+  # Private helper to create a model with defaults when not found in registry
+  defp create_default_model(provider, model_name, opts) do
+    model = %__MODULE__{
+      provider: provider,
+      model: model_name,
+      temperature: Keyword.get(opts, :temperature),
+      max_tokens: Keyword.get(opts, :max_tokens),
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      # Defaults for metadata fields
+      id: to_string(model_name),
+      name: to_string(model_name),
+      attachment: false,
+      reasoning: false,
+      supports_temperature: true,
+      tool_call: false,
+      release_date: "2024-01",
+      last_updated: "2024-01",
+      modalities: %{input: [:text], output: [:text]},
+      open_weights: false,
+      limit: %{context: 128_000, output: 4096},
+      cost: nil
+    }
+
+    {:ok, model}
+  end
+
+  # Private helper to create a model from registry data with runtime overrides
+  defp create_model_from_registry(provider, model_name, model_data, opts) do
+    # Convert string keys to atoms for modalities
+    modalities =
+      case model_data["modalities"] do
+        %{"input" => input, "output" => output} ->
+          %{
+            input: Enum.map(input, &convert_to_atom/1),
+            output: Enum.map(output, &convert_to_atom/1)
+          }
+
+        _ ->
+          %{input: [:text], output: [:text]}
+      end
+
+    # Convert cost data to atoms
+    cost =
+      case model_data["cost"] do
+        %{} = cost_map ->
+          cost_map
+          |> Map.new(fn {k, v} -> {convert_to_atom(k), v} end)
+
+        _ ->
+          nil
+      end
+
+    # Convert limit data to atoms
+    limit =
+      case model_data["limit"] do
+        %{} = limit_map ->
+          limit_map
+          |> Map.new(fn {k, v} -> {convert_to_atom(k), v} end)
+
+        _ ->
+          %{context: 128_000, output: 4096}
+      end
+
+    model = %__MODULE__{
+      provider: provider,
+      model: model_name,
+      # Runtime overrides from opts
+      temperature: Keyword.get(opts, :temperature),
+      max_tokens: Keyword.get(opts, :max_tokens),
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      # Metadata from registry
+      id: model_data["id"] || to_string(model_name),
+      name: model_data["name"] || to_string(model_name),
+      attachment: model_data["attachment"] || false,
+      reasoning: model_data["reasoning"] || false,
+      supports_temperature: model_data["temperature"] || true,
+      tool_call: model_data["tool_call"] || false,
+      knowledge: model_data["knowledge"],
+      release_date: model_data["release_date"] || "2024-01",
+      last_updated: model_data["last_updated"] || "2024-01",
+      modalities: modalities,
+      open_weights: model_data["open_weights"] || false,
+      cost: cost,
+      limit: limit
+    }
+
+    {:ok, model}
+  end
+
+  # Helper to safely convert strings to atoms
+  defp convert_to_atom(str) when is_binary(str) do
+    String.to_existing_atom(str)
+  rescue
+    ArgumentError -> String.to_atom(str)
+  end
+
+  defp convert_to_atom(atom) when is_atom(atom), do: atom
 
   @doc false
   defp validate_provider(provider) do

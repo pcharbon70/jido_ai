@@ -36,10 +36,12 @@ defmodule Jido.AI.ModelTest do
       assert model.provider == :openai
       assert model.model == "gpt-4"
 
-      # Tuple format with defaults
+      # Tuple format with real model data from registry
       model = assert_ok(Model.from({:openai, model: "gpt-4"}))
-      assert model.limit.context == 128_000
-      assert model.limit.output == 4096
+      # Real gpt-4 context limit
+      assert model.limit.context == 8192
+      # Real gpt-4 output limit
+      assert model.limit.output == 8192
 
       # Tuple format with options
       model = assert_ok(Model.from({:openai, model: "gpt-4", temperature: 0.7}))

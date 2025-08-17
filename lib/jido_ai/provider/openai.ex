@@ -15,7 +15,7 @@ defmodule Jido.AI.Provider.OpenAI do
 
   """
 
-  use Jido.AI.Provider.Base,
+  use Jido.AI.Provider.Macro,
     json: "openai.json",
     base_url: "https://api.openai.com/v1"
 

@@ -7,12 +7,13 @@ defmodule Jido.AI.Provider.BaseTest do
   alias Jido.AI.Error.{API, Invalid}
   alias Jido.AI.Provider
   alias Jido.AI.Provider.Base
+  alias Jido.AI.Provider.Util.Options
   alias Jido.AI.Test.FakeProvider
   alias Jido.AI.{ContentPart, Message}
 
   # Simple test provider for testing Base functionality
   defmodule TestProvider do
-    @behaviour Jido.AI.Provider.Base
+    @behaviour Jido.AI.Provider.Behaviour
 
     @impl true
     def provider_info do
@@ -30,6 +31,12 @@ defmodule Jido.AI.Provider.BaseTest do
 
     @impl true
     def supports_json_mode?, do: false
+
+    @impl true
+    def chat_completion_opts, do: Options.default()
+
+    @impl true
+    def stream_event_type, do: :openai
 
     @impl true
     def generate_text(model, prompt, opts) do
@@ -112,7 +119,7 @@ defmodule Jido.AI.Provider.BaseTest do
         }
       }
 
-      assert {:error, %API.Request{}} = Base.extract_text_response(response)
+      assert {:ok, ""} = Base.extract_text_response(response)
     end
 
     test "handles unexpected response format" do

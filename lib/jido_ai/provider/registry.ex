@@ -131,7 +131,7 @@ defmodule Jido.AI.Provider.Registry do
   @doc """
   Initializes the provider registry by discovering and registering all provider modules.
 
-  This function scans for modules that implement the `Jido.AI.Provider.Base` behaviour
+  This function scans for modules that implement the `Jido.AI.Provider.Behaviour` behaviour
   and registers them automatically.
   """
   @spec initialize() :: :ok
@@ -208,7 +208,7 @@ defmodule Jido.AI.Provider.Registry do
   @spec provider_module?(module()) :: boolean()
   def provider_module?(module) do
     behaviours = module.__info__(:attributes)[:behaviour] || []
-    Jido.AI.Provider.Base in behaviours
+    Jido.AI.Provider.Behaviour in behaviours
   rescue
     _ -> false
   end

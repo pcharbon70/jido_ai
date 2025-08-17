@@ -4,6 +4,7 @@ defmodule Jido.AI.Provider.BaseMessageTest do
   import Jido.AI.TestSupport.Assertions
 
   alias Jido.AI.Provider.Base
+  alias Jido.AI.Provider.Util.Options
   alias Jido.AI.Test.Fixtures.ModelFixtures
   alias Jido.AI.{ContentPart, Message}
 
@@ -272,5 +273,7 @@ defmodule Jido.AI.Provider.BaseMessageTest do
   # Fake provider module for testing
   defmodule FakeProvider do
     def api_url, do: "https://api.fake.com/v1"
+    def chat_completion_opts, do: Options.default()
+    def stream_event_type, do: :openai
   end
 end

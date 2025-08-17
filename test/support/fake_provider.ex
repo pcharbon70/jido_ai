@@ -6,8 +6,9 @@ defmodule Jido.AI.Test.FakeProvider do
   without making real API calls.
   """
 
-  @behaviour Jido.AI.Provider.Base
+  @behaviour Jido.AI.Provider.Behaviour
 
+  alias Jido.AI.Provider.Util.Options
   alias Jido.AI.{Model, Provider}
 
   @impl true
@@ -45,9 +46,15 @@ defmodule Jido.AI.Test.FakeProvider do
   def supports_json_mode?, do: true
 
   @impl true
+  def chat_completion_opts, do: Options.default()
+
+  @impl true
+  def stream_event_type, do: :openai
+
+  @impl true
   def generate_text(%Model{} = model, prompt, opts \\ []) do
-    # Use the base implementation's option merging for testing
-    merged_opts = Jido.AI.Provider.Base.merge_model_options(__MODULE__, model, opts)
+    # Use the new implementation's option merging for testing
+    merged_opts = Options.merge_model_options(__MODULE__, model, opts)
     system_prompt = Keyword.get(opts, :system_prompt)
     system_part = if system_prompt, do: "system:#{system_prompt}:", else: ""
     prompt_str = if is_list(prompt), do: "messages", else: prompt
@@ -61,8 +68,8 @@ defmodule Jido.AI.Test.FakeProvider do
 
   @impl true
   def generate_object(%Model{} = model, prompt, schema, opts \\ []) do
-    # Use the base implementation's option merging for testing
-    merged_opts = Jido.AI.Provider.Base.merge_model_options(__MODULE__, model, opts)
+    # Use the new implementation's option merging for testing
+    merged_opts = Options.merge_model_options(__MODULE__, model, opts)
     system_prompt = Keyword.get(opts, :system_prompt)
     system_part = if system_prompt, do: "system:#{system_prompt}:", else: ""
     prompt_str = if is_list(prompt), do: "messages", else: prompt

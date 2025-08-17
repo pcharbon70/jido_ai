@@ -68,9 +68,44 @@ defmodule Jido.AI.CostCalculator do
   def calculate_cost(_model, _input_tokens, _output_tokens), do: nil
 
   @doc """
+  Calculates cost from actual usage data returned by the API.
+
+  This is preferred over estimate-based calculation as it uses exact token counts
+  from the provider's response.
+
+  ## Examples
+
+      iex> model = %{cost: %{input: 1.5, output: 6.0}}
+      iex> usage = %{"prompt_tokens" => 1000, "completion_tokens" => 500}
+      iex> CostCalculator.calculate_cost_from_usage(model, usage)
+      %{
+        input_tokens: 1000,
+        output_tokens: 500,
+        input_cost: 0.0015,
+        output_cost: 0.003,
+        total_cost: 0.0045,
+        currency: "USD"
+      }
+  """
+  @spec calculate_cost_from_usage(map(), map()) :: cost_breakdown() | nil
+  def calculate_cost_from_usage(%{cost: nil}, _usage), do: nil
+
+  def calculate_cost_from_usage(model, %{"prompt_tokens" => input_tokens, "completion_tokens" => output_tokens}) do
+    calculate_cost(model, input_tokens, output_tokens)
+  end
+
+  # Google format uses different field names
+  def calculate_cost_from_usage(model, %{"promptTokenCount" => input_tokens, "candidatesTokenCount" => output_tokens}) do
+    calculate_cost(model, input_tokens, output_tokens)
+  end
+
+  def calculate_cost_from_usage(_model, _usage), do: nil
+
+  @doc """
   Calculates cost for a chat completion request body and response.
 
   Uses TokenCounter to determine token counts, then calculates cost.
+  This is a fallback when exact usage data is not available.
   """
   @spec calculate_request_cost(map(), map(), map()) :: cost_breakdown() | nil
   def calculate_request_cost(model, request_body, response_body) do

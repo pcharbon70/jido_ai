@@ -14,6 +14,8 @@ defmodule Jido.AI.SystemPromptTest do
   import Mimic
 
   alias Jido.AI
+  alias Jido.AI.Provider.OpenAI
+  alias Jido.AI.Provider.Request.Builder
   alias Jido.AI.Test.FakeProvider
   alias Jido.AI.{Keyring, Message}
 
@@ -171,7 +173,7 @@ defmodule Jido.AI.SystemPromptTest do
 
       # Test without system prompt
       body_without_system =
-        Jido.AI.Provider.Base.build_chat_completion_body(model, "Hello", nil, [])
+        Builder.build_chat_completion_body(OpenAI, model, "Hello", nil, [])
 
       messages_without_system = body_without_system[:messages]
 
@@ -180,7 +182,7 @@ defmodule Jido.AI.SystemPromptTest do
 
       # Test with system prompt
       body_with_system =
-        Jido.AI.Provider.Base.build_chat_completion_body(model, "Hello", "You are helpful", [])
+        Builder.build_chat_completion_body(OpenAI, model, "Hello", "You are helpful", [])
 
       messages_with_system = body_with_system[:messages]
 
@@ -194,7 +196,7 @@ defmodule Jido.AI.SystemPromptTest do
       messages = [%Message{role: :user, content: "Hello there"}]
 
       body =
-        Jido.AI.Provider.Base.build_chat_completion_body(model, messages, "You are helpful", [])
+        Builder.build_chat_completion_body(OpenAI, model, messages, "You are helpful", [])
 
       final_messages = body[:messages]
 
@@ -213,7 +215,8 @@ defmodule Jido.AI.SystemPromptTest do
       ]
 
       body =
-        Jido.AI.Provider.Base.build_chat_completion_body(
+        Builder.build_chat_completion_body(
+          OpenAI,
           model,
           existing_messages,
           "System instruction",

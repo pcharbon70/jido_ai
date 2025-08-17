@@ -15,7 +15,7 @@ defmodule Jido.AI.Provider.Google do
 
   """
 
-  use Jido.AI.Provider.Base,
+  use Jido.AI.Provider.Macro,
     json: "google.json",
     base_url: "https://generativelanguage.googleapis.com/v1"
 end

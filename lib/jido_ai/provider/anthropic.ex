@@ -15,10 +15,13 @@ defmodule Jido.AI.Provider.Anthropic do
 
   """
 
-  use Jido.AI.Provider.Base,
+  use Jido.AI.Provider.Macro,
     json: "anthropic.json",
     base_url: "https://api.anthropic.com/v1"
 
   @impl true
   def supports_json_mode?, do: true
+
+  @impl true
+  def stream_event_type, do: :anthropic
 end

@@ -15,12 +15,19 @@ defmodule Jido.AI.Provider.OpenRouter do
 
   """
 
-  use Jido.AI.Provider.Base,
+  use Jido.AI.Provider.Macro,
     json: "openrouter.json",
     base_url: "https://openrouter.ai/api/v1"
+
+  alias Jido.AI.Provider.Util.Options
 
   @impl true
   def supports_json_mode?, do: true
 
-  # Uses default implementation from Base for generate_text/3
+  @impl true
+  def chat_completion_opts do
+    Options.default() ++ [:include_reasoning, :thinking]
+  end
+
+  # Uses default implementation from Macro for generate_text/3
 end

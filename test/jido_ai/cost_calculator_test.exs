@@ -3,6 +3,66 @@ defmodule Jido.AI.CostCalculatorTest do
 
   alias Jido.AI.{CostCalculator, Model}
 
+  describe "calculate_cost_from_usage/2" do
+    test "calculates cost from OpenAI-style usage data" do
+      model = %Model{
+        provider: :openai,
+        model: "gpt-4",
+        cost: %{input: 1.5, output: 6.0}
+      }
+
+      usage = %{"prompt_tokens" => 1000, "completion_tokens" => 500}
+      cost = CostCalculator.calculate_cost_from_usage(model, usage)
+
+      assert cost.input_tokens == 1000
+      assert cost.output_tokens == 500
+      assert cost.input_cost == 0.0015
+      assert cost.output_cost == 0.003
+      assert_in_delta cost.total_cost, 0.0045, 0.00001
+      assert cost.currency == "USD"
+    end
+
+    test "calculates cost from Google-style usage data" do
+      model = %Model{
+        provider: :google,
+        model: "gemini-pro",
+        cost: %{input: 2.0, output: 8.0}
+      }
+
+      usage = %{"promptTokenCount" => 800, "candidatesTokenCount" => 200}
+      cost = CostCalculator.calculate_cost_from_usage(model, usage)
+
+      assert cost.input_tokens == 800
+      assert cost.output_tokens == 200
+      assert cost.input_cost == 0.0016
+      assert cost.output_cost == 0.0016
+      assert_in_delta cost.total_cost, 0.0032, 0.00001
+      assert cost.currency == "USD"
+    end
+
+    test "returns nil for model without cost data" do
+      model = %Model{
+        provider: :openai,
+        model: "gpt-4",
+        cost: nil
+      }
+
+      usage = %{"prompt_tokens" => 1000, "completion_tokens" => 500}
+      assert CostCalculator.calculate_cost_from_usage(model, usage) == nil
+    end
+
+    test "returns nil for invalid usage format" do
+      model = %Model{
+        provider: :openai,
+        model: "gpt-4",
+        cost: %{input: 1.5, output: 6.0}
+      }
+
+      usage = %{"invalid" => "format"}
+      assert CostCalculator.calculate_cost_from_usage(model, usage) == nil
+    end
+  end
+
   describe "calculate_cost/3" do
     test "calculates cost with valid model pricing" do
       model = %Model{

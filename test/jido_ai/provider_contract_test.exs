@@ -7,7 +7,7 @@ defmodule Jido.AI.ProviderContractTest do
 
   # Create a minimal stub provider for contract testing
   defmodule StubProvider do
-    use Jido.AI.Provider.Base,
+    use Jido.AI.Provider.Macro,
       json: "stub_test.json",
       base_url: "https://example.com",
       id: "stub_provider",
