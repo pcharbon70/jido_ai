@@ -173,7 +173,7 @@ defmodule Jido.AI.Provider.Anthropic do
       {:error, "model is required for Anthropic models"}
     else
       # Create the model struct with all necessary fields
-      model = %Model{
+      model_struct = %Model{
         id: Keyword.get(opts, :id, "anthropic_#{model}"),
         name: Keyword.get(opts, :name, "Anthropic #{model}"),
         provider: :anthropic,
@@ -190,10 +190,11 @@ defmodule Jido.AI.Provider.Anthropic do
         },
         description: Keyword.get(opts, :description, "Anthropic Claude model"),
         created: System.system_time(:second),
-        endpoints: []
+        endpoints: [],
+        reqllm_id: Jido.AI.Model.compute_reqllm_id(:anthropic, model)
       }
 
-      {:ok, model}
+      {:ok, model_struct}
     end
   end
 

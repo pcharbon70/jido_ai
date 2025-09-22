@@ -175,7 +175,7 @@ defmodule Jido.AI.Provider.OpenRouter do
       {:error, "model is required for OpenRouter models"}
     else
       # Create the model struct with all necessary fields
-      model = %Jido.AI.Model{
+      model_struct = %Jido.AI.Model{
         id: Keyword.get(opts, :id, "openrouter_#{model}"),
         name: Keyword.get(opts, :name, "OpenRouter #{model}"),
         provider: :openrouter,
@@ -192,10 +192,11 @@ defmodule Jido.AI.Provider.OpenRouter do
         },
         description: Keyword.get(opts, :description, "OpenRouter model"),
         created: System.system_time(:second),
-        endpoints: []
+        endpoints: [],
+        reqllm_id: Jido.AI.Model.compute_reqllm_id(:openrouter, model)
       }
 
-      {:ok, model}
+      {:ok, model_struct}
     end
   end
 

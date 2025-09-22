@@ -146,7 +146,7 @@ defmodule Jido.AI.Provider.Cloudflare do
       {:error, "model is required for Cloudflare models"}
     else
       # Create the model struct with all necessary fields
-      model = %Jido.AI.Model{
+      model_struct = %Jido.AI.Model{
         id: Keyword.get(opts, :id, "cloudflare_#{model}"),
         name: Keyword.get(opts, :name, "Cloudflare #{model}"),
         provider: :cloudflare,
@@ -163,10 +163,11 @@ defmodule Jido.AI.Provider.Cloudflare do
         },
         description: Keyword.get(opts, :description, "Cloudflare model"),
         created: System.system_time(:second),
-        endpoints: []
+        endpoints: [],
+        reqllm_id: Jido.AI.Model.compute_reqllm_id(:cloudflare, model)
       }
 
-      {:ok, model}
+      {:ok, model_struct}
     end
   end
 

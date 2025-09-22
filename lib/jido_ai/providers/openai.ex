@@ -161,7 +161,7 @@ defmodule Jido.AI.Provider.OpenAI do
       {:error, "model is required for OpenAI models"}
     else
       # Create the model struct with all necessary fields
-      model = %Jido.AI.Model{
+      model_struct = %Jido.AI.Model{
         id: Keyword.get(opts, :id, "openai_#{model}"),
         name: Keyword.get(opts, :name, "OpenAI #{model}"),
         provider: :openai,
@@ -178,10 +178,11 @@ defmodule Jido.AI.Provider.OpenAI do
         },
         description: Keyword.get(opts, :description, "OpenAI model"),
         created: System.system_time(:second),
-        endpoints: []
+        endpoints: [],
+        reqllm_id: Jido.AI.Model.compute_reqllm_id(:openai, model)
       }
 
-      {:ok, model}
+      {:ok, model_struct}
     end
   end
 

@@ -42,36 +42,36 @@ This subtask creates the primary bridge module that will serve as the translatio
 ---
 
 ## 1.2 Model Integration Layer
-- [ ] **Section 1.2 Complete**
+- [x] **Section 1.2 Complete**
 
 This section focuses on extending the existing `%Jido.AI.Model{}` struct to work with ReqLLM while maintaining full backward compatibility. The key addition is the `reqllm_id` field that maps Jido AI's provider/model combinations to ReqLLM's "provider:model" format.
 
 ### 1.2.1 Model Struct Enhancement
-- [ ] **Task 1.2.1 Complete**
+- [x] **Task 1.2.1 Complete**
 
 The Model struct needs to be enhanced with ReqLLM-specific information while preserving all existing fields and behavior. The `reqllm_id` field will be computed automatically when models are created through `Jido.AI.Model.from/1`.
 
-- [ ] 1.2.1.1 Add `reqllm_id :: String.t()` field to `%Jido.AI.Model{}` struct definition
-- [ ] 1.2.1.2 Implement ReqLLM ID computation logic (e.g., "openai:gpt-4o" from {:openai, model: "gpt-4o"})
-- [ ] 1.2.1.3 Update `Jido.AI.Model.from/1` to automatically populate `reqllm_id` field
-- [ ] 1.2.1.4 Maintain backward compatibility for all existing model fields and behaviors
+- [x] 1.2.1.1 Add `reqllm_id :: String.t()` field to `%Jido.AI.Model{}` struct definition
+- [x] 1.2.1.2 Implement ReqLLM ID computation logic (e.g., "openai:gpt-4o" from {:openai, model: "gpt-4o"})
+- [x] 1.2.1.3 Update `Jido.AI.Model.from/1` to automatically populate `reqllm_id` field
+- [x] 1.2.1.4 Maintain backward compatibility for all existing model fields and behaviors
 
 ### 1.2.2 Provider Mapping
-- [ ] **Task 1.2.2 Complete**
+- [x] **Task 1.2.2 Complete**
 
 This creates the mapping logic between Jido AI's current provider system and ReqLLM's provider addressing scheme. It handles model name normalization and provides fallbacks for edge cases.
 
-- [ ] 1.2.2.1 Create provider-to-ReqLLM mapping configuration with all supported providers
-- [ ] 1.2.2.2 Handle model name normalization for ReqLLM format requirements
-- [ ] 1.2.2.3 Implement fallback mechanisms for unsupported or deprecated models
-- [ ] 1.2.2.4 Add validation to ensure ReqLLM model availability before requests
+- [x] 1.2.2.1 Create provider-to-ReqLLM mapping configuration with all supported providers
+- [x] 1.2.2.2 Handle model name normalization for ReqLLM format requirements
+- [x] 1.2.2.3 Implement fallback mechanisms for unsupported or deprecated models
+- [x] 1.2.2.4 Add validation to ensure ReqLLM model availability before requests
 
 ### Unit Tests - Section 1.2
-- [ ] **Unit Tests 1.2 Complete**
-- [ ] Test model struct creation with automatically computed reqllm_id
-- [ ] Test provider mapping accuracy across all supported providers
-- [ ] Test model name normalization for various input formats
-- [ ] Test backward compatibility preservation for existing model creation patterns
+- [x] **Unit Tests 1.2 Complete**
+- [x] Test model struct creation with automatically computed reqllm_id
+- [x] Test provider mapping accuracy across all supported providers
+- [x] Test model name normalization for various input formats
+- [x] Test backward compatibility preservation for existing model creation patterns
 
 ---
 

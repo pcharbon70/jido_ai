@@ -240,7 +240,7 @@ defmodule Jido.AI.Provider.Google do
       model = String.replace(model, "models/", "")
 
       # Create the model struct with all necessary fields
-      model = %Jido.AI.Model{
+      model_struct = %Jido.AI.Model{
         id: model,
         name: Map.get(opts, "displayName") || Map.get(opts, :name, "Google #{model}"),
         provider: :google,
@@ -258,10 +258,11 @@ defmodule Jido.AI.Provider.Google do
         description:
           Map.get(opts, "description") || Map.get(opts, :description, "Google Gemini model"),
         created: System.system_time(:second),
-        endpoints: []
+        endpoints: [],
+        reqllm_id: Jido.AI.Model.compute_reqllm_id(:google, model)
       }
 
-      {:ok, model}
+      {:ok, model_struct}
     end
   end
 
