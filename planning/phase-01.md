@@ -8,36 +8,36 @@ The integration maintains Jido AI's philosophy of minimal, opt-in logging and pr
 ---
 
 ## 1.1 Prerequisites and Setup
-- [ ] **Section 1.1 Complete**
+- [x] **Section 1.1 Complete**
 
 This section establishes the basic dependencies and foundational modules needed for ReqLLM integration. We create the bridge layer that will handle translation between Jido AI's current interfaces and ReqLLM's API, ensuring seamless interoperability.
 
 ### 1.1.1 Dependency Management
-- [ ] **Task 1.1.1 Complete**
+- [x] **Task 1.1.1 Complete**
 
 The first step involves adding ReqLLM as a dependency while ensuring compatibility with existing dependencies. This includes updating the mix.exs file and verifying that ReqLLM doesn't conflict with current dependencies like OpenaiEx, Instructor, and LangChain.
 
-- [ ] 1.1.1.1 Add `:req_llm` dependency to mix.exs with appropriate version constraints
-- [ ] 1.1.1.2 Update dependency versions for compatibility, ensuring no conflicts with existing libs
-- [ ] 1.1.1.3 Run `mix deps.get` to verify dependency resolution and compilation
-- [ ] 1.1.1.4 Create initial ReqLLM configuration structure in application config
+- [x] 1.1.1.1 Add `:req_llm` dependency to mix.exs with appropriate version constraints
+- [x] 1.1.1.2 Update dependency versions for compatibility, ensuring no conflicts with existing libs
+- [x] 1.1.1.3 Run `mix deps.get` to verify dependency resolution and compilation
+- [x] 1.1.1.4 Create initial ReqLLM configuration structure in application config
 
 ### 1.1.2 Core Module Architecture
-- [ ] **Task 1.1.2 Complete**
+- [x] **Task 1.1.2 Complete**
 
 This subtask creates the primary bridge module that will serve as the translation layer between Jido AI and ReqLLM. The bridge handles message format conversion, error mapping, and ensures that ReqLLM's responses are shaped to match Jido AI's existing contracts.
 
-- [ ] 1.1.2.1 Create `Jido.AI.ReqLLM` bridge module with core conversion functions
-- [ ] 1.1.2.2 Define message conversion helpers for translating between formats
-- [ ] 1.1.2.3 Implement error mapping utilities to preserve existing error structures
-- [ ] 1.1.2.4 Add logging integration preservation to maintain opt-in logging behavior
+- [x] 1.1.2.1 Create `Jido.AI.ReqLLM` bridge module with core conversion functions
+- [x] 1.1.2.2 Define message conversion helpers for translating between formats
+- [x] 1.1.2.3 Implement error mapping utilities to preserve existing error structures
+- [x] 1.1.2.4 Add logging integration preservation to maintain opt-in logging behavior
 
 ### Unit Tests - Section 1.1
-- [ ] **Unit Tests 1.1 Complete**
-- [ ] Test ReqLLM dependency loading and module availability
-- [ ] Test bridge module compilation and basic function exports
-- [ ] Test error mapping functions for common error scenarios
-- [ ] Test logging preservation and configuration handling
+- [x] **Unit Tests 1.1 Complete**
+- [x] Test ReqLLM dependency loading and module availability
+- [x] Test bridge module compilation and basic function exports
+- [x] Test error mapping functions for common error scenarios
+- [x] Test logging preservation and configuration handling
 
 ---
 
