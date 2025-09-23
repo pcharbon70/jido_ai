@@ -1,7 +1,8 @@
 defmodule OpenAIExDemo do
+  alias Jido.AI.Model
+  alias Jido.AI.Provider.OpenRouter
   alias OpenaiEx.Chat
   alias OpenaiEx.ChatMessage
-  alias Jido.AI.Model
   # alias Jido.AI.Prompt
 
   def openai do
@@ -27,8 +28,8 @@ defmodule OpenAIExDemo do
     # Call OpenAI Directly
     {:ok, response} =
       OpenaiEx.new(model.api_key)
-      # |> OpenaiEx.with_base_url(Jido.AI.Provider.OpenRouter.base_url())
-      # |> OpenaiEx.with_additional_headers(Jido.AI.Provider.OpenRouter.request_headers([]))
+      # |> OpenaiEx.with_base_url(OpenRouter.base_url())
+      # |> OpenaiEx.with_additional_headers(OpenRouter.request_headers([]))
       |> OpenaiEx.Chat.Completions.create(chat_req)
 
     IO.inspect(response, label: "OpenAI Ex response")
@@ -269,8 +270,8 @@ defmodule OpenAIExDemo do
     # OpenAI API compatible endpoint
     {:ok, response} =
       OpenaiEx.new(model.api_key)
-      |> OpenaiEx.with_base_url(Jido.AI.Provider.OpenRouter.base_url())
-      # |> OpenaiEx.with_additional_headers(Jido.AI.Provider.OpenRouter.request_headers([]))
+      |> OpenaiEx.with_base_url(OpenRouter.base_url())
+      # |> OpenaiEx.with_additional_headers(OpenRouter.request_headers([]))
       |> OpenaiEx.Chat.Completions.create(chat_req)
 
     IO.inspect(response, label: "OpenAI Ex response")

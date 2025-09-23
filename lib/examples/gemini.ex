@@ -20,8 +20,8 @@ defmodule JidoAi.Examples.Gemini do
   Or add it to your .env file.
   """
 
-  alias Jido.AI.Model
   alias Jido.AI.Actions.OpenaiEx
+  alias Jido.AI.Model
 
   def run do
     # Create a Gemini model

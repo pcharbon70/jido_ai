@@ -188,7 +188,7 @@ defmodule Mix.Tasks.Jido.Ai.Models do
       models
       |> Enum.group_by(fn model ->
         model = Map.get(model, :id) || Map.get(model, "id")
-        Jido.AI.Provider.standardize_model_name(model)
+        Provider.standardize_model_name(model)
       end)
       |> Enum.each(fn {standard_name, models} ->
         providers = Enum.map(models, & &1.provider)

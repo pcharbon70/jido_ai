@@ -15,6 +15,8 @@ defmodule Jido.AI.ReqLLM do
 
   require Logger
 
+  alias Jido.AI.ReqLLM.StreamingAdapter
+
   @doc """
   Converts Jido AI message format to ReqLLM context format.
 
@@ -186,18 +188,16 @@ defmodule Jido.AI.ReqLLM do
   """
   @spec convert_tools(list(module())) :: {:ok, list(ReqLLM.Tool.t())} | {:error, term()}
   def convert_tools(tools) when is_list(tools) do
-    try do
-      converted_tools = Enum.map(tools, &convert_tool/1)
-      {:ok, converted_tools}
-    rescue
-      error ->
-        {:error,
-         %{
-           reason: "tool_conversion_error",
-           details: Exception.message(error),
-           original_error: error
-         }}
-    end
+    converted_tools = Enum.map(tools, &convert_tool/1)
+    {:ok, converted_tools}
+  rescue
+    error ->
+      {:error,
+       %{
+         reason: "tool_conversion_error",
+         details: Exception.message(error),
+         original_error: error
+       }}
   end
 
   @doc """
@@ -219,7 +219,7 @@ defmodule Jido.AI.ReqLLM do
   def convert_streaming_response(stream, opts \\ []) do
     if Keyword.get(opts, :enhanced, false) do
       # Use enhanced streaming adapter for advanced functionality
-      Jido.AI.ReqLLM.StreamingAdapter.adapt_stream(stream, opts)
+      StreamingAdapter.adapt_stream(stream, opts)
     else
       # Use basic transformation for backward compatibility
       Stream.map(stream, &transform_streaming_chunk/1)

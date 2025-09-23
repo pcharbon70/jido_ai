@@ -2,6 +2,8 @@ defmodule Jido.AI.Model do
   use TypedStruct
   require Logger
 
+  alias Jido.AI.Provider
+
   typedstruct module: Architecture do
     field(:instruct_type, String.t() | nil)
     field(:modality, String.t())
@@ -134,7 +136,7 @@ defmodule Jido.AI.Model do
 
       # A provider tuple
       {provider, opts} when is_atom(provider) and is_list(opts) ->
-        case Jido.AI.Provider.get_adapter_by_id(provider) do
+        case Provider.get_adapter_by_id(provider) do
           {:ok, adapter_module} ->
             adapter_module.build(opts)
 

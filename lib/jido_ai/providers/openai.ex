@@ -106,7 +106,7 @@ defmodule Jido.AI.Provider.OpenAI do
   end
 
   @impl true
-  def base_url() do
+  def base_url do
     @base_url
   end
 
@@ -207,7 +207,7 @@ defmodule Jido.AI.Provider.OpenAI do
     headers = request_headers(opts)
 
     # Ensure the models directory exists
-    base_dir = Jido.AI.Provider.base_dir()
+    base_dir = Provider.base_dir()
     provider_dir = Path.join(base_dir, @provider_path)
     model_dir = Path.join(provider_dir, "models")
 

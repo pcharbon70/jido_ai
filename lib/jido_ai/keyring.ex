@@ -118,26 +118,24 @@ defmodule Jido.AI.Keyring do
 
   @doc false
   defp load_from_env do
-    try do
-      env_dir_prefix = Path.expand("./envs/")
-      current_env = get_environment()
+    env_dir_prefix = Path.expand("./envs/")
+    current_env = get_environment()
 
-      env_sources =
-        Dotenvy.source!([
-          Path.join(File.cwd!(), ".env"),
-          Path.absname(".env", env_dir_prefix),
-          Path.absname(".#{current_env}.env", env_dir_prefix),
-          Path.absname(".#{current_env}.overrides.env", env_dir_prefix),
-          System.get_env()
-        ])
+    env_sources =
+      Dotenvy.source!([
+        Path.join(File.cwd!(), ".env"),
+        Path.absname(".env", env_dir_prefix),
+        Path.absname(".#{current_env}.env", env_dir_prefix),
+        Path.absname(".#{current_env}.overrides.env", env_dir_prefix),
+        System.get_env()
+      ])
 
-      Enum.reduce(env_sources, %{}, fn {key, value}, acc ->
-        atom_key = env_var_to_atom(key)
-        Map.put(acc, atom_key, value)
-      end)
-    rescue
-      _ -> %{}
-    end
+    Enum.reduce(env_sources, %{}, fn {key, value}, acc ->
+      atom_key = env_var_to_atom(key)
+      Map.put(acc, atom_key, value)
+    end)
+  rescue
+    _ -> %{}
   end
 
   @doc false
@@ -379,11 +377,9 @@ defmodule Jido.AI.Keyring do
   """
   @spec get_env_var(String.t(), term()) :: String.t() | term()
   def get_env_var(key, default \\ nil) do
-    try do
-      Dotenvy.env!(key, :string)
-    rescue
-      _ -> default
-    end
+    Dotenvy.env!(key, :string)
+  rescue
+    _ -> default
   end
 
   @doc """

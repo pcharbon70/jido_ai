@@ -5,9 +5,9 @@ defmodule Jido.AI.Provider.Anthropic do
   Implements the ProviderBehavior for Anthropic's specific API.
   """
   @behaviour Jido.AI.Model.Provider.Adapter
+  alias Jido.AI.Model
   alias Jido.AI.Provider
   alias Jido.AI.Provider.Helpers
-  alias Jido.AI.Model
 
   @base_url "https://api.anthropic.com/v1"
   @api_version "2023-06-01"
@@ -132,7 +132,7 @@ defmodule Jido.AI.Provider.Anthropic do
   end
 
   @impl true
-  def base_url() do
+  def base_url do
     @base_url
   end
 
@@ -219,7 +219,7 @@ defmodule Jido.AI.Provider.Anthropic do
     headers = request_headers(opts)
 
     # Ensure the models directory exists
-    base_dir = Jido.AI.Provider.base_dir()
+    base_dir = Provider.base_dir()
     provider_dir = Path.join(base_dir, @provider_path)
     model_dir = Path.join(provider_dir, "models")
 

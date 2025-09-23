@@ -9,6 +9,8 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
 
   require Logger
 
+  alias ReqLLM.Provider.Generated.ValidProviders
+
   # Maps Jido AI provider names to ReqLLM provider names.
   # Some providers may have different names in ReqLLM, so this mapping
   # ensures the correct provider identifier is used.
@@ -163,7 +165,7 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
             # Secure provider validation using ReqLLM's valid provider list
             # Create safe string-to-atom mapping to avoid arbitrary atom creation
             valid_providers =
-              ReqLLM.Provider.Generated.ValidProviders.list()
+              ValidProviders.list()
               |> Map.new(fn atom -> {to_string(atom), atom} end)
 
             case Map.get(valid_providers, provider_str) do

@@ -6,6 +6,7 @@ defmodule Jido.AI.Provider.OpenRouter do
   """
   @behaviour Jido.AI.Model.Provider.Adapter
   alias Jido.AI.Provider
+  alias Jido.AI.Provider.Helpers
 
   @base_url "https://openrouter.ai/api/v1"
 
@@ -116,7 +117,7 @@ defmodule Jido.AI.Provider.OpenRouter do
   end
 
   @impl true
-  def base_url() do
+  def base_url do
     @base_url
   end
 
@@ -165,7 +166,7 @@ defmodule Jido.AI.Provider.OpenRouter do
   def build(opts) do
     # Extract or generate an API key
     api_key =
-      Jido.AI.Provider.Helpers.get_api_key(opts, "OPENROUTER_API_KEY", :openrouter_api_key)
+      Helpers.get_api_key(opts, "OPENROUTER_API_KEY", :openrouter_api_key)
 
     # Get model from opts
     model = Keyword.get(opts, :model)
@@ -208,13 +209,13 @@ defmodule Jido.AI.Provider.OpenRouter do
   # Private helper functions
 
   defp get_models_file_path do
-    base_dir = Jido.AI.Provider.base_dir()
+    base_dir = Provider.base_dir()
     provider_path = Path.join(base_dir, @provider_path)
     Path.join(provider_path, "models.json")
   end
 
   defp get_model_file_path(model) do
-    base_dir = Jido.AI.Provider.base_dir()
+    base_dir = Provider.base_dir()
     provider_path = Path.join(base_dir, @provider_path)
     model_dir = Path.join(provider_path, "models")
     Path.join(model_dir, "#{model}.json")
@@ -319,7 +320,7 @@ defmodule Jido.AI.Provider.OpenRouter do
   end
 
   defp cache_single_model(model, model_data) do
-    base_dir = Jido.AI.Provider.base_dir()
+    base_dir = Provider.base_dir()
     provider_path = Path.join(base_dir, @provider_path)
     model_dir = Path.join(provider_path, "models")
     model_file = Path.join(model_dir, "#{model}.json")

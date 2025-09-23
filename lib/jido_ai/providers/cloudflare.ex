@@ -83,7 +83,7 @@ defmodule Jido.AI.Provider.Cloudflare do
   end
 
   @impl true
-  def base_url() do
+  def base_url do
     @base_url
   end
 
@@ -274,7 +274,7 @@ defmodule Jido.AI.Provider.Cloudflare do
 
   defp cache_single_model(model, model_data) do
     # Ensure the models directory exists
-    base_dir = Jido.AI.Provider.base_dir()
+    base_dir = Provider.base_dir()
     provider_dir = Path.join(base_dir, @provider_path)
     model_dir = Path.join(provider_dir, "models")
 
