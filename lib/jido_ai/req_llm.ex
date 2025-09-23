@@ -241,9 +241,10 @@ defmodule Jido.AI.ReqLLM do
 
   defp convert_tool(tool_module) when is_atom(tool_module) do
     # Convert Jido Action module to ReqLLM tool descriptor
-    name = apply(tool_module, :name, [])
-    description = apply(tool_module, :description, [])
-    schema = apply(tool_module, :schema, [])
+    # Direct function calls instead of apply/2 and apply/3
+    name = tool_module.name()
+    description = tool_module.description()
+    schema = tool_module.schema()
 
     ReqLLM.tool(
       name: name,
@@ -251,7 +252,8 @@ defmodule Jido.AI.ReqLLM do
       parameter_schema: convert_schema_to_json_schema(schema),
       callback: fn args ->
         # Execute the Jido Action and return JSON-serializable result
-        case apply(tool_module, :run, [args, %{}]) do
+        # Direct function call instead of apply/3
+        case tool_module.run(args, %{}) do
           {:ok, result} -> result
           {:error, reason} -> %{error: reason}
           result -> result
