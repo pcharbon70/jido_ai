@@ -65,7 +65,8 @@ defmodule Jido.AI.ReqLLM.StreamingAdapterTest do
 
       assert result[:content] == "test content"
       assert result[:chunk_metadata][:index] == 5
-      assert result[:chunk_metadata][:chunk_size] == 12  # byte_size("test content")
+      # byte_size("test content")
+      assert result[:chunk_metadata][:chunk_size] == 12
       assert is_struct(result[:chunk_metadata][:timestamp], DateTime)
     end
 
@@ -158,7 +159,10 @@ defmodule Jido.AI.ReqLLM.StreamingAdapterTest do
 
   describe "integration with Jido.AI.ReqLLM.convert_streaming_response/2" do
     test "basic streaming conversion works" do
-      mock_stream = [%{content: "Hello", finish_reason: nil}, %{content: " world", finish_reason: "stop"}]
+      mock_stream = [
+        %{content: "Hello", finish_reason: nil},
+        %{content: " world", finish_reason: "stop"}
+      ]
 
       converted = Jido.AI.ReqLLM.convert_streaming_response(mock_stream)
       results = Enum.to_list(converted)

@@ -121,7 +121,8 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
       iex> Jido.AI.ReqLLM.ProviderMapping.check_model_deprecation("claude-2")
       {:deprecated, "claude-3-5-haiku"}
   """
-  @spec check_model_deprecation(String.t()) :: {:ok, String.t()} | {:deprecated, String.t()} | {:error, String.t()}
+  @spec check_model_deprecation(String.t()) ::
+          {:ok, String.t()} | {:deprecated, String.t()} | {:error, String.t()}
   def check_model_deprecation(model_name) when is_binary(model_name) do
     case Map.get(@deprecated_models, model_name) do
       nil -> {:ok, model_name}
@@ -161,8 +162,9 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
           else
             # Secure provider validation using ReqLLM's valid provider list
             # Create safe string-to-atom mapping to avoid arbitrary atom creation
-            valid_providers = ReqLLM.Provider.Generated.ValidProviders.list()
-                              |> Map.new(fn atom -> {to_string(atom), atom} end)
+            valid_providers =
+              ReqLLM.Provider.Generated.ValidProviders.list()
+              |> Map.new(fn atom -> {to_string(atom), atom} end)
 
             case Map.get(valid_providers, provider_str) do
               nil ->
@@ -171,13 +173,14 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
               provider_atom ->
                 # In the future, this would make an actual ReqLLM API call
                 # For now, we'll assume supported providers have available models
-                {:ok, %{
-                  provider: provider_atom,
-                  model: model,
-                  available: true,
-                  reqllm_id: reqllm_id,
-                  validated_at: DateTime.utc_now()
-                }}
+                {:ok,
+                 %{
+                   provider: provider_atom,
+                   model: model,
+                   available: true,
+                   reqllm_id: reqllm_id,
+                   validated_at: DateTime.utc_now()
+                 }}
             end
           end
 
@@ -217,7 +220,8 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
         available: true
       }}
   """
-  @spec build_reqllm_config(atom(), String.t(), keyword()) :: {:ok, map()} | {:error, String.t()} | {:deprecated, map()}
+  @spec build_reqllm_config(atom(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, String.t()} | {:deprecated, map()}
   def build_reqllm_config(jido_provider, model_name, opts \\ []) do
     with {:ok, reqllm_provider} <- {:ok, get_reqllm_provider(jido_provider)},
          {:ok, normalized_model} <- {:ok, normalize_model_name(model_name)},
@@ -225,7 +229,6 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
          final_model <- get_final_model(deprecation_result),
          reqllm_id <- "#{reqllm_provider}:#{final_model}",
          {:ok, validation_info} <- validate_model_availability(reqllm_id, opts) do
-
       config = %{
         jido_provider: jido_provider,
         reqllm_provider: reqllm_provider,
@@ -269,9 +272,13 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
   @spec log_mapping_operation(atom(), String.t(), map()) :: :ok
   def log_mapping_operation(level, operation, details \\ %{}) do
     if Application.get_env(:jido_ai, :enable_provider_mapping_logging, false) do
-      Logger.log(level, "[Provider Mapping] #{operation}",
-        Keyword.merge([module: __MODULE__], Map.to_list(details)))
+      Logger.log(
+        level,
+        "[Provider Mapping] #{operation}",
+        Keyword.merge([module: __MODULE__], Map.to_list(details))
+      )
     end
+
     :ok
   end
 
@@ -281,8 +288,10 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
     # Remove common version suffixes that might not be needed
     # This is conservative - only removes known safe patterns
     model_name
-    |> String.replace(~r/-\d{8}$/, "")  # Remove date suffixes like -20241022
-    |> String.replace(~r/-v\d+$/, "")   # Remove version suffixes like -v1
+    # Remove date suffixes like -20241022
+    |> String.replace(~r/-\d{8}$/, "")
+    # Remove version suffixes like -v1
+    |> String.replace(~r/-v\d+$/, "")
   end
 
   defp get_final_model({:ok, model}), do: model

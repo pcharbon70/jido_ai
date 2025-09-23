@@ -14,6 +14,7 @@ defmodule Jido.AI.ReqLLM.StreamingAdapter do
   """
 
   require Logger
+  alias Jido.AI.ReqLLM
 
   @doc """
   Adapts a ReqLLM stream for Jido AI consumption.
@@ -70,7 +71,7 @@ defmodule Jido.AI.ReqLLM.StreamingAdapter do
   """
   @spec transform_chunk_with_metadata({map() | struct(), integer()}) :: map()
   def transform_chunk_with_metadata({chunk, index}) when is_map(chunk) do
-    base_chunk = Jido.AI.ReqLLM.transform_streaming_chunk(chunk)
+    base_chunk = ReqLLM.transform_streaming_chunk(chunk)
 
     Map.merge(base_chunk, %{
       chunk_metadata: %{
@@ -97,10 +98,12 @@ defmodule Jido.AI.ReqLLM.StreamingAdapter do
   @spec continue_stream?(map()) :: boolean()
   def continue_stream?(%{finish_reason: nil}), do: true
   def continue_stream?(%{finish_reason: ""}), do: true
+
   def continue_stream?(%{finish_reason: finish_reason}) when is_binary(finish_reason) do
     # Continue streaming unless we have a definitive stop condition
     finish_reason not in ["stop", "length", "content_filter", "tool_calls"]
   end
+
   def continue_stream?(_chunk), do: true
 
   @doc """
@@ -131,11 +134,14 @@ defmodule Jido.AI.ReqLLM.StreamingAdapter do
               {[], :ok}
             else
               # Propagate error and terminate stream
-              throw({:error, %{
-                reason: "streaming_error",
-                details: Exception.message(error),
-                original_error: error
-              }})
+              throw(
+                {:error,
+                 %{
+                   reason: "streaming_error",
+                   details: Exception.message(error),
+                   original_error: error
+                 }}
+              )
             end
         end
 
@@ -168,11 +174,15 @@ defmodule Jido.AI.ReqLLM.StreamingAdapter do
         end,
         fn
           {:ok, stream} ->
-            case Enumerable.reduce(stream, {:cont, []}, fn element, acc -> {:cont, [element | acc]} end) do
+            case Enumerable.reduce(stream, {:cont, []}, fn element, acc ->
+                   {:cont, [element | acc]}
+                 end) do
               {:done, results} ->
                 {Enum.reverse(results), :done}
+
               {:halted, results} ->
                 {Enum.reverse(results), :done}
+
               {:suspended, results, continuation} ->
                 {Enum.reverse(results), {:suspended, continuation}}
             end
@@ -197,16 +207,16 @@ defmodule Jido.AI.ReqLLM.StreamingAdapter do
 
   defp get_chunk_content(chunk) do
     chunk[:content] || chunk["content"] ||
-    chunk[:text] || chunk["text"] ||
-    chunk[:delta][:content] || chunk["delta"]["content"] ||
-    ""
+      chunk[:text] || chunk["text"] ||
+      chunk[:delta][:content] || chunk["delta"]["content"] ||
+      ""
   end
 
   defp extract_provider_from_chunk(chunk) do
     # Extract provider information from chunk metadata if available
     chunk[:provider] || chunk["provider"] ||
-    chunk[:model] || chunk["model"] ||
-    "unknown"
+      chunk[:model] || chunk["model"] ||
+      "unknown"
   end
 
   defp maybe_add_timeout(stream, timeout) when is_integer(timeout) and timeout > 0 do
@@ -233,7 +243,8 @@ defmodule Jido.AI.ReqLLM.StreamingAdapter do
   defp log_streaming_error(error) do
     if Application.get_env(:jido_ai, :enable_req_llm_logging, false) do
       Logger.error("[ReqLLM Streaming] Error: #{Exception.message(error)}",
-        module: __MODULE__, error: error)
+        module: __MODULE__
+      )
     end
   end
 

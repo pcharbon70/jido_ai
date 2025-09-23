@@ -19,10 +19,10 @@ defmodule Jido.AI.ReqLLMTest do
       result = ReqLLM.convert_messages(messages)
 
       assert result == [
-        %{role: :system, content: "You are a helpful assistant"},
-        %{role: :user, content: "Hello"},
-        %{role: :assistant, content: "Hi there!"}
-      ]
+               %{role: :system, content: "You are a helpful assistant"},
+               %{role: :user, content: "Hello"},
+               %{role: :assistant, content: "Hi there!"}
+             ]
     end
   end
 
@@ -144,13 +144,13 @@ defmodule Jido.AI.ReqLLMTest do
       result = ReqLLM.build_req_llm_options(params)
 
       assert result == %{
-        temperature: 0.8,
-        max_tokens: 100,
-        top_p: 0.9,
-        stop: ["END"],
-        tools: [],
-        tool_choice: "auto"
-      }
+               temperature: 0.8,
+               max_tokens: 100,
+               top_p: 0.9,
+               stop: ["END"],
+               tools: [],
+               tool_choice: "auto"
+             }
     end
 
     test "filters out nil values" do
@@ -164,9 +164,9 @@ defmodule Jido.AI.ReqLLMTest do
       result = ReqLLM.build_req_llm_options(params)
 
       assert result == %{
-        temperature: 0.8,
-        top_p: 0.9
-      }
+               temperature: 0.8,
+               top_p: 0.9
+             }
     end
   end
 

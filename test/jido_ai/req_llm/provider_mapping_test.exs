@@ -41,14 +41,23 @@ defmodule Jido.AI.ReqLLM.ProviderMappingTest do
   describe "check_model_deprecation/1" do
     test "returns ok for current models" do
       assert ProviderMapping.check_model_deprecation("gpt-4o") == {:ok, "gpt-4o"}
-      assert ProviderMapping.check_model_deprecation("claude-3-5-haiku") == {:ok, "claude-3-5-haiku"}
-      assert ProviderMapping.check_model_deprecation("gemini-2.0-flash") == {:ok, "gemini-2.0-flash"}
+
+      assert ProviderMapping.check_model_deprecation("claude-3-5-haiku") ==
+               {:ok, "claude-3-5-haiku"}
+
+      assert ProviderMapping.check_model_deprecation("gemini-2.0-flash") ==
+               {:ok, "gemini-2.0-flash"}
     end
 
     test "returns deprecated status with replacement for deprecated models" do
-      assert ProviderMapping.check_model_deprecation("claude-2") == {:deprecated, "claude-3-5-haiku"}
-      assert ProviderMapping.check_model_deprecation("claude-1") == {:deprecated, "claude-3-5-haiku"}
-      assert ProviderMapping.check_model_deprecation("gpt-3.5-turbo-0301") == {:deprecated, "gpt-3.5-turbo"}
+      assert ProviderMapping.check_model_deprecation("claude-2") ==
+               {:deprecated, "claude-3-5-haiku"}
+
+      assert ProviderMapping.check_model_deprecation("claude-1") ==
+               {:deprecated, "claude-3-5-haiku"}
+
+      assert ProviderMapping.check_model_deprecation("gpt-3.5-turbo-0301") ==
+               {:deprecated, "gpt-3.5-turbo"}
     end
   end
 

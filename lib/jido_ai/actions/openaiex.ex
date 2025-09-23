@@ -82,11 +82,13 @@ defmodule Jido.AI.Actions.OpenaiEx do
     ]
 
   require Logger
+  alias Jido.AI.Actions.OpenaiEx.ToolHelper
   alias Jido.AI.Model
   alias Jido.AI.Prompt
+  alias Jido.AI.ReqLLM
   alias OpenaiEx.Chat
   alias OpenaiEx.ChatMessage
-  alias Jido.AI.Actions.OpenaiEx.ToolHelper
+  alias ReqLLM.Provider.Generated.ValidProviders
 
   @valid_providers [:openai, :openrouter, :google]
 
@@ -295,45 +297,13 @@ defmodule Jido.AI.Actions.OpenaiEx do
     # Use ReqLLM with the model's reqllm_id
     case ReqLLM.generate_text(model.reqllm_id, messages, opts) do
       {:ok, response} ->
-        # Convert ReqLLM response to expected OpenaiEx format
-        {:ok, convert_to_openai_response_format(response)}
+        # Convert ReqLLM response through bridge first, then to OpenaiEx format
+        converted = ReqLLM.convert_response(response)
+        {:ok, convert_to_openai_response_format(converted)}
 
       {:error, error} ->
         # Map ReqLLM errors to existing error patterns
-        Jido.AI.ReqLLM.map_error({:error, error})
-    end
-  end
-
-  defp make_google_request(model, chat_req, client) do
-    google_req = %{
-      contents: [
-        %{
-          parts: [
-            %{
-              text: hd(chat_req.messages).content
-            }
-          ]
-        }
-      ],
-      generationConfig: %{
-        temperature: chat_req.temperature,
-        maxOutputTokens: chat_req.max_tokens
-      }
-    }
-
-    url = "#{model.base_url}#{model.model}:generateContent"
-    Logger.debug("Google URL: #{url}", module: __MODULE__)
-    Logger.debug("Google request: #{inspect(google_req)}", module: __MODULE__)
-
-    case Req.post(url, json: google_req, headers: client._http_headers) do
-      {:ok, %{status: 200, body: body}} ->
-        {:ok, %{choices: [%{message: %{content: extract_google_response(body)}}]}}
-
-      {:ok, %{status: status, body: body}} ->
-        {:error, %{reason: "Google API error", details: %{status: status, body: body}}}
-
-      {:error, reason} ->
-        {:error, %{reason: "Google request failed", details: reason}}
+        ReqLLM.map_error({:error, error})
     end
   end
 
@@ -351,53 +321,14 @@ defmodule Jido.AI.Actions.OpenaiEx do
     case ReqLLM.stream_text(model.reqllm_id, messages, opts) do
       {:ok, stream} ->
         # Convert ReqLLM stream to Jido AI compatible format using bridge functions
-        converted_stream = Jido.AI.ReqLLM.convert_streaming_response(stream)
+        converted_stream = ReqLLM.convert_streaming_response(stream)
         {:ok, converted_stream}
 
       {:error, error} ->
         # Map ReqLLM streaming errors to existing error patterns
-        Jido.AI.ReqLLM.map_streaming_error({:error, error})
+        ReqLLM.map_streaming_error({:error, error})
     end
   end
-
-  defp extract_google_response(%{
-         "candidates" => [%{"content" => %{"parts" => [%{"text" => text}]}} | _]
-       }) do
-    text
-  end
-
-  defp extract_google_response(body) do
-    Logger.error("Unexpected Google API response: #{inspect(body)}", module: __MODULE__)
-    {:error, %{reason: "Unexpected response format", details: inspect(body)}}
-  end
-
-  defp maybe_add_base_url(client, %Model{provider: :openrouter}) do
-    OpenaiEx.with_base_url(client, Jido.AI.Provider.OpenRouter.base_url())
-  end
-
-  defp maybe_add_base_url(client, %Model{provider: :google}) do
-    OpenaiEx.with_base_url(client, Jido.AI.Provider.Google.base_url())
-  end
-
-  defp maybe_add_base_url(client, _), do: client
-
-  defp maybe_add_headers(client, %Model{provider: :openrouter}) do
-    OpenaiEx.with_additional_headers(client, Jido.AI.Provider.OpenRouter.request_headers([]))
-  end
-
-  defp maybe_add_headers(client, %Model{provider: :google}) do
-    OpenaiEx.with_additional_headers(client, Jido.AI.Provider.Google.request_headers([]))
-  end
-
-  defp maybe_add_headers(client, _), do: client
-
-  defp maybe_remove_auth_header(client, %Model{provider: :google}) do
-    Map.update!(client, :_http_headers, fn headers ->
-      Enum.reject(headers, fn {key, _} -> key == "Authorization" end)
-    end)
-  end
-
-  defp maybe_remove_auth_header(client, _), do: client
 
   # Helper functions for ReqLLM integration
 
@@ -422,6 +353,7 @@ defmodule Jido.AI.Actions.OpenaiEx do
     # Set API key via JidoKeys if available
     if model.api_key do
       provider_atom = extract_provider_from_reqllm_id(model.reqllm_id)
+
       if provider_atom do
         env_var_name = ReqLLM.Keys.env_var_name(provider_atom)
         JidoKeys.put(env_var_name, model.api_key)
@@ -429,27 +361,55 @@ defmodule Jido.AI.Actions.OpenaiEx do
     end
 
     # Add other parameters from chat_req
-    opts = if Map.get(chat_req, :temperature), do: [{:temperature, Map.get(chat_req, :temperature)} | opts], else: opts
-    opts = if Map.get(chat_req, :max_tokens), do: [{:max_tokens, Map.get(chat_req, :max_tokens)} | opts], else: opts
-    opts = if Map.get(chat_req, :top_p), do: [{:top_p, Map.get(chat_req, :top_p)} | opts], else: opts
-    opts = if Map.get(chat_req, :frequency_penalty), do: [{:frequency_penalty, Map.get(chat_req, :frequency_penalty)} | opts], else: opts
-    opts = if Map.get(chat_req, :presence_penalty), do: [{:presence_penalty, Map.get(chat_req, :presence_penalty)} | opts], else: opts
+    opts =
+      if Map.get(chat_req, :temperature),
+        do: [{:temperature, Map.get(chat_req, :temperature)} | opts],
+        else: opts
+
+    opts =
+      if Map.get(chat_req, :max_tokens),
+        do: [{:max_tokens, Map.get(chat_req, :max_tokens)} | opts],
+        else: opts
+
+    opts =
+      if Map.get(chat_req, :top_p), do: [{:top_p, Map.get(chat_req, :top_p)} | opts], else: opts
+
+    opts =
+      if Map.get(chat_req, :frequency_penalty),
+        do: [{:frequency_penalty, Map.get(chat_req, :frequency_penalty)} | opts],
+        else: opts
+
+    opts =
+      if Map.get(chat_req, :presence_penalty),
+        do: [{:presence_penalty, Map.get(chat_req, :presence_penalty)} | opts],
+        else: opts
+
     opts = if Map.get(chat_req, :stop), do: [{:stop, Map.get(chat_req, :stop)} | opts], else: opts
-    opts = if Map.get(chat_req, :tools), do: [{:tools, convert_tools_for_reqllm(Map.get(chat_req, :tools))} | opts], else: opts
-    opts = if Map.get(chat_req, :tool_choice), do: [{:tool_choice, Map.get(chat_req, :tool_choice)} | opts], else: opts
+
+    opts =
+      if Map.get(chat_req, :tools),
+        do: [{:tools, convert_tools_for_reqllm(Map.get(chat_req, :tools))} | opts],
+        else: opts
+
+    opts =
+      if Map.get(chat_req, :tool_choice),
+        do: [{:tool_choice, Map.get(chat_req, :tool_choice)} | opts],
+        else: opts
 
     opts
   end
 
   defp extract_provider_from_reqllm_id(reqllm_id) do
-    provider_str = reqllm_id
-                   |> String.split(":")
-                   |> hd()
+    provider_str =
+      reqllm_id
+      |> String.split(":")
+      |> hd()
 
     # Create a safe string-to-atom mapping from ReqLLM's valid providers
     # This avoids creating arbitrary atoms from user input
-    valid_providers = ReqLLM.Provider.Generated.ValidProviders.list()
-                      |> Map.new(fn atom -> {to_string(atom), atom} end)
+    valid_providers =
+      ValidProviders.list()
+      |> Map.new(fn atom -> {to_string(atom), atom} end)
 
     Map.get(valid_providers, provider_str)
   end
@@ -461,12 +421,21 @@ defmodule Jido.AI.Actions.OpenaiEx do
   end
 
   defp convert_to_openai_response_format(%{content: content} = response) do
-    # Convert ReqLLM response to format expected by existing consumers
+    # Convert ReqLLM response to OpenAI format expected by ToolHelper
     %{
-      content: content,
+      choices: [
+        %{
+          message: %{
+            content: content,
+            role: "assistant",
+            tool_calls: Map.get(response, :tool_calls, [])
+          },
+          finish_reason: Map.get(response, :finish_reason, "stop"),
+          index: 0
+        }
+      ],
       usage: Map.get(response, :usage, %{}),
-      finish_reason: Map.get(response, :finish_reason),
-      tool_calls: Map.get(response, :tool_calls, [])
+      model: "unknown"
     }
   end
 
@@ -475,10 +444,19 @@ defmodule Jido.AI.Actions.OpenaiEx do
     content = response[:content] || response["content"] || ""
 
     %{
-      content: content,
+      choices: [
+        %{
+          message: %{
+            content: content,
+            role: "assistant",
+            tool_calls: response[:tool_calls] || response["tool_calls"] || []
+          },
+          finish_reason: response[:finish_reason] || response["finish_reason"] || "stop",
+          index: 0
+        }
+      ],
       usage: response[:usage] || response["usage"] || %{},
-      finish_reason: response[:finish_reason] || response["finish_reason"],
-      tool_calls: response[:tool_calls] || response["tool_calls"] || []
+      model: "unknown"
     }
   end
 end

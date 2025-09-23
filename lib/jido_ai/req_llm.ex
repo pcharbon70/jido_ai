@@ -92,60 +92,67 @@ defmodule Jido.AI.ReqLLM do
   """
   @spec map_error(term()) :: {:error, term()}
   def map_error({:error, %{status: status, body: body}}) do
-    {:error, %{
-      reason: "http_error",
-      details: "HTTP #{status}: #{inspect(body)}",
-      status: status,
-      body: body
-    }}
+    {:error,
+     %{
+       reason: "http_error",
+       details: "HTTP #{status}: #{inspect(body)}",
+       status: status,
+       body: body
+     }}
   end
 
   def map_error({:error, %{__struct__: struct_name} = error}) when is_atom(struct_name) do
     # Handle ReqLLM struct errors
-    {:error, %{
-      reason: Map.get(error, :reason, "req_llm_error"),
-      details: Map.get(error, :message, inspect(error)),
-      original_error: error
-    }}
+    {:error,
+     %{
+       reason: Map.get(error, :reason, "req_llm_error"),
+       details: Map.get(error, :message, inspect(error)),
+       original_error: error
+     }}
   end
 
   def map_error({:error, error}) when is_map(error) do
-    {:error, %{
-      reason: error[:type] || error["type"] || "req_llm_error",
-      details: error[:message] || error["message"] || inspect(error),
-      original_error: error
-    }}
+    {:error,
+     %{
+       reason: error[:type] || error["type"] || "req_llm_error",
+       details: error[:message] || error["message"] || inspect(error),
+       original_error: error
+     }}
   end
 
   def map_error({:error, %Req.TransportError{} = error}) do
-    {:error, %{
-      reason: "transport_error",
-      details: Exception.message(error),
-      original_error: error
-    }}
+    {:error,
+     %{
+       reason: "transport_error",
+       details: Exception.message(error),
+       original_error: error
+     }}
   end
 
   def map_error({:error, reason}) when is_binary(reason) do
-    {:error, %{
-      reason: "req_llm_error",
-      details: reason
-    }}
+    {:error,
+     %{
+       reason: "req_llm_error",
+       details: reason
+     }}
   end
 
   def map_error({:error, reason}) do
-    {:error, %{
-      reason: "unknown_error",
-      details: inspect(reason),
-      original_error: reason
-    }}
+    {:error,
+     %{
+       reason: "unknown_error",
+       details: inspect(reason),
+       original_error: reason
+     }}
   end
 
   def map_error(other) do
-    {:error, %{
-      reason: "unexpected_error",
-      details: "Unexpected error format: #{inspect(other)}",
-      original_error: other
-    }}
+    {:error,
+     %{
+       reason: "unexpected_error",
+       details: "Unexpected error format: #{inspect(other)}",
+       original_error: other
+     }}
   end
 
   @doc """
@@ -184,11 +191,12 @@ defmodule Jido.AI.ReqLLM do
       {:ok, converted_tools}
     rescue
       error ->
-        {:error, %{
-          reason: "tool_conversion_error",
-          details: Exception.message(error),
-          original_error: error
-        }}
+        {:error,
+         %{
+           reason: "tool_conversion_error",
+           details: Exception.message(error),
+           original_error: error
+         }}
     end
   end
 
@@ -258,19 +266,21 @@ defmodule Jido.AI.ReqLLM do
   """
   @spec map_streaming_error(term()) :: {:error, term()}
   def map_streaming_error({:error, %{reason: "stream_error"} = error}) do
-    {:error, %{
-      reason: "streaming_error",
-      details: "Streaming failed: #{error.message || inspect(error)}",
-      original_error: error
-    }}
+    {:error,
+     %{
+       reason: "streaming_error",
+       details: "Streaming failed: #{error.message || inspect(error)}",
+       original_error: error
+     }}
   end
 
   def map_streaming_error({:error, %{reason: "timeout"} = error}) do
-    {:error, %{
-      reason: "streaming_timeout",
-      details: "Stream timed out: #{error.message || inspect(error)}",
-      original_error: error
-    }}
+    {:error,
+     %{
+       reason: "streaming_timeout",
+       details: "Stream timed out: #{error.message || inspect(error)}",
+       original_error: error
+     }}
   end
 
   def map_streaming_error(error) do
@@ -292,9 +302,13 @@ defmodule Jido.AI.ReqLLM do
   def log_operation(level, message, metadata \\ []) do
     # Only log if explicitly enabled via configuration
     if Application.get_env(:jido_ai, :enable_req_llm_logging, false) do
-      Logger.log(level, "[ReqLLM Bridge] #{message}",
-        Keyword.merge([module: __MODULE__], metadata))
+      Logger.log(
+        level,
+        "[ReqLLM Bridge] #{message}",
+        Keyword.merge([module: __MODULE__], metadata)
+      )
     end
+
     :ok
   end
 
@@ -302,20 +316,21 @@ defmodule Jido.AI.ReqLLM do
 
   defp get_response_text(response) do
     response[:text] || response["text"] ||
-    response[:content] || response["content"] ||
-    response[:message] || response["message"] ||
-    ""
+      response[:content] || response["content"] ||
+      response[:message] || response["message"] ||
+      ""
   end
 
   defp get_chunk_content(chunk) do
     # Extract content from streaming chunk
     chunk[:content] || chunk["content"] ||
-    chunk[:text] || chunk["text"] ||
-    chunk[:delta][:content] || chunk["delta"]["content"] ||
-    ""
+      chunk[:text] || chunk["text"] ||
+      chunk[:delta][:content] || chunk["delta"]["content"] ||
+      ""
   end
 
   defp convert_usage(nil), do: nil
+
   defp convert_usage(usage) when is_map(usage) do
     # Map ReqLLM usage format to Jido AI expected format
     %{
@@ -327,6 +342,7 @@ defmodule Jido.AI.ReqLLM do
 
   defp convert_tool_calls(nil), do: []
   defp convert_tool_calls([]), do: []
+
   defp convert_tool_calls(tool_calls) when is_list(tool_calls) do
     Enum.map(tool_calls, &convert_tool_call/1)
   end
@@ -376,7 +392,9 @@ defmodule Jido.AI.ReqLLM do
         }
 
         property = if opts[:required], do: Map.put(property, :required, true), else: property
-        property = if opts[:default], do: Map.put(property, :default, opts[:default]), else: property
+
+        property =
+          if opts[:default], do: Map.put(property, :default, opts[:default]), else: property
 
         Map.put(acc, key, property)
       end)
@@ -399,5 +417,6 @@ defmodule Jido.AI.ReqLLM do
   defp map_type_to_json_schema(:boolean), do: "boolean"
   defp map_type_to_json_schema({:list, _inner_type}), do: "array"
   defp map_type_to_json_schema({:map, _fields}), do: "object"
-  defp map_type_to_json_schema(_), do: "string"  # Default fallback
+  # Default fallback
+  defp map_type_to_json_schema(_), do: "string"
 end

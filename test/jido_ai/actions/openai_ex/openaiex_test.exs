@@ -23,6 +23,12 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
   # Add global mock setup
   setup :set_mimic_global
 
+  setup do
+    # Copy ReqLLM for mocking since the implementation now uses ReqLLM
+    copy(ReqLLM)
+    :ok
+  end
+
   describe "run/2" do
     setup do
       # Create a mock model
@@ -53,11 +59,9 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
       params: params,
       context: context
     } do
-      # Mock the OpenAI client
-      expect(OpenaiEx, :new, fn "test-api-key" -> %OpenaiEx{} end)
-
-      expect(OpenaiEx.Chat.Completions, :create, fn _client, _req ->
-        {:ok, %{choices: [%{message: %{content: "Test response"}}]}}
+      # Mock ReqLLM since the implementation now uses ReqLLM
+      expect(ReqLLM, :generate_text, fn "openai:gpt-4", _messages, _opts ->
+        {:ok, %{text: "Test response", usage: %{prompt_tokens: 10, completion_tokens: 5}}}
       end)
 
       assert {:ok, %{content: "Test response", tool_results: []}} =
@@ -75,11 +79,9 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
         max_tokens: 1024
       }
 
-      # Mock the OpenAI client
-      expect(OpenaiEx, :new, fn "test-api-key" -> %OpenaiEx{} end)
-
-      expect(OpenaiEx.Chat.Completions, :create, fn _client, _req ->
-        {:ok, %{choices: [%{message: %{content: "Test response"}}]}}
+      # Mock ReqLLM since the implementation now uses ReqLLM
+      expect(ReqLLM, :generate_text, fn "openai:gpt-4", _messages, _opts ->
+        {:ok, %{text: "Test response", usage: %{prompt_tokens: 10, completion_tokens: 5}}}
       end)
 
       assert {:ok, %{content: "Test response", tool_results: []}} =
@@ -106,11 +108,9 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
         max_tokens: 1024
       }
 
-      # Mock the OpenAI client
-      expect(OpenaiEx, :new, fn "test-api-key" -> %OpenaiEx{} end)
-
-      expect(OpenaiEx.Chat.Completions, :create, fn _client, _req ->
-        {:ok, %{choices: [%{message: %{content: "Test response"}}]}}
+      # Mock ReqLLM since the implementation now uses ReqLLM
+      expect(ReqLLM, :generate_text, fn "openai:gpt-4", _messages, _opts ->
+        {:ok, %{text: "Test response", usage: %{prompt_tokens: 10, completion_tokens: 5}}}
       end)
 
       assert {:ok, %{content: "Test response", tool_results: []}} =
@@ -134,11 +134,9 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
           seed: 123
         })
 
-      # Mock the OpenAI client
-      expect(OpenaiEx, :new, fn "test-api-key" -> %OpenaiEx{} end)
-
-      expect(OpenaiEx.Chat.Completions, :create, fn _client, _req ->
-        {:ok, %{choices: [%{message: %{content: "Test response"}}]}}
+      # Mock ReqLLM since the implementation now uses ReqLLM
+      expect(ReqLLM, :generate_text, fn "openai:gpt-4", _messages, _opts ->
+        {:ok, %{text: "Test response", usage: %{prompt_tokens: 10, completion_tokens: 5}}}
       end)
 
       assert {:ok, %{content: "Test response", tool_results: []}} =

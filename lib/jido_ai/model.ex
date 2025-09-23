@@ -147,6 +147,7 @@ defmodule Jido.AI.Model do
         # For now, create a basic model with category info
         # This could be enhanced to map to specific providers based on category/class
         model_name = "#{category}_#{class}"
+
         {:ok,
          %__MODULE__{
            id: "#{category}_#{class}",

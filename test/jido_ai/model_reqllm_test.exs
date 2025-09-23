@@ -5,13 +5,18 @@ defmodule Jido.AI.Model.ReqLLMTest do
   describe "compute_reqllm_id/2" do
     test "computes ReqLLM ID from provider and model" do
       assert Model.compute_reqllm_id(:openai, "gpt-4o") == "openai:gpt-4o"
-      assert Model.compute_reqllm_id(:anthropic, "claude-3-5-haiku") == "anthropic:claude-3-5-haiku"
+
+      assert Model.compute_reqllm_id(:anthropic, "claude-3-5-haiku") ==
+               "anthropic:claude-3-5-haiku"
+
       assert Model.compute_reqllm_id(:google, "gemini-2.0-flash") == "google:gemini-2.0-flash"
     end
 
     test "handles non-atom providers" do
       assert Model.compute_reqllm_id("openai", "gpt-4o") == "openai:gpt-4o"
-      assert Model.compute_reqllm_id("anthropic", "claude-3-5-haiku") == "anthropic:claude-3-5-haiku"
+
+      assert Model.compute_reqllm_id("anthropic", "claude-3-5-haiku") ==
+               "anthropic:claude-3-5-haiku"
     end
   end
 

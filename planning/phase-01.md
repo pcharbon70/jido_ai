@@ -101,14 +101,14 @@ Streaming functionality is critical for real-time applications. The migration mu
 - [x] 1.3.2.4 Preserve error handling and recovery mechanisms in streaming context
 
 ### 1.3.3 Embeddings Integration
-- [ ] **Task 1.3.3 Complete**
+- [x] **Task 1.3.3 Complete**
 
 Embeddings support needs to be migrated to ReqLLM while maintaining the existing result structure and metadata that applications depend on for vector operations.
 
-- [ ] 1.3.3.1 Replace current embedding actions with `ReqLLM.embed_many/3` calls
-- [ ] 1.3.3.2 Maintain existing embedding result structure including dimensions and metadata
-- [ ] 1.3.3.3 Handle dimension validation and preserve embedding metadata for compatibility
-- [ ] 1.3.3.4 Implement batch processing compatibility for large embedding operations
+- [x] 1.3.3.1 Replace current embedding actions with `ReqLLM.embed_many/3` calls
+- [x] 1.3.3.2 Maintain existing embedding result structure including dimensions and metadata
+- [x] 1.3.3.3 Handle dimension validation and preserve embedding metadata for compatibility
+- [x] 1.3.3.4 Implement batch processing compatibility for large embedding operations
 
 ### Unit Tests - Section 1.3
 - [ ] **Unit Tests 1.3 Complete**
