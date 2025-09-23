@@ -159,6 +159,9 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
           if String.contains?(model, ":") do
             {:error, "Invalid ReqLLM ID format. Expected 'provider:model', got: #{reqllm_id}"}
           else
+            # NOTE: Potential security issue - String.to_atom/1 can create arbitrary atoms
+            # from user input, leading to memory exhaustion. However, we trust the incoming
+            # JSON strings and the number of unique provider names is negligible.
             provider = String.to_atom(provider_str)
 
             if provider in supported_providers() do
