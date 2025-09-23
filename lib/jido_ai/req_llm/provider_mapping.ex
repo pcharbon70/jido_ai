@@ -159,23 +159,25 @@ defmodule Jido.AI.ReqLLM.ProviderMapping do
           if String.contains?(model, ":") do
             {:error, "Invalid ReqLLM ID format. Expected 'provider:model', got: #{reqllm_id}"}
           else
-            # NOTE: Potential security issue - String.to_atom/1 can create arbitrary atoms
-            # from user input, leading to memory exhaustion. However, we trust the incoming
-            # JSON strings and the number of unique provider names is negligible.
-            provider = String.to_atom(provider_str)
+            # Secure provider validation using ReqLLM's valid provider list
+            # Create safe string-to-atom mapping to avoid arbitrary atom creation
+            valid_providers = ReqLLM.Provider.Generated.ValidProviders.list()
+                              |> Map.new(fn atom -> {to_string(atom), atom} end)
 
-            if provider in supported_providers() do
-              # In the future, this would make an actual ReqLLM API call
-              # For now, we'll assume supported providers have available models
-              {:ok, %{
-                provider: provider,
-                model: model,
-                available: true,
-                reqllm_id: reqllm_id,
-                validated_at: DateTime.utc_now()
-              }}
-            else
-              {:error, "Unsupported provider: #{provider}"}
+            case Map.get(valid_providers, provider_str) do
+              nil ->
+                {:error, "Unsupported provider: #{provider_str}"}
+
+              provider_atom ->
+                # In the future, this would make an actual ReqLLM API call
+                # For now, we'll assume supported providers have available models
+                {:ok, %{
+                  provider: provider_atom,
+                  model: model,
+                  available: true,
+                  reqllm_id: reqllm_id,
+                  validated_at: DateTime.utc_now()
+                }}
             end
           end
 

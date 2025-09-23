@@ -100,6 +100,15 @@ defmodule Jido.AI.ReqLLM do
     }}
   end
 
+  def map_error({:error, %{__struct__: struct_name} = error}) when is_atom(struct_name) do
+    # Handle ReqLLM struct errors
+    {:error, %{
+      reason: Map.get(error, :reason, "req_llm_error"),
+      details: Map.get(error, :message, inspect(error)),
+      original_error: error
+    }}
+  end
+
   def map_error({:error, error}) when is_map(error) do
     {:error, %{
       reason: error[:type] || error["type"] || "req_llm_error",
