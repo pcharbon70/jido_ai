@@ -2,12 +2,12 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
   use ExUnit.Case, async: true
   use Mimic
   require Logger
+  alias Jido.Actions.Arithmetic.Add
   alias Jido.AI.Actions.OpenaiEx, as: OpenaiExAction
   alias Jido.AI.Model
   alias Jido.AI.Prompt
   alias OpenaiEx.Chat
   alias OpenaiEx.ChatMessage
-  alias Jido.Actions.Arithmetic.Add
 
   # Define test response model at module level
   defmodule TestResponse do

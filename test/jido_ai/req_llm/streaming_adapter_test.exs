@@ -2,6 +2,7 @@ defmodule Jido.AI.ReqLLM.StreamingAdapterTest do
   use ExUnit.Case, async: true
   doctest Jido.AI.ReqLLM.StreamingAdapter
 
+  alias Jido.AI.ReqLLM
   alias Jido.AI.ReqLLM.StreamingAdapter
 
   describe "adapt_stream/2" do
@@ -164,7 +165,7 @@ defmodule Jido.AI.ReqLLM.StreamingAdapterTest do
         %{content: " world", finish_reason: "stop"}
       ]
 
-      converted = Jido.AI.ReqLLM.convert_streaming_response(mock_stream)
+      converted = ReqLLM.convert_streaming_response(mock_stream)
       results = Enum.to_list(converted)
 
       assert length(results) == 2
@@ -176,7 +177,7 @@ defmodule Jido.AI.ReqLLM.StreamingAdapterTest do
     test "enhanced streaming conversion with adapter" do
       mock_stream = [%{content: "Test", finish_reason: nil}]
 
-      converted = Jido.AI.ReqLLM.convert_streaming_response(mock_stream, enhanced: true)
+      converted = ReqLLM.convert_streaming_response(mock_stream, enhanced: true)
       results = Enum.to_list(converted)
 
       assert length(results) == 1
