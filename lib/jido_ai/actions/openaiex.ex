@@ -350,12 +350,13 @@ defmodule Jido.AI.Actions.OpenaiEx do
     # Use ReqLLM streaming with the model's reqllm_id
     case ReqLLM.stream_text(model.reqllm_id, messages, opts) do
       {:ok, stream} ->
-        # Convert ReqLLM stream to expected format
-        {:ok, stream}
+        # Convert ReqLLM stream to Jido AI compatible format using bridge functions
+        converted_stream = Jido.AI.ReqLLM.convert_streaming_response(stream)
+        {:ok, converted_stream}
 
       {:error, error} ->
-        # Map ReqLLM errors to existing error patterns
-        Jido.AI.ReqLLM.map_error({:error, error})
+        # Map ReqLLM streaming errors to existing error patterns
+        Jido.AI.ReqLLM.map_streaming_error({:error, error})
     end
   end
 

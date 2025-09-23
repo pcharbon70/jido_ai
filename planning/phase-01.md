@@ -81,24 +81,24 @@ This creates the mapping logic between Jido AI's current provider system and Req
 This section represents the heart of the migration, replacing the current provider-specific implementations in actions like `Jido.AI.Actions.OpenaiEx` with ReqLLM calls. The critical requirement is preserving exact response shapes and error formats that existing Jido AI consumers depend on.
 
 ### 1.3.1 Chat/Completion Actions
-- [ ] **Task 1.3.1 Complete**
+- [x] **Task 1.3.1 Complete**
 
 The primary chat completion functionality needs to be migrated from OpenaiEx and provider-specific implementations to ReqLLM's unified `generate_text/3` function. This requires careful message format conversion and response shape preservation.
 
-- [ ] 1.3.1.1 Replace `OpenaiEx.Chat.Completions.create` calls with `ReqLLM.generate_text/3`
-- [ ] 1.3.1.2 Implement message format conversion from Jido's message format to ReqLLM's expected format
-- [ ] 1.3.1.3 Preserve existing response structure and contracts that downstream consumers expect
-- [ ] 1.3.1.4 Handle provider-specific parameter mapping and validation through ReqLLM
+- [x] 1.3.1.1 Replace `OpenaiEx.Chat.Completions.create` calls with `ReqLLM.generate_text/3`
+- [x] 1.3.1.2 Implement message format conversion from Jido's message format to ReqLLM's expected format
+- [x] 1.3.1.3 Preserve existing response structure and contracts that downstream consumers expect
+- [x] 1.3.1.4 Handle provider-specific parameter mapping and validation through ReqLLM
 
 ### 1.3.2 Streaming Support
-- [ ] **Task 1.3.2 Complete**
+- [x] **Task 1.3.2 Complete**
 
 Streaming functionality is critical for real-time applications. The migration must preserve the exact streaming chunk format and timing that existing consumers rely on, while leveraging ReqLLM's streaming capabilities.
 
-- [ ] 1.3.2.1 Replace current streaming implementations with `ReqLLM.stream_text/3`
-- [ ] 1.3.2.2 Maintain existing stream chunk contracts and shapes for backward compatibility
-- [ ] 1.3.2.3 Implement stream adapter layer to transform ReqLLM chunks to Jido format
-- [ ] 1.3.2.4 Preserve error handling and recovery mechanisms in streaming context
+- [x] 1.3.2.1 Replace current streaming implementations with `ReqLLM.stream_text/3`
+- [x] 1.3.2.2 Maintain existing stream chunk contracts and shapes for backward compatibility
+- [x] 1.3.2.3 Implement stream adapter layer to transform ReqLLM chunks to Jido format
+- [x] 1.3.2.4 Preserve error handling and recovery mechanisms in streaming context
 
 ### 1.3.3 Embeddings Integration
 - [ ] **Task 1.3.3 Complete**

@@ -193,6 +193,92 @@ defmodule Jido.AI.ReqLLM do
   end
 
   @doc """
+  Converts ReqLLM streaming response to Jido AI streaming format.
+
+  Transforms a ReqLLM streaming response into the expected chunk format
+  for Jido AI consumers, maintaining backward compatibility.
+
+  ## Parameters
+    - stream: ReqLLM streaming response (enumerable of chunks)
+    - opts: Conversion options (optional)
+      - :enhanced - Use enhanced streaming adapter (default: false)
+      - Other options passed to StreamingAdapter if enhanced mode enabled
+
+  ## Returns
+    - Transformed stream with Jido AI compatible chunk format
+  """
+  @spec convert_streaming_response(Enumerable.t(), keyword()) :: Enumerable.t()
+  def convert_streaming_response(stream, opts \\ []) do
+    if Keyword.get(opts, :enhanced, false) do
+      # Use enhanced streaming adapter for advanced functionality
+      Jido.AI.ReqLLM.StreamingAdapter.adapt_stream(stream, opts)
+    else
+      # Use basic transformation for backward compatibility
+      Stream.map(stream, &transform_streaming_chunk/1)
+    end
+  end
+
+  @doc """
+  Transforms a single ReqLLM streaming chunk to Jido AI format.
+
+  Converts individual streaming chunks from ReqLLM format to the format
+  expected by Jido AI consumers.
+
+  ## Parameters
+    - chunk: ReqLLM streaming chunk (map or struct)
+
+  ## Returns
+    - Map in Jido AI streaming chunk format
+  """
+  @spec transform_streaming_chunk(map() | struct()) :: map()
+  def transform_streaming_chunk(chunk) when is_map(chunk) do
+    %{
+      content: get_chunk_content(chunk),
+      finish_reason: chunk[:finish_reason] || chunk["finish_reason"],
+      usage: convert_usage(chunk[:usage] || chunk["usage"]),
+      tool_calls: convert_tool_calls(chunk[:tool_calls] || chunk["tool_calls"] || []),
+      delta: %{
+        content: get_chunk_content(chunk),
+        role: chunk[:role] || chunk["role"] || "assistant"
+      }
+    }
+  end
+
+  @doc """
+  Maps ReqLLM streaming errors to Jido AI error format.
+
+  Handles streaming-specific errors and maps them to the error format
+  expected by Jido AI consumers.
+
+  ## Parameters
+    - error: ReqLLM streaming error term
+
+  ## Returns
+    - Jido AI compatible error term
+  """
+  @spec map_streaming_error(term()) :: {:error, term()}
+  def map_streaming_error({:error, %{reason: "stream_error"} = error}) do
+    {:error, %{
+      reason: "streaming_error",
+      details: "Streaming failed: #{error.message || inspect(error)}",
+      original_error: error
+    }}
+  end
+
+  def map_streaming_error({:error, %{reason: "timeout"} = error}) do
+    {:error, %{
+      reason: "streaming_timeout",
+      details: "Stream timed out: #{error.message || inspect(error)}",
+      original_error: error
+    }}
+  end
+
+  def map_streaming_error(error) do
+    # Fall back to regular error mapping for non-streaming errors
+    map_error(error)
+  end
+
+  @doc """
   Logs ReqLLM operations preserving Jido AI's opt-in logging behavior.
 
   Only logs when explicitly enabled, maintaining the current minimal logging approach.
@@ -218,6 +304,14 @@ defmodule Jido.AI.ReqLLM do
     response[:text] || response["text"] ||
     response[:content] || response["content"] ||
     response[:message] || response["message"] ||
+    ""
+  end
+
+  defp get_chunk_content(chunk) do
+    # Extract content from streaming chunk
+    chunk[:content] || chunk["content"] ||
+    chunk[:text] || chunk["text"] ||
+    chunk[:delta][:content] || chunk["delta"]["content"] ||
     ""
   end
 
