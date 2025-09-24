@@ -15,7 +15,7 @@ defmodule Jido.AI.ReqLLM do
 
   require Logger
 
-  alias Jido.AI.ReqLLM.{StreamingAdapter, ToolBuilder}
+  alias Jido.AI.ReqLLM.{StreamingAdapter, ToolBuilder, KeyringIntegration}
 
   @doc """
   Converts Jido AI message format to ReqLLM context format.
@@ -600,4 +600,134 @@ defmodule Jido.AI.ReqLLM do
   defp map_type_to_json_schema({:map, _fields}), do: "object"
   # Default fallback
   defp map_type_to_json_schema(_), do: "string"
+
+  # Key Management Integration Functions
+
+  @doc """
+  Gets API key for ReqLLM provider with integrated Jido session support.
+
+  This function bridges ReqLLM's key requirements with Jido's hierarchical
+  key management, including process-specific session values.
+
+  ## Parameters
+
+    * `provider` - ReqLLM provider atom (e.g., :openai, :anthropic)
+    * `req_options` - Request options that may contain :api_key override
+    * `default` - Default value if key not found
+
+  ## Returns
+
+    * API key string if found, otherwise default value
+
+  ## Examples
+
+      # Standard provider key lookup
+      key = get_provider_key(:openai)
+
+      # With per-request override
+      options = %{api_key: "sk-override"}
+      key = get_provider_key(:openai, options)
+  """
+  @spec get_provider_key(atom(), map(), term()) :: String.t() | term()
+  def get_provider_key(provider, req_options \\ %{}, default \\ nil) do
+    KeyringIntegration.get_key_for_request(provider, req_options, default)
+  end
+
+  @doc """
+  Builds ReqLLM request options with integrated key management.
+
+  Extends the existing build_req_llm_options/1 function with automatic
+  key resolution using the integrated keyring system.
+
+  ## Parameters
+
+    * `params` - Map of Jido AI parameters
+    * `provider` - ReqLLM provider atom for key resolution
+
+  ## Returns
+
+    * Map of ReqLLM options with resolved API key
+
+  ## Examples
+
+      params = %{temperature: 0.7, max_tokens: 150}
+      options = build_req_llm_options_with_keys(params, :openai)
+  """
+  @spec build_req_llm_options_with_keys(map(), atom()) :: map()
+  def build_req_llm_options_with_keys(params, provider) do
+    # Build base options using existing function
+    base_options = build_req_llm_options(params)
+
+    # Add API key resolution if not already present
+    case Map.get(base_options, :api_key) do
+      nil ->
+        # Resolve key using integrated keyring
+        api_key = get_provider_key(provider, params)
+        if api_key, do: Map.put(base_options, :api_key, api_key), else: base_options
+
+      _existing_key ->
+        # Keep existing key (per-request override)
+        base_options
+    end
+  end
+
+  @doc """
+  Validates that required API keys are available for a provider.
+
+  Checks key availability across all integrated systems (Jido session,
+  environment, ReqLLM, JidoKeys) and reports the source.
+
+  ## Parameters
+
+    * `provider` - ReqLLM provider atom
+
+  ## Returns
+
+    * `{:ok, source}` if key is available
+    * `{:error, :missing_key}` if no key found
+
+  ## Examples
+
+      case validate_provider_key(:openai) do
+        {:ok, :session} -> # Key found in session
+        {:error, :missing_key} -> # No key available
+      end
+  """
+  @spec validate_provider_key(atom()) :: {:ok, atom()} | {:error, :missing_key}
+  def validate_provider_key(provider) do
+    # Map provider to Jido key name
+    jido_key = :"#{provider}_api_key"
+
+    case KeyringIntegration.validate_key_availability(jido_key, provider) do
+      {:ok, source} -> {:ok, source}
+      {:error, :not_found} -> {:error, :missing_key}
+    end
+  end
+
+  @doc """
+  Lists all available provider keys with their sources.
+
+  Returns information about which providers have keys available
+  and where those keys are sourced from.
+
+  ## Returns
+
+    * List of maps with provider and source information
+
+  ## Examples
+
+      providers = list_available_providers()
+      # [%{provider: :openai, source: :environment}, ...]
+  """
+  @spec list_available_providers() :: [%{provider: atom(), source: atom()}]
+  def list_available_providers do
+    [:openai, :anthropic, :openrouter, :google, :cloudflare]
+    |> Enum.map(fn provider ->
+      case validate_provider_key(provider) do
+        {:ok, source} -> %{provider: provider, source: source}
+        {:error, :missing_key} -> nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
 end

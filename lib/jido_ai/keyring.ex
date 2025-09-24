@@ -29,6 +29,8 @@ defmodule Jido.AI.Keyring do
   use GenServer
   require Logger
 
+  alias Jido.AI.ReqLLM.KeyringIntegration
+
   @session_registry :jido_ai_keyring_sessions
   @default_name __MODULE__
   @default_env_table_prefix :jido_ai_env_cache
@@ -200,6 +202,37 @@ defmodule Jido.AI.Keyring do
   end
 
   @doc """
+  Gets a value with ReqLLM integration support.
+
+  This function extends the standard get/4 with ReqLLM integration, supporting
+  per-request key overrides and unified key precedence across both Jido and ReqLLM systems.
+
+  ## Parameters
+
+    * `server` - The server to query (default: #{@default_name})
+    * `key` - The key to look up (as an atom)
+    * `default` - The default value if key is not found
+    * `pid` - The process ID to check session values for (default: current process)
+    * `req_options` - Per-request options (may contain :api_key overrides for ReqLLM calls)
+
+  Returns the value if found, otherwise returns the default value.
+
+  ## Examples
+
+      # Standard usage (backward compatible)
+      api_key = Keyring.get_with_reqllm(:openai_api_key, "default")
+
+      # With per-request override for ReqLLM calls
+      options = %{api_key: "override-key"}
+      api_key = Keyring.get_with_reqllm(:openai_api_key, "default", self(), options)
+  """
+  @spec get_with_reqllm(GenServer.server(), atom(), term(), pid(), map()) :: term()
+  def get_with_reqllm(server \\ @default_name, key, default \\ nil, pid \\ self(), req_options \\ %{}) when is_atom(key) do
+    # Use the KeyringIntegration module for unified key resolution
+    KeyringIntegration.get(server, key, default, pid, req_options)
+  end
+
+  @doc """
   Gets a value from the environment-level storage, also checking for LiveBook prefixed keys as fallback.
 
   ## Parameters
@@ -236,6 +269,26 @@ defmodule Jido.AI.Keyring do
       _ ->
         default
     end
+  end
+
+  @doc """
+  Gets environment-only values with ReqLLM integration support.
+
+  This function extends get_env_value/3 with ReqLLM awareness for better
+  integration with provider-specific environment variables.
+
+  ## Parameters
+
+    * `server` - The server to query (default: #{@default_name})
+    * `key` - The key to look up (as an atom)
+    * `default` - The default value if key is not found
+
+  Returns the environment value if found, otherwise returns the default value.
+  """
+  @spec get_env_value_with_reqllm(GenServer.server(), atom(), term()) :: term()
+  def get_env_value_with_reqllm(server \\ @default_name, key, default \\ nil) when is_atom(key) do
+    # Use the KeyringIntegration module for ReqLLM-aware environment resolution
+    KeyringIntegration.get_env_value(server, key, default)
   end
 
   @doc """
