@@ -15,7 +15,7 @@ defmodule Jido.AI.ReqLLM do
 
   require Logger
 
-  alias Jido.AI.ReqLLM.{StreamingAdapter, ToolBuilder, KeyringIntegration}
+  alias Jido.AI.ReqLLM.{StreamingAdapter, ToolBuilder, KeyringIntegration, Authentication}
 
   @doc """
   Converts Jido AI message format to ReqLLM context format.
@@ -630,7 +630,78 @@ defmodule Jido.AI.ReqLLM do
   """
   @spec get_provider_key(atom(), map(), term()) :: String.t() | term()
   def get_provider_key(provider, req_options \\ %{}, default \\ nil) do
-    KeyringIntegration.get_key_for_request(provider, req_options, default)
+    case Authentication.authenticate_for_provider(provider, req_options) do
+      {:ok, _headers, key} -> key
+      {:error, _reason} -> default
+    end
+  end
+
+  @doc """
+  Gets authentication headers for a provider using the new authentication flow.
+
+  Returns provider-specific authentication headers formatted according to each
+  provider's requirements (Bearer tokens, API keys, version headers, etc.).
+
+  ## Parameters
+
+    * `provider` - The provider atom (e.g., :openai, :anthropic)
+    * `req_options` - Request options that may contain api_key overrides
+
+  ## Returns
+
+    * Map of authentication headers ready for HTTP requests
+
+  ## Examples
+
+      # OpenAI Bearer token
+      headers = get_provider_headers(:openai)
+      # => %{"authorization" => "Bearer sk-..."}
+
+      # Anthropic with version header
+      headers = get_provider_headers(:anthropic)
+      # => %{"x-api-key" => "sk-ant-...", "anthropic-version" => "2023-06-01"}
+
+      # With per-request override
+      options = %{api_key: "override-key"}
+      headers = get_provider_headers(:openai, options)
+  """
+  @spec get_provider_headers(atom(), map()) :: map()
+  def get_provider_headers(provider, req_options \\ %{}) do
+    Authentication.get_authentication_headers(provider, req_options)
+  end
+
+  @doc """
+  Gets both authentication key and headers for a provider.
+
+  This function provides a unified interface for getting both the resolved
+  API key and the formatted headers in a single call.
+
+  ## Parameters
+
+    * `provider` - The provider atom (e.g., :openai, :anthropic)
+    * `req_options` - Request options that may contain api_key overrides
+
+  ## Returns
+
+    * `{:ok, {key, headers}}` - Both key and headers if authentication successful
+    * `{:error, reason}` - Authentication error
+
+  ## Examples
+
+      {:ok, {key, headers}} = get_provider_authentication(:openai)
+      # key => "sk-..."
+      # headers => %{"authorization" => "Bearer sk-..."}
+
+      {:ok, {key, headers}} = get_provider_authentication(:anthropic)
+      # key => "sk-ant-..."
+      # headers => %{"x-api-key" => "sk-ant-...", "anthropic-version" => "2023-06-01"}
+  """
+  @spec get_provider_authentication(atom(), map()) :: {:ok, {String.t(), map()}} | {:error, String.t()}
+  def get_provider_authentication(provider, req_options \\ %{}) do
+    case Authentication.authenticate_for_provider(provider, req_options) do
+      {:ok, headers, key} -> {:ok, {key, headers}}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @doc """
@@ -695,12 +766,9 @@ defmodule Jido.AI.ReqLLM do
   """
   @spec validate_provider_key(atom()) :: {:ok, atom()} | {:error, :missing_key}
   def validate_provider_key(provider) do
-    # Map provider to Jido key name
-    jido_key = :"#{provider}_api_key"
-
-    case KeyringIntegration.validate_key_availability(jido_key, provider) do
-      {:ok, source} -> {:ok, source}
-      {:error, :not_found} -> {:error, :missing_key}
+    case Authentication.validate_authentication(provider, %{}) do
+      :ok -> {:ok, :available}
+      {:error, _reason} -> {:error, :missing_key}
     end
   end
 

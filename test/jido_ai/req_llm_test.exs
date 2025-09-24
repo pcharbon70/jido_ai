@@ -1,6 +1,17 @@
 defmodule Jido.AI.ReqLLMTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
+  use Mimic
+
   alias Jido.AI.ReqLLM
+  alias Jido.AI.ReqLLM.Authentication
+
+  setup :set_mimic_global
+
+  setup do
+    # Copy modules for mocking
+    Mimic.copy(Authentication)
+    :ok
+  end
 
   describe "convert_messages/1" do
     test "converts single user message to string format" do
@@ -189,6 +200,106 @@ defmodule Jido.AI.ReqLLMTest do
     test "returns ok when called" do
       result = ReqLLM.log_operation(:info, "Test message", module: __MODULE__)
       assert result == :ok
+    end
+  end
+
+  describe "get_provider_key/3 - new authentication integration" do
+    test "returns key when authentication succeeds" do
+      expect(Authentication, :authenticate_for_provider, fn :openai, %{} ->
+        {:ok, %{"authorization" => "Bearer sk-test"}, "sk-test"}
+      end)
+
+      result = ReqLLM.get_provider_key(:openai, %{})
+      assert result == "sk-test"
+    end
+
+    test "returns default when authentication fails" do
+      expect(Authentication, :authenticate_for_provider, fn :openai, %{} ->
+        {:error, "No key found"}
+      end)
+
+      result = ReqLLM.get_provider_key(:openai, %{}, "fallback")
+      assert result == "fallback"
+    end
+
+    test "passes through request options" do
+      req_options = %{api_key: "override-key"}
+
+      expect(Authentication, :authenticate_for_provider, fn :openai, ^req_options ->
+        {:ok, %{"authorization" => "Bearer override-key"}, "override-key"}
+      end)
+
+      result = ReqLLM.get_provider_key(:openai, req_options)
+      assert result == "override-key"
+    end
+  end
+
+  describe "get_provider_headers/2 - authentication headers" do
+    test "returns authentication headers for provider" do
+      expected_headers = %{"authorization" => "Bearer sk-test"}
+
+      expect(Authentication, :get_authentication_headers, fn :openai, %{} ->
+        expected_headers
+      end)
+
+      result = ReqLLM.get_provider_headers(:openai, %{})
+      assert result == expected_headers
+    end
+
+    test "returns provider-specific headers" do
+      expected_headers = %{
+        "x-api-key" => "sk-ant-test",
+        "anthropic-version" => "2023-06-01"
+      }
+
+      expect(Authentication, :get_authentication_headers, fn :anthropic, %{} ->
+        expected_headers
+      end)
+
+      result = ReqLLM.get_provider_headers(:anthropic, %{})
+      assert result == expected_headers
+    end
+  end
+
+  describe "get_provider_authentication/2 - unified authentication" do
+    test "returns both key and headers when successful" do
+      expected_headers = %{"authorization" => "Bearer sk-test"}
+
+      expect(Authentication, :authenticate_for_provider, fn :openai, %{} ->
+        {:ok, expected_headers, "sk-test"}
+      end)
+
+      result = ReqLLM.get_provider_authentication(:openai, %{})
+      assert {:ok, {"sk-test", ^expected_headers}} = result
+    end
+
+    test "returns error when authentication fails" do
+      expect(Authentication, :authenticate_for_provider, fn :openai, %{} ->
+        {:error, "Authentication failed"}
+      end)
+
+      result = ReqLLM.get_provider_authentication(:openai, %{})
+      assert {:error, "Authentication failed"} = result
+    end
+  end
+
+  describe "validate_provider_key/1 - authentication validation" do
+    test "returns ok when authentication is valid" do
+      expect(Authentication, :validate_authentication, fn :openai, %{} ->
+        :ok
+      end)
+
+      result = ReqLLM.validate_provider_key(:openai)
+      assert {:ok, :available} = result
+    end
+
+    test "returns error when authentication is invalid" do
+      expect(Authentication, :validate_authentication, fn :openai, %{} ->
+        {:error, "No key found"}
+      end)
+
+      result = ReqLLM.validate_provider_key(:openai)
+      assert {:error, :missing_key} = result
     end
   end
 end
