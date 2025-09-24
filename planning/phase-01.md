@@ -185,6 +185,69 @@ The authentication flow needs to bridge between Jido's current authentication me
 - [ ] Test per-request override functionality and session isolation
 - [ ] Test session key management behavior and lifecycle
 
+### 1.5.5 JidoKeys Hybrid Integration
+- [ ] **Task 1.5.5 Complete**
+
+This creates a hybrid approach that integrates JidoKeys for secure credential management while preserving Jido.AI.Keyring's process isolation and session management features. The integration provides enhanced security benefits while maintaining full backward compatibility with existing applications.
+
+- [ ] 1.5.5.1 Integrate JidoKeys as the underlying credential store while maintaining Jido.AI.Keyring API
+- [ ] 1.5.5.2 Create compatibility wrapper that delegates basic operations to JidoKeys for global configuration
+- [ ] 1.5.5.3 Preserve process-specific session management functionality using existing ETS/process isolation patterns
+- [ ] 1.5.5.4 Implement secure credential filtering and log redaction through JidoKeys integration
+
+### Benefits of JidoKeys Integration
+
+**Security Enhancement**:
+- Built-in credential filtering prevents accidental exposure in logs
+- Automatic redaction of sensitive patterns (API keys, passwords, tokens)
+- Safe atom conversion with hardcoded allowlists for untrusted input
+
+**API Preservation**:
+- Maintain all existing `Jido.AI.Keyring` functions and method signatures
+- Preserve process isolation and session management capabilities
+- No breaking changes to existing applications or test suites
+
+**Enhanced Functionality**:
+- Runtime configuration updates through JidoKeys.put/2 for global settings
+- Improved error handling with specific error types and better messaging
+- Livebook integration with LB_ prefix handling for development environments
+
+### Implementation Strategy
+
+The hybrid approach uses JidoKeys as the backend for global configuration while Jido.AI.Keyring provides process-specific session management:
+
+```elixir
+# Delegation pattern for basic operations
+defmodule Jido.AI.Keyring do
+  # Basic get/2 delegates to JidoKeys for global config
+  def get(server \\ __MODULE__, key, default \\ nil) do
+    case get_session_value(server, key) do
+      nil -> JidoKeys.get(key, default)  # Fall back to JidoKeys
+      value -> value  # Use session override
+    end
+  end
+
+  # Session functions remain unchanged for process isolation
+  def set_session_value(server, key, value, pid), do: # existing implementation
+end
+```
+
+**Configuration Hierarchy with JidoKeys Backend**:
+1. Session values (per-process) - handled by Jido.AI.Keyring
+2. JidoKeys runtime overrides - handled by JidoKeys.put/2
+3. Environment variables - handled by JidoKeys
+4. Application config - handled by JidoKeys
+5. Default values - provided by calling code
+
+### Unit Tests - Section 1.5.5
+- [ ] **Unit Tests 1.5.5 Complete**
+- [ ] Test JidoKeys integration without affecting existing API behavior and method signatures
+- [ ] Test credential security filtering and log redaction functionality in production scenarios
+- [ ] Test session management preservation with JidoKeys backend delegation
+- [ ] Test configuration precedence order with hybrid system across all hierarchy levels
+- [ ] Test process isolation behavior remains unchanged with JidoKeys backend
+- [ ] Test backward compatibility with existing applications and test suites
+
 ---
 
 ## 1.6 Provider Discovery and Listing
