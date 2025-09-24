@@ -5,7 +5,6 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
   @moduletag :capture_log
 
   alias Jido.AI.ReqLLM.{ToolIntegrationManager, ToolBuilder, ToolResponseHandler, ConversationManager}
-  alias Jido.AI.ReqLLM
 
   # Add global mock setup
   setup :set_mimic_global
@@ -17,8 +16,8 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
     Mimic.copy(ToolResponseHandler)
     Mimic.copy(ConversationManager)
 
-    # Start ConversationManager for tests
-    start_supervised!(Jido.AI.ReqLLM.ConversationManager)
+    # ConversationManager is already started by the application
+    # No need to start it again in tests
 
     # Mock Action for testing
     defmodule WeatherAction do
@@ -107,7 +106,7 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
         usage: %{prompt_tokens: 50, completion_tokens: 25, total_tokens: 75}
       }
 
-      expect(ReqLLM, :chat_completion, fn _message, _options ->
+      expect(ReqLLM, :generate_text, fn _model, _message, _options ->
         {:ok, llm_response}
       end)
 
@@ -152,7 +151,7 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
 
       expect(ToolBuilder, :batch_convert, fn _, _ -> {:ok, [tool_descriptor]} end)
       expect(ConversationManager, :create_conversation, fn -> {:ok, "conv_123"} end)
-      expect(ReqLLM, :chat_completion, fn _, _ ->
+      expect(ReqLLM, :generate_text, fn _, _, _ ->
         {:error, "API request failed"}
       end)
 
@@ -221,7 +220,7 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
       # Mock LLM response
       llm_response = %{content: "Weather response", usage: %{total_tokens: 50}}
 
-      expect(ReqLLM, :chat_completion, fn ^message, _options ->
+      expect(ReqLLM, :generate_text, fn _model, ^message, _options ->
         {:ok, llm_response}
       end)
 
@@ -293,7 +292,7 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
         %{tool_calls: [%{id: "call_1", function: %{name: "get_weather"}}]}
       ]
 
-      expect(ReqLLM, :chat_completion, fn _message, %{stream: true} = _options ->
+      expect(ReqLLM, :stream_text, fn _model, _message, %{stream: true} = _options ->
         {:ok, stream}
       end)
 
@@ -322,8 +321,8 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
     test "maps tool choice parameters correctly", %{weather_action: action} do
       tool_descriptor = %{name: "get_weather", callback: fn _ -> {:ok, %{}} end}
 
-      expect(ToolBuilder, :batch_convert, fn _, _ -> {:ok, [tool_descriptor]} end)
-      expect(ConversationManager, :create_conversation, fn -> {:ok, "conv_choice"} end)
+      expect(ToolBuilder, :batch_convert, 4, fn _, _ -> {:ok, [tool_descriptor]} end)
+      expect(ConversationManager, :create_conversation, 4, fn -> {:ok, "conv_choice"} end)
 
       # Test different tool choice options
       test_cases = [
@@ -334,12 +333,8 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
       ]
 
       Enum.each(test_cases, fn {input_choice, expected_output} ->
-        expect(ReqLLM, :map_tool_choice_parameters, fn ^input_choice ->
-          expected_output
-        end)
-
-        expect(ReqLLM, :chat_completion, fn _message, options ->
-          assert options.tool_choice == expected_output
+        expect(ReqLLM, :generate_text, fn _model, _message, options ->
+          assert options.tool_choice == input_choice  # Now it should be the input directly
           {:ok, %{content: "Response", usage: %{}}}
         end)
 
@@ -367,7 +362,7 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
         {:ok, "conv_empty"}
       end)
 
-      expect(ReqLLM, :chat_completion, fn _message, options ->
+      expect(ReqLLM, :generate_text, fn _model, _message, options ->
         assert options.tools == []
         {:ok, %{content: "Response without tools", usage: %{}}}
       end)
@@ -389,7 +384,7 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
 
       expect(ToolBuilder, :batch_convert, fn _, _ -> {:ok, [tool_descriptor]} end)
       expect(ConversationManager, :create_conversation, fn -> {:ok, "conv_error"} end)
-      expect(ReqLLM, :chat_completion, fn _, _ ->
+      expect(ReqLLM, :generate_text, fn _, _, _ ->
         {:ok, %{content: "Response", usage: %{}}}
       end)
 
@@ -425,7 +420,7 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManagerTest do
         {:ok, conversation_id}
       end)
 
-      expect(ReqLLM, :chat_completion, 5, fn _message, _options ->
+      expect(ReqLLM, :generate_text, 5, fn _model, _message, _options ->
         {:ok, %{content: "Concurrent response", usage: %{total_tokens: 25}}}
       end)
 

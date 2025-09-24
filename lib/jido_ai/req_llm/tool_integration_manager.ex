@@ -32,7 +32,6 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManager do
       )
   """
 
-  alias Jido.AI.ReqLLM
   alias Jido.AI.ReqLLM.{ToolBuilder, ToolResponseHandler, ConversationManager}
 
   @default_options %{
@@ -302,12 +301,12 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManager do
       tools: tool_descriptors
     }
 
-    tool_choice = ReqLLM.map_tool_choice_parameters(options.tool_choice)
-    Map.put(base_options, :tool_choice, tool_choice)
+    # ReqLLM doesn't have map_tool_choice_parameters, use tool_choice directly
+    Map.put(base_options, :tool_choice, options.tool_choice)
   end
 
   defp execute_non_streaming_request(message, req_options, conversation_id, options) do
-    case ReqLLM.chat_completion(message, req_options) do
+    case ReqLLM.generate_text(options.model, message, req_options) do
       {:ok, llm_response} ->
         ToolResponseHandler.process_llm_response(
           llm_response,
@@ -323,7 +322,7 @@ defmodule Jido.AI.ReqLLM.ToolIntegrationManager do
   defp execute_streaming_request(message, req_options, conversation_id, options) do
     stream_options = Map.put(req_options, :stream, true)
 
-    case ReqLLM.chat_completion(message, stream_options) do
+    case ReqLLM.stream_text(options.model, message, stream_options) do
       {:ok, stream} ->
         ToolResponseHandler.process_streaming_response(
           stream,
