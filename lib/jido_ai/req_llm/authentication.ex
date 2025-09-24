@@ -235,7 +235,7 @@ defmodule Jido.AI.ReqLLM.Authentication do
 
       mapping ->
         # Known provider - use unified resolution with session precedence
-        case Keyring.get_session_value(mapping.jido_key, session_pid) do
+        case Keyring.get_session_value(:default, mapping.jido_key, session_pid) do
           nil ->
             # No session value - delegate to ReqLLM
             case resolve_reqllm_authentication(mapping.reqllm_provider, req_options) do
@@ -277,7 +277,7 @@ defmodule Jido.AI.ReqLLM.Authentication do
     jido_key = :"#{provider}_api_key"
     env_var = String.upcase("#{provider}_api_key")
 
-    case Keyring.get_session_value(jido_key, session_pid) do
+    case Keyring.get_session_value(:default, jido_key, session_pid) do
       nil ->
         # No session value - try ReqLLM
         case resolve_reqllm_authentication(provider, req_options) do
@@ -288,7 +288,7 @@ defmodule Jido.AI.ReqLLM.Authentication do
 
           {:error, reason} ->
             # Try Keyring fallback
-            case Keyring.get_env_value(jido_key, nil) do
+            case Keyring.get_env_value(:default, jido_key, nil) do
               nil ->
                 log_authentication_error(provider, reason)
                 {:error, "API key not found: #{env_var}"}
@@ -340,7 +340,7 @@ defmodule Jido.AI.ReqLLM.Authentication do
 
   # Resolves authentication using Keyring as fallback
   defp resolve_keyring_fallback(mapping, _req_options) do
-    case Keyring.get_env_value(mapping.jido_key, nil) do
+    case Keyring.get_env_value(:default, mapping.jido_key, nil) do
       nil -> {:error, "API key not found: #{mapping.env_var}"}
       key -> {:ok, key, :keyring}
     end
@@ -349,10 +349,16 @@ defmodule Jido.AI.ReqLLM.Authentication do
   # Maps ReqLLM errors to existing Jido error format
   defp map_reqllm_error_to_jido(reqllm_error, env_var) do
     case reqllm_error do
-      ":api_key option or " <> _rest -> "API key not found: #{env_var}"
-      error when is_binary(error) and error =~ "empty" -> "API key is empty: #{env_var}"
-      error when is_binary(error) -> "Authentication error: #{error}"
-      _ -> "API key not found: #{env_var}"
+      ":api_key option or " <> _rest ->
+        "API key not found: #{env_var}"
+      error when is_binary(error) ->
+        if String.contains?(error, "empty") do
+          "API key is empty: #{env_var}"
+        else
+          "Authentication error: #{error}"
+        end
+      _ ->
+        "API key not found: #{env_var}"
     end
   end
 

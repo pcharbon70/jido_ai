@@ -27,6 +27,9 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
 
   alias Jido.AI.Keyring
 
+  # Default Keyring server name
+  @default_server :default
+
   @doc """
   Gets session authentication for a ReqLLM request.
 
@@ -55,10 +58,10 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
       clear_for_provider(:openai)
       {:no_session_auth} = get_for_request(:openai, %{})
   """
-  @spec get_for_request(atom(), map(), pid()) ::
+  @spec get_for_request(atom(), map(), pid(), GenServer.server()) ::
     {:session_auth, map()} | {:no_session_auth}
-  def get_for_request(provider, req_options \\ %{}, session_pid \\ self()) do
-    case Keyring.get_session_value(provider_key(provider), session_pid) do
+  def get_for_request(provider, req_options \\ %{}, session_pid \\ self(), server \\ @default_server) do
+    case Keyring.get_session_value(server, provider_key(provider), session_pid) do
       nil ->
         {:no_session_auth}
 
@@ -90,10 +93,10 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
       SessionAuthentication.set_for_provider(:openai, "sk-123456")
       :ok
   """
-  @spec set_for_provider(atom(), String.t(), pid()) :: :ok
-  def set_for_provider(provider, key, session_pid \\ self())
+  @spec set_for_provider(atom(), String.t(), pid(), GenServer.server()) :: :ok
+  def set_for_provider(provider, key, session_pid \\ self(), server \\ @default_server)
       when is_atom(provider) and is_binary(key) do
-    Keyring.set_session_value(provider_key(provider), key, session_pid)
+    Keyring.set_session_value(server, provider_key(provider), key, session_pid)
   end
 
   @doc """
@@ -115,9 +118,9 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
       SessionAuthentication.clear_for_provider(:openai)
       :ok
   """
-  @spec clear_for_provider(atom(), pid()) :: :ok
-  def clear_for_provider(provider, session_pid \\ self()) when is_atom(provider) do
-    Keyring.clear_session_value(provider_key(provider), session_pid)
+  @spec clear_for_provider(atom(), pid(), GenServer.server()) :: :ok
+  def clear_for_provider(provider, session_pid \\ self(), server \\ @default_server) when is_atom(provider) do
+    Keyring.clear_session_value(server, provider_key(provider), session_pid)
   end
 
   @doc """
@@ -141,9 +144,9 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
       SessionAuthentication.clear_for_provider(:openai)
       false = SessionAuthentication.has_session_auth?(:openai)
   """
-  @spec has_session_auth?(atom(), pid()) :: boolean()
-  def has_session_auth?(provider, session_pid \\ self()) when is_atom(provider) do
-    case Keyring.get_session_value(provider_key(provider), session_pid) do
+  @spec has_session_auth?(atom(), pid(), GenServer.server()) :: boolean()
+  def has_session_auth?(provider, session_pid \\ self(), server \\ @default_server) when is_atom(provider) do
+    case Keyring.get_session_value(server, provider_key(provider), session_pid) do
       nil -> false
       _ -> true
     end
@@ -168,11 +171,11 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
       assert :openai in providers
       assert :anthropic in providers
   """
-  @spec list_providers_with_auth(pid()) :: [atom()]
-  def list_providers_with_auth(session_pid \\ self()) do
+  @spec list_providers_with_auth(pid(), GenServer.server()) :: [atom()]
+  def list_providers_with_auth(session_pid \\ self(), server \\ @default_server) do
     # Get all session values and extract provider names
     [:openai, :anthropic, :openrouter, :google, :cloudflare]
-    |> Enum.filter(&has_session_auth?(&1, session_pid))
+    |> Enum.filter(&has_session_auth?(&1, session_pid, server))
   end
 
   @doc """
@@ -194,9 +197,9 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
       SessionAuthentication.clear_all()
       :ok
   """
-  @spec clear_all(pid()) :: :ok
-  def clear_all(session_pid \\ self()) do
-    Keyring.clear_all_session_values(session_pid)
+  @spec clear_all(pid(), GenServer.server()) :: :ok
+  def clear_all(session_pid \\ self(), server \\ @default_server) do
+    Keyring.clear_all_session_values(server, session_pid)
   end
 
   @doc """
@@ -222,14 +225,14 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
       {:ok, pid} = Task.start(fn -> receive do :stop -> :ok end end)
       :ok = SessionAuthentication.transfer(:openai, self(), pid)
   """
-  @spec transfer(atom(), pid(), pid()) :: :ok | {:error, :no_auth}
-  def transfer(provider, from_pid, to_pid) when is_atom(provider) do
-    case Keyring.get_session_value(provider_key(provider), from_pid) do
+  @spec transfer(atom(), pid(), pid(), GenServer.server()) :: :ok | {:error, :no_auth}
+  def transfer(provider, from_pid, to_pid, server \\ @default_server) when is_atom(provider) do
+    case Keyring.get_session_value(server, provider_key(provider), from_pid) do
       nil ->
         {:error, :no_auth}
 
       key ->
-        Keyring.set_session_value(provider_key(provider), key, to_pid)
+        Keyring.set_session_value(server, provider_key(provider), key, to_pid)
         :ok
     end
   end
@@ -258,12 +261,12 @@ defmodule Jido.AI.ReqLLM.SessionAuthentication do
       inherited = SessionAuthentication.inherit_from(parent_pid)
       assert :openai in inherited
   """
-  @spec inherit_from(pid(), pid()) :: [atom()]
-  def inherit_from(parent_pid, child_pid \\ self()) do
-    providers = list_providers_with_auth(parent_pid)
+  @spec inherit_from(pid(), pid(), GenServer.server()) :: [atom()]
+  def inherit_from(parent_pid, child_pid \\ self(), server \\ @default_server) do
+    providers = list_providers_with_auth(parent_pid, server)
 
     Enum.each(providers, fn provider ->
-      transfer(provider, parent_pid, child_pid)
+      transfer(provider, parent_pid, child_pid, server)
     end)
 
     providers

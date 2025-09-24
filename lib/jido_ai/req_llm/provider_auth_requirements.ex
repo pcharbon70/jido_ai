@@ -205,8 +205,16 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirements do
         requirements.validation.(auth_params)
 
       is_map(auth_params) ->
-        # Multi-parameter validation
-        validate_auth_params(provider, auth_params, requirements)
+        # For providers with custom validation logic, use their function directly
+        # Otherwise use generic multi-parameter validation
+        if provider == :cloudflare do
+          validate_cloudflare_auth(auth_params)
+        else
+          validate_auth_params(provider, auth_params, requirements)
+        end
+
+      auth_params == nil ->
+        {:error, "API key is required"}
 
       true ->
         {:error, "Invalid authentication parameters"}
@@ -307,6 +315,9 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirements do
       true -> {:error, "Invalid OpenAI API key format"}
     end
   end
+  defp validate_openai_key(nil) do
+    {:error, "API key is required"}
+  end
 
   defp validate_anthropic_key(key) when is_binary(key) do
     cond do
@@ -325,13 +336,19 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirements do
   end
 
   defp validate_cloudflare_auth(auth_params) when is_map(auth_params) do
-    with {:ok, _} <- validate_generic_key(auth_params[:api_key] || auth_params["api_key"]),
-         :ok <- validate_cloudflare_email(auth_params[:email] || auth_params["email"]) do
-      :ok
+    api_key = auth_params[:api_key] || auth_params["api_key"]
+    email = auth_params[:email] || auth_params["email"]
+
+    case validate_generic_key(api_key) do
+      :ok -> validate_cloudflare_email(email)
+      error -> error
     end
   end
   defp validate_cloudflare_auth(key) when is_binary(key) do
     validate_generic_key(key)
+  end
+  defp validate_cloudflare_auth(nil) do
+    {:error, "API key is required"}
   end
 
   defp validate_cloudflare_email(nil), do: :ok  # Email is optional
@@ -357,7 +374,7 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirements do
   defp validate_generic_key(key) when is_binary(key) and byte_size(key) > 0, do: :ok
   defp validate_generic_key(_), do: {:error, "Invalid API key format"}
 
-  defp validate_auth_params(provider, params, requirements) do
+  defp validate_auth_params(_provider, params, requirements) do
     # Check all required keys are present and valid
     Enum.reduce_while(requirements.required_keys, :ok, fn key, _acc ->
       value = Map.get(params, key) || Map.get(params, to_string(key))
@@ -391,12 +408,12 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirements do
   defp maybe_add_header(headers, _name, ""), do: headers
   defp maybe_add_header(headers, name, value), do: Map.put(headers, name, value)
 
-  defp resolve_required_params(provider, requirements, opts, session_pid) do
+  defp resolve_required_params(_provider, requirements, opts, session_pid) do
     Enum.reduce(requirements.required_keys, %{}, fn key, acc ->
       value =
         Keyword.get(opts, key) ||
-        Keyring.get_session_value(key, session_pid) ||
-        Keyring.get_env_value(key) ||
+        Keyring.get_session_value(:default, key, session_pid) ||
+        Keyring.get_env_value(:default, key) ||
         System.get_env(requirements.env_var)
 
       if value do
@@ -413,8 +430,8 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirements do
     Enum.reduce(optional_keys, params, fn key, acc ->
       value =
         Keyword.get(opts, key) ||
-        Keyring.get_session_value(key, session_pid) ||
-        Keyring.get_env_value(key) ||
+        Keyring.get_session_value(:default, key, session_pid) ||
+        Keyring.get_env_value(:default, key) ||
         get_optional_env_var(requirements, key)
 
       if value do
@@ -429,7 +446,16 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirements do
     case requirements[:optional_env_vars] do
       nil -> nil
       env_vars ->
-        env_key = key |> to_string() |> String.replace("_api_key", "") |> String.to_atom()
+        # Convert key to the correct mapping
+        env_key = case key do
+          :openrouter_site_url -> :site_url
+          :openrouter_site_name -> :site_name
+          :cloudflare_email -> :email
+          :cloudflare_account_id -> :account_id
+          _ ->
+            # Generic mapping: remove provider prefix
+            key |> to_string() |> String.split("_", parts: 2) |> List.last() |> String.to_atom()
+        end
         case Map.get(env_vars, env_key) do
           nil -> nil
           env_var -> System.get_env(env_var)

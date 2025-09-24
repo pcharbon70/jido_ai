@@ -221,8 +221,8 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirementsTest do
 
     test "resolves required parameters from session" do
       stub(Keyring, :get_session_value, fn
-        :openai_api_key, _ -> "from-session"
-        _, _ -> nil
+        :default, :openai_api_key, _ -> "from-session"
+        :default, _, _ -> nil
       end)
 
       params = ProviderAuthRequirements.resolve_all_params(:openai)
@@ -230,10 +230,10 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirementsTest do
     end
 
     test "resolves required parameters from environment" do
-      stub(Keyring, :get_session_value, fn _, _ -> nil end)
+      stub(Keyring, :get_session_value, fn :default, _, _ -> nil end)
       stub(Keyring, :get_env_value, fn
-        :openai_api_key -> "from-keyring-env"
-        _ -> nil
+        :default, :openai_api_key -> "from-keyring-env"
+        :default, _ -> nil
       end)
 
       params = ProviderAuthRequirements.resolve_all_params(:openai)
@@ -242,9 +242,12 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirementsTest do
 
     test "resolves optional parameters for Cloudflare" do
       stub(Keyring, :get_session_value, fn
-        :cloudflare_api_key, _ -> "cf-key"
-        :cloudflare_email, _ -> "user@example.com"
-        _, _ -> nil
+        :default, :cloudflare_api_key, _ -> "cf-key"
+        :default, :cloudflare_email, _ -> "user@example.com"
+        :default, _, _ -> nil
+      end)
+      stub(Keyring, :get_env_value, fn
+        :default, _ -> nil
       end)
 
       params = ProviderAuthRequirements.resolve_all_params(:cloudflare)
@@ -253,10 +256,10 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirementsTest do
     end
 
     test "resolves optional parameters from environment" do
-      stub(Keyring, :get_session_value, fn _, _ -> nil end)
+      stub(Keyring, :get_session_value, fn :default, _, _ -> nil end)
       stub(Keyring, :get_env_value, fn
-        :openrouter_api_key -> "or-key"
-        _ -> nil
+        :default, :openrouter_api_key -> "or-key"
+        :default, _ -> nil
       end)
       stub(System, :get_env, fn
         "OPENROUTER_SITE_URL" -> "https://example.com"
@@ -272,8 +275,8 @@ defmodule Jido.AI.ReqLLM.ProviderAuthRequirementsTest do
 
     test "options override other sources" do
       stub(Keyring, :get_session_value, fn
-        :openai_api_key, _ -> "from-session"
-        _, _ -> nil
+        :default, :openai_api_key, _ -> "from-session"
+        :default, _, _ -> nil
       end)
 
       params = ProviderAuthRequirements.resolve_all_params(
