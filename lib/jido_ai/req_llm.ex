@@ -15,7 +15,7 @@ defmodule Jido.AI.ReqLLM do
 
   require Logger
 
-  alias Jido.AI.ReqLLM.StreamingAdapter
+  alias Jido.AI.ReqLLM.{StreamingAdapter, ToolBuilder}
 
   @doc """
   Converts Jido AI message format to ReqLLM context format.
@@ -160,13 +160,20 @@ defmodule Jido.AI.ReqLLM do
   @doc """
   Builds ReqLLM request options from Jido AI parameters.
 
-  Maps Jido AI parameters to ReqLLM's expected option format.
+  Maps Jido AI parameters to ReqLLM's expected option format, including
+  enhanced tool choice parameter handling for the new tool system.
 
   ## Parameters
     - params: Map of Jido AI parameters
 
   ## Returns
     - Map of ReqLLM options
+
+  ## Examples
+
+      iex> params = %{temperature: 0.7, tool_choice: "auto", max_tokens: 150}
+      iex> Jido.AI.ReqLLM.build_req_llm_options(params)
+      %{temperature: 0.7, tool_choice: "auto", max_tokens: 150}
   """
   @spec build_req_llm_options(map()) :: map()
   def build_req_llm_options(params) do
@@ -174,10 +181,79 @@ defmodule Jido.AI.ReqLLM do
     |> Map.take([:temperature, :max_tokens, :top_p, :stop, :tools, :tool_choice])
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
+    |> maybe_process_tool_choice()
+  end
+
+  @doc """
+  Maps Jido tool choice preferences to ReqLLM tool choice format.
+
+  Converts Jido-style tool choice specifications to the format expected
+  by ReqLLM, supporting various tool selection modes and constraints.
+
+  ## Parameters
+    - tool_choice: Tool choice specification (atom, string, or map)
+
+  ## Returns
+    - ReqLLM-compatible tool choice parameter
+
+  ## Examples
+
+      iex> Jido.AI.ReqLLM.map_tool_choice_parameters(:auto)
+      "auto"
+
+      iex> Jido.AI.ReqLLM.map_tool_choice_parameters({:function, "specific_tool"})
+      %{type: "function", function: %{name: "specific_tool"}}
+  """
+  @spec map_tool_choice_parameters(atom() | String.t() | map()) :: String.t() | map()
+  def map_tool_choice_parameters(tool_choice)
+
+  # Standard choices
+  def map_tool_choice_parameters(:auto), do: "auto"
+  def map_tool_choice_parameters("auto"), do: "auto"
+  def map_tool_choice_parameters(:none), do: "none"
+  def map_tool_choice_parameters("none"), do: "none"
+  def map_tool_choice_parameters(:required), do: "required"
+  def map_tool_choice_parameters("required"), do: "required"
+
+  # Specific function selection
+  def map_tool_choice_parameters({:function, function_name}) when is_binary(function_name) do
+    %{
+      type: "function",
+      function: %{name: function_name}
+    }
+  end
+
+  def map_tool_choice_parameters({:function, function_name}) when is_atom(function_name) do
+    map_tool_choice_parameters({:function, to_string(function_name)})
+  end
+
+  # Multiple function selection (provider-specific)
+  def map_tool_choice_parameters({:functions, function_list}) when is_list(function_list) do
+    # Some providers support limiting to a set of functions
+    # For now, fall back to "auto" - this could be enhanced per provider
+    Logger.debug("Multiple function selection not directly supported, using auto",
+      functions: function_list
+    )
+    "auto"
+  end
+
+  # Map format (pass through if already in correct format)
+  def map_tool_choice_parameters(%{type: _type} = tool_choice), do: tool_choice
+
+  # Fallback for unknown formats
+  def map_tool_choice_parameters(tool_choice) do
+    Logger.warning("Unknown tool choice format, defaulting to auto",
+      tool_choice: tool_choice
+    )
+    "auto"
   end
 
   @doc """
   Converts Jido AI tools to ReqLLM tool format.
+
+  This function maintains backward compatibility while using the enhanced ToolBuilder
+  system for improved tool conversion. It provides a facade over the new architecture
+  while preserving the existing API contract.
 
   ## Parameters
     - tools: List of Jido Action modules
@@ -185,11 +261,32 @@ defmodule Jido.AI.ReqLLM do
   ## Returns
     - {:ok, list(ReqLLM.Tool.t())} on success
     - {:error, reason} on failure
+
+  ## Examples
+
+      iex> tools = [Jido.Actions.Basic.Sleep, Jido.Actions.Basic.Log]
+      iex> {:ok, descriptors} = Jido.AI.ReqLLM.convert_tools(tools)
+      iex> length(descriptors)
+      2
   """
   @spec convert_tools(list(module())) :: {:ok, list(ReqLLM.Tool.t())} | {:error, term()}
   def convert_tools(tools) when is_list(tools) do
-    converted_tools = Enum.map(tools, &convert_tool/1)
-    {:ok, converted_tools}
+    # Use the new ToolBuilder system for enhanced conversion
+    case ToolBuilder.batch_convert(tools) do
+      {:ok, tool_descriptors} ->
+        # Convert tool descriptors to ReqLLM tool format
+        reqllm_tools = Enum.map(tool_descriptors, &tool_descriptor_to_reqllm_tool/1)
+        {:ok, reqllm_tools}
+
+      {:error, reason} ->
+        # Map errors to maintain backward compatibility
+        {:error,
+         %{
+           reason: "tool_conversion_error",
+           details: "Failed to convert tools using ToolBuilder",
+           original_error: reason
+         }}
+    end
   rescue
     error ->
       {:error,
@@ -198,6 +295,69 @@ defmodule Jido.AI.ReqLLM do
          details: Exception.message(error),
          original_error: error
        }}
+  end
+
+  @doc """
+  Converts Jido Action tools to ReqLLM tool format with enhanced options.
+
+  Provides access to the enhanced tool conversion system while maintaining
+  backward compatibility. Allows for additional conversion options and
+  context passing.
+
+  ## Parameters
+    - tools: List of Jido Action modules
+    - opts: Conversion options (context, timeout, validation settings)
+
+  ## Returns
+    - {:ok, list(ReqLLM.Tool.t())} on success
+    - {:error, reason} on failure
+
+  ## Examples
+
+      iex> opts = %{context: %{user_id: 123}, validate_schema: true}
+      iex> {:ok, descriptors} = Jido.AI.ReqLLM.convert_tools_with_options(tools, opts)
+  """
+  @spec convert_tools_with_options(list(module()), map()) :: {:ok, list(ReqLLM.Tool.t())} | {:error, term()}
+  def convert_tools_with_options(tools, opts \\ %{}) when is_list(tools) and is_map(opts) do
+    case ToolBuilder.batch_convert(tools, opts) do
+      {:ok, tool_descriptors} ->
+        reqllm_tools = Enum.map(tool_descriptors, &tool_descriptor_to_reqllm_tool/1)
+        {:ok, reqllm_tools}
+
+      {:error, reason} ->
+        {:error,
+         %{
+           reason: "enhanced_tool_conversion_error",
+           details: "Failed to convert tools with enhanced options",
+           original_error: reason
+         }}
+    end
+  end
+
+  @doc """
+  Validates that a Jido Action is compatible with ReqLLM tool conversion.
+
+  Provides a way to check Action compatibility before attempting conversion,
+  which can help catch issues early in the development process.
+
+  ## Parameters
+    - action_module: The Jido Action module to validate
+
+  ## Returns
+    - :ok if the Action is compatible
+    - {:error, reason} if compatibility issues are found
+
+  ## Examples
+
+      iex> Jido.AI.ReqLLM.validate_tool_compatibility(Jido.Actions.Basic.Sleep)
+      :ok
+
+      iex> Jido.AI.ReqLLM.validate_tool_compatibility(InvalidAction)
+      {:error, %{reason: "invalid_action_module"}}
+  """
+  @spec validate_tool_compatibility(module()) :: :ok | {:error, map()}
+  def validate_tool_compatibility(action_module) when is_atom(action_module) do
+    ToolBuilder.validate_action_compatibility(action_module)
   end
 
   @doc """
@@ -313,6 +473,27 @@ defmodule Jido.AI.ReqLLM do
   end
 
   # Private helper functions
+
+  defp tool_descriptor_to_reqllm_tool(tool_descriptor) when is_map(tool_descriptor) do
+    # Convert ToolBuilder descriptor format to ReqLLM.tool/1 call result
+    ReqLLM.tool(
+      name: tool_descriptor.name,
+      description: tool_descriptor.description,
+      parameter_schema: tool_descriptor.parameter_schema,
+      callback: tool_descriptor.callback
+    )
+  end
+
+  defp maybe_process_tool_choice(options) when is_map(options) do
+    case Map.get(options, :tool_choice) do
+      nil ->
+        options
+
+      tool_choice ->
+        processed_choice = map_tool_choice_parameters(tool_choice)
+        Map.put(options, :tool_choice, processed_choice)
+    end
+  end
 
   defp get_response_text(response) do
     response[:text] || response["text"] ||
