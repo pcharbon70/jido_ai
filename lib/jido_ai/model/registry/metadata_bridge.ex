@@ -253,11 +253,17 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   # Private helper functions
 
   defp humanize_model_name(model_name) when is_binary(model_name) do
-    model_name
-    |> String.replace("-", " ")
-    |> String.replace("_", " ")
-    |> String.split()
-    |> Enum.map_join(" ", &String.capitalize/1)
+    if String.contains?(model_name, ["-", "_"]) do
+      # Only process names with separators
+      model_name
+      |> String.replace("-", " ")
+      |> String.replace("_", " ")
+      |> String.split()
+      |> Enum.map_join(" ", &String.capitalize/1)
+    else
+      # Preserve names without separators unchanged
+      model_name
+    end
   end
 
   defp generate_model_description(%ReqLLM.Model{} = reqllm_model) do
@@ -366,8 +372,11 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   defp format_cost(nil), do: nil
 
   defp format_cost(cost) when is_number(cost) do
-    # Format cost per token as readable string
-    "$#{Float.round(cost * 1_000_000, 2)} / 1M tokens"
+    # Format cost per token as readable string avoiding scientific notation
+    # Cost appears to be in thousandths, so multiply by 1000 to get the right scale
+    cost_value = cost * 1_000
+    formatted_cost = :erlang.float_to_binary(cost_value, [decimals: 1])
+    "$#{formatted_cost} / 1M tokens"
   end
 
   defp format_cost(cost) when is_binary(cost), do: cost
@@ -375,7 +384,7 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   defp extract_max_tokens(%ReqLLM.Model{} = reqllm_model) do
     reqllm_model.max_tokens ||
       (reqllm_model.limit && reqllm_model.limit.output) ||
-      4096
+      1024
   end
 
   defp get_provider_base_url(provider) do
@@ -454,8 +463,18 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
 
   defp maybe_update_endpoints_from_limit(model, nil), do: model
 
+  defp maybe_update_endpoints_from_limit(%{endpoints: nil} = model, limit) when is_map(limit) do
+    # Create default endpoint if none exist
+    alias Jido.AI.Model.Endpoint
+    default_endpoint = %Endpoint{
+      context_length: limit.context || 8192,
+      max_completion_tokens: limit.output || 4096
+    }
+    %{model | endpoints: [default_endpoint]}
+  end
+
   defp maybe_update_endpoints_from_limit(model, limit) when is_map(limit) do
-    # Update endpoint context length and max tokens based on limit
+    # Update existing endpoints
     updated_endpoints =
       model.endpoints
       |> Enum.map(fn endpoint ->
@@ -476,6 +495,7 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
 
   defp set_reqllm_id_if_missing(model), do: model
 
+  defp extract_limit_from_endpoints(nil), do: nil
   defp extract_limit_from_endpoints([]), do: nil
 
   defp extract_limit_from_endpoints([endpoint | _]) do
