@@ -27,7 +27,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       SessionAuthentication.set_for_provider(:openai, "session-key")
 
       assert {:session_auth, options} =
-        SessionAuthentication.get_for_request(:openai, %{})
+               SessionAuthentication.get_for_request(:openai, %{})
 
       assert options[:api_key] == "session-key"
     end
@@ -36,13 +36,14 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       SessionAuthentication.clear_for_provider(:openai)
 
       assert {:no_session_auth} =
-        SessionAuthentication.get_for_request(:openai, %{})
+               SessionAuthentication.get_for_request(:openai, %{})
     end
 
     test "session key overrides request options", %{keyring: keyring} do
       SessionAuthentication.set_for_provider(:openai, "session-key")
 
       existing_options = %{api_key: "request-key", other: "value"}
+
       {:session_auth, options} =
         SessionAuthentication.get_for_request(:openai, existing_options)
 
@@ -77,6 +78,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
 
       {:session_auth, openai_opts} =
         SessionAuthentication.get_for_request(:openai, %{})
+
       {:session_auth, anthropic_opts} =
         SessionAuthentication.get_for_request(:anthropic, %{})
 
@@ -91,7 +93,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       assert :ok = SessionAuthentication.clear_for_provider(:openai)
 
       assert {:no_session_auth} =
-        SessionAuthentication.get_for_request(:openai, %{})
+               SessionAuthentication.get_for_request(:openai, %{})
     end
 
     test "clearing non-existent key succeeds", %{keyring: keyring} do
@@ -144,16 +146,18 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       SessionAuthentication.set_for_provider(:openai, "transfer-key")
 
       # Create a target process
-      {:ok, target_pid} = Task.start(fn ->
-        receive do
-          :check ->
-            result = SessionAuthentication.has_session_auth?(:openai)
-            send(self(), {:result, result})
-        end
-        receive do
-          :stop -> :ok
-        end
-      end)
+      {:ok, target_pid} =
+        Task.start(fn ->
+          receive do
+            :check ->
+              result = SessionAuthentication.has_session_auth?(:openai)
+              send(self(), {:result, result})
+          end
+
+          receive do
+            :stop -> :ok
+          end
+        end)
 
       # Transfer should succeed
       assert :ok = SessionAuthentication.transfer(:openai, self(), target_pid)
@@ -169,12 +173,15 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
     test "returns error when no auth to transfer", %{keyring: keyring} do
       SessionAuthentication.clear_for_provider(:openai)
 
-      {:ok, target_pid} = Task.start(fn ->
-        receive do :stop -> :ok end
-      end)
+      {:ok, target_pid} =
+        Task.start(fn ->
+          receive do
+            :stop -> :ok
+          end
+        end)
 
       assert {:error, :no_auth} =
-        SessionAuthentication.transfer(:openai, self(), target_pid)
+               SessionAuthentication.transfer(:openai, self(), target_pid)
 
       send(target_pid, :stop)
     end
@@ -189,21 +196,23 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       parent_pid = self()
 
       # Create child process and inherit
-      task = Task.async(fn ->
-        inherited = SessionAuthentication.inherit_from(parent_pid)
+      task =
+        Task.async(fn ->
+          inherited = SessionAuthentication.inherit_from(parent_pid)
 
-        # Check inherited providers
-        assert :openai in inherited
-        assert :anthropic in inherited
+          # Check inherited providers
+          assert :openai in inherited
+          assert :anthropic in inherited
 
-        # Verify keys were inherited
-        {:session_auth, openai_opts} =
-          SessionAuthentication.get_for_request(:openai, %{})
-        {:session_auth, anthropic_opts} =
-          SessionAuthentication.get_for_request(:anthropic, %{})
+          # Verify keys were inherited
+          {:session_auth, openai_opts} =
+            SessionAuthentication.get_for_request(:openai, %{})
 
-        {openai_opts[:api_key], anthropic_opts[:api_key]}
-      end)
+          {:session_auth, anthropic_opts} =
+            SessionAuthentication.get_for_request(:anthropic, %{})
+
+          {openai_opts[:api_key], anthropic_opts[:api_key]}
+        end)
 
       {openai_key, anthropic_key} = Task.await(task)
       assert openai_key == "parent-key1"
@@ -215,9 +224,10 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
 
       parent_pid = self()
 
-      task = Task.async(fn ->
-        SessionAuthentication.inherit_from(parent_pid)
-      end)
+      task =
+        Task.async(fn ->
+          SessionAuthentication.inherit_from(parent_pid)
+        end)
 
       inherited = Task.await(task)
       assert inherited == []
@@ -230,19 +240,20 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       SessionAuthentication.set_for_provider(:openai, "main-key")
 
       # Check in another process
-      task = Task.async(fn ->
-        # Should not see main process's auth
-        has_auth_before = SessionAuthentication.has_session_auth?(:openai)
+      task =
+        Task.async(fn ->
+          # Should not see main process's auth
+          has_auth_before = SessionAuthentication.has_session_auth?(:openai)
 
-        # Set different auth in this process
-        SessionAuthentication.set_for_provider(:openai, "task-key")
+          # Set different auth in this process
+          SessionAuthentication.set_for_provider(:openai, "task-key")
 
-        # Should see own auth
-        {:session_auth, opts} =
-          SessionAuthentication.get_for_request(:openai, %{})
+          # Should see own auth
+          {:session_auth, opts} =
+            SessionAuthentication.get_for_request(:openai, %{})
 
-        {has_auth_before, opts[:api_key]}
-      end)
+          {has_auth_before, opts[:api_key]}
+        end)
 
       {has_auth_before, task_key} = Task.await(task)
       assert has_auth_before == false
@@ -251,19 +262,21 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       # Main process should still have its own auth
       {:session_auth, main_opts} =
         SessionAuthentication.get_for_request(:openai, %{})
+
       assert main_opts[:api_key] == "main-key"
     end
 
     test "clearing in one process doesn't affect another", %{keyring: keyring} do
       SessionAuthentication.set_for_provider(:openai, "main-key")
 
-      task = Task.async(fn ->
-        # Set and then clear in task process
-        SessionAuthentication.set_for_provider(:openai, "task-key")
-        SessionAuthentication.clear_for_provider(:openai)
+      task =
+        Task.async(fn ->
+          # Set and then clear in task process
+          SessionAuthentication.set_for_provider(:openai, "task-key")
+          SessionAuthentication.clear_for_provider(:openai)
 
-        SessionAuthentication.has_session_auth?(:openai)
-      end)
+          SessionAuthentication.has_session_auth?(:openai)
+        end)
 
       task_has_auth = Task.await(task)
       assert task_has_auth == false

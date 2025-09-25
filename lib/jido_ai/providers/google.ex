@@ -6,7 +6,6 @@ defmodule Jido.AI.Provider.Google do
   """
   @behaviour Jido.AI.Model.Provider.Adapter
   alias Jido.AI.Provider
-  alias Jido.AI.Provider.Helpers
 
   @base_url "https://generativelanguage.googleapis.com/v1beta/models/"
 

@@ -25,7 +25,6 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
   """
 
   require Logger
-  alias Jido.AI.Keyring.JidoKeysHybrid
   alias Jido.AI.Keyring.SecurityEnhancements
 
   @doc """
@@ -45,7 +44,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
     * Compatible result that matches existing API expectations
   """
   @spec ensure_api_compatibility(atom(), list(), term()) :: term()
-  def ensure_api_compatibility(function_name, args, result) do
+  def ensure_api_compatibility(function_name, _args, result) do
     case {function_name, result} do
       {:get, value} -> ensure_value_format(value)
       {:get_env_value, value} -> ensure_value_format(value)
@@ -58,7 +57,10 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
     end
   rescue
     error ->
-      Logger.warning("[Keyring-Compatibility] Error ensuring compatibility for #{function_name}: #{inspect(error)}")
+      Logger.warning(
+        "[Keyring-Compatibility] Error ensuring compatibility for #{function_name}: #{inspect(error)}"
+      )
+
       result
   end
 
@@ -118,18 +120,22 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
     * `:ok` if isolation is maintained correctly
     * `{:error, reason}` if isolation behavior has changed
   """
-  @spec validate_session_isolation_compatibility(GenServer.server(), atom(), atom(), pid()) :: :ok | {:error, term()}
+  @spec validate_session_isolation_compatibility(GenServer.server(), atom(), atom(), pid()) ::
+          :ok | {:error, term()}
   def validate_session_isolation_compatibility(server, operation, key, pid) do
     case operation do
       :set ->
         # Verify setting doesn't affect other processes
         verify_set_isolation(server, key, pid)
+
       :get ->
         # Verify getting only returns process-specific values
         verify_get_isolation(server, key, pid)
+
       :clear ->
         # Verify clearing only affects the specific process
         verify_clear_isolation(server, key, pid)
+
       _ ->
         :ok
     end
@@ -152,26 +158,31 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
     * `:ok` if performance is acceptable
     * `{:error, performance_data}` if performance has regressed
   """
-  @spec validate_performance_compatibility(atom(), non_neg_integer(), non_neg_integer()) :: :ok | {:error, map()}
+  @spec validate_performance_compatibility(atom(), non_neg_integer(), non_neg_integer()) ::
+          :ok | {:error, map()}
   def validate_performance_compatibility(operation, iterations \\ 100, max_time_ms \\ 50) do
-    {elapsed_microseconds, _results} = :timer.tc(fn ->
-      case operation do
-        :get ->
-          for _i <- 1..iterations do
-            Jido.AI.Keyring.get(:test_perf_key, "default")
-          end
-        :set_session ->
-          for i <- 1..iterations do
-            Jido.AI.Keyring.set_session_value(:"test_perf_key_#{i}", "test_value")
-          end
-        :get_env ->
-          for _i <- 1..iterations do
-            Jido.AI.Keyring.get_env_value(:test_perf_key, "default")
-          end
-        _ ->
-          []
-      end
-    end)
+    {elapsed_microseconds, _results} =
+      :timer.tc(fn ->
+        case operation do
+          :get ->
+            for _i <- 1..iterations do
+              Jido.AI.Keyring.get(:test_perf_key, "default")
+            end
+
+          :set_session ->
+            for i <- 1..iterations do
+              Jido.AI.Keyring.set_session_value(:"test_perf_key_#{i}", "test_value")
+            end
+
+          :get_env ->
+            for _i <- 1..iterations do
+              Jido.AI.Keyring.get_env_value(:test_perf_key, "default")
+            end
+
+          _ ->
+            []
+        end
+      end)
 
     elapsed_ms = elapsed_microseconds / 1000
     average_ms_per_operation = elapsed_ms / iterations
@@ -179,13 +190,14 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
     if average_ms_per_operation <= max_time_ms do
       :ok
     else
-      {:error, %{
-        operation: operation,
-        iterations: iterations,
-        total_time_ms: elapsed_ms,
-        average_time_ms: average_ms_per_operation,
-        max_allowed_ms: max_time_ms
-      }}
+      {:error,
+       %{
+         operation: operation,
+         iterations: iterations,
+         total_time_ms: elapsed_ms,
+         average_time_ms: average_ms_per_operation,
+         max_allowed_ms: max_time_ms
+       }}
     end
   end
 
@@ -238,12 +250,13 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
       &test_process_isolation_compatibility/0
     ]
 
-    failed_tests = Enum.reduce(tests, [], fn test_fn, acc ->
-      case test_fn.() do
-        :ok -> acc
-        {:error, reason} -> [reason | acc]
-      end
-    end)
+    failed_tests =
+      Enum.reduce(tests, [], fn test_fn, acc ->
+        case test_fn.() do
+          :ok -> acc
+          {:error, reason} -> [reason | acc]
+        end
+      end)
 
     case failed_tests do
       [] -> :ok
@@ -266,10 +279,11 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
       key -> String.to_atom(to_string(key))
     end)
   end
+
   defp ensure_keys_format(_), do: []
 
   @spec verify_set_isolation(GenServer.server(), atom(), pid()) :: :ok | {:error, term()}
-  defp verify_set_isolation(server, key, pid) do
+  defp verify_set_isolation(server, key, _pid) do
     # This would implement comprehensive isolation testing
     # For brevity, returning :ok - full implementation would test cross-process isolation
     SecurityEnhancements.validate_process_isolation(server, key, "isolation_test")
@@ -291,7 +305,8 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
   defp ensure_session_timeout_compatibility(config) do
     # Ensure session timeout settings are compatible
     case Map.get(config, :session_timeout) do
-      nil -> Map.put(config, :session_timeout, 60)  # Default from existing behavior
+      # Default from existing behavior
+      nil -> Map.put(config, :session_timeout, 60)
       timeout when is_integer(timeout) -> config
       _ -> Map.put(config, :session_timeout, 60)
     end
@@ -377,7 +392,9 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
           else
             {:error, "list/0 returned non-atom keys"}
           end
-        _ -> {:error, "list/0 returned non-list: #{inspect(result)}"}
+
+        _ ->
+          {:error, "list/0 returned non-list: #{inspect(result)}"}
       end
     rescue
       error -> {:error, "list compatibility failed: #{inspect(error)}"}
@@ -412,12 +429,13 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
       :ok = Jido.AI.Keyring.set_session_value(key, parent_value)
 
       # Test in child process
-      task = Task.async(fn ->
-        child_value = Jido.AI.Keyring.get_session_value(key)
-        {child_value, self()}
-      end)
+      task =
+        Task.async(fn ->
+          child_value = Jido.AI.Keyring.get_session_value(key)
+          {child_value, self()}
+        end)
 
-      {child_result, child_pid} = Task.await(task)
+      {child_result, _child_pid} = Task.await(task)
 
       # Child should not see parent's value
       case child_result do

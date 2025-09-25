@@ -37,9 +37,12 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
 
       assert {:ok, converted} = ParameterConverter.convert_to_jido_format(params, TestAction)
       assert converted.name == "test"
-      assert converted.count == 1  # default value
-      assert converted.enabled == false  # default value
-      assert converted.status == :inactive  # default value
+      # default value
+      assert converted.count == 1
+      # default value
+      assert converted.enabled == false
+      # default value
+      assert converted.status == :inactive
     end
 
     test "rejects unknown parameters" do
@@ -52,8 +55,10 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
     test "handles mixed parameter formats" do
       params = %{
         "name" => "test",
-        "count" => 42,  # already integer
-        "enabled" => true  # already boolean
+        # already integer
+        "count" => 42,
+        # already boolean
+        "enabled" => true
       }
 
       assert {:ok, converted} = ParameterConverter.convert_to_jido_format(params, TestAction)
@@ -102,7 +107,8 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
       assert {:ok, 123} = ParameterConverter.coerce_type(123, :integer)
       assert {:ok, 123} = ParameterConverter.coerce_type("123", :integer)
       assert {:ok, 123} = ParameterConverter.coerce_type(123.7, :integer)
-      assert {:ok, 42} = ParameterConverter.coerce_type("42extra", :integer)  # partial parsing
+      # partial parsing
+      assert {:ok, 42} = ParameterConverter.coerce_type("42extra", :integer)
 
       assert {:error, _} = ParameterConverter.coerce_type("not_a_number", :integer)
       assert {:error, _} = ParameterConverter.coerce_type(%{}, :integer)
@@ -154,7 +160,9 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
 
     test "typed list coercion" do
       assert {:ok, [1, 2, 3]} = ParameterConverter.coerce_type(["1", "2", "3"], {:list, :integer})
-      assert {:ok, [true, false]} = ParameterConverter.coerce_type(["true", "false"], {:list, :boolean})
+
+      assert {:ok, [true, false]} =
+               ParameterConverter.coerce_type(["true", "false"], {:list, :boolean})
 
       assert {:error, _} = ParameterConverter.coerce_type(["1", "not_int"], {:list, :integer})
       assert {:error, _} = ParameterConverter.coerce_type("not_a_list", {:list, :integer})
@@ -191,7 +199,9 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
 
     test "unsupported type handling" do
       assert {:error, _} = ParameterConverter.coerce_type("value", :unsupported_type)
-      assert {:error, _} = ParameterConverter.coerce_type("value", {:custom, MyModule, :validator})
+
+      assert {:error, _} =
+               ParameterConverter.coerce_type("value", {:custom, MyModule, :validator})
     end
   end
 
@@ -202,6 +212,7 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
         count: [type: :integer, default: 1],
         enabled: [type: :boolean, default: false]
       }
+
       {:ok, schema_map: schema_map}
     end
 
@@ -258,7 +269,8 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
       assert {:ok, sanitized} = ParameterConverter.ensure_json_serializable(data)
       assert sanitized.normal == "value"
       assert sanitized._sanitized == true
-      assert is_binary(sanitized.pid)  # Should be converted to string
+      # Should be converted to string
+      assert is_binary(sanitized.pid)
     end
 
     test "handles nested non-serializable data" do
@@ -285,7 +297,8 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
       assert length(sanitized) == 4
       assert Enum.at(sanitized, 0) == 1
       assert Enum.at(sanitized, 1) == "string"
-      assert is_binary(Enum.at(sanitized, 2))  # PID converted to string
+      # PID converted to string
+      assert is_binary(Enum.at(sanitized, 2))
     end
 
     test "handles structs" do
@@ -303,8 +316,10 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
 
       # Should either succeed with sanitized version or return error
       case ParameterConverter.ensure_json_serializable(data) do
-        {:ok, _sanitized} -> :ok  # Sanitization worked
-        {:error, {:serialization_error, _reason}} -> :ok  # Expected error
+        # Sanitization worked
+        {:ok, _sanitized} -> :ok
+        # Expected error
+        {:error, {:serialization_error, _reason}} -> :ok
       end
     end
   end

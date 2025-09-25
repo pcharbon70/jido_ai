@@ -28,8 +28,6 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
       :ok = SchemaValidator.validate_nimble_schema_compatibility(schema)
   """
 
-  alias Jido.AI.ReqLlmBridge.ErrorHandler
-
   require Logger
 
   @type nimble_schema :: keyword()
@@ -132,11 +130,12 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
       end
     rescue
       error ->
-        {:error, %{
-          type: "schema_validation_exception",
-          message: Exception.message(error),
-          action_module: action_module
-        }}
+        {:error,
+         %{
+           type: "schema_validation_exception",
+           message: Exception.message(error),
+           action_module: action_module
+         }}
     end
   end
 
@@ -178,11 +177,12 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
         :ok
 
       issues ->
-        {:error, %{
-          reason: "schema_compatibility_issues",
-          details: "Schema contains types or patterns incompatible with ReqLLM",
-          issues: issues
-        }}
+        {:error,
+         %{
+           reason: "schema_compatibility_issues",
+           details: "Schema contains types or patterns incompatible with ReqLLM",
+           issues: issues
+         }}
     end
   end
 
@@ -208,7 +208,8 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
       {"name", %{type: "string", description: "User name", required: true}}
   """
   @spec convert_field_schema({atom(), keyword()}) :: {String.t(), map()}
-  def convert_field_schema({field_name, field_opts}) when is_atom(field_name) and is_list(field_opts) do
+  def convert_field_schema({field_name, field_opts})
+      when is_atom(field_name) and is_list(field_opts) do
     field_name_string = to_string(field_name)
 
     json_field = %{
@@ -223,9 +224,12 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
         case key do
           :required -> Map.put(acc, :required, value)
           :default -> Map.put(acc, :default, value)
-          :doc -> acc  # Already handled above
-          :type -> acc  # Already handled above
-          _ -> acc  # Ignore unknown options for now
+          # Already handled above
+          :doc -> acc
+          # Already handled above
+          :type -> acc
+          # Ignore unknown options for now
+          _ -> acc
         end
       end)
 
@@ -259,10 +263,14 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
       :map -> "object"
       {:map, _fields} -> "object"
       :keyword_list -> "object"
-      {:in, _choices} -> "string"  # Enum values - could be enhanced with JSON Schema enum
-      {:custom, _module, _function, _args} -> "string"  # Custom validators - fallback to string
-      nil -> "string"  # Default fallback
-      _ -> "string"  # Catch-all fallback
+      # Enum values - could be enhanced with JSON Schema enum
+      {:in, _choices} -> "string"
+      # Custom validators - fallback to string
+      {:custom, _module, _function, _args} -> "string"
+      # Default fallback
+      nil -> "string"
+      # Catch-all fallback
+      _ -> "string"
     end
   end
 

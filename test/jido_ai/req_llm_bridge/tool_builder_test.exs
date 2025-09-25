@@ -26,11 +26,12 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilderTest do
 
       @impl true
       def run(params, _context) do
-        {:ok, %{
-          message: "Hello #{params.name}",
-          count: params.count,
-          enabled: params.enabled
-        }}
+        {:ok,
+         %{
+           message: "Hello #{params.name}",
+           count: params.count,
+           enabled: params.enabled
+         }}
       end
     end
 
@@ -57,11 +58,12 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilderTest do
       def name, do: "invalid"
     end
 
-    {:ok, %{
-      test_action: TestAction,
-      complex_action: ComplexAction,
-      invalid_action: InvalidAction
-    }}
+    {:ok,
+     %{
+       test_action: TestAction,
+       complex_action: ComplexAction,
+       invalid_action: InvalidAction
+     }}
   end
 
   describe "create_tool_descriptor/2" do
@@ -85,7 +87,12 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilderTest do
 
     test "creates tool descriptor with custom options", %{test_action: action} do
       expect(ReqLLM, :tool, fn _opts ->
-        %{name: "test_action", description: "test", parameter_schema: %{}, callback: fn _ -> :ok end}
+        %{
+          name: "test_action",
+          description: "test",
+          parameter_schema: %{},
+          callback: fn _ -> :ok end
+        }
       end)
 
       options = %{
@@ -150,7 +157,10 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilderTest do
   end
 
   describe "batch_convert/2" do
-    test "converts multiple actions successfully", %{test_action: action1, complex_action: action2} do
+    test "converts multiple actions successfully", %{
+      test_action: action1,
+      complex_action: action2
+    } do
       expect(ReqLLM, :tool, 2, fn opts ->
         %{
           name: opts[:name],
@@ -169,7 +179,10 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilderTest do
       assert "complex_action" in names
     end
 
-    test "returns successful conversions even when some fail", %{test_action: valid, invalid_action: invalid} do
+    test "returns successful conversions even when some fail", %{
+      test_action: valid,
+      invalid_action: invalid
+    } do
       expect(ReqLLM, :tool, fn opts ->
         %{
           name: opts[:name],
@@ -287,7 +300,8 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilderTest do
         @impl true
         def run(_params, _context) do
           # Simulate slow operation
-          Process.sleep(6000)  # Longer than default timeout
+          # Longer than default timeout
+          Process.sleep(6000)
           {:ok, %{completed: true}}
         end
       end

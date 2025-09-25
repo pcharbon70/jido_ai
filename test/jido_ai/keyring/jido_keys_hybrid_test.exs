@@ -70,8 +70,10 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       expect(JidoKeys, :put, fn :api_key, filtered_value ->
         # Verify that sensitive values are filtered before storage
         assert filtered_value != "sk-1234567890abcdef"
+
         assert String.contains?(filtered_value, "[FILTERED]") or
-               String.length(filtered_value) < String.length("sk-1234567890abcdef")
+                 String.length(filtered_value) < String.length("sk-1234567890abcdef")
+
         :ok
       end)
 
@@ -123,7 +125,9 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       :ok = Keyring.set_session_value(keyring, :precedence_key, "session_value")
 
       # Session should take precedence
-      result = JidoKeysHybrid.get_with_session_fallback(keyring, :precedence_key, "default", self())
+      result =
+        JidoKeysHybrid.get_with_session_fallback(keyring, :precedence_key, "default", self())
+
       assert result == "session_value"
     end
 
@@ -140,7 +144,9 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       # Set sensitive session value
       :ok = Keyring.set_session_value(keyring, :sensitive_session, "sk-session123456789")
 
-      result = JidoKeysHybrid.get_with_session_fallback(keyring, :sensitive_session, "default", self())
+      result =
+        JidoKeysHybrid.get_with_session_fallback(keyring, :sensitive_session, "default", self())
+
       # Should be filtered
       refute result == "sk-session123456789"
     end
@@ -193,7 +199,9 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
     test "applies security filtering to stored session values", %{keyring: keyring} do
       sensitive_value = "sk-sensitive123456789"
 
-      result = JidoKeysHybrid.ensure_session_isolation(keyring, :sensitive_key, sensitive_value, self())
+      result =
+        JidoKeysHybrid.ensure_session_isolation(keyring, :sensitive_key, sensitive_value, self())
+
       assert result == :ok
 
       # Retrieved value should be filtered
@@ -204,7 +212,9 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
     test "handles session storage errors gracefully" do
       invalid_keyring = :nonexistent_keyring
 
-      result = JidoKeysHybrid.ensure_session_isolation(invalid_keyring, :test_key, "value", self())
+      result =
+        JidoKeysHybrid.ensure_session_isolation(invalid_keyring, :test_key, "value", self())
+
       assert {:error, _reason} = result
     end
   end
@@ -274,11 +284,12 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
         "performance_value"
       end)
 
-      {elapsed_microseconds, results} = :timer.tc(fn ->
-        for i <- 1..100 do
-          JidoKeysHybrid.get_global_value(:"perf_key_#{i}", "default")
-        end
-      end)
+      {elapsed_microseconds, results} =
+        :timer.tc(fn ->
+          for i <- 1..100 do
+            JidoKeysHybrid.get_global_value(:"perf_key_#{i}", "default")
+          end
+        end)
 
       elapsed_ms = elapsed_microseconds / 1000
       average_ms_per_call = elapsed_ms / 100
@@ -295,19 +306,21 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       end)
 
       # Create multiple concurrent tasks
-      tasks = for i <- 1..10 do
-        Task.async(fn ->
-          for j <- 1..50 do
-            JidoKeysHybrid.get_global_value(:"concurrent_#{i}_#{j}", "default")
-          end
-        end)
-      end
+      tasks =
+        for i <- 1..10 do
+          Task.async(fn ->
+            for j <- 1..50 do
+              JidoKeysHybrid.get_global_value(:"concurrent_#{i}_#{j}", "default")
+            end
+          end)
+        end
 
       # Wait for all tasks
       results = Task.await_many(tasks, 10_000)
 
       # All tasks should succeed
       assert length(results) == 10
+
       for task_results <- results do
         assert length(task_results) == 50
         assert Enum.all?(task_results, &(&1 == "concurrent_value"))

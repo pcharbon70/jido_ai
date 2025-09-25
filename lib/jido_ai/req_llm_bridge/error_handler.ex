@@ -388,7 +388,8 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandler do
 
   defp format_stacktrace(stacktrace) when is_list(stacktrace) do
     stacktrace
-    |> Enum.take(10)  # Limit stacktrace length
+    # Limit stacktrace length
+    |> Enum.take(10)
     |> Enum.map(&Exception.format_stacktrace_entry/1)
   end
 
@@ -398,7 +399,8 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandler do
 
   defp sanitize_error_data(error_data) when is_map(error_data) do
     error_data
-    |> Map.drop([:__struct__, :__exception__])  # Remove internal Elixir fields
+    # Remove internal Elixir fields
+    |> Map.drop([:__struct__, :__exception__])
     |> sanitize_error_for_logging()
   end
 

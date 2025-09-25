@@ -109,13 +109,16 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
       incomplete_response = %{
         content: "Working on it...",
         tool_calls: [%{id: "call_1", function: %{name: "tool"}}],
-        tool_results: [],  # No results for the call
+        # No results for the call
+        tool_results: [],
         usage: %{total_tokens: 20}
       }
 
       context = %{conversation_id: "conv_incomplete"}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(incomplete_response, context)
+      assert {:ok, aggregated} =
+               ResponseAggregator.aggregate_response(incomplete_response, context)
+
       assert aggregated.finished == false
 
       # Test case where tool calls have matching results (finished)
@@ -142,6 +145,7 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
       }
 
       start_time = System.monotonic_time(:millisecond)
+
       context = %{
         conversation_id: "conv_metadata",
         processing_start_time: start_time
@@ -171,7 +175,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
 
       context = %{conversation_id: "conv_stream"}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
+      assert {:ok, aggregated} =
+               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
 
       assert aggregated.content == "This is a streaming response."
       assert aggregated.usage.total_tokens == 25
@@ -188,7 +193,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
 
       context = %{conversation_id: "conv_stream_tools"}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
+      assert {:ok, aggregated} =
+               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
 
       assert aggregated.content == "Let me help you with that."
       assert length(aggregated.tool_calls) == 1
@@ -199,7 +205,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
       stream_chunks = []
       context = %{conversation_id: "conv_empty_stream"}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
+      assert {:ok, aggregated} =
+               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
 
       assert aggregated.content == "I don't have any response to provide."
       assert aggregated.tool_calls == []
@@ -215,7 +222,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
 
       context = %{conversation_id: "conv_usage_merge"}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
+      assert {:ok, aggregated} =
+               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
 
       assert aggregated.content == "Part 1 Part 2"
       assert aggregated.usage.prompt_tokens == 15
@@ -226,14 +234,17 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
     test "handles malformed streaming chunks gracefully" do
       stream_chunks = [
         %{content: "Good chunk"},
-        nil,  # Bad chunk
-        %{malformed: true},  # Missing expected fields
+        # Bad chunk
+        nil,
+        # Missing expected fields
+        %{malformed: true},
         %{content: " Another good chunk"}
       ]
 
       context = %{conversation_id: "conv_malformed"}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
+      assert {:ok, aggregated} =
+               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
 
       # Should still process the good chunks
       assert String.contains?(aggregated.content, "Good chunk")
@@ -549,7 +560,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
         content: "Normal content",
         tool_results: [
           %{
-            tool_call_id: nil,  # This might cause an error
+            # This might cause an error
+            tool_call_id: nil,
             name: nil,
             content: nil
           }
@@ -562,15 +574,17 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
       result = ResponseAggregator.aggregate_response(bad_response, context)
 
       case result do
-        {:ok, _aggregated} -> :ok  # If it handles gracefully
-        {:error, {:aggregation_failed, _error}} -> :ok  # Expected error format
+        # If it handles gracefully
+        {:ok, _aggregated} -> :ok
+        # Expected error format
+        {:error, {:aggregation_failed, _error}} -> :ok
         other -> flunk("Unexpected result: #{inspect(other)}")
       end
     end
 
     test "handles missing usage information" do
       response = %{
-        content: "Response without usage",
+        content: "Response without usage"
         # No usage field
       }
 
@@ -591,9 +605,10 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
       }
 
       # Context missing required fields
-      malformed_context = %{
-        # Missing conversation_id
-      }
+      malformed_context =
+        %{
+          # Missing conversation_id
+        }
 
       # Should handle gracefully or provide sensible defaults
       result = ResponseAggregator.aggregate_response(response, malformed_context)
@@ -602,7 +617,10 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
         {:ok, aggregated} ->
           # Should have some conversation_id, even if nil or default
           assert Map.has_key?(aggregated, :conversation_id)
-        {:error, _} -> :ok  # Acceptable to error on malformed input
+
+        # Acceptable to error on malformed input
+        {:error, _} ->
+          :ok
       end
     end
   end

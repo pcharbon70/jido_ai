@@ -202,11 +202,12 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
     include_metadata = Map.get(format_options, :include_metadata, false)
     tool_style = Map.get(format_options, :tool_result_style, :integrated)
 
-    formatted_content = case tool_style do
-      :integrated -> integrate_tool_results_into_content(base_content, tool_results)
-      :appended -> append_tool_results_to_content(base_content, tool_results)
-      :separate -> base_content
-    end
+    formatted_content =
+      case tool_style do
+        :integrated -> integrate_tool_results_into_content(base_content, tool_results)
+        :appended -> append_tool_results_to_content(base_content, tool_results)
+        :separate -> base_content
+      end
 
     if include_metadata do
       add_metadata_to_formatted_content(formatted_content, aggregated_response)
@@ -240,13 +241,15 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
     usage = aggregated_response.usage
     tool_results = aggregated_response.tool_results
 
-    successful_tools = Enum.count(tool_results, fn result ->
-      not Map.get(result, :error, false)
-    end)
+    successful_tools =
+      Enum.count(tool_results, fn result ->
+        not Map.get(result, :error, false)
+      end)
 
-    failed_tools = Enum.count(tool_results, fn result ->
-      Map.get(result, :error, false)
-    end)
+    failed_tools =
+      Enum.count(tool_results, fn result ->
+        Map.get(result, :error, false)
+      end)
 
     %{
       processing_time_ms: Map.get(metadata, :processing_time_ms, 0),
@@ -295,8 +298,7 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
 
   defp extract_text_from_content_list(content_list) do
     content_list
-    |> Enum.map(&extract_text_from_content_item/1)
-    |> Enum.join("")
+    |> Enum.map_join("", &extract_text_from_content_item/1)
     |> String.trim()
   end
 
@@ -324,13 +326,15 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
     tool_results = extract_tool_results(response)
 
     # If we have tool calls but no results, we might need another round
-    executed_call_ids = MapSet.new(tool_results, fn result ->
-      Map.get(result, :tool_call_id, Map.get(result, "tool_call_id"))
-    end)
+    executed_call_ids =
+      MapSet.new(tool_results, fn result ->
+        Map.get(result, :tool_call_id, Map.get(result, "tool_call_id"))
+      end)
 
-    pending_call_ids = MapSet.new(tool_calls, fn call ->
-      Map.get(call, :id, Map.get(call, "id"))
-    end)
+    pending_call_ids =
+      MapSet.new(tool_calls, fn call ->
+        Map.get(call, :id, Map.get(call, "id"))
+      end)
 
     MapSet.subset?(pending_call_ids, executed_call_ids)
   end
@@ -378,9 +382,10 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
   end
 
   defp format_tool_only_response(tool_results) do
-    successful_results = Enum.filter(tool_results, fn result ->
-      not Map.get(result, :error, false)
-    end)
+    successful_results =
+      Enum.filter(tool_results, fn result ->
+        not Map.get(result, :error, false)
+      end)
 
     case successful_results do
       [] ->
@@ -393,9 +398,10 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
   end
 
   defp enhance_content_with_tool_results(content, tool_results) do
-    successful_results = Enum.filter(tool_results, fn result ->
-      not Map.get(result, :error, false)
-    end)
+    successful_results =
+      Enum.filter(tool_results, fn result ->
+        not Map.get(result, :error, false)
+      end)
 
     case successful_results do
       [] -> content
@@ -420,9 +426,9 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
   end
 
   defp format_structured_tool_result(tool_name, content) when is_map(content) do
-    formatted_fields = content
-                       |> Enum.map(fn {key, value} -> "  #{key}: #{inspect(value)}" end)
-                       |> Enum.join("\n")
+    formatted_fields =
+      content
+      |> Enum.map_join("\n", fn {key, value} -> "  #{key}: #{inspect(value)}" end)
 
     "#{tool_name} results:\n#{formatted_fields}"
   end
@@ -437,16 +443,16 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
   defp format_multiple_tool_results(results) do
     results
     |> Enum.with_index(1)
-    |> Enum.map(fn {result, index} ->
+    |> Enum.map_join("\n\n", fn {result, index} ->
       "#{index}. #{format_single_tool_result(result)}"
     end)
-    |> Enum.join("\n\n")
   end
 
   defp integrate_tool_results_into_content(content, tool_results) do
-    successful_results = Enum.filter(tool_results, fn result ->
-      not Map.get(result, :error, false)
-    end)
+    successful_results =
+      Enum.filter(tool_results, fn result ->
+        not Map.get(result, :error, false)
+      end)
 
     case successful_results do
       [] -> content
@@ -466,9 +472,9 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
   end
 
   defp integrate_multiple_tool_results(content, results) do
-    tool_summary = results
-                   |> Enum.map(&extract_tool_result_content/1)
-                   |> Enum.join("; ")
+    tool_summary =
+      results
+      |> Enum.map_join("; ", &extract_tool_result_content/1)
 
     "#{content}\n\nBased on the tool results: #{tool_summary}"
   end
@@ -493,9 +499,10 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
     # Try to find the most relevant field to display
     priority_keys = ["result", "answer", "value", "message", "summary", "description"]
 
-    key = Enum.find(priority_keys, fn k ->
-      Map.has_key?(data, k) or Map.has_key?(data, String.to_atom(k))
-    end)
+    key =
+      Enum.find(priority_keys, fn k ->
+        Map.has_key?(data, k) or Map.has_key?(data, String.to_atom(k))
+      end)
 
     cond do
       key && Map.has_key?(data, key) -> to_string(data[key])
@@ -505,12 +512,15 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
   end
 
   defp append_tool_results_to_content(content, tool_results) do
-    successful_results = Enum.filter(tool_results, fn result ->
-      not Map.get(result, :error, false)
-    end)
+    successful_results =
+      Enum.filter(tool_results, fn result ->
+        not Map.get(result, :error, false)
+      end)
 
     case successful_results do
-      [] -> content
+      [] ->
+        content
+
       results ->
         formatted_results = Enum.map(results, &format_single_tool_result/1)
         content <> "\n\n---\n\nTool Results:\n" <> Enum.join(formatted_results, "\n")
@@ -551,7 +561,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
   defp merge_usage_stats(usage1, usage2) do
     %{
       prompt_tokens: Map.get(usage1, :prompt_tokens, 0) + Map.get(usage2, :prompt_tokens, 0),
-      completion_tokens: Map.get(usage1, :completion_tokens, 0) + Map.get(usage2, :completion_tokens, 0),
+      completion_tokens:
+        Map.get(usage1, :completion_tokens, 0) + Map.get(usage2, :completion_tokens, 0),
       total_tokens: Map.get(usage1, :total_tokens, 0) + Map.get(usage2, :total_tokens, 0)
     }
   end

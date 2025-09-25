@@ -4,7 +4,12 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
 
   @moduletag :capture_log
 
-  alias Jido.AI.ReqLlmBridge.{ToolResponseHandler, ToolExecutor, ResponseAggregator, ConversationManager}
+  alias Jido.AI.ReqLlmBridge.{
+    ToolResponseHandler,
+    ToolExecutor,
+    ResponseAggregator,
+    ConversationManager
+  }
 
   # Add global mock setup
   setup :set_mimic_global
@@ -44,21 +49,24 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
 
       expect(ResponseAggregator, :aggregate_response, fn response, ^context ->
         assert response == llm_response
-        {:ok, %{
-          content: "This is a simple response without tools",
-          tool_calls: [],
-          tool_results: [],
-          usage: %{total_tokens: 25},
-          conversation_id: "conv_123",
-          finished: true
-        }}
+
+        {:ok,
+         %{
+           content: "This is a simple response without tools",
+           tool_calls: [],
+           tool_results: [],
+           usage: %{total_tokens: 25},
+           conversation_id: "conv_123",
+           finished: true
+         }}
       end)
 
-      assert {:ok, aggregated} = ToolResponseHandler.process_llm_response(
-        llm_response,
-        "conv_123",
-        %{timeout: 30_000}
-      )
+      assert {:ok, aggregated} =
+               ToolResponseHandler.process_llm_response(
+                 llm_response,
+                 "conv_123",
+                 %{timeout: 30_000}
+               )
 
       assert aggregated.content == "This is a simple response without tools"
       assert aggregated.tool_calls == []
@@ -111,20 +119,23 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       expect(ResponseAggregator, :aggregate_response, fn response, ^context ->
         assert response.content == "I'll use a tool to help you."
         assert length(response.tool_results) == 1
-        {:ok, %{
-          content: "I'll use a tool to help you.",
-          tool_calls: tool_calls,
-          tool_results: response.tool_results,
-          conversation_id: "conv_456",
-          finished: true
-        }}
+
+        {:ok,
+         %{
+           content: "I'll use a tool to help you.",
+           tool_calls: tool_calls,
+           tool_results: response.tool_results,
+           conversation_id: "conv_456",
+           finished: true
+         }}
       end)
 
-      assert {:ok, result} = ToolResponseHandler.process_llm_response(
-        llm_response,
-        "conv_456",
-        %{timeout: 30_000}
-      )
+      assert {:ok, result} =
+               ToolResponseHandler.process_llm_response(
+                 llm_response,
+                 "conv_456",
+                 %{timeout: 30_000}
+               )
 
       assert result.conversation_id == "conv_456"
       assert length(result.tool_calls) == 1
@@ -159,21 +170,24 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       expect(ResponseAggregator, :aggregate_response, fn response, ^context ->
         # Should continue with partial results
         assert response.has_tool_calls == true
-        {:ok, %{
-          content: "Let me try to help.",
-          tool_calls: tool_calls,
-          tool_results: [],
-          tool_execution_errors: [%{type: "parameter_validation_error"}],
-          conversation_id: "conv_error",
-          finished: true
-        }}
+
+        {:ok,
+         %{
+           content: "Let me try to help.",
+           tool_calls: tool_calls,
+           tool_results: [],
+           tool_execution_errors: [%{type: "parameter_validation_error"}],
+           conversation_id: "conv_error",
+           finished: true
+         }}
       end)
 
-      assert {:ok, result} = ToolResponseHandler.process_llm_response(
-        llm_response,
-        "conv_error",
-        %{timeout: 30_000}
-      )
+      assert {:ok, result} =
+               ToolResponseHandler.process_llm_response(
+                 llm_response,
+                 "conv_error",
+                 %{timeout: 30_000}
+               )
 
       assert result.conversation_id == "conv_error"
     end
@@ -187,7 +201,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       end)
 
       assert {:error, {:response_processing_failed, "Aggregation failed"}} =
-        ToolResponseHandler.process_llm_response(llm_response, "conv_fail", %{})
+               ToolResponseHandler.process_llm_response(llm_response, "conv_fail", %{})
     end
   end
 
@@ -204,20 +218,23 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
 
       expect(ResponseAggregator, :aggregate_response, fn response, ^context ->
         assert response.content == "This is a streaming response."
-        {:ok, %{
-          content: "This is a streaming response.",
-          tool_calls: [],
-          tool_results: [],
-          conversation_id: "conv_stream",
-          finished: true
-        }}
+
+        {:ok,
+         %{
+           content: "This is a streaming response.",
+           tool_calls: [],
+           tool_results: [],
+           conversation_id: "conv_stream",
+           finished: true
+         }}
       end)
 
-      assert {:ok, result} = ToolResponseHandler.process_streaming_response(
-        stream_chunks,
-        "conv_stream",
-        %{timeout: 30_000}
-      )
+      assert {:ok, result} =
+               ToolResponseHandler.process_streaming_response(
+                 stream_chunks,
+                 "conv_stream",
+                 %{timeout: 30_000}
+               )
 
       assert result.content == "This is a streaming response."
     end
@@ -225,10 +242,14 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
     test "processes streaming response with tool calls", %{test_action: action} do
       stream_chunks = [
         %{content: "Let me check that for you."},
-        %{tool_calls: [%{
-          id: "stream_call",
-          function: %{name: "test_action", arguments: %{"message" => "streaming"}}
-        }]}
+        %{
+          tool_calls: [
+            %{
+              id: "stream_call",
+              function: %{name: "test_action", arguments: %{"message" => "streaming"}}
+            }
+          ]
+        }
       ]
 
       context = %{conversation_id: "conv_stream_tools", timeout: 30_000}
@@ -244,20 +265,23 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       expect(ResponseAggregator, :aggregate_response, fn response, ^context ->
         assert response.content == "Let me check that for you."
         assert length(response.tool_results) == 1
-        {:ok, %{
-          content: "Let me check that for you.",
-          tool_calls: [%{id: "stream_call"}],
-          tool_results: response.tool_results,
-          conversation_id: "conv_stream_tools",
-          finished: true
-        }}
+
+        {:ok,
+         %{
+           content: "Let me check that for you.",
+           tool_calls: [%{id: "stream_call"}],
+           tool_results: response.tool_results,
+           conversation_id: "conv_stream_tools",
+           finished: true
+         }}
       end)
 
-      assert {:ok, result} = ToolResponseHandler.process_streaming_response(
-        stream_chunks,
-        "conv_stream_tools",
-        %{timeout: 30_000}
-      )
+      assert {:ok, result} =
+               ToolResponseHandler.process_streaming_response(
+                 stream_chunks,
+                 "conv_stream_tools",
+                 %{timeout: 30_000}
+               )
 
       assert result.conversation_id == "conv_stream_tools"
     end
@@ -266,13 +290,18 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       # Simulate a stream that causes an error
       error_stream = [
         %{content: "This will fail"},
-        nil  # This will cause an error in processing
+        # This will cause an error in processing
+        nil
       ]
 
       context = %{conversation_id: "conv_stream_error"}
 
       assert {:error, {:streaming_processing_failed, _error}} =
-        ToolResponseHandler.process_streaming_response(error_stream, "conv_stream_error", %{})
+               ToolResponseHandler.process_streaming_response(
+                 error_stream,
+                 "conv_stream_error",
+                 %{}
+               )
     end
   end
 
@@ -304,6 +333,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
         case params do
           %{"message" => "first"} ->
             {:ok, %{response: "Hello first"}}
+
           %{"message" => "second"} ->
             {:ok, %{response: "Hello second"}}
         end
@@ -312,9 +342,10 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       assert {:ok, results} = ToolResponseHandler.execute_tool_calls(tool_calls, context)
 
       assert length(results) == 2
+
       assert Enum.all?(results, fn result ->
-        result.role == "tool" and result.name == "test_action"
-      end)
+               result.role == "tool" and result.name == "test_action"
+             end)
     end
 
     test "handles tool not found error" do
@@ -373,12 +404,13 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
 
     test "respects max_tool_calls limit" do
       # Create 10 tool calls but limit to 3
-      tool_calls = Enum.map(1..10, fn i ->
-        %{
-          id: "call_#{i}",
-          function: %{name: "test_action", arguments: %{"message" => "call #{i}"}}
-        }
-      end)
+      tool_calls =
+        Enum.map(1..10, fn i ->
+          %{
+            id: "call_#{i}",
+            function: %{name: "test_action", arguments: %{"message" => "call #{i}"}}
+          }
+        end)
 
       context = %{
         conversation_id: "conv_limit",
@@ -411,7 +443,8 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
 
       context = %{
         conversation_id: "conv_timeout",
-        timeout: 100,  # Very short timeout
+        # Very short timeout
+        timeout: 100,
         context: %{}
       }
 
@@ -457,18 +490,21 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
 
       expect(ResponseAggregator, :aggregate_response, fn response, ^context ->
         assert is_binary(response.content)
-        {:ok, %{
-          content: response.content,
-          conversation_id: "conv_mixed",
-          finished: true
-        }}
+
+        {:ok,
+         %{
+           content: response.content,
+           conversation_id: "conv_mixed",
+           finished: true
+         }}
       end)
 
-      assert {:ok, result} = ToolResponseHandler.process_llm_response(
-        mixed_response,
-        "conv_mixed",
-        %{}
-      )
+      assert {:ok, result} =
+               ToolResponseHandler.process_llm_response(
+                 mixed_response,
+                 "conv_mixed",
+                 %{}
+               )
 
       assert is_binary(result.content)
     end
@@ -476,7 +512,8 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
     test "handles malformed streaming chunks gracefully" do
       malformed_stream = [
         %{content: "Good chunk"},
-        %{malformed: true},  # Missing expected fields
+        # Missing expected fields
+        %{malformed: true},
         %{content: "Another good chunk"}
       ]
 
@@ -485,18 +522,21 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       expect(ResponseAggregator, :aggregate_response, fn response, ^context ->
         # Should still process the good chunks
         assert String.contains?(response.content, "Good chunk")
-        {:ok, %{
-          content: response.content,
-          conversation_id: "conv_malformed_stream",
-          finished: true
-        }}
+
+        {:ok,
+         %{
+           content: response.content,
+           conversation_id: "conv_malformed_stream",
+           finished: true
+         }}
       end)
 
-      assert {:ok, result} = ToolResponseHandler.process_streaming_response(
-        malformed_stream,
-        "conv_malformed_stream",
-        %{}
-      )
+      assert {:ok, result} =
+               ToolResponseHandler.process_streaming_response(
+                 malformed_stream,
+                 "conv_malformed_stream",
+                 %{}
+               )
 
       assert result.conversation_id == "conv_malformed_stream"
     end
@@ -505,12 +545,13 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
   describe "concurrent tool execution" do
     test "handles concurrent tool calls safely", %{test_action: action} do
       # Create multiple tool calls that should execute concurrently
-      tool_calls = Enum.map(1..5, fn i ->
-        %{
-          id: "concurrent_call_#{i}",
-          function: %{name: "test_action", arguments: %{"message" => "concurrent #{i}"}}
-        }
-      end)
+      tool_calls =
+        Enum.map(1..5, fn i ->
+          %{
+            id: "concurrent_call_#{i}",
+            function: %{name: "test_action", arguments: %{"message" => "concurrent #{i}"}}
+          }
+        end)
 
       context = %{
         conversation_id: "conv_concurrent",
@@ -541,9 +582,10 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       assert execution_time < 200
 
       assert length(results) == 5
+
       assert Enum.all?(results, fn result ->
-        String.contains?(result.content, "concurrent")
-      end)
+               String.contains?(result.content, "concurrent")
+             end)
     end
   end
 end

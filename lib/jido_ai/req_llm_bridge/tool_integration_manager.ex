@@ -49,24 +49,24 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManager do
   @type tool_choice :: :auto | :none | :required | {:function, String.t() | atom()}
 
   @type options :: %{
-    optional(:model) => String.t(),
-    optional(:temperature) => float(),
-    optional(:max_tokens) => pos_integer(),
-    optional(:tool_choice) => tool_choice(),
-    optional(:max_tool_calls) => pos_integer(),
-    optional(:stream) => boolean(),
-    optional(:timeout) => pos_integer(),
-    optional(:context) => map(),
-    optional(:conversation_id) => conversation_id()
-  }
+          optional(:model) => String.t(),
+          optional(:temperature) => float(),
+          optional(:max_tokens) => pos_integer(),
+          optional(:tool_choice) => tool_choice(),
+          optional(:max_tool_calls) => pos_integer(),
+          optional(:stream) => boolean(),
+          optional(:timeout) => pos_integer(),
+          optional(:context) => map(),
+          optional(:conversation_id) => conversation_id()
+        }
 
   @type response :: %{
-    content: String.t(),
-    tool_calls: list(map()),
-    usage: map(),
-    conversation_id: conversation_id(),
-    finished: boolean()
-  }
+          content: String.t(),
+          tool_calls: list(map()),
+          usage: map(),
+          conversation_id: conversation_id(),
+          finished: boolean()
+        }
 
   @doc """
   Generates a response using tools for a single message.
@@ -101,14 +101,13 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManager do
   def generate_with_tools(message, tools, options \\ %{}) do
     with {:ok, merged_options} <- validate_and_merge_options(options),
          {:ok, tool_descriptors} <- convert_tools_to_descriptors(tools, merged_options),
-         {:ok, conversation_id} <- ConversationManager.create_conversation(),
-         {:ok, response} <- execute_tool_enabled_request(
-           message,
-           tool_descriptors,
-           conversation_id,
-           merged_options
-         ) do
-      {:ok, response}
+         {:ok, conversation_id} <- ConversationManager.create_conversation() do
+      execute_tool_enabled_request(
+        message,
+        tool_descriptors,
+        conversation_id,
+        merged_options
+      )
     end
   end
 
@@ -179,12 +178,13 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManager do
          {:ok, merged_options} <- merge_conversation_options(conversation_options, options),
          {:ok, tool_descriptors} <- ConversationManager.get_tools(conversation_id),
          :ok <- ConversationManager.add_user_message(conversation_id, message),
-         {:ok, response} <- execute_tool_enabled_request(
-           message,
-           tool_descriptors,
-           conversation_id,
-           merged_options
-         ) do
+         {:ok, response} <-
+           execute_tool_enabled_request(
+             message,
+             tool_descriptors,
+             conversation_id,
+             merged_options
+           ) do
       :ok = ConversationManager.add_assistant_response(conversation_id, response)
       {:ok, response}
     end
@@ -267,7 +267,9 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManager do
   defp validate_tool_choice(_), do: {:error, "Invalid tool_choice format"}
 
   defp validate_max_tool_calls(calls) when is_integer(calls) and calls > 0, do: :ok
-  defp validate_max_tool_calls(_), do: {:error, "Invalid max_tool_calls: must be a positive integer"}
+
+  defp validate_max_tool_calls(_),
+    do: {:error, "Invalid max_tool_calls: must be a positive integer"}
 
   defp convert_tools_to_descriptors(tools, options) do
     context = Map.get(options, :context, %{})
@@ -306,7 +308,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManager do
   end
 
   defp execute_non_streaming_request(message, req_options, conversation_id, options) do
-    case ReqLlmBridge.generate_text(options.model, message, req_options) do
+    case ReqLLM.generate_text(options.model, message, req_options) do
       {:ok, llm_response} ->
         ToolResponseHandler.process_llm_response(
           llm_response,
@@ -322,7 +324,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManager do
   defp execute_streaming_request(message, req_options, conversation_id, options) do
     stream_options = Map.put(req_options, :stream, true)
 
-    case ReqLlmBridge.stream_text(options.model, message, stream_options) do
+    case ReqLLM.stream_text(options.model, message, stream_options) do
       {:ok, stream} ->
         ToolResponseHandler.process_streaming_response(
           stream,

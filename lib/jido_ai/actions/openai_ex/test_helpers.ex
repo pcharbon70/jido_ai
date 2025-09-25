@@ -127,7 +127,8 @@ defmodule Jido.AI.Actions.OpenaiEx.TestHelpers do
           do: [{:presence_penalty, Map.get(chat_req, :presence_penalty)} | opts],
           else: opts
 
-      opts = if Map.get(chat_req, :stop), do: [{:stop, Map.get(chat_req, :stop)} | opts], else: opts
+      opts =
+        if Map.get(chat_req, :stop), do: [{:stop, Map.get(chat_req, :stop)} | opts], else: opts
 
       opts =
         if Map.get(chat_req, :tools),

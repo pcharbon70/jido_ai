@@ -28,7 +28,9 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
   end
 
   describe "session data flow across all components" do
-    test "keyring -> session authentication -> authentication bridge -> provider requirements", %{keyring: keyring} do
+    test "keyring -> session authentication -> authentication bridge -> provider requirements", %{
+      keyring: keyring
+    } do
       # Set up initial session data
       SessionAuthentication.set_for_provider(:cloudflare, "cf-session-key")
 
@@ -51,7 +53,9 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       assert requirements.optional_keys == [:cloudflare_email, :cloudflare_account_id]
 
       # Test with optional parameters
-      required_headers = ProviderAuthRequirements.get_required_headers(:cloudflare, email: "test@example.com")
+      required_headers =
+        ProviderAuthRequirements.get_required_headers(:cloudflare, email: "test@example.com")
+
       assert required_headers["X-Auth-Email"] == "test@example.com"
     end
 
@@ -70,15 +74,19 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       end)
 
       # Session should take precedence everywhere
-      {:session_auth, session_opts} = SessionAuthentication.get_for_request(:openai, %{api_key: "request-override"})
+      {:session_auth, session_opts} =
+        SessionAuthentication.get_for_request(:openai, %{api_key: "request-override"})
+
       assert session_opts[:api_key] == "session-priority-key"
 
-      {:ok, auth_headers, auth_key} = Authentication.authenticate_for_provider(:openai, %{api_key: "request-override"})
+      {:ok, auth_headers, auth_key} =
+        Authentication.authenticate_for_provider(:openai, %{api_key: "request-override"})
+
       assert auth_key == "session-priority-key"
       assert auth_headers["authorization"] == "Bearer session-priority-key"
 
       # Provider requirements should work with session value
-      params = ProviderAuthRequirements.resolve_all_params(:openai, [api_key: "request-override"])
+      params = ProviderAuthRequirements.resolve_all_params(:openai, api_key: "request-override")
       assert params.openai_api_key == "session-priority-key"
     end
 
@@ -95,31 +103,34 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       end
 
       # Test concurrent access across all components
-      tasks = for {provider, expected_key} <- providers_and_keys do
-        Task.async(fn ->
-          # Session authentication
-          session_result = SessionAuthentication.get_for_request(provider, %{})
+      tasks =
+        for {provider, expected_key} <- providers_and_keys do
+          Task.async(fn ->
+            # Session authentication
+            session_result = SessionAuthentication.get_for_request(provider, %{})
 
-          # Authentication bridge
-          {:ok, auth_headers, auth_key} = Authentication.authenticate_for_provider(provider, %{})
+            # Authentication bridge
+            {:ok, auth_headers, auth_key} =
+              Authentication.authenticate_for_provider(provider, %{})
 
-          # Provider requirements
-          params = ProviderAuthRequirements.resolve_all_params(provider)
-          provider_key = params[:"#{provider}_api_key"]
+            # Provider requirements
+            params = ProviderAuthRequirements.resolve_all_params(provider)
+            provider_key = params[:"#{provider}_api_key"]
 
-          # Validation
-          validation_result = ProviderAuthRequirements.validate_auth(provider, expected_key)
+            # Validation
+            validation_result = ProviderAuthRequirements.validate_auth(provider, expected_key)
 
-          {provider, session_result, auth_key, provider_key, validation_result}
-        end)
-      end
+            {provider, session_result, auth_key, provider_key, validation_result}
+          end)
+        end
 
       # Collect all results
       results = Task.await_many(tasks, 5000)
 
       # Verify each provider maintained its isolation
-      for {{expected_provider, expected_key}, {actual_provider, session_result, auth_key, provider_key, validation_result}} <-
-          Enum.zip(providers_and_keys, results) do
+      for {{expected_provider, expected_key},
+           {actual_provider, session_result, auth_key, provider_key, validation_result}} <-
+            Enum.zip(providers_and_keys, results) do
         assert expected_provider == actual_provider
         assert {:session_auth, session_opts} = session_result
         assert session_opts[:api_key] == expected_key
@@ -136,39 +147,40 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       SessionAuthentication.set_for_provider(:openai, "transfer-sync-key")
       current_pid = self()
 
-      task = Task.async(fn ->
-        # Initially no authentication in child process
-        refute SessionAuthentication.has_session_auth?(:openai)
+      task =
+        Task.async(fn ->
+          # Initially no authentication in child process
+          refute SessionAuthentication.has_session_auth?(:openai)
 
-        # Mock external calls that would fail without session
-        expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
-          {:error, "No key available"}
+          # Mock external calls that would fail without session
+          expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+            {:error, "No key available"}
+          end)
+
+          stub(Keyring, :get_env_value, fn :default, :openai_api_key, nil ->
+            nil
+          end)
+
+          # Authentication should fail without session
+          {:error, _} = Authentication.authenticate_for_provider(:openai, %{})
+
+          # Transfer session from parent
+          transferred = SessionAuthentication.inherit_from(current_pid)
+          assert :openai in transferred
+
+          # Now all components should work
+          assert SessionAuthentication.has_session_auth?(:openai)
+          {:session_auth, session_opts} = SessionAuthentication.get_for_request(:openai, %{})
+          assert session_opts[:api_key] == "transfer-sync-key"
+
+          {:ok, auth_headers, auth_key} = Authentication.authenticate_for_provider(:openai, %{})
+          assert auth_key == "transfer-sync-key"
+
+          params = ProviderAuthRequirements.resolve_all_params(:openai)
+          assert params.openai_api_key == "transfer-sync-key"
+
+          :ok
         end)
-
-        stub(Keyring, :get_env_value, fn :default, :openai_api_key, nil ->
-          nil
-        end)
-
-        # Authentication should fail without session
-        {:error, _} = Authentication.authenticate_for_provider(:openai, %{})
-
-        # Transfer session from parent
-        transferred = SessionAuthentication.inherit_from(current_pid)
-        assert :openai in transferred
-
-        # Now all components should work
-        assert SessionAuthentication.has_session_auth?(:openai)
-        {:session_auth, session_opts} = SessionAuthentication.get_for_request(:openai, %{})
-        assert session_opts[:api_key] == "transfer-sync-key"
-
-        {:ok, auth_headers, auth_key} = Authentication.authenticate_for_provider(:openai, %{})
-        assert auth_key == "transfer-sync-key"
-
-        params = ProviderAuthRequirements.resolve_all_params(:openai)
-        assert params.openai_api_key == "transfer-sync-key"
-
-        :ok
-      end)
 
       assert Task.await(task) == :ok
     end
@@ -180,28 +192,29 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
 
       parent_pid = self()
 
-      task = Task.async(fn ->
-        # Set different authentication in child
-        SessionAuthentication.set_for_provider(:openai, "child-isolated-key")
-        SessionAuthentication.set_for_provider(:google, "child-google-key")
+      task =
+        Task.async(fn ->
+          # Set different authentication in child
+          SessionAuthentication.set_for_provider(:openai, "child-isolated-key")
+          SessionAuthentication.set_for_provider(:google, "child-google-key")
 
-        # Each process should see only its own values
-        {:session_auth, child_openai_opts} = SessionAuthentication.get_for_request(:openai, %{})
-        assert child_openai_opts[:api_key] == "child-isolated-key"
+          # Each process should see only its own values
+          {:session_auth, child_openai_opts} = SessionAuthentication.get_for_request(:openai, %{})
+          assert child_openai_opts[:api_key] == "child-isolated-key"
 
-        {:session_auth, child_google_opts} = SessionAuthentication.get_for_request(:google, %{})
-        assert child_google_opts[:api_key] == "child-google-key"
+          {:session_auth, child_google_opts} = SessionAuthentication.get_for_request(:google, %{})
+          assert child_google_opts[:api_key] == "child-google-key"
 
-        # Child should not see parent's anthropic key
-        assert {:no_session_auth} == SessionAuthentication.get_for_request(:anthropic, %{})
+          # Child should not see parent's anthropic key
+          assert {:no_session_auth} == SessionAuthentication.get_for_request(:anthropic, %{})
 
-        # Test authentication isolation
-        {:ok, child_headers, child_key} = Authentication.authenticate_for_provider(:openai, %{})
-        assert child_key == "child-isolated-key"
+          # Test authentication isolation
+          {:ok, child_headers, child_key} = Authentication.authenticate_for_provider(:openai, %{})
+          assert child_key == "child-isolated-key"
 
-        # Return child's view for verification
-        {child_key, SessionAuthentication.list_providers_with_auth()}
-      end)
+          # Return child's view for verification
+          {child_key, SessionAuthentication.list_providers_with_auth()}
+        end)
 
       {child_openai_key, child_providers} = Task.await(task)
 
@@ -215,7 +228,9 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       {:session_auth, parent_openai_opts} = SessionAuthentication.get_for_request(:openai, %{})
       assert parent_openai_opts[:api_key] == "parent-isolated-key"
 
-      {:session_auth, parent_anthropic_opts} = SessionAuthentication.get_for_request(:anthropic, %{})
+      {:session_auth, parent_anthropic_opts} =
+        SessionAuthentication.get_for_request(:anthropic, %{})
+
       assert parent_anthropic_opts[:api_key] == "parent-anthropic-key"
 
       parent_providers = SessionAuthentication.list_providers_with_auth()
@@ -239,41 +254,44 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
 
       current_pid = self()
 
-      task = Task.async(fn ->
-        # Inherit all authentication
-        inherited = SessionAuthentication.inherit_from(current_pid)
-        expected_providers = Enum.map(providers_and_keys, &elem(&1, 0))
+      task =
+        Task.async(fn ->
+          # Inherit all authentication
+          inherited = SessionAuthentication.inherit_from(current_pid)
+          expected_providers = Enum.map(providers_and_keys, &elem(&1, 0))
 
-        # Verify all providers were inherited
-        for expected_provider <- expected_providers do
-          assert expected_provider in inherited
-        end
+          # Verify all providers were inherited
+          for expected_provider <- expected_providers do
+            assert expected_provider in inherited
+          end
 
-        # Test that all components work with inherited values
-        component_results = for {provider, expected_key} <- providers_and_keys do
-          # Session authentication
-          {:session_auth, session_opts} = SessionAuthentication.get_for_request(provider, %{})
-          session_key = session_opts[:api_key]
+          # Test that all components work with inherited values
+          component_results =
+            for {provider, expected_key} <- providers_and_keys do
+              # Session authentication
+              {:session_auth, session_opts} = SessionAuthentication.get_for_request(provider, %{})
+              session_key = session_opts[:api_key]
 
-          # Authentication bridge
-          {:ok, auth_headers, auth_key} = Authentication.authenticate_for_provider(provider, %{})
+              # Authentication bridge
+              {:ok, auth_headers, auth_key} =
+                Authentication.authenticate_for_provider(provider, %{})
 
-          # Provider requirements
-          params = ProviderAuthRequirements.resolve_all_params(provider)
-          provider_key = params[:"#{provider}_api_key"]
+              # Provider requirements
+              params = ProviderAuthRequirements.resolve_all_params(provider)
+              provider_key = params[:"#{provider}_api_key"]
 
-          {provider, session_key, auth_key, provider_key, expected_key}
-        end
+              {provider, session_key, auth_key, provider_key, expected_key}
+            end
 
-        # Verify all components have consistent values
-        for {provider, session_key, auth_key, provider_key, expected_key} <- component_results do
-          assert session_key == expected_key, "Session key mismatch for #{provider}"
-          assert auth_key == expected_key, "Auth key mismatch for #{provider}"
-          assert provider_key == expected_key, "Provider key mismatch for #{provider}"
-        end
+          # Verify all components have consistent values
+          for {provider, session_key, auth_key, provider_key, expected_key} <- component_results do
+            assert session_key == expected_key, "Session key mismatch for #{provider}"
+            assert auth_key == expected_key, "Auth key mismatch for #{provider}"
+            assert provider_key == expected_key, "Provider key mismatch for #{provider}"
+          end
 
-        :all_consistent
-      end)
+          :all_consistent
+        end)
 
       assert Task.await(task) == :all_consistent
     end
@@ -342,7 +360,10 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
 
       # Anthropic should fall back to keyring
       SessionAuthentication.clear_for_provider(:anthropic)
-      {:ok, anthropic_headers, anthropic_key} = Authentication.authenticate_for_provider(:anthropic, %{})
+
+      {:ok, anthropic_headers, anthropic_key} =
+        Authentication.authenticate_for_provider(:anthropic, %{})
+
       assert anthropic_key == "anthropic-fallback-key"
       assert anthropic_headers["x-api-key"] == "anthropic-fallback-key"
     end
@@ -396,23 +417,25 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       end
 
       # Spawn multiple tasks that will cleanup concurrently
-      cleanup_tasks = for i <- 1..5 do
-        Task.async(fn ->
-          :timer.sleep(Enum.random(1..10))  # Random delay
+      cleanup_tasks =
+        for i <- 1..5 do
+          Task.async(fn ->
+            # Random delay
+            :timer.sleep(Enum.random(1..10))
 
-          if rem(i, 2) == 0 do
-            # Even tasks clear all
-            SessionAuthentication.clear_all()
-          else
-            # Odd tasks clear individual providers
-            for provider <- providers do
-              SessionAuthentication.clear_for_provider(provider)
+            if rem(i, 2) == 0 do
+              # Even tasks clear all
+              SessionAuthentication.clear_all()
+            else
+              # Odd tasks clear individual providers
+              for provider <- providers do
+                SessionAuthentication.clear_for_provider(provider)
+              end
             end
-          end
 
-          :cleaned
-        end)
-      end
+            :cleaned
+          end)
+        end
 
       # Wait for all cleanup tasks
       Task.await_many(cleanup_tasks, 5000)

@@ -98,16 +98,16 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
       iex> error.type
       "validation_error"
   """
-  @spec execute_tool(module(), map(), execution_context(), execution_timeout()) :: execution_result()
+  @spec execute_tool(module(), map(), execution_context(), execution_timeout()) ::
+          execution_result()
   def execute_tool(action_module, params, context \\ %{}, timeout \\ @default_timeout)
       when is_atom(action_module) and is_map(params) and is_map(context) and is_integer(timeout) do
-
     start_time = System.monotonic_time(:millisecond)
 
     with {:ok, validated_params} <- validate_and_convert_params(params, action_module),
-         {:ok, execution_result} <- execute_action_safely(action_module, validated_params, context, timeout),
+         {:ok, execution_result} <-
+           execute_action_safely(action_module, validated_params, context, timeout),
          {:ok, serializable_result} <- ensure_json_serializable(execution_result) do
-
       log_execution_success(action_module, start_time)
       {:ok, serializable_result}
     else
@@ -123,6 +123,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
           details: inspect(unexpected),
           action_module: action_module
         }
+
         log_execution_failure(action_module, error, start_time)
         {:error, ErrorHandler.format_error(error)}
     end
@@ -130,12 +131,14 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
     # Convert exceptions to error tuples
     exception ->
       execution_start_time = System.monotonic_time(:millisecond)
+
       error = %{
         type: "exception",
         message: Exception.message(exception),
         action_module: action_module,
         stacktrace: Exception.format_stacktrace(__STACKTRACE__)
       }
+
       log_execution_exception(action_module, exception, execution_start_time)
       {:error, ErrorHandler.format_error(error)}
   end
@@ -165,8 +168,14 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
       iex> is_map(result)
       true
   """
-  @spec execute_with_circuit_breaker(module(), map(), execution_context(), execution_timeout()) :: execution_result()
-  def execute_with_circuit_breaker(action_module, params, context \\ %{}, timeout \\ @default_timeout) do
+  @spec execute_with_circuit_breaker(module(), map(), execution_context(), execution_timeout()) ::
+          execution_result()
+  def execute_with_circuit_breaker(
+        action_module,
+        params,
+        context \\ %{},
+        timeout \\ @default_timeout
+      ) do
     case check_circuit_breaker_status(action_module) do
       :closed ->
         case execute_tool(action_module, params, context, timeout) do
@@ -178,34 +187,26 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
             record_circuit_breaker_failure(action_module)
             error
         end
-
-      :open ->
-        {:error, %{
-          type: "circuit_breaker_open",
-          message: "Tool temporarily unavailable due to repeated failures",
-          action_module: action_module
-        }}
-
-      :half_open ->
-        # Allow one request through to test if the service has recovered
-        execute_tool(action_module, params, context, timeout)
     end
   end
 
   # Private helper functions
 
   defp validate_and_convert_params(params, action_module) do
-    with {:ok, converted_params} <- ParameterConverter.convert_to_jido_format(params, action_module),
-         {:ok, validated_params} <- validate_params_against_schema(converted_params, action_module) do
+    with {:ok, converted_params} <-
+           ParameterConverter.convert_to_jido_format(params, action_module),
+         {:ok, validated_params} <-
+           validate_params_against_schema(converted_params, action_module) do
       {:ok, validated_params}
     else
       {:error, reason} ->
-        {:error, %{
-          type: "parameter_validation_error",
-          message: "Parameter validation failed",
-          details: reason,
-          action_module: action_module
-        }}
+        {:error,
+         %{
+           type: "parameter_validation_error",
+           message: "Parameter validation failed",
+           details: reason,
+           action_module: action_module
+         }}
     end
   end
 
@@ -217,57 +218,63 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
       end
     rescue
       error ->
-        {:error, %{
-          type: "schema_validation_error",
-          message: "Schema validation failed",
-          details: Exception.message(error)
-        }}
+        {:error,
+         %{
+           type: "schema_validation_error",
+           message: "Schema validation failed",
+           details: Exception.message(error)
+         }}
     end
   end
 
   defp execute_action_safely(action_module, params, context, timeout) do
     # Use Task.async with timeout for safe execution
-    task = Task.async(fn ->
-      try do
-        action_module.run(params, context)
-      rescue
-        error ->
-          {:error, %{
-            type: "action_execution_error",
-            message: Exception.message(error),
-            details: Exception.format_stacktrace(__STACKTRACE__)
-          }}
-      end
-    end)
+    task =
+      Task.async(fn ->
+        try do
+          action_module.run(params, context)
+        rescue
+          error ->
+            {:error,
+             %{
+               type: "action_execution_error",
+               message: Exception.message(error),
+               details: Exception.format_stacktrace(__STACKTRACE__)
+             }}
+        end
+      end)
 
     case Task.yield(task, timeout) || Task.shutdown(task) do
       {:ok, {:ok, result}} ->
         {:ok, result}
 
       {:ok, {:error, reason}} ->
-        {:error, %{
-          type: "action_error",
-          message: "Action execution failed",
-          details: reason
-        }}
+        {:error,
+         %{
+           type: "action_error",
+           message: "Action execution failed",
+           details: reason
+         }}
 
       {:ok, result} ->
         # Handle actions that don't return {:ok, result} tuples
         {:ok, result}
 
       nil ->
-        {:error, %{
-          type: "execution_timeout",
-          message: "Action execution timed out",
-          timeout: timeout
-        }}
+        {:error,
+         %{
+           type: "execution_timeout",
+           message: "Action execution timed out",
+           timeout: timeout
+         }}
 
       {:exit, reason} ->
-        {:error, %{
-          type: "execution_exit",
-          message: "Action process exited",
-          details: reason
-        }}
+        {:error,
+         %{
+           type: "execution_exit",
+           message: "Action process exited",
+           details: reason
+         }}
     end
   end
 
@@ -281,6 +288,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
         {:error, _reason} ->
           # Attempt to sanitize the data
           sanitized_data = sanitize_for_json(data)
+
           case Jason.encode(sanitized_data) do
             {:ok, _json} ->
               {:ok, sanitized_data}
@@ -292,11 +300,12 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
       end
     rescue
       error ->
-        {:error, %{
-          type: "serialization_error",
-          message: "Failed to ensure JSON serialization",
-          details: Exception.message(error)
-        }}
+        {:error,
+         %{
+           type: "serialization_error",
+           message: "Failed to ensure JSON serialization",
+           details: Exception.message(error)
+         }}
     end
   end
 
@@ -340,6 +349,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
   defp log_execution_success(action_module, start_time) do
     if Application.get_env(:jido_ai, :enable_req_llm_logging, false) do
       duration = System.monotonic_time(:millisecond) - start_time
+
       Logger.debug("Tool execution successful",
         action_module: action_module,
         duration_ms: duration
@@ -350,6 +360,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
   defp log_execution_failure(action_module, reason, start_time) do
     if Application.get_env(:jido_ai, :enable_req_llm_logging, false) do
       duration = System.monotonic_time(:millisecond) - start_time
+
       Logger.warning("Tool execution failed",
         action_module: action_module,
         reason: reason,
@@ -361,6 +372,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
   defp log_execution_exception(action_module, exception, start_time) do
     if Application.get_env(:jido_ai, :enable_req_llm_logging, false) do
       duration = System.monotonic_time(:millisecond) - start_time
+
       Logger.error("Tool execution exception: #{Exception.message(exception)}",
         action_module: action_module,
         exception: exception,

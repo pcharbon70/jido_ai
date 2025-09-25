@@ -23,12 +23,13 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutorTest do
 
       @impl true
       def run(params, _context) do
-        {:ok, %{
-          message: "Hello #{params.name}",
-          count: params.count,
-          enabled: params.enabled,
-          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-        }}
+        {:ok,
+         %{
+           message: "Hello #{params.name}",
+           count: params.count,
+           enabled: params.enabled,
+           timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+         }}
       end
     end
 
@@ -87,13 +88,14 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutorTest do
       end
     end
 
-    {:ok, %{
-      test_action: TestAction,
-      slow_action: SlowAction,
-      failing_action: FailingAction,
-      exception_action: ExceptionAction,
-      non_serializable_action: NonSerializableAction
-    }}
+    {:ok,
+     %{
+       test_action: TestAction,
+       slow_action: SlowAction,
+       failing_action: FailingAction,
+       exception_action: ExceptionAction,
+       non_serializable_action: NonSerializableAction
+     }}
   end
 
   describe "create_callback/2" do
@@ -175,8 +177,10 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutorTest do
     end
 
     test "handles execution timeout", %{slow_action: action} do
-      params = %{"delay" => "5000"}  # 5 seconds
-      timeout = 100  # 100ms timeout
+      # 5 seconds
+      params = %{"delay" => "5000"}
+      # 100ms timeout
+      timeout = 100
 
       assert {:error, error} = ToolExecutor.execute_tool(action, params, %{}, timeout)
       assert error.type == "execution_timeout"
@@ -194,7 +198,8 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutorTest do
 
     test "respects custom timeout", %{slow_action: action} do
       params = %{"delay" => "200"}
-      timeout = 300  # Should complete within this timeout
+      # Should complete within this timeout
+      timeout = 300
 
       assert {:ok, result} = ToolExecutor.execute_tool(action, params, %{}, timeout)
       assert result.completed == true
@@ -246,18 +251,23 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutorTest do
     end
 
     test "applies default values for missing optional parameters", %{test_action: action} do
-      params = %{"name" => "test"}  # count and enabled should get defaults
+      # count and enabled should get defaults
+      params = %{"name" => "test"}
 
       assert {:ok, result} = ToolExecutor.execute_tool(action, params, %{})
-      assert result.count == 1  # default value
-      assert result.enabled == false  # default value
+      # default value
+      assert result.count == 1
+      # default value
+      assert result.enabled == false
     end
 
     test "handles mixed parameter formats", %{test_action: action} do
       params = %{
         "name" => "test",
-        "count" => 5,  # already an integer
-        "enabled" => true  # already a boolean
+        # already an integer
+        "count" => 5,
+        # already a boolean
+        "enabled" => true
       }
 
       assert {:ok, result} = ToolExecutor.execute_tool(action, params, %{})
@@ -307,7 +317,11 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutorTest do
 
       # All executions should succeed
       assert length(results) == 10
-      assert Enum.all?(results, fn {:ok, _} -> true; _ -> false end)
+
+      assert Enum.all?(results, fn
+               {:ok, _} -> true
+               _ -> false
+             end)
 
       # Results should have correct user names
       names = Enum.map(results, fn {:ok, result} -> result.message end)

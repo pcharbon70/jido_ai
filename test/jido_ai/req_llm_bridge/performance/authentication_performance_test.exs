@@ -39,12 +39,13 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       end)
 
       # Benchmark authentication header generation
-      {elapsed_microseconds, results} = :timer.tc(fn ->
-        for _i <- 1..50 do
-          {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
-          {headers, key}
-        end
-      end)
+      {elapsed_microseconds, results} =
+        :timer.tc(fn ->
+          for _i <- 1..50 do
+            {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+            {headers, key}
+          end
+        end)
 
       # Convert to milliseconds
       elapsed_ms = elapsed_microseconds / 1000
@@ -58,9 +59,11 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
 
       # Performance requirement: average < 5ms per authentication
       assert average_ms_per_call < 5.0,
-        "Authentication too slow: #{average_ms_per_call}ms per call (should be < 5ms)"
+             "Authentication too slow: #{average_ms_per_call}ms per call (should be < 5ms)"
 
-      IO.puts("Authentication performance: #{average_ms_per_call}ms per call (#{length(results)} calls)")
+      IO.puts(
+        "Authentication performance: #{average_ms_per_call}ms per call (#{length(results)} calls)"
+      )
     end
 
     test "provider requirement validation under 5ms per validation", %{keyring: keyring} do
@@ -75,23 +78,27 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
 
       total_validations = 0
 
-      {elapsed_microseconds, validation_results} = :timer.tc(fn ->
-        for {provider, key} <- test_cases do
-          # Test each provider multiple times
-          results = for _i <- 1..20 do
-            case ProviderAuthRequirements.validate_auth(provider, key) do
-              :ok -> :valid
-              {:error, _} -> :invalid
-            end
+      {elapsed_microseconds, validation_results} =
+        :timer.tc(fn ->
+          for {provider, key} <- test_cases do
+            # Test each provider multiple times
+            results =
+              for _i <- 1..20 do
+                case ProviderAuthRequirements.validate_auth(provider, key) do
+                  :ok -> :valid
+                  {:error, _} -> :invalid
+                end
+              end
+
+            {provider, results}
           end
-          {provider, results}
-        end
-      end)
+        end)
 
       # Count total validations
-      total_validations = Enum.reduce(validation_results, 0, fn {_provider, results}, acc ->
-        acc + length(results)
-      end)
+      total_validations =
+        Enum.reduce(validation_results, 0, fn {_provider, results}, acc ->
+          acc + length(results)
+        end)
 
       elapsed_ms = elapsed_microseconds / 1000
       average_ms_per_validation = elapsed_ms / total_validations
@@ -104,9 +111,11 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       end
 
       assert average_ms_per_validation < 5.0,
-        "Validation too slow: #{average_ms_per_validation}ms per validation (should be < 5ms)"
+             "Validation too slow: #{average_ms_per_validation}ms per validation (should be < 5ms)"
 
-      IO.puts("Validation performance: #{average_ms_per_validation}ms per validation (#{total_validations} validations)")
+      IO.puts(
+        "Validation performance: #{average_ms_per_validation}ms per validation (#{total_validations} validations)"
+      )
     end
 
     test "keyring session resolution under 10ms", %{keyring: keyring} do
@@ -118,17 +127,20 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       end
 
       # Benchmark session resolution across providers
-      {elapsed_microseconds, session_results} = :timer.tc(fn ->
-        for provider <- providers do
-          results = for _i <- 1..20 do
-            case SessionAuthentication.get_for_request(provider, %{}) do
-              {:session_auth, options} -> options[:api_key]
-              {:no_session_auth} -> nil
-            end
+      {elapsed_microseconds, session_results} =
+        :timer.tc(fn ->
+          for provider <- providers do
+            results =
+              for _i <- 1..20 do
+                case SessionAuthentication.get_for_request(provider, %{}) do
+                  {:session_auth, options} -> options[:api_key]
+                  {:no_session_auth} -> nil
+                end
+              end
+
+            {provider, results}
           end
-          {provider, results}
-        end
-      end)
+        end)
 
       total_resolutions = length(providers) * 20
       elapsed_ms = elapsed_microseconds / 1000
@@ -137,29 +149,36 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       # All resolutions should return the correct keys
       for {provider, results} <- session_results do
         expected_key = "#{provider}-test-key"
+
         for result <- results do
-          assert result == expected_key, "Wrong key for #{provider}: got #{result}, expected #{expected_key}"
+          assert result == expected_key,
+                 "Wrong key for #{provider}: got #{result}, expected #{expected_key}"
         end
       end
 
       assert average_ms_per_resolution < 10.0,
-        "Session resolution too slow: #{average_ms_per_resolution}ms per resolution (should be < 10ms)"
+             "Session resolution too slow: #{average_ms_per_resolution}ms per resolution (should be < 10ms)"
 
-      IO.puts("Session resolution performance: #{average_ms_per_resolution}ms per resolution (#{total_resolutions} resolutions)")
+      IO.puts(
+        "Session resolution performance: #{average_ms_per_resolution}ms per resolution (#{total_resolutions} resolutions)"
+      )
     end
 
     test "provider requirements lookup performance", %{keyring: keyring} do
       providers = [:openai, :anthropic, :google, :cloudflare, :openrouter, :unknown_provider]
 
-      {elapsed_microseconds, requirement_results} = :timer.tc(fn ->
-        for provider <- providers do
-          results = for _i <- 1..50 do
-            requirements = ProviderAuthRequirements.get_requirements(provider)
-            {provider, requirements.required_keys, requirements.header_format}
+      {elapsed_microseconds, requirement_results} =
+        :timer.tc(fn ->
+          for provider <- providers do
+            results =
+              for _i <- 1..50 do
+                requirements = ProviderAuthRequirements.get_requirements(provider)
+                {provider, requirements.required_keys, requirements.header_format}
+              end
+
+            {provider, results}
           end
-          {provider, results}
-        end
-      end)
+        end)
 
       total_lookups = length(providers) * 50
       elapsed_ms = elapsed_microseconds / 1000
@@ -169,15 +188,18 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       for {provider, results} <- requirement_results do
         # All results for a provider should be identical
         [first_result | rest] = results
+
         for result <- rest do
           assert result == first_result, "Inconsistent requirements for #{provider}"
         end
       end
 
       assert average_ms_per_lookup < 1.0,
-        "Requirements lookup too slow: #{average_ms_per_lookup}ms per lookup (should be < 1ms)"
+             "Requirements lookup too slow: #{average_ms_per_lookup}ms per lookup (should be < 1ms)"
 
-      IO.puts("Requirements lookup performance: #{average_ms_per_lookup}ms per lookup (#{total_lookups} lookups)")
+      IO.puts(
+        "Requirements lookup performance: #{average_ms_per_lookup}ms per lookup (#{total_lookups} lookups)"
+      )
     end
 
     test "end-to-end authentication flow performance", %{keyring: keyring} do
@@ -194,24 +216,30 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       end)
 
       test_scenarios = [
-        {:openai, "session"},      # Session authentication
-        {:anthropic, "reqllm"},    # ReqLLM fallback
-        {:google, "keyring"}       # Keyring fallback
+        # Session authentication
+        {:openai, "session"},
+        # ReqLLM fallback
+        {:anthropic, "reqllm"},
+        # Keyring fallback
+        {:google, "keyring"}
       ]
 
-      {elapsed_microseconds, e2e_results} = :timer.tc(fn ->
-        for {provider, expected_source} <- test_scenarios do
-          results = for _i <- 1..25 do
-            # Complete flow: authenticate -> get headers -> validate
-            {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
-            retrieved_headers = Authentication.get_authentication_headers(provider, %{})
-            validation_result = Authentication.validate_authentication(provider, %{})
+      {elapsed_microseconds, e2e_results} =
+        :timer.tc(fn ->
+          for {provider, expected_source} <- test_scenarios do
+            results =
+              for _i <- 1..25 do
+                # Complete flow: authenticate -> get headers -> validate
+                {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
+                retrieved_headers = Authentication.get_authentication_headers(provider, %{})
+                validation_result = Authentication.validate_authentication(provider, %{})
 
-            {key, headers, retrieved_headers, validation_result}
+                {key, headers, retrieved_headers, validation_result}
+              end
+
+            {provider, expected_source, results}
           end
-          {provider, expected_source, results}
-        end
-      end)
+        end)
 
       total_flows = length(test_scenarios) * 25
       elapsed_ms = elapsed_microseconds / 1000
@@ -228,9 +256,11 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       end
 
       assert average_ms_per_flow < 15.0,
-        "End-to-end flow too slow: #{average_ms_per_flow}ms per flow (should be < 15ms)"
+             "End-to-end flow too slow: #{average_ms_per_flow}ms per flow (should be < 15ms)"
 
-      IO.puts("End-to-end flow performance: #{average_ms_per_flow}ms per flow (#{total_flows} flows)")
+      IO.puts(
+        "End-to-end flow performance: #{average_ms_per_flow}ms per flow (#{total_flows} flows)"
+      )
     end
   end
 
@@ -247,21 +277,28 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       num_concurrent_tasks = 10
       operations_per_task = 20
 
-      {elapsed_microseconds, concurrent_results} = :timer.tc(fn ->
-        tasks = for task_id <- 1..num_concurrent_tasks do
-          Task.async(fn ->
-            for provider <- providers do
-              results = for _i <- 1..operations_per_task do
-                {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
-                {provider, key, headers}
-              end
-              {task_id, provider, results}
-            end
-          end)
-        end
+      {elapsed_microseconds, concurrent_results} =
+        :timer.tc(fn ->
+          tasks =
+            for task_id <- 1..num_concurrent_tasks do
+              Task.async(fn ->
+                for provider <- providers do
+                  results =
+                    for _i <- 1..operations_per_task do
+                      {:ok, headers, key} =
+                        Authentication.authenticate_for_provider(provider, %{})
 
-        Task.await_many(tasks, 30_000)  # 30 second timeout
-      end)
+                      {provider, key, headers}
+                    end
+
+                  {task_id, provider, results}
+                end
+              end)
+            end
+
+          # 30 second timeout
+          Task.await_many(tasks, 30_000)
+        end)
 
       total_operations = num_concurrent_tasks * length(providers) * operations_per_task
       elapsed_ms = elapsed_microseconds / 1000
@@ -271,6 +308,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       for task_results <- concurrent_results do
         for {task_id, provider, results} <- task_results do
           expected_key = "#{provider}-concurrent-key"
+
           for {result_provider, key, headers} <- results do
             assert result_provider == provider, "Provider mismatch in task #{task_id}"
             assert key == expected_key, "Wrong key for #{provider} in task #{task_id}"
@@ -281,9 +319,11 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
 
       # Concurrent performance should not degrade significantly
       assert average_ms_per_operation < 20.0,
-        "Concurrent operations too slow: #{average_ms_per_operation}ms per operation (should be < 20ms)"
+             "Concurrent operations too slow: #{average_ms_per_operation}ms per operation (should be < 20ms)"
 
-      IO.puts("Concurrent authentication performance: #{average_ms_per_operation}ms per operation (#{total_operations} concurrent operations)")
+      IO.puts(
+        "Concurrent authentication performance: #{average_ms_per_operation}ms per operation (#{total_operations} concurrent operations)"
+      )
     end
 
     test "high-frequency authentication requests maintain stability", %{keyring: keyring} do
@@ -295,26 +335,28 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       requests_per_burst = 100
       burst_interval_ms = 10
 
-      {elapsed_microseconds, burst_results} = :timer.tc(fn ->
-        for burst <- 1..num_bursts do
-          # Create burst of concurrent requests
-          tasks = for _request <- 1..requests_per_burst do
-            Task.async(fn ->
-              {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
-              {key, headers}
-            end)
+      {elapsed_microseconds, burst_results} =
+        :timer.tc(fn ->
+          for burst <- 1..num_bursts do
+            # Create burst of concurrent requests
+            tasks =
+              for _request <- 1..requests_per_burst do
+                Task.async(fn ->
+                  {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+                  {key, headers}
+                end)
+              end
+
+            burst_results = Task.await_many(tasks, 10_000)
+
+            # Brief pause between bursts
+            if burst < num_bursts do
+              :timer.sleep(burst_interval_ms)
+            end
+
+            {burst, burst_results}
           end
-
-          burst_results = Task.await_many(tasks, 10_000)
-
-          # Brief pause between bursts
-          if burst < num_bursts do
-            :timer.sleep(burst_interval_ms)
-          end
-
-          {burst, burst_results}
-        end
-      end)
+        end)
 
       total_requests = num_bursts * requests_per_burst
       elapsed_ms = elapsed_microseconds / 1000
@@ -324,14 +366,18 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       for {burst_num, results} <- burst_results do
         for {key, headers} <- results do
           assert key == "sk-high-freq-test", "Wrong key in burst #{burst_num}"
-          assert headers["authorization"] == "Bearer sk-high-freq-test", "Wrong headers in burst #{burst_num}"
+
+          assert headers["authorization"] == "Bearer sk-high-freq-test",
+                 "Wrong headers in burst #{burst_num}"
         end
       end
 
       assert average_ms_per_request < 25.0,
-        "High-frequency requests too slow: #{average_ms_per_request}ms per request (should be < 25ms)"
+             "High-frequency requests too slow: #{average_ms_per_request}ms per request (should be < 25ms)"
 
-      IO.puts("High-frequency request performance: #{average_ms_per_request}ms per request (#{total_requests} requests in #{num_bursts} bursts)")
+      IO.puts(
+        "High-frequency request performance: #{average_ms_per_request}ms per request (#{total_requests} requests in #{num_bursts} bursts)"
+      )
     end
   end
 
@@ -366,10 +412,13 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       memory_per_operation = memory_increase / num_operations
 
       # Memory usage should not grow significantly
-      assert memory_per_operation < 100,  # bytes per operation
-        "Memory leak detected: #{memory_per_operation} bytes per operation (should be < 100 bytes)"
+      # bytes per operation
+      assert memory_per_operation < 100,
+             "Memory leak detected: #{memory_per_operation} bytes per operation (should be < 100 bytes)"
 
-      IO.puts("Memory usage: #{memory_increase} bytes total increase (#{memory_per_operation} bytes per operation)")
+      IO.puts(
+        "Memory usage: #{memory_increase} bytes total increase (#{memory_per_operation} bytes per operation)"
+      )
     end
 
     test "session cleanup properly frees resources", %{keyring: keyring} do
@@ -391,14 +440,17 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       # Verify providers are set
       total_expected_providers = length(providers) * keys_per_provider
       all_providers = SessionAuthentication.list_providers_with_auth()
-      assert length(all_providers) <= total_expected_providers  # May be less due to filtering
+      # May be less due to filtering
+      assert length(all_providers) <= total_expected_providers
 
       # Clear all authentication
       SessionAuthentication.clear_all()
 
       # Verify cleanup
       remaining_providers = SessionAuthentication.list_providers_with_auth()
-      assert length(remaining_providers) == 0, "Session cleanup incomplete: #{length(remaining_providers)} providers remain"
+
+      assert length(remaining_providers) == 0,
+             "Session cleanup incomplete: #{length(remaining_providers)} providers remain"
 
       # Check memory after cleanup
       :erlang.garbage_collect()
@@ -406,13 +458,16 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
 
       # Memory should be released (allowing some overhead)
       memory_released = memory_after_setup - memory_after_cleanup
-      cleanup_ratio = memory_released / (memory_after_setup - memory_after_cleanup + 1)  # Avoid division by zero
+      # Avoid division by zero
+      cleanup_ratio = memory_released / (memory_after_setup - memory_after_cleanup + 1)
 
       # Should release most of the allocated memory (at least 50%)
       assert memory_released >= 0,
-        "Memory not released after cleanup: #{memory_released} bytes"
+             "Memory not released after cleanup: #{memory_released} bytes"
 
-      IO.puts("Resource cleanup: #{memory_released} bytes released (setup: #{memory_after_setup}, cleanup: #{memory_after_cleanup})")
+      IO.puts(
+        "Resource cleanup: #{memory_released} bytes released (setup: #{memory_after_setup}, cleanup: #{memory_after_cleanup})"
+      )
     end
   end
 end

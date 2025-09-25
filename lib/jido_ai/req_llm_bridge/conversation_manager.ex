@@ -45,8 +45,6 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
   use GenServer
   require Logger
 
-  alias Jido.AI.ReqLlmBridge.ErrorHandler
-
   @table_name :req_llm_conversations
   @cleanup_interval :timer.minutes(30)
   @conversation_ttl :timer.hours(24)
@@ -251,11 +249,13 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
   @spec add_assistant_response(conversation_id(), map(), map()) :: :ok | {:error, term()}
   def add_assistant_response(conversation_id, response, metadata \\ %{}) do
     content = extract_response_content(response)
-    enhanced_metadata = Map.merge(metadata, %{
-      tool_calls: Map.get(response, :tool_calls, []),
-      usage: Map.get(response, :usage, %{}),
-      model: Map.get(response, :model)
-    })
+
+    enhanced_metadata =
+      Map.merge(metadata, %{
+        tool_calls: Map.get(response, :tool_calls, []),
+        usage: Map.get(response, :usage, %{}),
+        model: Map.get(response, :model)
+      })
 
     message = create_message("assistant", content, enhanced_metadata)
     GenServer.call(__MODULE__, {:add_message, conversation_id, message})
@@ -282,16 +282,19 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
   """
   @spec add_tool_results(conversation_id(), [map()], map()) :: :ok | {:error, term()}
   def add_tool_results(conversation_id, tool_results, metadata \\ %{}) do
-    messages = Enum.map(tool_results, fn result ->
-      content = Map.get(result, :content, "")
-      tool_metadata = Map.merge(metadata, %{
-        tool_call_id: Map.get(result, :tool_call_id),
-        tool_name: Map.get(result, :name),
-        error: Map.get(result, :error, false)
-      })
+    messages =
+      Enum.map(tool_results, fn result ->
+        content = Map.get(result, :content, "")
 
-      create_message("tool", content, tool_metadata)
-    end)
+        tool_metadata =
+          Map.merge(metadata, %{
+            tool_call_id: Map.get(result, :tool_call_id),
+            tool_name: Map.get(result, :name),
+            error: Map.get(result, :error, false)
+          })
+
+        create_message("tool", content, tool_metadata)
+      end)
 
     GenServer.call(__MODULE__, {:add_messages, conversation_id, messages})
   end
@@ -397,11 +400,12 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
 
     Logger.info("ConversationManager started with cleanup interval #{@cleanup_interval}ms")
 
-    {:ok, %{
-      table: @table_name,
-      cleanup_interval: @cleanup_interval,
-      conversation_ttl: @conversation_ttl
-    }}
+    {:ok,
+     %{
+       table: @table_name,
+       cleanup_interval: @cleanup_interval,
+       conversation_ttl: @conversation_ttl
+     }}
   end
 
   @impl true
@@ -481,16 +485,17 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
   def handle_call({:add_message, conversation_id, message}, _from, state) do
     case update_conversation(conversation_id, fn data ->
            updated_messages = data.messages ++ [message]
+
            updated_metadata = %{
-             data.metadata |
-             message_count: data.metadata.message_count + 1
+             data.metadata
+             | message_count: data.metadata.message_count + 1
            }
 
            %{
-             data |
-             messages: updated_messages,
-             metadata: updated_metadata,
-             last_activity: DateTime.utc_now()
+             data
+             | messages: updated_messages,
+               metadata: updated_metadata,
+               last_activity: DateTime.utc_now()
            }
          end) do
       :ok -> {:reply, :ok, state}
@@ -502,16 +507,17 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
   def handle_call({:add_messages, conversation_id, messages}, _from, state) do
     case update_conversation(conversation_id, fn data ->
            updated_messages = data.messages ++ messages
+
            updated_metadata = %{
-             data.metadata |
-             message_count: data.metadata.message_count + length(messages)
+             data.metadata
+             | message_count: data.metadata.message_count + length(messages)
            }
 
            %{
-             data |
-             messages: updated_messages,
-             metadata: updated_metadata,
-             last_activity: DateTime.utc_now()
+             data
+             | messages: updated_messages,
+               metadata: updated_metadata,
+               last_activity: DateTime.utc_now()
            }
          end) do
       :ok -> {:reply, :ok, state}
@@ -531,12 +537,13 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
   def handle_call({:get_metadata, conversation_id}, _from, state) do
     case :ets.lookup(@table_name, conversation_id) do
       [{^conversation_id, data}] ->
-        metadata = Map.merge(data.metadata, %{
-          id: data.id,
-          created_at: data.created_at,
-          last_activity: data.last_activity,
-          tool_count: length(data.tools)
-        })
+        metadata =
+          Map.merge(data.metadata, %{
+            id: data.id,
+            created_at: data.created_at,
+            last_activity: data.last_activity,
+            tool_count: length(data.tools)
+          })
 
         {:reply, {:ok, metadata}, state}
 
@@ -588,13 +595,14 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
 
     cond do
       is_list(content) ->
-        content
-        |> Enum.map(&extract_content_part/1)
-        |> Enum.join("")
+        Enum.map_join(content, "", &extract_content_part/1)
+
       is_binary(content) ->
         content
+
       is_map(content) ->
         inspect(content)
+
       true ->
         to_string(content)
     end
@@ -632,13 +640,17 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
     cutoff_time = DateTime.add(DateTime.utc_now(), -ttl, :millisecond)
 
     expired_conversations =
-      :ets.foldl(fn {id, data}, acc ->
-        if DateTime.compare(data.last_activity, cutoff_time) == :lt do
-          [id | acc]
-        else
-          acc
-        end
-      end, [], @table_name)
+      :ets.foldl(
+        fn {id, data}, acc ->
+          if DateTime.compare(data.last_activity, cutoff_time) == :lt do
+            [id | acc]
+          else
+            acc
+          end
+        end,
+        [],
+        @table_name
+      )
 
     Enum.each(expired_conversations, fn id ->
       :ets.delete(@table_name, id)

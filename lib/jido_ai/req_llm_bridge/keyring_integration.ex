@@ -102,7 +102,6 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegration do
   @spec get(GenServer.server(), atom(), term(), pid(), map()) :: term()
   def get(server \\ Keyring, key, default \\ nil, pid \\ self(), req_options \\ %{})
       when is_atom(key) do
-
     # Step 1: Check Jido session values first (highest precedence)
     case Keyring.get_session_value(server, key, pid) do
       nil ->
@@ -283,6 +282,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegration do
   defp get_per_request_key(_key, %{api_key: api_key}) when is_binary(api_key) and api_key != "" do
     api_key
   end
+
   defp get_per_request_key(_key, _options), do: nil
 
   # Resolves key using unified approach across systems
@@ -295,7 +295,9 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegration do
       mapping ->
         # Try ReqLLM resolution first, then fall back
         case resolve_reqllm_key(mapping.reqllm_provider, nil) do
-          nil -> resolve_standard_key(key, default)
+          nil ->
+            resolve_standard_key(key, default)
+
           value ->
             log_key_resolution(key, :reqllm)
             value
@@ -309,6 +311,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegration do
       nil ->
         log_key_resolution(key, :default)
         default
+
       value ->
         log_key_resolution(key, :environment)
         value
@@ -327,7 +330,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegration do
   defp resolve_reqllm_key(provider, default) do
     try do
       # Use ReqLlmBridge.Keys with provider atom, falling back to default
-      case ReqLlmBridge.Keys.get(provider, default) do
+      case ReqLLM.Keys.get(provider, default) do
         {:ok, key, _source} -> key
         key when is_binary(key) -> key
         _ -> default
@@ -340,10 +343,11 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegration do
   # Maps ReqLLM provider atom to corresponding Jido key
   defp provider_to_jido_key(reqllm_provider) do
     case Enum.find(@provider_key_mappings, fn {_jido_key, mapping} ->
-      mapping.reqllm_provider == reqllm_provider
-    end) do
+           mapping.reqllm_provider == reqllm_provider
+         end) do
       {jido_key, _mapping} -> jido_key
-      nil -> :"#{reqllm_provider}_api_key"  # fallback pattern
+      # fallback pattern
+      nil -> :"#{reqllm_provider}_api_key"
     end
   end
 

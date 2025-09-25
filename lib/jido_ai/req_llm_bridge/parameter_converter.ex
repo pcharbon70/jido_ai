@@ -63,7 +63,8 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
       {:error, {:unknown_parameter, "invalid_field"}}
   """
   @spec convert_to_jido_format(map(), module()) :: conversion_result()
-  def convert_to_jido_format(params, action_module) when is_map(params) and is_atom(action_module) do
+  def convert_to_jido_format(params, action_module)
+      when is_map(params) and is_atom(action_module) do
     try do
       schema = get_action_schema(action_module)
       schema_map = build_schema_map(schema)
@@ -123,7 +124,7 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
       {:error, "Unknown parameter: unknown"}
   """
   @spec convert_parameter(String.t() | atom(), any(), map()) ::
-    {:ok, atom(), any()} | {:error, String.t()}
+          {:ok, atom(), any()} | {:error, String.t()}
   def convert_parameter(key, value, schema_map) when is_map(schema_map) do
     string_key = to_string(key)
 
@@ -131,6 +132,7 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
     case find_existing_atom_key(string_key, schema_map) do
       {:ok, atom_key} ->
         field_schema = Map.get(schema_map, atom_key, [])
+
         case coerce_type(value, Keyword.get(field_schema, :type)) do
           {:ok, coerced_value} -> {:ok, atom_key, coerced_value}
           {:error, reason} -> {:error, "Type conversion failed for #{string_key}: #{reason}"}
@@ -182,13 +184,16 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   # Integer type conversion
   def coerce_type(value, :integer) when is_integer(value), do: {:ok, value}
   def coerce_type(value, :integer) when is_float(value), do: {:ok, trunc(value)}
+
   def coerce_type(value, :integer) when is_binary(value) do
     case Integer.parse(value) do
       {int, ""} -> {:ok, int}
-      {int, _remainder} -> {:ok, int}  # Allow partial parsing for flexibility
+      # Allow partial parsing for flexibility
+      {int, _remainder} -> {:ok, int}
       :error -> {:error, "Invalid integer: #{value}"}
     end
   end
+
   def coerce_type(value, :integer), do: {:error, "Cannot convert #{inspect(value)} to integer"}
 
   # Non-negative integer type conversion
@@ -212,6 +217,7 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   # Float type conversion
   def coerce_type(value, :float) when is_float(value), do: {:ok, value}
   def coerce_type(value, :float) when is_integer(value), do: {:ok, value / 1}
+
   def coerce_type(value, :float) when is_binary(value) do
     case Float.parse(value) do
       {float, ""} -> {:ok, float}
@@ -219,6 +225,7 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
       :error -> {:error, "Invalid float: #{value}"}
     end
   end
+
   def coerce_type(value, :float), do: {:error, "Cannot convert #{inspect(value)} to float"}
 
   # Boolean type conversion
@@ -249,7 +256,9 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
       error -> error
     end
   end
-  def coerce_type(value, {:list, _inner_type}), do: {:error, "Expected list, got #{inspect(value)}"}
+
+  def coerce_type(value, {:list, _inner_type}),
+    do: {:error, "Expected list, got #{inspect(value)}"}
 
   # Map type conversion
   def coerce_type(value, :map) when is_map(value), do: {:ok, value}
@@ -263,18 +272,22 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
       {:error, "Expected keyword list, got regular list"}
     end
   end
+
   def coerce_type(value, :keyword_list) when is_map(value) do
     # Convert map to keyword list
     try do
       keyword_list =
         value
         |> Enum.map(fn {k, v} -> {String.to_existing_atom(to_string(k)), v} end)
+
       {:ok, keyword_list}
     rescue
       ArgumentError -> {:error, "Cannot convert map with invalid atom keys to keyword list"}
     end
   end
-  def coerce_type(value, :keyword_list), do: {:error, "Expected keyword list, got #{inspect(value)}"}
+
+  def coerce_type(value, :keyword_list),
+    do: {:error, "Expected keyword list, got #{inspect(value)}"}
 
   # Enum/choice type conversion
   def coerce_type(value, {:in, choices}) when is_list(choices) do
@@ -290,7 +303,8 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   end
 
   # Catch-all for unknown types
-  def coerce_type(value, type), do: {:error, "Unsupported type conversion: #{type} for #{inspect(value)}"}
+  def coerce_type(value, type),
+    do: {:error, "Unsupported type conversion: #{type} for #{inspect(value)}"}
 
   # Private helper functions
 
@@ -400,12 +414,14 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
 
   defp sanitize_for_json(data) when is_list(data) do
     try do
-      sanitized = Enum.map(data, fn item ->
-        case sanitize_value_for_json(item) do
-          {:ok, sanitized_item} -> sanitized_item
-          {:error, _} -> inspect(item)
-        end
-      end)
+      sanitized =
+        Enum.map(data, fn item ->
+          case sanitize_value_for_json(item) do
+            {:ok, sanitized_item} -> sanitized_item
+            {:error, _} -> inspect(item)
+          end
+        end)
+
       {:ok, sanitized}
     rescue
       _ -> {:error, :sanitization_failed}
@@ -420,6 +436,7 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   defp sanitize_value_for_json(value) when is_reference(value), do: {:ok, inspect(value)}
   defp sanitize_value_for_json(value) when is_function(value), do: {:ok, inspect(value)}
   defp sanitize_value_for_json(value) when is_port(value), do: {:ok, inspect(value)}
+
   defp sanitize_value_for_json(%{__struct__: _} = struct) do
     try do
       {:ok, Map.from_struct(struct)}
@@ -427,6 +444,7 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
       _ -> {:ok, inspect(struct)}
     end
   end
+
   defp sanitize_value_for_json(value) when is_map(value), do: sanitize_for_json(value)
   defp sanitize_value_for_json(value) when is_list(value), do: sanitize_for_json(value)
   defp sanitize_value_for_json(value), do: {:ok, value}

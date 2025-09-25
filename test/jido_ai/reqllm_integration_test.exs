@@ -57,7 +57,8 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
         # Return realistic response
         {:ok,
          %{
-           content: "Artificial Intelligence (AI) is a branch of computer science that aims to create machines capable of intelligent behavior.",
+           content:
+             "Artificial Intelligence (AI) is a branch of computer science that aims to create machines capable of intelligent behavior.",
            usage: %{prompt_tokens: 12, completion_tokens: 23, total_tokens: 35},
            finish_reason: "stop"
          }}
@@ -179,10 +180,11 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
         }
 
         assert {:ok, response} = OpenaiEx.run(params, %{})
+
         assert String.contains?(
-          get_in(response, [:choices, Access.at(0), :message, :content]),
-          "Provider #{provider}"
-        )
+                 get_in(response, [:choices, Access.at(0), :message, :content]),
+                 "Provider #{provider}"
+               )
       end)
     end
   end
@@ -210,9 +212,10 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
         assert is_list(opts)
 
         # Return realistic embedding vectors (dimension 1536 for ada-002)
-        embeddings = Enum.map(input_list, fn _text ->
-          Enum.map(1..1536, fn i -> :rand.uniform() * 0.1 - 0.05 + i * 0.001 end)
-        end)
+        embeddings =
+          Enum.map(input_list, fn _text ->
+            Enum.map(1..1536, fn i -> :rand.uniform() * 0.1 - 0.05 + i * 0.001 end)
+          end)
 
         {:ok,
          %{
@@ -232,6 +235,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
 
       # Verify embeddings structure
       assert length(response.embeddings) == 3
+
       Enum.each(response.embeddings, fn embedding ->
         assert length(embedding) == 1536
         assert Enum.all?(embedding, &is_float/1)
@@ -249,11 +253,14 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
 
       expect(ReqLLM, :embed_many, fn reqllm_id, input_list, _opts ->
         assert reqllm_id == "openai:text-embedding-ada-002"
-        assert length(input_list) <= 50  # Should handle batch size appropriately
+        # Should handle batch size appropriately
+        assert length(input_list) <= 50
 
-        embeddings = Enum.map(input_list, fn _text ->
-          Enum.map(1..384, fn _ -> :rand.uniform() * 0.2 - 0.1 end)  # Smaller dimension for test
-        end)
+        embeddings =
+          Enum.map(input_list, fn _text ->
+            # Smaller dimension for test
+            Enum.map(1..384, fn _ -> :rand.uniform() * 0.2 - 0.1 end)
+          end)
 
         {:ok, %{embeddings: embeddings}}
       end)
@@ -265,7 +272,9 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
     end
 
     test "embeddings error handling workflow" do
-      {:ok, model} = Model.from({:openai, [model: "text-embedding-ada-002", api_key: "invalid-key"]})
+      {:ok, model} =
+        Model.from({:openai, [model: "text-embedding-ada-002", api_key: "invalid-key"]})
+
       model = %{model | reqllm_id: "openai:text-embedding-ada-002"}
 
       expect(JidoKeys, :put, fn :openai, "invalid-key" -> :ok end)
@@ -300,8 +309,12 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
         %{content: " of", role: "assistant", finish_reason: nil},
         %{content: " AI", role: "assistant", finish_reason: nil},
         %{content: " is", role: "assistant", finish_reason: nil},
-        %{content: " bright", role: "assistant", finish_reason: "stop",
-          usage: %{prompt_tokens: 8, completion_tokens: 6, total_tokens: 14}}
+        %{
+          content: " bright",
+          role: "assistant",
+          finish_reason: "stop",
+          usage: %{prompt_tokens: 8, completion_tokens: 6, total_tokens: 14}
+        }
       ]
 
       expect(ReqLLM, :stream_text, fn messages, reqllm_id, opts ->
@@ -349,7 +362,8 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       ]
 
       # Test enhanced streaming
-      enhanced_stream = ReqLlmBridge.convert_streaming_response(mock_stream, enhanced: true, provider: :openai)
+      enhanced_stream =
+        ReqLlmBridge.convert_streaming_response(mock_stream, enhanced: true, provider: :openai)
 
       # Should use the StreamingAdapter
       expect(StreamingAdapter, :adapt_stream, fn stream, opts ->
@@ -370,6 +384,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       adapted_chunks = Enum.to_list(enhanced_stream)
 
       assert length(adapted_chunks) == 3
+
       Enum.each(adapted_chunks, fn chunk ->
         assert chunk.enhanced == true
         assert chunk.delta.role == "assistant"
@@ -385,7 +400,8 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
 
       # This would normally use OpenaiEx directly, but we're testing the ReqLLM integration
       # so we still expect ReqLLM calls. In a real scenario, this might branch to original OpenaiEx
-      regular_model = %{regular_model | reqllm_id: "openai:gpt-4"}  # For test purposes
+      # For test purposes
+      regular_model = %{regular_model | reqllm_id: "openai:gpt-4"}
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-key" -> :ok end)
       expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
@@ -400,10 +416,11 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       }
 
       assert {:ok, response} = OpenaiEx.run(params, %{})
+
       assert String.contains?(
-        get_in(response, [:choices, Access.at(0), :message, :content]),
-        "Backward compatible"
-      )
+               get_in(response, [:choices, Access.at(0), :message, :content]),
+               "Backward compatible"
+             )
     end
 
     test "existing response formats are preserved" do
@@ -493,7 +510,11 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
         assert String.contains?(reqllm_id, "openai:")
         assert is_list(messages)
 
-        {:ok, %{content: "Hello! I'm an AI assistant integrated with ReqLlmBridge.", finish_reason: "stop"}}
+        {:ok,
+         %{
+           content: "Hello! I'm an AI assistant integrated with ReqLlmBridge.",
+           finish_reason: "stop"
+         }}
       end)
 
       # This would normally test the full Agent workflow, but for unit testing
@@ -510,10 +531,11 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       }
 
       assert {:ok, response} = OpenaiEx.run(params, %{})
+
       assert String.contains?(
-        get_in(response, [:choices, Access.at(0), :message, :content]),
-        "ReqLLM"
-      )
+               get_in(response, [:choices, Access.at(0), :message, :content]),
+               "ReqLLM"
+             )
     end
 
     test "Prompt integration with ReqLLM workflows" do
@@ -543,7 +565,12 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
         assert user_msg.role == :user
         assert String.contains?(user_msg.content, "neural networks")
 
-        {:ok, %{content: "Neural networks are computational models inspired by biological neural networks.", finish_reason: "stop"}}
+        {:ok,
+         %{
+           content:
+             "Neural networks are computational models inspired by biological neural networks.",
+           finish_reason: "stop"
+         }}
       end)
 
       params = %{
@@ -555,10 +582,11 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       }
 
       assert {:ok, response} = OpenaiEx.run(params, %{})
+
       assert String.contains?(
-        get_in(response, [:choices, Access.at(0), :message, :content]),
-        "Neural networks"
-      )
+               get_in(response, [:choices, Access.at(0), :message, :content]),
+               "Neural networks"
+             )
     end
   end
 
@@ -578,27 +606,31 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       end)
 
       # Create multiple concurrent requests
-      tasks = Enum.map(1..5, fn i ->
-        Task.async(fn ->
-          params = %{
-            model: model,
-            messages: [%{role: :user, content: "Request #{i}"}]
-          }
-          OpenaiEx.run(params, %{})
+      tasks =
+        Enum.map(1..5, fn i ->
+          Task.async(fn ->
+            params = %{
+              model: model,
+              messages: [%{role: :user, content: "Request #{i}"}]
+            }
+
+            OpenaiEx.run(params, %{})
+          end)
         end)
-      end)
 
       # Wait for all to complete
       results = Task.await_many(tasks, 5000)
 
       # Verify all succeeded
       assert length(results) == 5
+
       Enum.each(results, fn result ->
         assert {:ok, response} = result
+
         assert String.contains?(
-          get_in(response, [:choices, Access.at(0), :message, :content]),
-          "Concurrent response"
-        )
+                 get_in(response, [:choices, Access.at(0), :message, :content]),
+                 "Concurrent response"
+               )
       end)
     end
 
@@ -607,10 +639,11 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       model = %{model | reqllm_id: "openai:text-embedding-ada-002"}
 
       # Create large input
-      large_texts = Enum.map(1..100, fn i ->
-        "This is a long document #{i} that contains substantial text content for embedding processing. " <>
-        String.duplicate("Additional content to make it longer. ", 50)
-      end)
+      large_texts =
+        Enum.map(1..100, fn i ->
+          "This is a long document #{i} that contains substantial text content for embedding processing. " <>
+            String.duplicate("Additional content to make it longer. ", 50)
+        end)
 
       expect(JidoKeys, :put, fn :openai, "test-key" -> :ok end)
 
@@ -620,9 +653,10 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
         # May batch the input
         assert length(input_list) <= 100
 
-        embeddings = Enum.map(input_list, fn _text ->
-          Enum.map(1..384, fn _ -> :rand.uniform() * 0.2 - 0.1 end)
-        end)
+        embeddings =
+          Enum.map(input_list, fn _text ->
+            Enum.map(1..384, fn _ -> :rand.uniform() * 0.2 - 0.1 end)
+          end)
 
         {:ok, %{embeddings: embeddings}}
       end)
@@ -635,7 +669,8 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       end_time = System.monotonic_time(:millisecond)
 
       # Verify reasonable performance (should complete in reasonable time)
-      assert end_time - start_time < 5000  # Less than 5 seconds
+      # Less than 5 seconds
+      assert end_time - start_time < 5000
 
       # Verify response structure
       assert is_list(response.embeddings)

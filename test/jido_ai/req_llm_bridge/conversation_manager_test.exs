@@ -98,7 +98,9 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
 
       assert {:error, :conversation_not_found} = ConversationManager.get_tools(fake_conv_id)
       assert {:error, :conversation_not_found} = ConversationManager.set_tools(fake_conv_id, [])
-      assert {:error, :conversation_not_found} = ConversationManager.find_tool_by_name(fake_conv_id, "tool")
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.find_tool_by_name(fake_conv_id, "tool")
     end
   end
 
@@ -134,7 +136,9 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
       fake_conv_id = "nonexistent_conversation_id"
 
       assert {:error, :conversation_not_found} = ConversationManager.get_options(fake_conv_id)
-      assert {:error, :conversation_not_found} = ConversationManager.set_options(fake_conv_id, %{})
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.set_options(fake_conv_id, %{})
     end
   end
 
@@ -240,7 +244,8 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
 
       # Add messages in sequence
       :ok = ConversationManager.add_user_message(conv_id, "First message")
-      Process.sleep(10)  # Ensure different timestamps
+      # Ensure different timestamps
+      Process.sleep(10)
       :ok = ConversationManager.add_assistant_response(conv_id, %{content: "Second message"})
       Process.sleep(10)
       :ok = ConversationManager.add_user_message(conv_id, "Third message")
@@ -260,9 +265,15 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
       fake_conv_id = "nonexistent_conversation_id"
 
       assert {:error, :conversation_not_found} = ConversationManager.get_history(fake_conv_id)
-      assert {:error, :conversation_not_found} = ConversationManager.add_user_message(fake_conv_id, "test")
-      assert {:error, :conversation_not_found} = ConversationManager.add_assistant_response(fake_conv_id, %{content: "test"})
-      assert {:error, :conversation_not_found} = ConversationManager.add_tool_results(fake_conv_id, [])
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.add_user_message(fake_conv_id, "test")
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.add_assistant_response(fake_conv_id, %{content: "test"})
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.add_tool_results(fake_conv_id, [])
     end
   end
 
@@ -311,7 +322,8 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
       {:ok, initial_metadata} = ConversationManager.get_conversation_metadata(conv_id)
       initial_activity = initial_metadata.last_activity
 
-      Process.sleep(50)  # Ensure time difference
+      # Ensure time difference
+      Process.sleep(50)
 
       ConversationManager.add_user_message(conv_id, "Update activity")
 
@@ -349,7 +361,8 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
       message = hd(messages)
 
       assert message.role == "assistant"
-      assert is_binary(message.content)  # Should be converted to string
+      # Should be converted to string
+      assert is_binary(message.content)
     end
 
     test "handles empty tool results list" do
@@ -374,7 +387,8 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
       end_time = System.monotonic_time(:millisecond)
 
       assert length(messages) == 100
-      assert (end_time - start_time) < 100  # Should be very fast
+      # Should be very fast
+      assert end_time - start_time < 100
     end
 
     test "handles content with different types" do
@@ -385,8 +399,10 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
         %{content: "simple string"},
         %{content: ["list", "of", "strings"]},
         %{content: [%{type: "text", text: "structured content"}]},
-        %{content: 42},  # Number
-        %{content: %{nested: "object"}}  # Map
+        # Number
+        %{content: 42},
+        # Map
+        %{content: %{nested: "object"}}
       ]
 
       Enum.each(test_cases, fn response ->
@@ -403,16 +419,20 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
 
   describe "concurrent access" do
     test "handles concurrent conversation creation" do
-      tasks = Enum.map(1..10, fn _i ->
-        Task.async(fn ->
-          ConversationManager.create_conversation()
+      tasks =
+        Enum.map(1..10, fn _i ->
+          Task.async(fn ->
+            ConversationManager.create_conversation()
+          end)
         end)
-      end)
 
       results = Task.await_many(tasks, 5_000)
 
       # All should succeed
-      assert Enum.all?(results, fn {:ok, _id} -> true; _ -> false end)
+      assert Enum.all?(results, fn
+               {:ok, _id} -> true
+               _ -> false
+             end)
 
       # All IDs should be unique
       ids = Enum.map(results, fn {:ok, id} -> id end)
@@ -422,16 +442,20 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
     test "handles concurrent message additions to same conversation" do
       {:ok, conv_id} = ConversationManager.create_conversation()
 
-      tasks = Enum.map(1..20, fn i ->
-        Task.async(fn ->
-          ConversationManager.add_user_message(conv_id, "Concurrent message #{i}")
+      tasks =
+        Enum.map(1..20, fn i ->
+          Task.async(fn ->
+            ConversationManager.add_user_message(conv_id, "Concurrent message #{i}")
+          end)
         end)
-      end)
 
       results = Task.await_many(tasks, 5_000)
 
       # All additions should succeed
-      assert Enum.all?(results, fn :ok -> true; _ -> false end)
+      assert Enum.all?(results, fn
+               :ok -> true
+               _ -> false
+             end)
 
       {:ok, messages} = ConversationManager.get_history(conv_id)
       assert length(messages) == 20
@@ -439,19 +463,21 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
 
     test "handles concurrent operations on different conversations" do
       # Create multiple conversations concurrently and operate on them
-      conv_tasks = Enum.map(1..5, fn i ->
-        Task.async(fn ->
-          {:ok, conv_id} = ConversationManager.create_conversation()
-          ConversationManager.add_user_message(conv_id, "Message in conversation #{i}")
-          ConversationManager.set_tools(conv_id, [%{name: "tool_#{i}"}])
-          conv_id
+      conv_tasks =
+        Enum.map(1..5, fn i ->
+          Task.async(fn ->
+            {:ok, conv_id} = ConversationManager.create_conversation()
+            ConversationManager.add_user_message(conv_id, "Message in conversation #{i}")
+            ConversationManager.set_tools(conv_id, [%{name: "tool_#{i}"}])
+            conv_id
+          end)
         end)
-      end)
 
       conv_ids = Task.await_many(conv_tasks, 5_000)
 
       # Verify each conversation has its own state
-      Enum.with_index(conv_ids, 1) |> Enum.each(fn {conv_id, i} ->
+      Enum.with_index(conv_ids, 1)
+      |> Enum.each(fn {conv_id, i} ->
         {:ok, messages} = ConversationManager.get_history(conv_id)
         assert length(messages) == 1
         assert hd(messages).content == "Message in conversation #{i}"

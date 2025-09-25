@@ -58,7 +58,9 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       assert :ok = Authentication.validate_authentication(:openai, %{})
 
       # Test unified authentication function
-      {:ok, {unified_key, unified_headers}} = Authentication.resolve_provider_authentication(:openai, %{})
+      {:ok, {unified_key, unified_headers}} =
+        Authentication.resolve_provider_authentication(:openai, %{})
+
       assert unified_key == "sk-openai-session-complete"
       assert unified_headers["authorization"] == "Bearer sk-openai-session-complete"
     end
@@ -183,11 +185,13 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       assert headers["x-auth-key"] == "cf-test-key"
 
       # Test with optional headers
-      required_headers = ProviderAuthRequirements.get_required_headers(
-        :cloudflare,
-        email: "test@cloudflare.com",
-        account_id: "account-123"
-      )
+      required_headers =
+        ProviderAuthRequirements.get_required_headers(
+          :cloudflare,
+          email: "test@cloudflare.com",
+          account_id: "account-123"
+        )
+
       assert required_headers["X-Auth-Email"] == "test@cloudflare.com"
       assert required_headers["CF-Account-ID"] == "account-123"
 
@@ -196,6 +200,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
         api_key: "cf-test-key",
         email: "test@cloudflare.com"
       }
+
       assert :ok = ProviderAuthRequirements.validate_auth(:cloudflare, auth_params)
 
       # Test invalid email format
@@ -203,6 +208,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
         api_key: "cf-test-key",
         email: "invalid-email-format"
       }
+
       {:error, reason} = ProviderAuthRequirements.validate_auth(:cloudflare, invalid_auth_params)
       assert reason == "Invalid email format"
     end
@@ -252,17 +258,22 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       assert headers["authorization"] == "Bearer sk-or-test-key"
 
       # Test with metadata headers
-      required_headers = ProviderAuthRequirements.get_required_headers(
-        :openrouter,
-        site_url: "https://myapp.example.com",
-        site_name: "My AI App"
-      )
+      required_headers =
+        ProviderAuthRequirements.get_required_headers(
+          :openrouter,
+          site_url: "https://myapp.example.com",
+          site_name: "My AI App"
+        )
+
       assert required_headers["HTTP-Referer"] == "https://myapp.example.com"
       assert required_headers["X-Title"] == "My AI App"
 
       # Test key validation - supports both OpenRouter format and generic
       assert :ok = ProviderAuthRequirements.validate_auth(:openrouter, "sk-or-v1-abcdef123456")
-      assert :ok = ProviderAuthRequirements.validate_auth(:openrouter, "generic-api-key-123456789")
+
+      assert :ok =
+               ProviderAuthRequirements.validate_auth(:openrouter, "generic-api-key-123456789")
+
       {:error, _} = ProviderAuthRequirements.validate_auth(:openrouter, "short")
     end
   end
@@ -331,7 +342,10 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       for {provider, expected_key, expected_header, expected_value} <- provider_configs do
         # Requirements
         requirements = ProviderAuthRequirements.get_requirements(provider)
-        assert expected_key in [requirements.required_keys |> List.first() |> to_string() |> (&"#{&1}").()]
+
+        assert expected_key in [
+                 requirements.required_keys |> List.first() |> to_string() |> (&"#{&1}").()
+               ]
 
         # Authentication
         {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
@@ -385,23 +399,25 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       end
 
       # Test concurrent provider access
-      tasks = for provider <- providers do
-        Task.async(fn ->
-          expected_key = "#{provider}-switch-test"
+      tasks =
+        for provider <- providers do
+          Task.async(fn ->
+            expected_key = "#{provider}-switch-test"
 
-          results = for _i <- 1..5 do
-            {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
-            {key, headers}
-          end
+            results =
+              for _i <- 1..5 do
+                {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
+                {key, headers}
+              end
 
-          # All results should be consistent
-          for {key, _headers} <- results do
-            assert key == expected_key
-          end
+            # All results should be consistent
+            for {key, _headers} <- results do
+              assert key == expected_key
+            end
 
-          :consistent
-        end)
-      end
+            :consistent
+          end)
+        end
 
       results = Task.await_many(tasks, 5000)
       assert Enum.all?(results, &(&1 == :consistent))
@@ -415,7 +431,8 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
 
       # Mock external systems to fail
       expect(ReqLlmBridge.Keys, :get, 5, fn provider, %{} ->
-        {:error, ":api_key option or #{String.upcase("#{provider}")}_API_KEY environment variable required"}
+        {:error,
+         ":api_key option or #{String.upcase("#{provider}")}_API_KEY environment variable required"}
       end)
 
       stub(Keyring, :get_env_value, fn :default, _key, nil ->
@@ -445,24 +462,29 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
 
       # Provider 2: Session fails, ReqLLM works
       SessionAuthentication.clear_for_provider(:anthropic)
+
       expect(ReqLlmBridge.Keys, :get, fn :anthropic, %{} ->
         {:ok, "working-reqllm-key", :environment}
       end)
 
       # Provider 3: Session and ReqLLM fail, keyring works
       SessionAuthentication.clear_for_provider(:google)
+
       expect(ReqLlmBridge.Keys, :get, fn :google, %{} ->
         {:error, "ReqLLM service unavailable"}
       end)
+
       stub(Keyring, :get_env_value, fn :default, :google_api_key, nil ->
         "working-keyring-key"
       end)
 
       # Provider 4: Everything fails
       SessionAuthentication.clear_for_provider(:cloudflare)
+
       expect(ReqLlmBridge.Keys, :get, fn :cloudflare, %{} ->
         {:error, "All systems down"}
       end)
+
       stub(Keyring, :get_env_value, fn :default, :cloudflare_api_key, nil ->
         nil
       end)

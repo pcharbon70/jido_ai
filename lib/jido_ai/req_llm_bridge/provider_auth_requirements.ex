@@ -315,6 +315,7 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirements do
       true -> {:error, "Invalid OpenAI API key format"}
     end
   end
+
   defp validate_openai_key(nil) do
     {:error, "API key is required"}
   end
@@ -344,14 +345,18 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirements do
       error -> error
     end
   end
+
   defp validate_cloudflare_auth(key) when is_binary(key) do
     validate_generic_key(key)
   end
+
   defp validate_cloudflare_auth(nil) do
     {:error, "API key is required"}
   end
 
-  defp validate_cloudflare_email(nil), do: :ok  # Email is optional
+  # Email is optional
+  defp validate_cloudflare_email(nil), do: :ok
+
   defp validate_cloudflare_email(email) when is_binary(email) do
     if String.contains?(email, "@") do
       :ok
@@ -363,7 +368,8 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirements do
   defp validate_openrouter_key(key) when is_binary(key) do
     cond do
       String.starts_with?(key, "sk-or-") and byte_size(key) > 20 -> :ok
-      byte_size(key) >= 20 -> :ok  # Allow generic keys too
+      # Allow generic keys too
+      byte_size(key) >= 20 -> :ok
       key == "" -> {:error, "API key is empty"}
       true -> {:error, "Invalid OpenRouter API key format"}
     end
@@ -412,9 +418,9 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirements do
     Enum.reduce(requirements.required_keys, %{}, fn key, acc ->
       value =
         Keyword.get(opts, key) ||
-        Keyring.get_session_value(:default, key, session_pid) ||
-        Keyring.get_env_value(:default, key) ||
-        System.get_env(requirements.env_var)
+          Keyring.get_session_value(:default, key, session_pid) ||
+          Keyring.get_env_value(:default, key) ||
+          System.get_env(requirements.env_var)
 
       if value do
         Map.put(acc, key, value)
@@ -430,9 +436,9 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirements do
     Enum.reduce(optional_keys, params, fn key, acc ->
       value =
         Keyword.get(opts, key) ||
-        Keyring.get_session_value(:default, key, session_pid) ||
-        Keyring.get_env_value(:default, key) ||
-        get_optional_env_var(requirements, key)
+          Keyring.get_session_value(:default, key, session_pid) ||
+          Keyring.get_env_value(:default, key) ||
+          get_optional_env_var(requirements, key)
 
       if value do
         Map.put(acc, key, value)
@@ -444,18 +450,30 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirements do
 
   defp get_optional_env_var(requirements, key) do
     case requirements[:optional_env_vars] do
-      nil -> nil
+      nil ->
+        nil
+
       env_vars ->
         # Convert key to the correct mapping
-        env_key = case key do
-          :openrouter_site_url -> :site_url
-          :openrouter_site_name -> :site_name
-          :cloudflare_email -> :email
-          :cloudflare_account_id -> :account_id
-          _ ->
-            # Generic mapping: remove provider prefix
-            key |> to_string() |> String.split("_", parts: 2) |> List.last() |> String.to_atom()
-        end
+        env_key =
+          case key do
+            :openrouter_site_url ->
+              :site_url
+
+            :openrouter_site_name ->
+              :site_name
+
+            :cloudflare_email ->
+              :email
+
+            :cloudflare_account_id ->
+              :account_id
+
+            _ ->
+              # Generic mapping: remove provider prefix
+              key |> to_string() |> String.split("_", parts: 2) |> List.last() |> String.to_atom()
+          end
+
         case Map.get(env_vars, env_key) do
           nil -> nil
           env_var -> System.get_env(env_var)

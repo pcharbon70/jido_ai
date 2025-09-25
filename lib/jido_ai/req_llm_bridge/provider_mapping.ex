@@ -9,7 +9,7 @@ defmodule Jido.AI.ReqLlmBridge.ProviderMapping do
 
   require Logger
 
-  alias ReqLlmBridge.Provider.Generated.ValidProviders
+  alias ReqLLM.Provider.Generated.ValidProviders
 
   # Maps Jido AI provider names to ReqLLM provider names.
   # Some providers may have different names in ReqLLM, so this mapping

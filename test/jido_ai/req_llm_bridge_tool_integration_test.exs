@@ -21,7 +21,11 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
         description: "Gets the current weather for a location",
         schema: [
           location: [type: :string, required: true, doc: "The city or location"],
-          units: [type: {:in, [:celsius, :fahrenheit]}, default: :celsius, doc: "Temperature units"],
+          units: [
+            type: {:in, [:celsius, :fahrenheit]},
+            default: :celsius,
+            doc: "Temperature units"
+          ],
           include_forecast: [type: :boolean, default: false, doc: "Include 3-day forecast"]
         ]
 
@@ -36,14 +40,17 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
           units: params.units
         }
 
-        forecast_data = if params.include_forecast do
-          %{forecast: [
-            %{day: "tomorrow", temperature: 24, condition: "cloudy"},
-            %{day: "day_after", temperature: 26, condition: "sunny"}
-          ]}
-        else
-          %{}
-        end
+        forecast_data =
+          if params.include_forecast do
+            %{
+              forecast: [
+                %{day: "tomorrow", temperature: 24, condition: "cloudy"},
+                %{day: "day_after", temperature: 26, condition: "sunny"}
+              ]
+            }
+          else
+            %{}
+          end
 
         result = Map.merge(weather_data, forecast_data)
         {:ok, result}
@@ -56,32 +63,41 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
         name: "calculator",
         description: "Performs basic arithmetic operations",
         schema: [
-          operation: [type: {:in, [:add, :subtract, :multiply, :divide]}, required: true, doc: "Operation type"],
+          operation: [
+            type: {:in, [:add, :subtract, :multiply, :divide]},
+            required: true,
+            doc: "Operation type"
+          ],
           a: [type: :float, required: true, doc: "First number"],
           b: [type: :float, required: true, doc: "Second number"]
         ]
 
       @impl true
       def run(params, _context) do
-        result = case params.operation do
-          :add -> params.a + params.b
-          :subtract -> params.a - params.b
-          :multiply -> params.a * params.b
-          :divide when params.b != 0 -> params.a / params.b
-          :divide -> {:error, "Division by zero"}
-        end
+        result =
+          case params.operation do
+            :add -> params.a + params.b
+            :subtract -> params.a - params.b
+            :multiply -> params.a * params.b
+            :divide when params.b != 0 -> params.a / params.b
+            :divide -> {:error, "Division by zero"}
+          end
 
         case result do
-          {:error, _} = error -> error
-          value -> {:ok, %{result: value, operation: params.operation, inputs: [params.a, params.b]}}
+          {:error, _} = error ->
+            error
+
+          value ->
+            {:ok, %{result: value, operation: params.operation, inputs: [params.a, params.b]}}
         end
       end
     end
 
-    {:ok, %{
-      weather_action: WeatherAction,
-      calculator_action: CalculatorAction
-    }}
+    {:ok,
+     %{
+       weather_action: WeatherAction,
+       calculator_action: CalculatorAction
+     }}
   end
 
   describe "end-to-end tool integration" do
@@ -115,13 +131,17 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
 
       assert {:ok, result} = tool.callback.(params)
       assert result.location == "Paris"
-      assert result.temperature == 72  # Fahrenheit
+      # Fahrenheit
+      assert result.temperature == 72
       assert result.condition == "sunny"
       assert result.units == :fahrenheit
       assert Map.has_key?(result, :forecast)
     end
 
-    test "handles tool choice parameters in request options", %{weather_action: weather, calculator_action: calc} do
+    test "handles tool choice parameters in request options", %{
+      weather_action: weather,
+      calculator_action: calc
+    } do
       expect(ReqLLM.Tool, :tool, 2, fn opts ->
         %{name: opts[:name], callback: opts[:callback]}
       end)
@@ -289,7 +309,8 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
       }
 
       assert {:ok, result} = tool.callback.(params)
-      assert result.temperature == 22  # Celsius
+      # Celsius
+      assert result.temperature == 22
       refute Map.has_key?(result, :forecast)
     end
 
@@ -305,8 +326,10 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
 
       assert {:ok, result} = tool.callback.(params)
       assert result.location == "London"
-      assert result.units == :celsius  # default value
-      refute Map.has_key?(result, :forecast)  # default false
+      # default value
+      assert result.units == :celsius
+      # default false
+      refute Map.has_key?(result, :forecast)
     end
 
     test "supports tool execution with context", %{weather_action: action} do
@@ -360,21 +383,22 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
   describe "performance and scalability" do
     test "handles large number of tools efficiently" do
       # Create multiple actions
-      actions = Enum.map(1..20, fn i ->
-        defmodule :"TestAction#{i}" do
-          use Jido.Action,
-            name: "test_action_#{i}",
-            description: "Test action #{i}",
-            schema: [
-              value: [type: :integer, required: true, doc: "Value #{i}"]
-            ]
+      actions =
+        Enum.map(1..20, fn i ->
+          defmodule :"TestAction#{i}" do
+            use Jido.Action,
+              name: "test_action_#{i}",
+              description: "Test action #{i}",
+              schema: [
+                value: [type: :integer, required: true, doc: "Value #{i}"]
+              ]
 
-          @impl true
-          def run(params, _context) do
-            {:ok, %{value: params.value, action_id: unquote(i)}}
+            @impl true
+            def run(params, _context) do
+              {:ok, %{value: params.value, action_id: unquote(i)}}
+            end
           end
-        end
-      end)
+        end)
 
       expect(ReqLLM.Tool, :tool, 20, fn opts ->
         %{name: opts[:name], callback: opts[:callback]}
@@ -386,7 +410,8 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
       end_time = System.monotonic_time(:millisecond)
 
       assert length(tools) == 20
-      assert (end_time - start_time) < 1000  # Should complete within 1 second
+      # Should complete within 1 second
+      assert end_time - start_time < 1000
     end
 
     test "handles concurrent tool execution safely" do
@@ -397,18 +422,23 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
       assert {:ok, [tool]} = ReqLlmBridge.convert_tools([WeatherAction])
 
       # Execute multiple concurrent requests
-      tasks = Enum.map(1..10, fn i ->
-        Task.async(fn ->
-          params = %{"location" => "City#{i}"}
-          tool.callback.(params)
+      tasks =
+        Enum.map(1..10, fn i ->
+          Task.async(fn ->
+            params = %{"location" => "City#{i}"}
+            tool.callback.(params)
+          end)
         end)
-      end)
 
       results = Task.await_many(tasks, 5_000)
 
       # All should succeed
       assert length(results) == 10
-      assert Enum.all?(results, fn {:ok, _} -> true; _ -> false end)
+
+      assert Enum.all?(results, fn
+               {:ok, _} -> true
+               _ -> false
+             end)
     end
   end
 end

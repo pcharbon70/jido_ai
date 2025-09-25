@@ -83,7 +83,9 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationSimpleTest do
 
   describe "ReqLLM key resolution" do
     test "handles ReqLlmBridge.Keys success responses" do
-      expect(ReqLlmBridge.Keys, :get, fn :anthropic, "default" -> {:ok, "anthrop-key", :environment} end)
+      expect(ReqLlmBridge.Keys, :get, fn :anthropic, "default" ->
+        {:ok, "anthrop-key", :environment}
+      end)
 
       result = KeyringIntegration.get_key_for_request(:anthropic, %{}, "default")
 
@@ -152,7 +154,13 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationSimpleTest do
 
     test "environment variable mapping includes correct variables" do
       # Test that our provider mappings include correct environment variables
-      env_vars = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENROUTER_API_KEY", "CLOUDFLARE_API_KEY"]
+      env_vars = [
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GOOGLE_API_KEY",
+        "OPENROUTER_API_KEY",
+        "CLOUDFLARE_API_KEY"
+      ]
 
       Enum.each(env_vars, fn env_var ->
         # Mock each environment variable

@@ -35,7 +35,6 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
   alias Jido.AI.ReqLlmBridge.{ToolExecutor, ResponseAggregator, ConversationManager, ErrorHandler}
   require Logger
 
-  @max_tool_call_rounds 3
   @tool_execution_timeout 30_000
 
   @type tool_call :: %{
@@ -89,15 +88,17 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
     context = build_response_context(conversation_id, options)
 
     with {:ok, tool_calls} <- extract_tool_calls(llm_response),
-         {:ok, response_with_tools} <- execute_tool_calls_if_present(
-           llm_response,
-           tool_calls,
-           context
-         ),
-         {:ok, final_response} <- ResponseAggregator.aggregate_response(
-           response_with_tools,
-           context
-         ) do
+         {:ok, response_with_tools} <-
+           execute_tool_calls_if_present(
+             llm_response,
+             tool_calls,
+             context
+           ),
+         {:ok, final_response} <-
+           ResponseAggregator.aggregate_response(
+             response_with_tools,
+             context
+           ) do
       {:ok, final_response}
     else
       {:error, reason} ->
@@ -140,16 +141,16 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
     try do
       {accumulated_response, tool_calls} = accumulate_streaming_response(stream, context)
 
-      with {:ok, response_with_tools} <- execute_tool_calls_if_present(
-             accumulated_response,
-             tool_calls,
-             context
-           ),
-           {:ok, final_response} <- ResponseAggregator.aggregate_response(
-             response_with_tools,
-             context
-           ) do
-        {:ok, final_response}
+      with {:ok, response_with_tools} <-
+             execute_tool_calls_if_present(
+               accumulated_response,
+               tool_calls,
+               context
+             ) do
+        ResponseAggregator.aggregate_response(
+          response_with_tools,
+          context
+        )
       end
     rescue
       error ->
@@ -203,8 +204,12 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
       )
       |> Enum.map(&handle_tool_execution_result/1)
 
-    successful_results = Enum.filter(results, fn {:ok, _} -> true; _ -> false end)
-    |> Enum.map(fn {:ok, result} -> result end)
+    successful_results =
+      Enum.filter(results, fn
+        {:ok, _} -> true
+        _ -> false
+      end)
+      |> Enum.map(fn {:ok, result} -> result end)
 
     {:ok, successful_results}
   rescue
@@ -270,12 +275,13 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
 
     with {:ok, tool_module} <- resolve_tool_module(function_name, context),
          {:ok, parsed_args} <- parse_tool_arguments(arguments),
-         {:ok, result} <- ToolExecutor.execute_tool(
-           tool_module,
-           parsed_args,
-           context.context,
-           context.timeout
-         ) do
+         {:ok, result} <-
+           ToolExecutor.execute_tool(
+             tool_module,
+             parsed_args,
+             context.context,
+             context.timeout
+           ) do
       format_tool_result(call_id, function_name, result)
     else
       {:error, reason} ->
@@ -307,10 +313,11 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
   end
 
   defp format_tool_result(call_id, function_name, result) do
-    content = case Jason.encode(result) do
-      {:ok, json} -> json
-      {:error, _} -> inspect(result)
-    end
+    content =
+      case Jason.encode(result) do
+        {:ok, json} -> json
+        {:error, _} -> inspect(result)
+      end
 
     {:ok,
      %{
@@ -331,10 +338,11 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
       details: sanitized_error
     }
 
-    content = case Jason.encode(error_content) do
-      {:ok, json} -> json
-      {:error, _} -> inspect(error_content)
-    end
+    content =
+      case Jason.encode(error_content) do
+        {:ok, json} -> json
+        {:error, _} -> inspect(error_content)
+      end
 
     {:ok,
      %{
@@ -347,9 +355,11 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
   end
 
   defp handle_tool_execution_result({:ok, result}), do: result
+
   defp handle_tool_execution_result({:exit, :timeout}) do
     {:error, {:tool_timeout, "Tool execution timed out"}}
   end
+
   defp handle_tool_execution_result({:exit, reason}) do
     {:error, {:tool_exit, reason}}
   end
@@ -359,10 +369,6 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
       case process_stream_chunk(chunk, acc_response, acc_tools) do
         {:ok, updated_response, updated_tools} ->
           {updated_response, updated_tools}
-
-        {:error, reason} ->
-          Logger.warning("Failed to process stream chunk: #{inspect(reason)}")
-          {acc_response, acc_tools}
       end
     end)
   end

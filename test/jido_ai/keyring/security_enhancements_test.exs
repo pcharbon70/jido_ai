@@ -96,9 +96,16 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
   describe "sensitive key detection" do
     test "identifies sensitive key patterns" do
       sensitive_keys = [
-        :api_key, :openai_api_key, :password, :client_secret,
-        :bearer_token, :access_token, :refresh_token,
-        "API_KEY", "Password", "SECRET"
+        :api_key,
+        :openai_api_key,
+        :password,
+        :client_secret,
+        :bearer_token,
+        :access_token,
+        :refresh_token,
+        "API_KEY",
+        "Password",
+        "SECRET"
       ]
 
       for key <- sensitive_keys do
@@ -109,8 +116,15 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
 
     test "allows non-sensitive keys" do
       normal_keys = [
-        :username, :email, :host, :port, :timeout,
-        :debug, :log_level, "CONFIG_VALUE", "HOST_URL"
+        :username,
+        :email,
+        :host,
+        :port,
+        :timeout,
+        :debug,
+        :log_level,
+        "CONFIG_VALUE",
+        "HOST_URL"
       ]
 
       for key <- normal_keys do
@@ -132,12 +146,13 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
   describe "safe logging operations" do
     test "logs operations without exposing sensitive data" do
       # Capture log output to verify filtering
-      log_output = ExUnit.CaptureLog.capture_log(fn ->
-        SecurityEnhancements.safe_log_operation(:get, :api_key, %{
-          value: "sk-secret123",
-          source: :session
-        })
-      end)
+      log_output =
+        ExUnit.CaptureLog.capture_log(fn ->
+          SecurityEnhancements.safe_log_operation(:get, :api_key, %{
+            value: "sk-secret123",
+            source: :session
+          })
+        end)
 
       # Log should not contain the actual sensitive value
       refute String.contains?(log_output, "sk-secret123")
@@ -219,12 +234,13 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
 
   describe "log redaction capabilities" do
     test "filters log messages comprehensively" do
-      log_output = ExUnit.CaptureLog.capture_log(fn ->
-        SecurityEnhancements.log_with_redaction(:info, "Operation with sk-secret123", [
-          key: :api_key,
-          value: "sk-another-secret456"
-        ])
-      end)
+      log_output =
+        ExUnit.CaptureLog.capture_log(fn ->
+          SecurityEnhancements.log_with_redaction(:info, "Operation with sk-secret123",
+            key: :api_key,
+            value: "sk-another-secret456"
+          )
+        end)
 
       # Sensitive data should be filtered from both message and metadata
       refute String.contains?(log_output, "sk-secret123")
@@ -232,12 +248,13 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
     end
 
     test "preserves non-sensitive log information" do
-      log_output = ExUnit.CaptureLog.capture_log(fn ->
-        SecurityEnhancements.log_with_redaction(:debug, "Normal operation completed", [
-          operation: :get,
-          duration: 50
-        ])
-      end)
+      log_output =
+        ExUnit.CaptureLog.capture_log(fn ->
+          SecurityEnhancements.log_with_redaction(:debug, "Normal operation completed",
+            operation: :get,
+            duration: 50
+          )
+        end)
 
       # Normal information should be preserved
       assert String.contains?(log_output, "Normal operation completed")
@@ -259,21 +276,27 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
 
   describe "process isolation validation" do
     test "validates process isolation correctly", %{keyring: keyring} do
-      result = SecurityEnhancements.validate_process_isolation(keyring, :isolation_test, "test_value")
+      result =
+        SecurityEnhancements.validate_process_isolation(keyring, :isolation_test, "test_value")
+
       assert result == :ok
     end
 
     test "detects isolation violations", %{keyring: keyring} do
       # This test would need to simulate a violation scenario
       # For now, we test that the function handles the normal case
-      result = SecurityEnhancements.validate_process_isolation(keyring, :isolation_test, "test_value")
+      result =
+        SecurityEnhancements.validate_process_isolation(keyring, :isolation_test, "test_value")
+
       assert result == :ok
     end
 
     test "handles isolation validation errors gracefully" do
       invalid_keyring = :nonexistent_keyring
 
-      result = SecurityEnhancements.validate_process_isolation(invalid_keyring, :test_key, "test_value")
+      result =
+        SecurityEnhancements.validate_process_isolation(invalid_keyring, :test_key, "test_value")
+
       assert {:error, _reason} = result
     end
   end
@@ -289,8 +312,11 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
       # In a real scenario, you might mock the filtering to fail
       # and verify that the test function catches it
       result = SecurityEnhancements.test_credential_filtering()
+
       case result do
-        :ok -> assert true
+        :ok ->
+          assert true
+
         {:error, failures} ->
           # If there are failures, they should be properly formatted
           assert is_list(failures)
@@ -332,11 +358,12 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
       # Test that security enhancements don't cause major performance regression
       test_values = for i <- 1..100, do: "test_value_#{i}"
 
-      {elapsed_microseconds, _results} = :timer.tc(fn ->
-        for value <- test_values do
-          SecurityEnhancements.filter_credential_data(value)
-        end
-      end)
+      {elapsed_microseconds, _results} =
+        :timer.tc(fn ->
+          for value <- test_values do
+            SecurityEnhancements.filter_credential_data(value)
+          end
+        end)
 
       elapsed_ms = elapsed_microseconds / 1000
       average_ms_per_filter = elapsed_ms / 100
@@ -348,11 +375,12 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
     test "key validation performance is acceptable" do
       test_keys = for i <- 1..100, do: :"test_key_#{i}"
 
-      {elapsed_microseconds, _results} = :timer.tc(fn ->
-        for key <- test_keys do
-          SecurityEnhancements.is_sensitive_key?(key)
-        end
-      end)
+      {elapsed_microseconds, _results} =
+        :timer.tc(fn ->
+          for key <- test_keys do
+            SecurityEnhancements.is_sensitive_key?(key)
+          end
+        end)
 
       elapsed_ms = elapsed_microseconds / 1000
       average_ms_per_check = elapsed_ms / 100

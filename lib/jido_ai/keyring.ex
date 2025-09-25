@@ -201,6 +201,7 @@ defmodule Jido.AI.Keyring do
       nil ->
         # Delegate to JidoKeys hybrid for enhanced security and runtime config
         JidoKeysHybrid.get_global_value(key, default)
+
       value ->
         # Apply JidoKeys filtering to session values for security
         JidoKeysHybrid.filter_sensitive_data(value)
@@ -233,7 +234,14 @@ defmodule Jido.AI.Keyring do
       api_key = Keyring.get_with_reqllm(:openai_api_key, "default", self(), options)
   """
   @spec get_with_reqllm(GenServer.server(), atom(), term(), pid(), map()) :: term()
-  def get_with_reqllm(server \\ @default_name, key, default \\ nil, pid \\ self(), req_options \\ %{}) when is_atom(key) do
+  def get_with_reqllm(
+        server \\ @default_name,
+        key,
+        default \\ nil,
+        pid \\ self(),
+        req_options \\ %{}
+      )
+      when is_atom(key) do
     # Use the KeyringIntegration module for unified key resolution
     KeyringIntegration.get(server, key, default, pid, req_options)
   end
@@ -256,6 +264,7 @@ defmodule Jido.AI.Keyring do
       nil ->
         # Fallback to existing ETS-based lookup for backward compatibility
         get_env_value_from_ets(server, key, default)
+
       value ->
         value
     end

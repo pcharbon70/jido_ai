@@ -38,7 +38,6 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
 
   require Logger
   alias Jido.AI.Keyring
-  alias Jido.AI.ReqLlmBridge.KeyringIntegration
 
   # Provider authentication mappings between Jido and ReqLLM systems
   @provider_auth_mappings %{
@@ -122,10 +121,9 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
       assert headers["anthropic-version"] == "2023-06-01"
   """
   @spec authenticate_for_provider(atom(), map(), pid()) ::
-    {:ok, map(), String.t()} | {:error, String.t()}
+          {:ok, map(), String.t()} | {:error, String.t()}
   def authenticate_for_provider(provider, req_options \\ %{}, session_pid \\ self())
       when is_atom(provider) do
-
     case get_provider_mapping(provider) do
       nil ->
         # Unknown provider - use generic authentication
@@ -226,7 +224,7 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
     * `{:error, reason}` if no authentication found
   """
   @spec resolve_provider_authentication(atom(), map(), pid()) ::
-    {:ok, String.t(), atom()} | {:error, String.t()}
+          {:ok, String.t(), atom()} | {:error, String.t()}
   def resolve_provider_authentication(provider, req_options \\ %{}, session_pid \\ self()) do
     case get_provider_mapping(provider) do
       nil ->
@@ -309,10 +307,11 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
 
   # Formats authentication headers according to provider requirements
   defp format_authentication_headers(mapping, key) do
-    auth_header = case mapping.header_format do
-      :bearer_token -> "#{mapping.header_prefix}#{key}"
-      :api_key -> "#{mapping.header_prefix}#{key}"
-    end
+    auth_header =
+      case mapping.header_format do
+        :bearer_token -> "#{mapping.header_prefix}#{key}"
+        :api_key -> "#{mapping.header_prefix}#{key}"
+      end
 
     base_headers = %{mapping.header_name => auth_header}
     Map.merge(base_headers, mapping.additional_headers)
@@ -329,7 +328,7 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
   # Resolves authentication using ReqLlmBridge.Keys
   defp resolve_reqllm_authentication(provider, req_options) do
     try do
-      case ReqLlmBridge.Keys.get(provider, req_options) do
+      case ReqLLM.Keys.get(provider, req_options) do
         {:ok, key, source} -> {:ok, key, source}
         {:error, reason} -> {:error, reason}
       end
@@ -351,12 +350,14 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
     case reqllm_error do
       ":api_key option or " <> _rest ->
         "API key not found: #{env_var}"
+
       error when is_binary(error) ->
         if String.contains?(error, "empty") do
           "API key is empty: #{env_var}"
         else
           "Authentication error: #{error}"
         end
+
       _ ->
         "API key not found: #{env_var}"
     end
@@ -366,7 +367,10 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
   defp log_authentication_resolution(provider, key, source) do
     if Application.get_env(:jido_ai, :debug_auth_resolution, false) do
       masked_key = mask_api_key(key)
-      Logger.debug("[Authentication] Resolved #{provider} authentication: #{masked_key} from #{source}")
+
+      Logger.debug(
+        "[Authentication] Resolved #{provider} authentication: #{masked_key} from #{source}"
+      )
     end
   end
 
@@ -383,6 +387,7 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
     suffix = String.slice(key, -4, 4)
     "#{prefix}...#{suffix}"
   end
+
   defp mask_api_key(key) when is_binary(key), do: "***"
   defp mask_api_key(_), do: "nil"
 end

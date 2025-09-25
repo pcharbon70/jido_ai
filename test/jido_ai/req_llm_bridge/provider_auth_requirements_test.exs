@@ -90,10 +90,11 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
         _ -> nil
       end)
 
-      headers = ProviderAuthRequirements.get_required_headers(
-        :cloudflare,
-        email: "user@example.com"
-      )
+      headers =
+        ProviderAuthRequirements.get_required_headers(
+          :cloudflare,
+          email: "user@example.com"
+        )
 
       assert headers["X-Auth-Email"] == "user@example.com"
     end
@@ -109,11 +110,12 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
     end
 
     test "adds OpenRouter metadata headers" do
-      headers = ProviderAuthRequirements.get_required_headers(
-        :openrouter,
-        site_url: "https://example.com",
-        site_name: "Example App"
-      )
+      headers =
+        ProviderAuthRequirements.get_required_headers(
+          :openrouter,
+          site_url: "https://example.com",
+          site_name: "Example App"
+        )
 
       assert headers["HTTP-Referer"] == "https://example.com"
       assert headers["X-Title"] == "Example App"
@@ -160,12 +162,15 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
       }
 
       assert {:error, "Invalid email format"} =
-        ProviderAuthRequirements.validate_auth(:cloudflare, auth_params)
+               ProviderAuthRequirements.validate_auth(:cloudflare, auth_params)
     end
 
     test "validates OpenRouter key format" do
       assert :ok = ProviderAuthRequirements.validate_auth(:openrouter, "sk-or-v1-abcdef123456")
-      assert :ok = ProviderAuthRequirements.validate_auth(:openrouter, "generic-key-with-20-chars")
+
+      assert :ok =
+               ProviderAuthRequirements.validate_auth(:openrouter, "generic-key-with-20-chars")
+
       assert {:error, _} = ProviderAuthRequirements.validate_auth(:openrouter, "short")
     end
 
@@ -211,10 +216,11 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
 
   describe "resolve_all_params/3 - parameter resolution" do
     test "resolves required parameters from options" do
-      params = ProviderAuthRequirements.resolve_all_params(
-        :openai,
-        [openai_api_key: "from-options"]
-      )
+      params =
+        ProviderAuthRequirements.resolve_all_params(
+          :openai,
+          openai_api_key: "from-options"
+        )
 
       assert params.openai_api_key == "from-options"
     end
@@ -231,6 +237,7 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
 
     test "resolves required parameters from environment" do
       stub(Keyring, :get_session_value, fn :default, _, _ -> nil end)
+
       stub(Keyring, :get_env_value, fn
         :default, :openai_api_key -> "from-keyring-env"
         :default, _ -> nil
@@ -246,6 +253,7 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
         :default, :cloudflare_email, _ -> "user@example.com"
         :default, _, _ -> nil
       end)
+
       stub(Keyring, :get_env_value, fn
         :default, _ -> nil
       end)
@@ -257,10 +265,12 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
 
     test "resolves optional parameters from environment" do
       stub(Keyring, :get_session_value, fn :default, _, _ -> nil end)
+
       stub(Keyring, :get_env_value, fn
         :default, :openrouter_api_key -> "or-key"
         :default, _ -> nil
       end)
+
       stub(System, :get_env, fn
         "OPENROUTER_SITE_URL" -> "https://example.com"
         "OPENROUTER_SITE_NAME" -> "Example"
@@ -279,10 +289,11 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
         :default, _, _ -> nil
       end)
 
-      params = ProviderAuthRequirements.resolve_all_params(
-        :openai,
-        [openai_api_key: "from-options"]
-      )
+      params =
+        ProviderAuthRequirements.resolve_all_params(
+          :openai,
+          openai_api_key: "from-options"
+        )
 
       assert params.openai_api_key == "from-options"
     end
@@ -291,20 +302,20 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
   describe "edge cases and error handling" do
     test "handles nil authentication parameters" do
       assert {:error, "API key is required"} =
-        ProviderAuthRequirements.validate_auth(:openai, nil)
+               ProviderAuthRequirements.validate_auth(:openai, nil)
     end
 
     test "handles invalid parameter types" do
       assert {:error, "Invalid authentication parameters"} =
-        ProviderAuthRequirements.validate_auth(:openai, 123)
+               ProviderAuthRequirements.validate_auth(:openai, 123)
 
       assert {:error, "Invalid authentication parameters"} =
-        ProviderAuthRequirements.validate_auth(:openai, [])
+               ProviderAuthRequirements.validate_auth(:openai, [])
     end
 
     test "handles empty map authentication" do
       assert {:error, _} =
-        ProviderAuthRequirements.validate_auth(:openai, %{})
+               ProviderAuthRequirements.validate_auth(:openai, %{})
     end
 
     test "handles string keys in authentication map" do

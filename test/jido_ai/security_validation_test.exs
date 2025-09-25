@@ -52,7 +52,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
         assert_raise ArgumentError, fn ->
           String.to_existing_atom(provider_part)
         end
-      end
+      end)
     end
 
     test "extract_provider_from_reqllm_id prevents arbitrary atom creation in Embeddings" do

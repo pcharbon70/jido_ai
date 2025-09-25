@@ -219,7 +219,8 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandlerTest do
 
       result = ErrorHandler.format_error(error)
 
-      assert result.type == "some_pid"  # This is the actual behavior
+      # This is the actual behavior
+      assert result.type == "some_pid"
       assert result.message == "Error occurred"
       assert String.contains?(result.details, "#PID<")
       assert result.category == "unknown_error"
@@ -377,7 +378,8 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandlerTest do
     end
 
     test "categorizes network errors" do
-      assert ErrorHandler.categorize_error_type("network_timeout") == "execution_error"  # This is the actual behavior
+      # This is the actual behavior
+      assert ErrorHandler.categorize_error_type("network_timeout") == "execution_error"
       assert ErrorHandler.categorize_error_type("connection_failed") == "network_error"
       assert ErrorHandler.categorize_error_type("transport_error") == "network_error"
     end
@@ -439,8 +441,10 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandlerTest do
       nested_error = %{
         reason: "validation_failed",
         fields: ["name", "email"],
-        password: "secret123"  # Should be sanitized
+        # Should be sanitized
+        password: "secret123"
       }
+
       error = {:parameter_validation_error, "user", nested_error}
 
       result = ErrorHandler.create_tool_error_response(error)
@@ -474,9 +478,10 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandlerTest do
 
     test "handles very large stacktraces" do
       # Create a mock large stacktrace
-      large_stacktrace = Enum.map(1..50, fn i ->
-        {SomeModule, :some_function, [arg: i], [file: ~c"test.ex", line: i]}
-      end)
+      large_stacktrace =
+        Enum.map(1..50, fn i ->
+          {SomeModule, :some_function, [arg: i], [file: ~c"test.ex", line: i]}
+        end)
 
       error = {:execution_exception, "test", large_stacktrace}
       result = ErrorHandler.format_error(error)
@@ -560,7 +565,8 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandlerTest do
         {"Auth error with token=bearer_abc123", "Auth error with token=[REDACTED]"},
         {"API request failed, api_key=sk-1234567890", "API request failed, api_key=[REDACTED]"},
         {"Error: password=secret123", "Error: password=[REDACTED]"},
-        {"Token: abc123 expired", "token=[REDACTED] expired"}  # This matches because regex handles "Token:" pattern
+        # This matches because regex handles "Token:" pattern
+        {"Token: abc123 expired", "token=[REDACTED] expired"}
       ]
 
       Enum.each(test_cases, fn {input, expected} ->
@@ -575,14 +581,16 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandlerTest do
       # Create a large error structure
       large_error = %{
         type: "large_error",
-        data: Enum.into(1..1000, %{}, fn i ->
-          {"field_#{i}", "value_#{i}"}
-        end),
+        data:
+          Enum.into(1..1000, %{}, fn i ->
+            {"field_#{i}", "value_#{i}"}
+          end),
         nested: %{
           deep: %{
-            structure: Enum.into(1..500, %{}, fn i ->
-              {"nested_#{i}", %{value: i, password: "secret_#{i}"}}
-            end)
+            structure:
+              Enum.into(1..500, %{}, fn i ->
+                {"nested_#{i}", %{value: i, password: "secret_#{i}"}}
+              end)
           }
         }
       }
@@ -592,7 +600,7 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandlerTest do
       end_time = System.monotonic_time(:millisecond)
 
       # Should complete within reasonable time (less than 1 second)
-      assert (end_time - start_time) < 1000
+      assert end_time - start_time < 1000
       assert is_map(result)
       # Verify some sanitization occurred
       assert get_in(result, [:nested, :deep, :structure, "nested_1", :password]) == "[REDACTED]"
@@ -606,11 +614,12 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandlerTest do
       }
 
       # Run sanitization concurrently
-      tasks = Enum.map(1..10, fn _i ->
-        Task.async(fn ->
-          ErrorHandler.sanitize_error_for_logging(error)
+      tasks =
+        Enum.map(1..10, fn _i ->
+          Task.async(fn ->
+            ErrorHandler.sanitize_error_for_logging(error)
+          end)
         end)
-      end)
 
       results = Task.await_many(tasks, 5000)
 

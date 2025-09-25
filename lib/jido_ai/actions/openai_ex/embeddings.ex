@@ -68,7 +68,7 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
   alias Jido.AI.Model
   alias Jido.AI.ReqLlmBridge
   alias Jido.AI.ReqLlmBridge.ProviderMapping
-  alias ReqLlmBridge.Provider.Generated.ValidProviders
+  alias ReqLLM.Provider.Generated.ValidProviders
 
   @doc """
   Generates embeddings for the given input using ReqLlmBridge.
@@ -183,7 +183,7 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     opts = build_reqllm_options(model, params)
 
     # Make ReqLLM request
-    case ReqLlmBridge.embed_many(model.reqllm_id, input_list, opts) do
+    case ReqLLM.embed_many(model.reqllm_id, input_list, opts) do
       {:ok, response} ->
         # Convert ReqLLM response to expected format
         {:ok, convert_reqllm_response(response)}

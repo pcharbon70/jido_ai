@@ -36,7 +36,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       Keyring.set_session_value(keyring, :openai_api_key, "sk-test-key")
 
       assert {:ok, headers, "sk-test-key"} =
-        Authentication.authenticate_for_provider(:openai, %{}, self())
+               Authentication.authenticate_for_provider(:openai, %{}, self())
 
       assert headers["authorization"] == "Bearer sk-test-key"
     end
@@ -45,7 +45,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       Keyring.set_session_value(keyring, :anthropic_api_key, "sk-ant-test")
 
       assert {:ok, headers, "sk-ant-test"} =
-        Authentication.authenticate_for_provider(:anthropic, %{}, self())
+               Authentication.authenticate_for_provider(:anthropic, %{}, self())
 
       assert headers["x-api-key"] == "sk-ant-test"
       assert headers["anthropic-version"] == "2023-06-01"
@@ -58,7 +58,11 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       # Per-request should override... but session has precedence in our implementation
       # So this test verifies session precedence
       assert {:ok, headers, "session-key"} =
-        Authentication.authenticate_for_provider(:openai, %{api_key: "request-key"}, self())
+               Authentication.authenticate_for_provider(
+                 :openai,
+                 %{api_key: "request-key"},
+                 self()
+               )
 
       assert headers["authorization"] == "Bearer session-key"
 
@@ -71,7 +75,11 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:ok, headers, "request-key"} =
-        Authentication.authenticate_for_provider(:openai, %{api_key: "request-key"}, self())
+               Authentication.authenticate_for_provider(
+                 :openai,
+                 %{api_key: "request-key"},
+                 self()
+               )
 
       assert headers["authorization"] == "Bearer request-key"
     end
@@ -86,7 +94,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:ok, headers, "reqllm-key"} =
-        Authentication.authenticate_for_provider(:openai, %{}, self())
+               Authentication.authenticate_for_provider(:openai, %{}, self())
 
       assert headers["authorization"] == "Bearer reqllm-key"
     end
@@ -98,7 +106,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:error, reason} =
-        Authentication.authenticate_for_provider(:unknown_provider, %{}, self())
+               Authentication.authenticate_for_provider(:unknown_provider, %{}, self())
 
       assert reason =~ "API key not found"
     end
@@ -110,7 +118,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:error, "API key not found: OPENAI_API_KEY"} =
-        Authentication.authenticate_for_provider(:openai, %{}, self())
+               Authentication.authenticate_for_provider(:openai, %{}, self())
     end
   end
 
@@ -164,7 +172,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       # Since empty string is stored, we need to handle this case
       # The authentication will succeed but validation should catch empty
       assert {:error, "API key is empty"} =
-        Authentication.validate_authentication(:openai, [])
+               Authentication.validate_authentication(:openai, [])
     end
 
     test "returns error when no key found" do
@@ -174,7 +182,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:error, _reason} =
-        Authentication.validate_authentication(:openai, [])
+               Authentication.validate_authentication(:openai, [])
     end
 
     test "handles keyword list options" do
@@ -183,7 +191,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
         {:ok, "from-opts", :option}
       end)
 
-      assert :ok = Authentication.validate_authentication(:openai, [api_key: "from-opts"])
+      assert :ok = Authentication.validate_authentication(:openai, api_key: "from-opts")
     end
   end
 
@@ -197,7 +205,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:ok, "session-key", :session} =
-        Authentication.resolve_provider_authentication(:openai, %{}, self())
+               Authentication.resolve_provider_authentication(:openai, %{}, self())
     end
 
     test "falls back to ReqLLM when no session", %{keyring: keyring} do
@@ -208,7 +216,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:ok, "reqllm-key", :application} =
-        Authentication.resolve_provider_authentication(:openai, %{}, self())
+               Authentication.resolve_provider_authentication(:openai, %{}, self())
     end
 
     test "falls back to Keyring when ReqLLM fails", %{keyring: keyring} do
@@ -223,7 +231,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:ok, "env-key", :keyring} =
-        Authentication.resolve_provider_authentication(:openai, %{}, self())
+               Authentication.resolve_provider_authentication(:openai, %{}, self())
     end
 
     test "returns error when all sources fail" do
@@ -233,7 +241,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       end)
 
       assert {:error, _reason} =
-        Authentication.resolve_provider_authentication(:unknown, %{}, self())
+               Authentication.resolve_provider_authentication(:unknown, %{}, self())
     end
   end
 
@@ -310,13 +318,14 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       Keyring.set_session_value(keyring, :openai_api_key, "process1-key", self())
 
       # Spawn another process
-      task = Task.async(fn ->
-        # Should not see the other process's session value
-        case Authentication.resolve_provider_authentication(:openai, %{}, self()) do
-          {:ok, _, :session} -> :has_session
-          _ -> :no_session
-        end
-      end)
+      task =
+        Task.async(fn ->
+          # Should not see the other process's session value
+          case Authentication.resolve_provider_authentication(:openai, %{}, self()) do
+            {:ok, _, :session} -> :has_session
+            _ -> :no_session
+          end
+        end)
 
       result = Task.await(task)
       assert result == :no_session
@@ -327,15 +336,16 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       Keyring.set_session_value(keyring, :openai_api_key, "main-key", self())
 
       # Verify in another process
-      task = Task.async(fn ->
-        # Set different value in this process
-        Keyring.set_session_value(keyring, :openai_api_key, "task-key", self())
+      task =
+        Task.async(fn ->
+          # Set different value in this process
+          Keyring.set_session_value(keyring, :openai_api_key, "task-key", self())
 
-        case Authentication.authenticate_for_provider(:openai, %{}, self()) do
-          {:ok, _, key} -> key
-          _ -> nil
-        end
-      end)
+          case Authentication.authenticate_for_provider(:openai, %{}, self()) do
+            {:ok, _, key} -> key
+            _ -> nil
+          end
+        end)
 
       task_key = Task.await(task)
       assert task_key == "task-key"

@@ -23,10 +23,21 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   alias Jido.AI.Keyring.JidoKeysHybrid
 
   @sensitive_patterns [
-    "api_key", "password", "secret", "token", "auth",
-    "credential", "private_key", "access_key", "bearer",
-    "jwt", "oauth", "client_secret", "session_token",
-    "refresh_token", "access_token"
+    "api_key",
+    "password",
+    "secret",
+    "token",
+    "auth",
+    "credential",
+    "private_key",
+    "access_key",
+    "bearer",
+    "jwt",
+    "oauth",
+    "client_secret",
+    "session_token",
+    "refresh_token",
+    "access_token"
   ]
 
   @doc """
@@ -59,10 +70,12 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   def filter_credential_data(data) when is_map(data) do
     # Filter map values that might contain credentials
     Map.new(data, fn {key, value} ->
-      filtered_value = case is_sensitive_key?(key) do
-        true -> filter_credential_data(to_string(value))
-        false -> value
-      end
+      filtered_value =
+        case is_sensitive_key?(key) do
+          true -> filter_credential_data(to_string(value))
+          false -> value
+        end
+
       {key, filtered_value}
     end)
   end
@@ -123,8 +136,10 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
     filtered_details = filter_credential_data(details)
     safe_key = filter_credential_data(to_string(key))
 
-    Logger.debug("[Keyring-Security] #{operation} operation for #{safe_key}",
-      filtered_details)
+    Logger.debug(
+      "[Keyring-Security] #{operation} operation for #{safe_key}",
+      filtered_details
+    )
   end
 
   @doc """
@@ -227,7 +242,8 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
     * `:ok` if isolation is properly maintained
     * `{:error, reason}` if isolation is compromised
   """
-  @spec validate_process_isolation(GenServer.server(), atom(), String.t()) :: :ok | {:error, term()}
+  @spec validate_process_isolation(GenServer.server(), atom(), String.t()) ::
+          :ok | {:error, term()}
   def validate_process_isolation(server, test_key, test_value) do
     try do
       parent_pid = self()
@@ -236,20 +252,21 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
       :ok = Jido.AI.Keyring.set_session_value(server, test_key, test_value, parent_pid)
 
       # Spawn child process and verify isolation
-      child_task = Task.async(fn ->
-        child_pid = self()
+      child_task =
+        Task.async(fn ->
+          child_pid = self()
 
-        # Child should not see parent's session value
-        child_value = Jido.AI.Keyring.get_session_value(server, test_key, child_pid)
+          # Child should not see parent's session value
+          child_value = Jido.AI.Keyring.get_session_value(server, test_key, child_pid)
 
-        # Set different value in child
-        child_test_value = "child_#{test_value}"
-        :ok = Jido.AI.Keyring.set_session_value(server, test_key, child_test_value, child_pid)
+          # Set different value in child
+          child_test_value = "child_#{test_value}"
+          :ok = Jido.AI.Keyring.set_session_value(server, test_key, child_test_value, child_pid)
 
-        {child_value, child_test_value}
-      end)
+          {child_value, child_test_value}
+        end)
 
-      {child_session_value, child_set_value} = Task.await(child_task)
+      {child_session_value, _child_set_value} = Task.await(child_task)
 
       # Verify isolation
       cond do
@@ -259,6 +276,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
         true ->
           # Verify parent value unchanged
           parent_value = Jido.AI.Keyring.get_session_value(server, test_key, parent_pid)
+
           if parent_value == test_value do
             :ok
           else
@@ -292,21 +310,24 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
       {"regular_config", "some_config_value", false}
     ]
 
-    failed_tests = Enum.reduce(test_cases, [], fn {key, value, should_filter}, acc ->
-      filtered_value = filter_credential_data(value)
+    failed_tests =
+      Enum.reduce(test_cases, [], fn {key, value, should_filter}, acc ->
+        filtered_value = filter_credential_data(value)
 
-      case {should_filter, filtered_value == value} do
-        {true, true} ->
-          # Expected filtering but value unchanged
-          [{"#{key}: expected filtering but value unchanged", value, filtered_value} | acc]
-        {false, false} ->
-          # Expected no filtering but value changed
-          [{"#{key}: expected no filtering but value changed", value, filtered_value} | acc]
-        _ ->
-          # Test passed
-          acc
-      end
-    end)
+        case {should_filter, filtered_value == value} do
+          {true, true} ->
+            # Expected filtering but value unchanged
+            [{"#{key}: expected filtering but value unchanged", value, filtered_value} | acc]
+
+          {false, false} ->
+            # Expected no filtering but value changed
+            [{"#{key}: expected no filtering but value changed", value, filtered_value} | acc]
+
+          _ ->
+            # Test passed
+            acc
+        end
+      end)
 
     case failed_tests do
       [] -> :ok
@@ -318,12 +339,14 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
 
   @spec validate_key(term()) :: {:ok, atom()} | {:error, term()}
   defp validate_key(key) when is_atom(key), do: {:ok, key}
+
   defp validate_key(key) when is_binary(key) do
     case JidoKeysHybrid.validate_and_convert_key(key) do
       {:ok, atom} -> {:ok, atom}
       {:error, reason} -> {:error, reason}
     end
   end
+
   defp validate_key(_), do: {:error, :invalid_key_type}
 
   @spec validate_and_filter_value(term()) :: {:ok, term()} | {:error, term()}
@@ -332,12 +355,14 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
     filtered = filter_credential_data(value)
     {:ok, filtered}
   end
+
   defp validate_and_filter_value(value), do: {:ok, value}
 
   @spec sanitize_error(term()) :: term()
   defp sanitize_error({:error, reason}) when is_binary(reason) do
     filter_credential_data(reason)
   end
+
   defp sanitize_error(error), do: error
 
   @spec format_safe_error(atom(), String.t(), term()) :: {:error, String.t()}
@@ -352,15 +377,19 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
     |> Map.to_list()
     |> filter_log_metadata()
   end
+
   defp filter_log_metadata(metadata) when is_list(metadata) do
     Enum.map(metadata, fn
       {key, value} when is_binary(value) ->
         {key, filter_credential_data(value)}
+
       {key, value} when is_map(value) ->
         {key, filter_credential_data(value)}
+
       item ->
         item
     end)
   end
+
   defp filter_log_metadata(metadata), do: [metadata]
 end

@@ -149,11 +149,12 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
       result = ReqLlmBridge.transform_streaming_chunk(chunk)
 
       assert result.content == "Response with usage"
+
       assert result.usage == %{
-        prompt_tokens: 10,
-        completion_tokens: 5,
-        total_tokens: 15
-      }
+               prompt_tokens: 10,
+               completion_tokens: 5,
+               total_tokens: 15
+             }
     end
 
     test "handles chunk with tool calls" do
@@ -172,6 +173,7 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
       result = ReqLlmBridge.transform_streaming_chunk(chunk)
 
       assert result.content == ""
+
       assert result.tool_calls == [
                %{
                  id: "call_123",
@@ -199,9 +201,9 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
 
     test "handles chunk with mixed atom and string keys" do
       chunk = %{
-        content: "Mixed keys",
+        "content" => "Mixed keys",
         "finish_reason" => "stop",
-        role: "assistant",
+        "role" => "assistant",
         "tool_calls" => []
       }
 
@@ -236,7 +238,8 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
       result = ReqLlmBridge.transform_streaming_chunk(chunk)
 
       assert result.content == "No role specified"
-      assert result.delta.role == "assistant"  # Default role
+      # Default role
+      assert result.delta.role == "assistant"
     end
 
     test "handles empty chunk" do
@@ -295,6 +298,7 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
         content: "Main content",
         delta: %{content: "Delta content"}
       }
+
       result = ReqLlmBridge.transform_streaming_chunk(chunk)
       assert result.content == "Main content"
     end
@@ -312,6 +316,7 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
         content: "test",
         usage: %{prompt_tokens: 5, completion_tokens: 3, total_tokens: 8}
       }
+
       result = ReqLlmBridge.transform_streaming_chunk(chunk)
       assert result.usage == %{prompt_tokens: 5, completion_tokens: 3, total_tokens: 8}
     end
@@ -335,6 +340,7 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
         %{id: "call_1", type: "function", function: %{name: "test"}},
         %{id: "call_2", type: "function", function: %{name: "test2"}}
       ]
+
       chunk = %{content: "test", tool_calls: tool_calls}
       result = ReqLlmBridge.transform_streaming_chunk(chunk)
       assert result.tool_calls == tool_calls
@@ -398,8 +404,12 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
         %{content: " weather", role: "assistant", finish_reason: nil},
         %{content: " is", role: "assistant", finish_reason: nil},
         %{content: " nice", role: "assistant", finish_reason: nil},
-        %{content: " today", role: "assistant", finish_reason: "stop",
-          usage: %{prompt_tokens: 10, completion_tokens: 5, total_tokens: 15}}
+        %{
+          content: " today",
+          role: "assistant",
+          finish_reason: "stop",
+          usage: %{prompt_tokens: 10, completion_tokens: 5, total_tokens: 15}
+        }
       ]
 
       # Convert using the streaming response function
@@ -429,8 +439,12 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
     test "streaming with tool calls throughout" do
       reqllm_chunks = [
         %{content: "I'll help", role: "assistant", finish_reason: nil},
-        %{content: "", role: "assistant", finish_reason: "tool_calls",
-          tool_calls: [%{id: "call_1", type: "function", function: %{name: "calculate"}}]},
+        %{
+          content: "",
+          role: "assistant",
+          finish_reason: "tool_calls",
+          tool_calls: [%{id: "call_1", type: "function", function: %{name: "calculate"}}]
+        },
         %{content: "The result is 42", role: "assistant", finish_reason: "stop"}
       ]
 
@@ -492,9 +506,14 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
   describe "performance and memory" do
     test "handles large streams efficiently" do
       # Create a large stream
-      large_stream = Stream.map(1..1000, fn i ->
-        %{content: "Chunk #{i}", role: "assistant", finish_reason: if(i == 1000, do: "stop", else: nil)}
-      end)
+      large_stream =
+        Stream.map(1..1000, fn i ->
+          %{
+            content: "Chunk #{i}",
+            role: "assistant",
+            finish_reason: if(i == 1000, do: "stop", else: nil)
+          }
+        end)
 
       # Convert and measure that it processes without consuming excessive memory
       converted_stream = ReqLlmBridge.convert_streaming_response(large_stream, enhanced: false)
@@ -526,9 +545,12 @@ defmodule JidoTest.AI.ReqLLMStreamingTest do
       assert length(first_3) == 3
 
       # Should be able to filter/transform further
-      filtered = converted_stream
-                |> Stream.filter(fn chunk -> String.contains?(chunk.content, "2") or String.contains?(chunk.content, "4") end)
-                |> Enum.to_list()
+      filtered =
+        converted_stream
+        |> Stream.filter(fn chunk ->
+          String.contains?(chunk.content, "2") or String.contains?(chunk.content, "4")
+        end)
+        |> Enum.to_list()
 
       assert length(filtered) == 2
     end

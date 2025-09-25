@@ -15,7 +15,7 @@ defmodule Jido.AI.ReqLlmBridge do
 
   require Logger
 
-  alias Jido.AI.ReqLlmBridge.{StreamingAdapter, ToolBuilder, KeyringIntegration, Authentication}
+  alias Jido.AI.ReqLlmBridge.{StreamingAdapter, ToolBuilder, Authentication}
 
   @doc """
   Converts Jido AI message format to ReqLLM context format.
@@ -234,6 +234,7 @@ defmodule Jido.AI.ReqLlmBridge do
     Logger.debug("Multiple function selection not directly supported, using auto",
       functions: function_list
     )
+
     "auto"
   end
 
@@ -245,6 +246,7 @@ defmodule Jido.AI.ReqLlmBridge do
     Logger.warning("Unknown tool choice format, defaulting to auto",
       tool_choice: tool_choice
     )
+
     "auto"
   end
 
@@ -317,7 +319,8 @@ defmodule Jido.AI.ReqLlmBridge do
       iex> opts = %{context: %{user_id: 123}, validate_schema: true}
       iex> {:ok, descriptors} = Jido.AI.ReqLlmBridge.convert_tools_with_options(tools, opts)
   """
-  @spec convert_tools_with_options(list(module()), map()) :: {:ok, list(ReqLlmBridge.Tool.t())} | {:error, term()}
+  @spec convert_tools_with_options(list(module()), map()) ::
+          {:ok, list(ReqLlmBridge.Tool.t())} | {:error, term()}
   def convert_tools_with_options(tools, opts \\ %{}) when is_list(tools) and is_map(opts) do
     case ToolBuilder.batch_convert(tools, opts) do
       {:ok, tool_descriptors} ->
@@ -475,8 +478,8 @@ defmodule Jido.AI.ReqLlmBridge do
   # Private helper functions
 
   defp tool_descriptor_to_reqllm_tool(tool_descriptor) when is_map(tool_descriptor) do
-    # Convert ToolBuilder descriptor format to ReqLlmBridge.tool/1 call result
-    ReqLlmBridge.tool(
+    # Convert ToolBuilder descriptor format to ReqLLM.tool/1 call result
+    ReqLLM.tool(
       name: tool_descriptor.name,
       description: tool_descriptor.description,
       parameter_schema: tool_descriptor.parameter_schema,
@@ -538,68 +541,6 @@ defmodule Jido.AI.ReqLlmBridge do
       }
     }
   end
-
-  defp convert_tool(tool_module) when is_atom(tool_module) do
-    # Convert Jido Action module to ReqLLM tool descriptor
-    # Direct function calls instead of apply/2 and apply/3
-    name = tool_module.name()
-    description = tool_module.description()
-    schema = tool_module.schema()
-
-    ReqLlmBridge.tool(
-      name: name,
-      description: description,
-      parameter_schema: convert_schema_to_json_schema(schema),
-      callback: fn args ->
-        # Execute the Jido Action and return JSON-serializable result
-        # Direct function call instead of apply/3
-        case tool_module.run(args, %{}) do
-          {:ok, result} -> result
-          {:error, reason} -> %{error: reason}
-          result -> result
-        end
-      end
-    )
-  end
-
-  defp convert_schema_to_json_schema(schema) when is_list(schema) do
-    # Convert Jido Action schema to JSON Schema format
-    # This is a simplified conversion - may need enhancement for complex schemas
-    properties =
-      Enum.reduce(schema, %{}, fn {key, opts}, acc ->
-        property = %{
-          type: map_type_to_json_schema(opts[:type]),
-          description: opts[:doc] || ""
-        }
-
-        property = if opts[:required], do: Map.put(property, :required, true), else: property
-
-        property =
-          if opts[:default], do: Map.put(property, :default, opts[:default]), else: property
-
-        Map.put(acc, key, property)
-      end)
-
-    required_fields =
-      schema
-      |> Enum.filter(fn {_key, opts} -> opts[:required] end)
-      |> Enum.map(fn {key, _opts} -> key end)
-
-    %{
-      type: "object",
-      properties: properties,
-      required: required_fields
-    }
-  end
-
-  defp map_type_to_json_schema(:string), do: "string"
-  defp map_type_to_json_schema(:integer), do: "integer"
-  defp map_type_to_json_schema(:float), do: "number"
-  defp map_type_to_json_schema(:boolean), do: "boolean"
-  defp map_type_to_json_schema({:list, _inner_type}), do: "array"
-  defp map_type_to_json_schema({:map, _fields}), do: "object"
-  # Default fallback
-  defp map_type_to_json_schema(_), do: "string"
 
   # Key Management Integration Functions
 
@@ -696,7 +637,8 @@ defmodule Jido.AI.ReqLlmBridge do
       # key => "sk-ant-..."
       # headers => %{"x-api-key" => "sk-ant-...", "anthropic-version" => "2023-06-01"}
   """
-  @spec get_provider_authentication(atom(), map()) :: {:ok, {String.t(), map()}} | {:error, String.t()}
+  @spec get_provider_authentication(atom(), map()) ::
+          {:ok, {String.t(), map()}} | {:error, String.t()}
   def get_provider_authentication(provider, req_options \\ %{}) do
     case Authentication.authenticate_for_provider(provider, req_options) do
       {:ok, headers, key} -> {:ok, {key, headers}}

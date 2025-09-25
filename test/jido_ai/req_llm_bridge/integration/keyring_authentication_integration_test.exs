@@ -181,7 +181,9 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
 
       # Each should maintain its own isolation
       {:ok, openai_headers, openai_key} = Authentication.authenticate_for_provider(:openai, %{})
-      {:ok, anthropic_headers, anthropic_key} = Authentication.authenticate_for_provider(:anthropic, %{})
+
+      {:ok, anthropic_headers, anthropic_key} =
+        Authentication.authenticate_for_provider(:anthropic, %{})
 
       assert openai_key == "openai-isolated"
       assert anthropic_key == "anthropic-isolated"
@@ -229,21 +231,22 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       # Create target process and test transfer
       current_pid = self()
 
-      task = Task.async(fn ->
-        # Should not have authentication initially
-        refute SessionAuthentication.has_session_auth?(:openai)
+      task =
+        Task.async(fn ->
+          # Should not have authentication initially
+          refute SessionAuthentication.has_session_auth?(:openai)
 
-        # Transfer from parent
-        transferred = SessionAuthentication.inherit_from(current_pid)
-        assert :openai in transferred
+          # Transfer from parent
+          transferred = SessionAuthentication.inherit_from(current_pid)
+          assert :openai in transferred
 
-        # Should now have authentication
-        assert SessionAuthentication.has_session_auth?(:openai)
+          # Should now have authentication
+          assert SessionAuthentication.has_session_auth?(:openai)
 
-        # Authentication should work in child process
-        {:ok, child_headers, child_key} = Authentication.authenticate_for_provider(:openai, %{})
-        {child_key, child_headers["authorization"]}
-      end)
+          # Authentication should work in child process
+          {:ok, child_headers, child_key} = Authentication.authenticate_for_provider(:openai, %{})
+          {child_key, child_headers["authorization"]}
+        end)
 
       {child_key, child_auth_header} = Task.await(task)
       assert child_key == "transfer-key"
@@ -375,7 +378,8 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       assert headers == %{"Content-Type" => "application/json"}
 
       # Validation should also fail gracefully
-      {:error, "API key not found: OPENAI_API_KEY"} = Authentication.validate_authentication(:openai, %{})
+      {:error, "API key not found: OPENAI_API_KEY"} =
+        Authentication.validate_authentication(:openai, %{})
     end
   end
 end

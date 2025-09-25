@@ -195,7 +195,14 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
       assert Enum.all?(keys, &is_atom/1)
 
       # Should include provider keys
-      provider_keys = [:openai_api_key, :anthropic_api_key, :google_api_key, :openrouter_api_key, :cloudflare_api_key]
+      provider_keys = [
+        :openai_api_key,
+        :anthropic_api_key,
+        :google_api_key,
+        :openrouter_api_key,
+        :cloudflare_api_key
+      ]
+
       assert Enum.any?(provider_keys, fn key -> key in keys end)
     end
 
@@ -333,10 +340,11 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
       Keyring.set_session_value(:process_test_key, "main-process-value")
 
       # Spawn another process and check isolation
-      task = Task.async(fn ->
-        # This process should not see the session value
-        KeyringIntegration.get(Keyring, :process_test_key, "other-process-default")
-      end)
+      task =
+        Task.async(fn ->
+          # This process should not see the session value
+          KeyringIntegration.get(Keyring, :process_test_key, "other-process-default")
+        end)
 
       other_process_result = Task.await(task)
 

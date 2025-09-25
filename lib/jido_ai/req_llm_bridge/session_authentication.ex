@@ -59,8 +59,13 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthentication do
       {:no_session_auth} = get_for_request(:openai, %{})
   """
   @spec get_for_request(atom(), map(), pid(), GenServer.server()) ::
-    {:session_auth, map()} | {:no_session_auth}
-  def get_for_request(provider, req_options \\ %{}, session_pid \\ self(), server \\ @default_server) do
+          {:session_auth, map()} | {:no_session_auth}
+  def get_for_request(
+        provider,
+        req_options \\ %{},
+        session_pid \\ self(),
+        server \\ @default_server
+      ) do
     case Keyring.get_session_value(server, provider_key(provider), session_pid) do
       nil ->
         {:no_session_auth}
@@ -119,7 +124,8 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthentication do
       :ok
   """
   @spec clear_for_provider(atom(), pid(), GenServer.server()) :: :ok
-  def clear_for_provider(provider, session_pid \\ self(), server \\ @default_server) when is_atom(provider) do
+  def clear_for_provider(provider, session_pid \\ self(), server \\ @default_server)
+      when is_atom(provider) do
     Keyring.clear_session_value(server, provider_key(provider), session_pid)
   end
 
@@ -145,7 +151,8 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthentication do
       false = SessionAuthentication.has_session_auth?(:openai)
   """
   @spec has_session_auth?(atom(), pid(), GenServer.server()) :: boolean()
-  def has_session_auth?(provider, session_pid \\ self(), server \\ @default_server) when is_atom(provider) do
+  def has_session_auth?(provider, session_pid \\ self(), server \\ @default_server)
+      when is_atom(provider) do
     case Keyring.get_session_value(server, provider_key(provider), session_pid) do
       nil -> false
       _ -> true

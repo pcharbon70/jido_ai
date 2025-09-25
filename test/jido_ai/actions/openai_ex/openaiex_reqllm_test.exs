@@ -111,9 +111,12 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
 
     test "handles messages with missing fields gracefully" do
       messages = [
-        %{role: :system},  # Missing content
-        %{content: "No role"},  # Missing role
-        %{}  # Empty map
+        # Missing content
+        %{role: :system},
+        # Missing role
+        %{content: "No role"},
+        # Empty map
+        %{}
       ]
 
       result = TestHelpers.convert_chat_messages_to_jido_format(messages)
@@ -174,7 +177,8 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
 
     test "uses ReqLLM provider whitelist" do
       expect(ValidProviders, :list, fn ->
-        [:openai, :anthropic]  # Limited list
+        # Limited list
+        [:openai, :anthropic]
       end)
 
       # Should work for whitelisted provider
@@ -238,15 +242,23 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       reqllm_response = %{
         content: "I'll help you with that calculation.",
         tool_calls: [
-          %{id: "call_123", type: "function", function: %{name: "add", arguments: "{\"a\": 2, \"b\": 3}"}}
+          %{
+            id: "call_123",
+            type: "function",
+            function: %{name: "add", arguments: "{\"a\": 2, \"b\": 3}"}
+          }
         ],
         usage: %{prompt_tokens: 15, completion_tokens: 12, total_tokens: 27}
       }
 
       result = TestHelpers.convert_to_openai_response_format(reqllm_response)
 
-      assert get_in(result, [:choices, Access.at(0), :message, :tool_calls) == [
-               %{id: "call_123", type: "function", function: %{name: "add", arguments: "{\"a\": 2, \"b\": 3}"}}
+      assert get_in(result, [:choices, Access.at(0), :message, :tool_calls]) == [
+               %{
+                 id: "call_123",
+                 type: "function",
+                 function: %{name: "add", arguments: "{\"a\": 2, \"b\": 3}"}
+               }
              ]
     end
 
@@ -258,7 +270,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       result = TestHelpers.convert_to_openai_response_format(reqllm_response)
 
       assert result.usage == %{}
-      assert get_in(result, [:choices, Access.at(0), :message, :content) == "Simple response"
+      assert get_in(result, [:choices, Access.at(0), :message, :content]) == "Simple response"
     end
 
     test "handles different finish_reason values" do
@@ -266,12 +278,13 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
         {%{content: "Done", finish_reason: "stop"}, "stop"},
         {%{content: "Truncated", finish_reason: "length"}, "length"},
         {%{content: "Tool call", finish_reason: "tool_calls"}, "tool_calls"},
-        {%{content: "No reason"}, "stop"}  # Default case
+        # Default case
+        {%{content: "No reason"}, "stop"}
       ]
 
       for {input, expected_reason} <- test_cases do
         result = TestHelpers.convert_to_openai_response_format(input)
-        assert get_in(result, [:choices, Access.at(0), :finish_reason) == expected_reason
+        assert get_in(result, [:choices, Access.at(0), :finish_reason]) == expected_reason
       end
     end
 
@@ -283,19 +296,21 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
 
       result = TestHelpers.convert_to_openai_response_format(reqllm_response)
 
-      assert get_in(result, [:choices, Access.at(0), :message, :content) == "Response with string keys"
+      assert get_in(result, [:choices, Access.at(0), :message, :content]) ==
+               "Response with string keys"
     end
 
     test "handles empty or nil content" do
       test_cases = [
         %{content: ""},
         %{content: nil},
-        %{}  # No content key
+        # No content key
+        %{}
       ]
 
       for input <- test_cases do
         result = TestHelpers.convert_to_openai_response_format(input)
-        content = get_in(result, [:choices, Access.at(0), :message, :content)
+        content = get_in(result, [:choices, Access.at(0), :message, :content])
         assert content == "" or content == nil
       end
     end
@@ -333,7 +348,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       assert result_map[:presence_penalty] == 0.3
       assert result_map[:stop] == ["END"]
       assert result_map[:tool_choice] == "auto"
-      assert is_list(result_map[:tools)
+      assert is_list(result_map[:tools])
     end
 
     test "filters unsupported parameters" do
@@ -350,7 +365,8 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       expect(JidoKeys, :put, fn _, _ -> :ok end)
       expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
-      result = TestHelpers.build_req_llm_options_from_chat_req(chat_req, %{model | api_key: "test"})
+      result =
+        TestHelpers.build_req_llm_options_from_chat_req(chat_req, %{model | api_key: "test"})
 
       result_map = Enum.into(result, %{})
 
@@ -423,6 +439,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       result = TestHelpers.build_req_llm_options_from_chat_req(chat_req, model_without_key)
 
       result_map = Enum.into(result, %{})
+
       assert result_map[:tools] == [
                %{type: "function", function: %{name: "test_tool", description: "A test tool"}}
              ]
@@ -458,8 +475,11 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       # Verify response format matches OpenAI API
       assert response.choices
       assert length(response.choices) == 1
-      assert get_in(response, [:choices, Access.at(0), :message, :content) == "Hello! I'm here to help."
-      assert get_in(response, [:choices, Access.at(0), :message, :role) == "assistant"
+
+      assert get_in(response, [:choices, Access.at(0), :message, :content]) ==
+               "Hello! I'm here to help."
+
+      assert get_in(response, [:choices, Access.at(0), :message, :role]) == "assistant"
       assert response.usage.total_tokens == 20
     end
   end

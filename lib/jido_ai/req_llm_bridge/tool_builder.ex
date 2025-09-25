@@ -26,23 +26,23 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
       :ok = ToolBuilder.validate_action_compatibility(MyAction)
   """
 
-  alias Jido.AI.ReqLlmBridge.{ToolExecutor, SchemaValidator, ParameterConverter}
+  alias Jido.AI.ReqLlmBridge.{ToolExecutor, SchemaValidator}
 
   require Logger
 
   @type tool_descriptor :: %{
-    name: String.t(),
-    description: String.t(),
-    parameter_schema: map(),
-    callback: function()
-  }
+          name: String.t(),
+          description: String.t(),
+          parameter_schema: map(),
+          callback: function()
+        }
 
   @type conversion_options :: %{
-    context: map(),
-    timeout: non_neg_integer(),
-    validate_schema: boolean(),
-    enable_logging: boolean()
-  }
+          context: map(),
+          timeout: non_neg_integer(),
+          validate_schema: boolean(),
+          enable_logging: boolean()
+        }
 
   @doc """
   Creates a ReqLLM tool descriptor from a Jido Action module.
@@ -78,7 +78,6 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
          {:ok, tool_spec} <- build_tool_specification(action_module),
          {:ok, callback_fn} <- create_execution_callback(action_module, options),
          :ok <- validate_tool_descriptor_if_enabled(tool_spec, options) do
-
       tool_descriptor = %{
         name: tool_spec.name,
         description: tool_spec.description,
@@ -97,12 +96,14 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
     error ->
       options = build_conversion_options(opts)
       log_conversion_exception(action_module, error, options)
-      {:error, %{
-        reason: "conversion_exception",
-        details: Exception.message(error),
-        action_module: action_module,
-        stacktrace: __STACKTRACE__
-      }}
+
+      {:error,
+       %{
+         reason: "conversion_exception",
+         details: Exception.message(error),
+         action_module: action_module,
+         stacktrace: __STACKTRACE__
+       }}
   end
 
   @doc """
@@ -138,6 +139,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
       |> Enum.reduce({[], []}, fn
         {:ok, descriptor}, {successes, failures} ->
           {[descriptor | successes], failures}
+
         {:error, reason}, {successes, failures} ->
           {successes, [reason | failures]}
       end)
@@ -147,17 +149,19 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
         {:ok, Enum.reverse(successes)}
 
       {[], failures} ->
-        {:error, %{
-          reason: "all_conversions_failed",
-          details: "No actions could be converted to tool descriptors",
-          failures: Enum.reverse(failures)
-        }}
+        {:error,
+         %{
+           reason: "all_conversions_failed",
+           details: "No actions could be converted to tool descriptors",
+           failures: Enum.reverse(failures)
+         }}
 
       {successes, failures} ->
         Logger.warning("Some tool conversions failed",
           successes: length(successes),
           failures: length(failures)
         )
+
         {:ok, Enum.reverse(successes)}
     end
   end
@@ -188,9 +192,8 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
   @spec validate_action_compatibility(module()) :: :ok | {:error, map()}
   def validate_action_compatibility(action_module) when is_atom(action_module) do
     with :ok <- validate_action_module(action_module),
-         {:ok, _tool_spec} <- build_tool_specification(action_module),
-         :ok <- validate_schema_compatibility(action_module) do
-      :ok
+         {:ok, _tool_spec} <- build_tool_specification(action_module) do
+      validate_schema_compatibility(action_module)
     end
   end
 
@@ -227,11 +230,12 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
       {:ok, tool_spec}
     rescue
       error ->
-        {:error, %{
-          reason: "tool_specification_error",
-          details: Exception.message(error),
-          module: action_module
-        }}
+        {:error,
+         %{
+           reason: "tool_specification_error",
+           details: Exception.message(error),
+           module: action_module
+         }}
     end
   end
 
@@ -272,7 +276,10 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
       SchemaValidator.convert_schema_to_reqllm(schema)
     rescue
       error ->
-        Logger.warning("Failed to convert schema for #{action_module}: #{Exception.message(error)}")
+        Logger.warning(
+          "Failed to convert schema for #{action_module}: #{Exception.message(error)}"
+        )
+
         %{}
     end
   end
@@ -283,11 +290,12 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
       SchemaValidator.validate_nimble_schema_compatibility(schema)
     rescue
       error ->
-        {:error, %{
-          reason: "schema_compatibility_error",
-          details: Exception.message(error),
-          module: action_module
-        }}
+        {:error,
+         %{
+           reason: "schema_compatibility_error",
+           details: Exception.message(error),
+           module: action_module
+         }}
     end
   end
 
@@ -309,10 +317,11 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
     if missing_keys == [] do
       :ok
     else
-      {:error, %{
-        reason: "invalid_tool_descriptor",
-        details: "Missing required keys: #{inspect(missing_keys)}"
-      }}
+      {:error,
+       %{
+         reason: "invalid_tool_descriptor",
+         details: "Missing required keys: #{inspect(missing_keys)}"
+       }}
     end
   end
 
@@ -357,7 +366,8 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
 
   defp log_conversion_exception(action_module, error, options) do
     if Map.get(options, :enable_logging, false) do
-      Logger.error("Exception during tool conversion for #{action_module}: #{Exception.message(error)}",
+      Logger.error(
+        "Exception during tool conversion for #{action_module}: #{Exception.message(error)}",
         action_module: action_module,
         error: error
       )

@@ -88,7 +88,10 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
       :ok
     rescue
       error ->
-        Logger.warning("[Keyring-JidoKeys] Failed to set runtime value for #{normalized_key}: #{inspect(error)}")
+        Logger.warning(
+          "[Keyring-JidoKeys] Failed to set runtime value for #{normalized_key}: #{inspect(error)}"
+        )
+
         {:error, error}
     end
   end
@@ -130,20 +133,24 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
   """
   @spec validate_and_convert_key(term()) :: {:ok, atom()} | {:error, term()}
   def validate_and_convert_key(key) when is_atom(key), do: {:ok, key}
+
   def validate_and_convert_key(key) when is_binary(key) do
     try do
       case JidoKeys.to_llm_atom(key) do
         atom when is_atom(atom) -> {:ok, atom}
-        ^key -> {:ok, String.to_existing_atom(key)}  # If string returned, try existing atom
+        # If string returned, try existing atom
+        ^key -> {:ok, String.to_existing_atom(key)}
       end
     rescue
       ArgumentError ->
         # Key doesn't exist as atom, return as string for compatibility
         {:ok, key}
+
       error ->
         {:error, error}
     end
   end
+
   def validate_and_convert_key(_), do: {:error, :invalid_key_type}
 
   @doc """
@@ -189,7 +196,8 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
     * `:ok` on success
     * `{:error, reason}` on failure
   """
-  @spec ensure_session_isolation(GenServer.server(), atom(), term(), pid()) :: :ok | {:error, term()}
+  @spec ensure_session_isolation(GenServer.server(), atom(), term(), pid()) ::
+          :ok | {:error, term()}
   def ensure_session_isolation(server, key, value, pid) do
     try do
       registry = GenServer.call(server, :get_registry)
@@ -226,13 +234,16 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
     cond do
       function_exported?(JidoKeys.LogFilter, :filter, 2) ->
         JidoKeys.LogFilter.filter(data, :all)
+
       function_exported?(JidoKeys.LogFilter, :filter, 1) ->
         JidoKeys.LogFilter.filter(data)
+
       true ->
         # Fallback filtering for basic patterns
         apply_basic_filtering(data)
     end
   end
+
   def filter_sensitive_data(data), do: data
 
   @doc """
@@ -257,14 +268,17 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
 
   @spec normalize_key(atom() | String.t()) :: atom() | String.t()
   defp normalize_key(key) when is_atom(key), do: key
+
   defp normalize_key(key) when is_binary(key) do
     # Use JidoKeys safe atom conversion if available
     case validate_and_convert_key(key) do
       {:ok, atom} when is_atom(atom) -> atom
       {:ok, string} when is_binary(string) -> string
-      {:error, _} -> key  # Return original key on error
+      # Return original key on error
+      {:error, _} -> key
     end
   end
+
   defp normalize_key(key), do: key
 
   @spec get_jido_keys_value(atom() | String.t()) :: term() | nil
@@ -289,23 +303,35 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
       value
     end
   end
+
   defp filter_sensitive_value(value, _key), do: value
 
   @spec is_sensitive_key?(atom() | String.t()) :: boolean()
   defp is_sensitive_key?(key) when is_atom(key) do
     is_sensitive_key?(Atom.to_string(key))
   end
+
   defp is_sensitive_key?(key) when is_binary(key) do
     key_lower = String.downcase(key)
 
     sensitive_patterns = [
-      "api_key", "password", "secret", "token", "auth",
-      "credential", "private_key", "access_key", "bearer",
-      "jwt", "oauth", "client_secret"
+      "api_key",
+      "password",
+      "secret",
+      "token",
+      "auth",
+      "credential",
+      "private_key",
+      "access_key",
+      "bearer",
+      "jwt",
+      "oauth",
+      "client_secret"
     ]
 
     Enum.any?(sensitive_patterns, &String.contains?(key_lower, &1))
   end
+
   defp is_sensitive_key?(_), do: false
 
   @spec get_session_value_direct(GenServer.server(), atom(), pid()) :: term() | nil
@@ -319,7 +345,10 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
       end
     rescue
       error ->
-        Logger.debug("[Keyring-JidoKeys] Error getting session value for #{key}: #{inspect(error)}")
+        Logger.debug(
+          "[Keyring-JidoKeys] Error getting session value for #{key}: #{inspect(error)}"
+        )
+
         nil
     end
   end

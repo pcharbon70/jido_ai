@@ -99,7 +99,8 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsReqLLMTest do
 
     test "handles invalid provider safely" do
       expect(ValidProviders, :list, fn ->
-        [:openai, :anthropic]  # Limited list
+        # Limited list
+        [:openai, :anthropic]
       end)
 
       # Should handle invalid provider gracefully

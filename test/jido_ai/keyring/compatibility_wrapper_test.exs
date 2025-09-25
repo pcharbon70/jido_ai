@@ -33,7 +33,8 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       ]
 
       for {function_name, args, result} <- test_cases do
-        compatible_result = CompatibilityWrapper.ensure_api_compatibility(function_name, args, result)
+        compatible_result =
+          CompatibilityWrapper.ensure_api_compatibility(function_name, args, result)
 
         case function_name do
           :get ->
@@ -75,16 +76,21 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
     end
 
     test "maps JidoKeys string errors to nil with logging" do
-      log_output = ExUnit.CaptureLog.capture_log(fn ->
-        result = CompatibilityWrapper.map_jido_keys_errors(:get, :test_key, {:error, "Key not found"})
-        assert result == nil
-      end)
+      log_output =
+        ExUnit.CaptureLog.capture_log(fn ->
+          result =
+            CompatibilityWrapper.map_jido_keys_errors(:get, :test_key, {:error, "Key not found"})
+
+          assert result == nil
+        end)
 
       assert String.contains?(log_output, "get failed for test_key")
     end
 
     test "maps JidoKeys generic errors to nil" do
-      result = CompatibilityWrapper.map_jido_keys_errors(:set, :test_key, {:error, :permission_denied})
+      result =
+        CompatibilityWrapper.map_jido_keys_errors(:set, :test_key, {:error, :permission_denied})
+
       assert result == nil
     end
 
@@ -100,22 +106,50 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
 
   describe "session isolation compatibility" do
     test "validates set operation isolation", %{keyring: keyring} do
-      result = CompatibilityWrapper.validate_session_isolation_compatibility(keyring, :set, :test_key, self())
+      result =
+        CompatibilityWrapper.validate_session_isolation_compatibility(
+          keyring,
+          :set,
+          :test_key,
+          self()
+        )
+
       assert result == :ok
     end
 
     test "validates get operation isolation", %{keyring: keyring} do
-      result = CompatibilityWrapper.validate_session_isolation_compatibility(keyring, :get, :test_key, self())
+      result =
+        CompatibilityWrapper.validate_session_isolation_compatibility(
+          keyring,
+          :get,
+          :test_key,
+          self()
+        )
+
       assert result == :ok
     end
 
     test "validates clear operation isolation", %{keyring: keyring} do
-      result = CompatibilityWrapper.validate_session_isolation_compatibility(keyring, :clear, :test_key, self())
+      result =
+        CompatibilityWrapper.validate_session_isolation_compatibility(
+          keyring,
+          :clear,
+          :test_key,
+          self()
+        )
+
       assert result == :ok
     end
 
     test "handles unknown operations gracefully" do
-      result = CompatibilityWrapper.validate_session_isolation_compatibility(nil, :unknown, :test_key, self())
+      result =
+        CompatibilityWrapper.validate_session_isolation_compatibility(
+          nil,
+          :unknown,
+          :test_key,
+          self()
+        )
+
       assert result == :ok
     end
   end
@@ -131,8 +165,11 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
 
     test "validates session operation performance", %{keyring: keyring} do
       result = CompatibilityWrapper.validate_performance_compatibility(:set_session, 50, 100)
+
       case result do
-        :ok -> assert true
+        :ok ->
+          assert true
+
         {:error, perf_data} ->
           # If performance is slow, ensure error data is properly formatted
           assert is_map(perf_data)
@@ -151,7 +188,8 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
 
     test "handles unsupported operations gracefully" do
       result = CompatibilityWrapper.validate_performance_compatibility(:unknown_operation, 10, 50)
-      assert result == :ok  # Should not crash on unknown operations
+      # Should not crash on unknown operations
+      assert result == :ok
     end
   end
 
@@ -168,7 +206,8 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
         session_timeout: 120
       }
 
-      merged = CompatibilityWrapper.map_configuration_compatibility(jido_keys_config, keyring_config)
+      merged =
+        CompatibilityWrapper.map_configuration_compatibility(jido_keys_config, keyring_config)
 
       # Should preserve keyring features
       assert merged.keyring_feature == true
@@ -210,16 +249,19 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   describe "comprehensive compatibility test suite" do
     test "runs all compatibility tests successfully", %{keyring: keyring} do
       result = CompatibilityWrapper.run_compatibility_tests()
+
       case result do
         :ok ->
           assert true
+
         {:error, failed_tests} ->
           # If tests fail, ensure failures are properly reported
           assert is_list(failed_tests)
+
           for failure <- failed_tests do
             assert is_binary(failure), "Failure should be descriptive string: #{inspect(failure)}"
           end
-        end
+      end
     end
   end
 
@@ -280,10 +322,11 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       :ok = Keyring.set_session_value(keyring, key, parent_value)
 
       # Test in child process
-      task = Task.async(fn ->
-        child_value = Keyring.get_session_value(keyring, key)
-        {child_value, self()}
-      end)
+      task =
+        Task.async(fn ->
+          child_value = Keyring.get_session_value(keyring, key)
+          {child_value, self()}
+        end)
 
       {child_result, child_pid} = Task.await(task)
 
@@ -307,8 +350,11 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
 
       for {function_name, args, result} <- edge_cases do
         # Should not crash on invalid inputs
-        compatible_result = CompatibilityWrapper.ensure_api_compatibility(function_name, args, result)
-        assert compatible_result != nil  # Should return something reasonable
+        compatible_result =
+          CompatibilityWrapper.ensure_api_compatibility(function_name, args, result)
+
+        # Should return something reasonable
+        assert compatible_result != nil
       end
     end
 
@@ -324,7 +370,8 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       for error_case <- edge_cases do
         result = CompatibilityWrapper.map_jido_keys_errors(:test, :test_key, error_case)
         # Should handle all cases gracefully
-        assert result != nil or result == nil  # Should be predictable
+        # Should be predictable
+        assert result != nil or result == nil
       end
     end
 
@@ -362,7 +409,8 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
 
       # Should work with enhanced security but maintain compatibility
       result = Keyring.get_session_value(keyring, :security_compat_key)
-      assert is_binary(result)  # Should return a string (potentially filtered)
+      # Should return a string (potentially filtered)
+      assert is_binary(result)
     end
 
     test "compatibility with enhanced error handling" do
@@ -373,7 +421,8 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
 
       # Should handle error gracefully and maintain compatibility
       result = Keyring.get(:error_compat_key, "default")
-      assert result == "default"  # Should fall back as expected
+      # Should fall back as expected
+      assert result == "default"
     end
   end
 end

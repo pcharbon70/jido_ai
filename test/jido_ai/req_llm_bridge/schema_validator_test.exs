@@ -158,8 +158,10 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidatorTest do
 
       assert {:ok, validated} = SchemaValidator.validate_params(params, TestAction)
       assert validated.name == "test"
-      assert validated.count == 1  # default
-      assert validated.enabled == false  # default
+      # default
+      assert validated.count == 1
+      # default
+      assert validated.enabled == false
     end
 
     test "rejects invalid parameters" do
@@ -170,7 +172,8 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidatorTest do
     end
 
     test "rejects missing required parameters" do
-      params = %{count: 5}  # missing required 'name'
+      # missing required 'name'
+      params = %{count: 5}
 
       assert {:error, error} = SchemaValidator.validate_params(params, TestAction)
       assert error.type == "parameter_validation_error"
@@ -241,7 +244,8 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidatorTest do
       schema = [
         field1: [type: {:custom, Module1, :func1, []}],
         field2: [type: {:custom, Module2, :func2, []}],
-        field3: [type: :string]  # This one is fine
+        # This one is fine
+        field3: [type: :string]
       ]
 
       assert {:error, error} = SchemaValidator.validate_nimble_schema_compatibility(schema)
@@ -328,6 +332,7 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidatorTest do
       Enum.each(test_cases, fn {nimble_type, expected_json_type} ->
         schema = [field: [type: nimble_type]]
         result = SchemaValidator.convert_schema_to_reqllm(schema)
+
         assert result.properties["field"]["type"] == expected_json_type,
                "Expected #{nimble_type} to map to #{expected_json_type}"
       end)
@@ -339,8 +344,10 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidatorTest do
       # Field with invalid structure
       malformed_schema = [
         {:valid_field, [type: :string]},
-        :invalid_field,  # Not a tuple
-        {"string_key", [type: :integer]}  # String key instead of atom
+        # Not a tuple
+        :invalid_field,
+        # String key instead of atom
+        {"string_key", [type: :integer]}
       ]
 
       # Should handle the valid parts and ignore/handle invalid parts
@@ -355,7 +362,8 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidatorTest do
       result = SchemaValidator.convert_schema_to_reqllm(schema)
       field_prop = result.properties["field"]
 
-      assert field_prop["type"] == "string"  # Default type
+      # Default type
+      assert field_prop["type"] == "string"
       assert field_prop["description"] == ""
     end
 
