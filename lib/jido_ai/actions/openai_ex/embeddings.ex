@@ -1,6 +1,6 @@
 defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
   @moduledoc """
-  Action module for generating vector embeddings using ReqLLM.
+  Action module for generating vector embeddings using ReqLlmBridge.
 
   This module supports embedding generation across all ReqLLM providers with embedding
   capabilities. Embeddings are useful for semantic search, clustering, classification,
@@ -66,12 +66,12 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
 
   require Logger
   alias Jido.AI.Model
-  alias Jido.AI.ReqLLM
-  alias Jido.AI.ReqLLM.ProviderMapping
-  alias ReqLLM.Provider.Generated.ValidProviders
+  alias Jido.AI.ReqLlmBridge
+  alias Jido.AI.ReqLlmBridge.ProviderMapping
+  alias ReqLlmBridge.Provider.Generated.ValidProviders
 
   @doc """
-  Generates embeddings for the given input using ReqLLM.
+  Generates embeddings for the given input using ReqLlmBridge.
 
   ## Parameters
     - params: Map containing:
@@ -172,7 +172,7 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     # Set up API key for the model's provider
     setup_reqllm_keys(model)
 
-    # Convert input to list format for ReqLLM.embed_many/3
+    # Convert input to list format for ReqLlmBridge.embed_many/3
     input_list =
       case input do
         str when is_binary(str) -> [str]
@@ -183,14 +183,14 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     opts = build_reqllm_options(model, params)
 
     # Make ReqLLM request
-    case ReqLLM.embed_many(model.reqllm_id, input_list, opts) do
+    case ReqLlmBridge.embed_many(model.reqllm_id, input_list, opts) do
       {:ok, response} ->
         # Convert ReqLLM response to expected format
         {:ok, convert_reqllm_response(response)}
 
       {:error, error} ->
         # Map ReqLLM errors to expected format
-        ReqLLM.map_error({:error, error})
+        ReqLlmBridge.map_error({:error, error})
     end
   end
 
@@ -236,7 +236,7 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
 
   @spec convert_reqllm_response(map() | struct()) :: %{embeddings: list(list(float()))}
   defp convert_reqllm_response(response) when is_map(response) do
-    # ReqLLM.embed_many/3 returns embeddings in a structure - extract them
+    # ReqLlmBridge.embed_many/3 returns embeddings in a structure - extract them
     embeddings =
       response[:embeddings] || response["embeddings"] ||
         response[:data] || response["data"] ||

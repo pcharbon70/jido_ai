@@ -8,8 +8,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
   alias Jido.AI.Actions.OpenaiEx.Embeddings
   alias Jido.AI.Actions.OpenaiEx.TestHelpers
   alias Jido.AI.Model
-  alias Jido.AI.ReqLLM.ProviderMapping
-  alias ReqLLM.Provider.Generated.ValidProviders
+  alias Jido.AI.ReqLlmBridge.ProviderMapping
+  alias ReqLlmBridge.Provider.Generated.ValidProviders
 
   # Add global mock setup
   setup :set_mimic_global
@@ -319,7 +319,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
       params = %{model: model, messages: [%{role: :user, content: "test"}]}
 
       expect(ValidProviders, :list, fn -> [:openai] end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       # Verify secure storage via JidoKeys
       expect(JidoKeys, :put, fn env_var, api_key ->
@@ -369,7 +369,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
         expect(ValidProviders, :list, fn -> [:openai] end)
 
         if should_store and api_key && String.trim(api_key) != "" do
-          expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+          expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
           expect(JidoKeys, :put, fn _env_var, _key -> :ok end)
         else
           expect(JidoKeys, :put, 0, fn _env_var, _key -> :ok end)
@@ -551,7 +551,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
       }
 
       # Should handle deeply nested data without stack overflow
-      result = ReqLLM.transform_streaming_chunk(chunk)
+      result = ReqLlmBridge.transform_streaming_chunk(chunk)
 
       assert result.content == "test"
       assert result.delta.role == "assistant"

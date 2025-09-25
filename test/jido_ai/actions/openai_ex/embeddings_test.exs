@@ -39,7 +39,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsTest do
       params: params,
       context: context
     } do
-      # Mock ReqLLM.embed_many/3 call
+      # Mock ReqLlmBridge.embed_many/3 call
       expect(ReqLLM, :embed_many, fn "openai:text-embedding-ada-002", ["Hello, world!"], [] ->
         {:ok,
          %{
@@ -59,7 +59,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsTest do
       # Update params with multiple inputs
       params = %{params | input: ["Hello", "World"]}
 
-      # Mock ReqLLM.embed_many/3 call
+      # Mock ReqLlmBridge.embed_many/3 call
       expect(ReqLLM, :embed_many, fn "openai:text-embedding-ada-002", ["Hello", "World"], [] ->
         {:ok,
          %{
@@ -85,7 +85,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsTest do
           encoding_format: :base64
         })
 
-      # Mock ReqLLM.embed_many/3 call with options
+      # Mock ReqLlmBridge.embed_many/3 call with options
       expect(ReqLLM, :embed_many, fn "openai:text-embedding-ada-002",
                                      ["Hello, world!"],
                                      [encoding_format: :base64, dimensions: 1024] ->
@@ -115,7 +115,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsTest do
         | model: model
       }
 
-      # Mock ReqLLM.embed_many/3 call for OpenRouter
+      # Mock ReqLlmBridge.embed_many/3 call for OpenRouter
       expect(ReqLLM, :embed_many, fn "openrouter:openai/text-embedding-3-large",
                                      ["Hello, world!"],
                                      [] ->

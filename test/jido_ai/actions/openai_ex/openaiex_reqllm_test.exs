@@ -8,7 +8,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
   alias Jido.AI.Actions.OpenaiEx.TestHelpers
   alias Jido.AI.Model
   alias OpenaiEx.ChatMessage
-  alias ReqLLM.Provider.Generated.ValidProviders
+  alias ReqLlmBridge.Provider.Generated.ValidProviders
 
   # Add global mock setup
   setup :set_mimic_global
@@ -319,7 +319,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       end)
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-api-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       result = TestHelpers.build_req_llm_options_from_chat_req(chat_req, model)
 
@@ -348,7 +348,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       end)
 
       expect(JidoKeys, :put, fn _, _ -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       result = TestHelpers.build_req_llm_options_from_chat_req(chat_req, %{model | api_key: "test"})
 
@@ -371,7 +371,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       end)
 
       expect(JidoKeys, :put, fn _, _ -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       result = TestHelpers.build_req_llm_options_from_chat_req(chat_req, model)
 
@@ -391,7 +391,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
         [:openai, :anthropic, :google]
       end)
 
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-api-key" -> :ok end)
 
       TestHelpers.build_req_llm_options_from_chat_req(chat_req, model)
@@ -431,7 +431,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
 
   describe "integration with ReqLLM" do
     test "full integration test with mocked ReqLLM", %{params: params, context: context} do
-      # Mock ReqLLM.generate_text
+      # Mock ReqLlmBridge.generate_text
       expect(ReqLLM, :generate_text, fn messages, reqllm_id, opts ->
         assert is_list(messages)
         assert reqllm_id == "openai:gpt-4"
@@ -450,7 +450,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       end)
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-api-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       # Execute the action
       assert {:ok, response} = OpenaiEx.run(params, context)

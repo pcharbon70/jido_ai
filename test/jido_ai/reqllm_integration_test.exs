@@ -10,8 +10,8 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
   alias Jido.AI.Agent
   alias Jido.AI.Model
   alias Jido.AI.Prompt
-  alias Jido.AI.ReqLLM
-  alias ReqLLM.Provider.Generated.ValidProviders
+  alias Jido.AI.ReqLlmBridge
+  alias ReqLlmBridge.Provider.Generated.ValidProviders
 
   # Add global mock setup
   setup :set_mimic_global
@@ -41,7 +41,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
 
       # Set up mocks for complete workflow
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-api-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       expect(ReqLLM, :generate_text, fn messages, reqllm_id, opts ->
         # Verify the integration pipeline
@@ -105,7 +105,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       }
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-api-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       expect(ReqLLM, :generate_text, fn messages, reqllm_id, opts ->
         # Verify tool integration
@@ -167,7 +167,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
           :ok
         end)
 
-        expect(ReqLLM.Keys, :env_var_name, fn ^provider -> provider_env_vars[provider] end)
+        expect(ReqLlmBridge.Keys, :env_var_name, fn ^provider -> provider_env_vars[provider] end)
 
         expect(ReqLLM, :generate_text, fn _messages, ^reqllm_id, _opts ->
           {:ok, %{content: "Provider #{provider} response", finish_reason: "stop"}}
@@ -291,7 +291,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       model = %{model | reqllm_id: "openai:gpt-4"}
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       # Simulate streaming response
       mock_stream = [
@@ -349,7 +349,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       ]
 
       # Test enhanced streaming
-      enhanced_stream = ReqLLM.convert_streaming_response(mock_stream, enhanced: true, provider: :openai)
+      enhanced_stream = ReqLlmBridge.convert_streaming_response(mock_stream, enhanced: true, provider: :openai)
 
       # Should use the StreamingAdapter
       expect(StreamingAdapter, :adapt_stream, fn stream, opts ->
@@ -388,7 +388,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       regular_model = %{regular_model | reqllm_id: "openai:gpt-4"}  # For test purposes
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       expect(ReqLLM, :generate_text, fn _messages, _reqllm_id, _opts ->
         {:ok, %{content: "Backward compatible response", finish_reason: "stop"}}
@@ -411,7 +411,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       model = %{model | reqllm_id: "openai:gpt-4"}
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       expect(ReqLLM, :generate_text, fn _messages, _reqllm_id, _opts ->
         {:ok,
@@ -454,7 +454,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       model = %{model | reqllm_id: "openai:gpt-4"}
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       expect(ReqLLM, :generate_text, fn _messages, _reqllm_id, _opts ->
         {:error, %{code: 429, message: "Rate limit exceeded"}}
@@ -487,13 +487,13 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
 
       # Mock the agent's underlying calls
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       expect(ReqLLM, :generate_text, fn messages, reqllm_id, _opts ->
         assert String.contains?(reqllm_id, "openai:")
         assert is_list(messages)
 
-        {:ok, %{content: "Hello! I'm an AI assistant integrated with ReqLLM.", finish_reason: "stop"}}
+        {:ok, %{content: "Hello! I'm an AI assistant integrated with ReqLlmBridge.", finish_reason: "stop"}}
       end)
 
       # This would normally test the full Agent workflow, but for unit testing
@@ -529,7 +529,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       model = %{model | reqllm_id: "openai:gpt-4"}
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       expect(ReqLLM, :generate_text, fn messages, _reqllm_id, _opts ->
         assert length(messages) == 2
@@ -569,7 +569,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
 
       # Set up mocks for concurrent requests
       expect(JidoKeys, :put, 5, fn "OPENAI_API_KEY", "test-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, 5, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, 5, fn :openai -> "OPENAI_API_KEY" end)
 
       expect(ReqLLM, :generate_text, 5, fn _messages, _reqllm_id, _opts ->
         # Simulate slight delay
@@ -647,7 +647,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       model = %{model | reqllm_id: "openai:gpt-4"}
 
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
+      expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
       # Simulate various failure scenarios
       failure_scenarios = [

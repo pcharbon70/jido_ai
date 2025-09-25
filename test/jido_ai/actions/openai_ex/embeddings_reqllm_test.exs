@@ -6,7 +6,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsReqLLMTest do
 
   alias Jido.AI.Actions.OpenaiEx.Embeddings
   alias Jido.AI.Model
-  alias ReqLLM.Provider.Generated.ValidProviders
+  alias ReqLlmBridge.Provider.Generated.ValidProviders
 
   # Add global mock setup
   setup :set_mimic_global
@@ -467,7 +467,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsReqLLMTest do
 
   describe "integration with ReqLLM" do
     test "full integration test with mocked ReqLLM", %{params: params, context: context} do
-      # Mock ReqLLM.embed_many
+      # Mock ReqLlmBridge.embed_many
       expect(ReqLLM, :embed_many, fn reqllm_id, input_list, opts ->
         assert reqllm_id == "openai:text-embedding-ada-002"
         assert input_list == ["Hello world", "How are you?"]

@@ -13,7 +13,7 @@ defmodule Jido.AI.Application do
       # Start the Keyring GenServer
       Jido.AI.Keyring,
       # Start the ConversationManager for ReqLLM tool execution pipeline
-      Jido.AI.ReqLLM.ConversationManager
+      Jido.AI.ReqLlmBridge.ConversationManager
     ]
 
     opts = [strategy: :one_for_one, name: Jido.AI.Supervisor]

@@ -35,7 +35,7 @@ defmodule Jido.AI do
   """
 
   alias Jido.AI.Keyring
-  alias Jido.AI.ReqLLM
+  alias Jido.AI.ReqLlmBridge
 
   # ===========================================================================
   # Configuration API - Simple facades for common operations
@@ -244,7 +244,7 @@ defmodule Jido.AI do
   """
   @spec api_key_with_reqllm(atom(), map()) :: String.t() | nil
   def api_key_with_reqllm(provider \\ :openai, req_options \\ %{}) do
-    ReqLLM.get_provider_key(provider, req_options)
+    ReqLlmBridge.get_provider_key(provider, req_options)
   end
 
   @doc """
@@ -264,7 +264,7 @@ defmodule Jido.AI do
   """
   @spec list_available_providers() :: [%{provider: atom(), source: atom()}]
   def list_available_providers do
-    ReqLLM.list_available_providers()
+    ReqLlmBridge.list_available_providers()
   end
 
   @doc """

@@ -85,10 +85,10 @@ defmodule Jido.AI.Actions.OpenaiEx do
   alias Jido.AI.Actions.OpenaiEx.ToolHelper
   alias Jido.AI.Model
   alias Jido.AI.Prompt
-  alias Jido.AI.ReqLLM
+  alias Jido.AI.ReqLlmBridge
   alias OpenaiEx.Chat
   alias OpenaiEx.ChatMessage
-  alias ReqLLM.Provider.Generated.ValidProviders
+  alias ReqLlmBridge.Provider.Generated.ValidProviders
 
   @valid_providers [:openai, :openrouter, :google]
 
@@ -295,15 +295,15 @@ defmodule Jido.AI.Actions.OpenaiEx do
     opts = build_req_llm_options_from_chat_req(chat_req, model)
 
     # Use ReqLLM with the model's reqllm_id
-    case ReqLLM.generate_text(model.reqllm_id, messages, opts) do
+    case ReqLlmBridge.generate_text(model.reqllm_id, messages, opts) do
       {:ok, response} ->
         # Convert ReqLLM response through bridge first, then to OpenaiEx format
-        converted = ReqLLM.convert_response(response)
+        converted = ReqLlmBridge.convert_response(response)
         {:ok, convert_to_openai_response_format(converted)}
 
       {:error, error} ->
         # Map ReqLLM errors to existing error patterns
-        ReqLLM.map_error({:error, error})
+        ReqLlmBridge.map_error({:error, error})
     end
   end
 
@@ -318,15 +318,15 @@ defmodule Jido.AI.Actions.OpenaiEx do
     opts = build_req_llm_options_from_chat_req(chat_req, model) |> Keyword.put(:stream, true)
 
     # Use ReqLLM streaming with the model's reqllm_id
-    case ReqLLM.stream_text(model.reqllm_id, messages, opts) do
+    case ReqLlmBridge.stream_text(model.reqllm_id, messages, opts) do
       {:ok, stream} ->
         # Convert ReqLLM stream to Jido AI compatible format using bridge functions
-        converted_stream = ReqLLM.convert_streaming_response(stream)
+        converted_stream = ReqLlmBridge.convert_streaming_response(stream)
         {:ok, converted_stream}
 
       {:error, error} ->
         # Map ReqLLM streaming errors to existing error patterns
-        ReqLLM.map_streaming_error({:error, error})
+        ReqLlmBridge.map_streaming_error({:error, error})
     end
   end
 
@@ -355,7 +355,7 @@ defmodule Jido.AI.Actions.OpenaiEx do
       provider_atom = extract_provider_from_reqllm_id(model.reqllm_id)
 
       if provider_atom do
-        env_var_name = ReqLLM.Keys.env_var_name(provider_atom)
+        env_var_name = ReqLlmBridge.Keys.env_var_name(provider_atom)
         JidoKeys.put(env_var_name, model.api_key)
       end
     end
