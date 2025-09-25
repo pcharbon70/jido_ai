@@ -29,7 +29,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
 
   describe "session data flow across all components" do
     test "keyring -> session authentication -> authentication bridge -> provider requirements", %{
-      keyring: keyring
+      keyring: _keyring
     } do
       # Set up initial session data
       SessionAuthentication.set_for_provider(:cloudflare, "cf-session-key")

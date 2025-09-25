@@ -115,7 +115,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
   end
 
   describe "session fallback integration" do
-    test "prioritizes session values over JidoKeys", %{keyring: keyring} do
+    test "prioritizes session values over JidoKeys", %{keyring: _keyring} do
       # Set global value through JidoKeys
       expect(JidoKeys, :get, fn :precedence_key, nil ->
         "global_value"
@@ -131,7 +131,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       assert result == "session_value"
     end
 
-    test "falls back to JidoKeys when no session value", %{keyring: keyring} do
+    test "falls back to JidoKeys when no session value", %{keyring: _keyring} do
       expect(JidoKeys, :get, fn :fallback_key, nil ->
         "global_value"
       end)
@@ -140,7 +140,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       assert result == "global_value"
     end
 
-    test "applies filtering to session values", %{keyring: keyring} do
+    test "applies filtering to session values", %{keyring: _keyring} do
       # Set sensitive session value
       :ok = Keyring.set_session_value(keyring, :sensitive_session, "sk-session123456789")
 
@@ -183,7 +183,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
   end
 
   describe "session isolation enhancement" do
-    test "maintains ETS-based session storage", %{keyring: keyring} do
+    test "maintains ETS-based session storage", %{keyring: _keyring} do
       key = :isolation_test
       value = "isolated_value"
 
@@ -196,7 +196,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       assert retrieved != nil
     end
 
-    test "applies security filtering to stored session values", %{keyring: keyring} do
+    test "applies security filtering to stored session values", %{keyring: _keyring} do
       sensitive_value = "sk-sensitive123456789"
 
       result =
@@ -234,7 +234,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
   end
 
   describe "integration with main Keyring functionality" do
-    test "enhanced get/4 uses JidoKeys for global config", %{keyring: keyring} do
+    test "enhanced get/4 uses JidoKeys for global config", %{keyring: _keyring} do
       expect(JidoKeys, :get, fn :integration_key, nil ->
         "jido_keys_value"
       end)
@@ -244,7 +244,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       assert result == "jido_keys_value"
     end
 
-    test "enhanced get_env_value/3 tries JidoKeys first", %{keyring: keyring} do
+    test "enhanced get_env_value/3 tries JidoKeys first", %{keyring: _keyring} do
       expect(JidoKeys, :get, fn :env_key, nil ->
         "jido_keys_env_value"
       end)
@@ -262,7 +262,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       assert result == :ok
     end
 
-    test "session values still take precedence", %{keyring: keyring} do
+    test "session values still take precedence", %{keyring: _keyring} do
       # Set global value through JidoKeys
       expect(JidoKeys, :get, fn :precedence_test, nil ->
         "global_from_jido_keys"
@@ -278,7 +278,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
   end
 
   describe "performance and reliability" do
-    test "handles high-frequency operations efficiently", %{keyring: keyring} do
+    test "handles high-frequency operations efficiently", %{keyring: _keyring} do
       # Mock JidoKeys for consistent responses
       expect(JidoKeys, :get, 100, fn _key, nil ->
         "performance_value"
@@ -300,7 +300,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       assert Enum.all?(results, &(&1 == "performance_value"))
     end
 
-    test "maintains reliability under concurrent access", %{keyring: keyring} do
+    test "maintains reliability under concurrent access", %{keyring: _keyring} do
       expect(JidoKeys, :get, 500, fn _key, nil ->
         "concurrent_value"
       end)

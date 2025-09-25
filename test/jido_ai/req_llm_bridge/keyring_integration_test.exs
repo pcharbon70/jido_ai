@@ -37,7 +37,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
   end
 
   describe "get/5 - unified key precedence" do
-    test "returns session value when available (highest precedence)", %{keyring: keyring} do
+    test "returns session value when available (highest precedence)", %{keyring: _keyring} do
       # Set up a session value
       Keyring.set_session_value(keyring, :openai_api_key, "session-key")
 
@@ -306,7 +306,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
     test "handles ReqLLM module unavailability" do
       # Mock ReqLlmBridge.Keys to be undefined
-      expect(ReqLlmBridge.Keys, :get, fn _provider, default ->
+      expect(ReqLlmBridge.Keys, :get, fn _provider, _default ->
         raise UndefinedFunctionError, function: "get/2", module: ReqLlmBridge.Keys
       end)
 

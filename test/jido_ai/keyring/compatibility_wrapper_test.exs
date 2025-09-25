@@ -105,7 +105,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   end
 
   describe "session isolation compatibility" do
-    test "validates set operation isolation", %{keyring: keyring} do
+    test "validates set operation isolation", %{keyring: _keyring} do
       result =
         CompatibilityWrapper.validate_session_isolation_compatibility(
           keyring,
@@ -117,7 +117,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert result == :ok
     end
 
-    test "validates get operation isolation", %{keyring: keyring} do
+    test "validates get operation isolation", %{keyring: _keyring} do
       result =
         CompatibilityWrapper.validate_session_isolation_compatibility(
           keyring,
@@ -129,7 +129,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert result == :ok
     end
 
-    test "validates clear operation isolation", %{keyring: keyring} do
+    test "validates clear operation isolation", %{keyring: _keyring} do
       result =
         CompatibilityWrapper.validate_session_isolation_compatibility(
           keyring,
@@ -163,7 +163,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert result == :ok
     end
 
-    test "validates session operation performance", %{keyring: keyring} do
+    test "validates session operation performance", %{keyring: _keyring} do
       result = CompatibilityWrapper.validate_performance_compatibility(:set_session, 50, 100)
 
       case result do
@@ -247,7 +247,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   end
 
   describe "comprehensive compatibility test suite" do
-    test "runs all compatibility tests successfully", %{keyring: keyring} do
+    test "runs all compatibility tests successfully", %{keyring: _keyring} do
       result = CompatibilityWrapper.run_compatibility_tests()
 
       case result do
@@ -266,7 +266,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   end
 
   describe "individual compatibility tests" do
-    test "get compatibility test passes", %{keyring: keyring} do
+    test "get compatibility test passes", %{keyring: _keyring} do
       # Mock JidoKeys for predictable testing
       expect(JidoKeys, :get, fn _key, nil -> nil end)
 
@@ -279,7 +279,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       end
     end
 
-    test "session compatibility operations work as expected", %{keyring: keyring} do
+    test "session compatibility operations work as expected", %{keyring: _keyring} do
       # Test the actual operations that the compatibility test checks
       key = :compat_test_key
       value = "compat_test_value"
@@ -291,7 +291,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert nil == Keyring.get_session_value(keyring, key)
     end
 
-    test "environment value compatibility", %{keyring: keyring} do
+    test "environment value compatibility", %{keyring: _keyring} do
       # Mock JidoKeys for env value testing
       expect(JidoKeys, :get, fn :env_compat_test, nil -> "env_value" end)
 
@@ -299,13 +299,13 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert is_binary(result) or is_nil(result)
     end
 
-    test "list operation compatibility", %{keyring: keyring} do
+    test "list operation compatibility", %{keyring: _keyring} do
       result = Keyring.list(keyring)
       assert is_list(result)
       assert Enum.all?(result, &is_atom/1)
     end
 
-    test "error handling maintains backward compatibility", %{keyring: keyring} do
+    test "error handling maintains backward compatibility", %{keyring: _keyring} do
       # These operations should not raise but return expected values
       nil_result = Keyring.get(keyring, :nonexistent_compat_key)
       default_result = Keyring.get(keyring, :nonexistent_compat_key, "default")
@@ -314,7 +314,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert default_result == "default"
     end
 
-    test "process isolation compatibility maintained", %{keyring: keyring} do
+    test "process isolation compatibility maintained", %{keyring: _keyring} do
       key = :isolation_compat_test
       parent_value = "parent_value"
 
@@ -393,7 +393,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   end
 
   describe "integration with enhanced features" do
-    test "compatibility wrapper works with runtime configuration", %{keyring: keyring} do
+    test "compatibility wrapper works with runtime configuration", %{keyring: _keyring} do
       expect(JidoKeys, :put, fn :runtime_compat_key, "runtime_value" ->
         :ok
       end)
@@ -403,7 +403,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert result == :ok
     end
 
-    test "compatibility maintained with enhanced security features", %{keyring: keyring} do
+    test "compatibility maintained with enhanced security features", %{keyring: _keyring} do
       # Set a potentially sensitive value
       :ok = Keyring.set_session_value(keyring, :security_compat_key, "sk-sensitive123")
 

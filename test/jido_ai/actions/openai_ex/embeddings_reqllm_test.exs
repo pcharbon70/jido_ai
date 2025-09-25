@@ -229,7 +229,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsReqLLMTest do
   end
 
   describe "convert_reqllm_response/1" do
-    test "converts standard ReqLLM response format", %{model: model, params: params} do
+    test "converts standard ReqLLM response format", %{model: _model, params: _params} do
       reqllm_response = %{
         embeddings: [
           [0.1, 0.2, 0.3],

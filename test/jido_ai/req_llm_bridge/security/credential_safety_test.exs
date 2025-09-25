@@ -31,7 +31,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
   end
 
   describe "credential sanitization in logs and errors" do
-    test "API keys sanitized in error messages", %{keyring: keyring} do
+    test "API keys sanitized in error messages", %{keyring: _keyring} do
       # Test various API key formats that should be sanitized
       sensitive_keys = [
         "sk-proj-abcdefghijklmnopqrstuvwxyz123456789",
@@ -80,7 +80,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       end
     end
 
-    test "authentication headers safely formatted", %{keyring: keyring} do
+    test "authentication headers safely formatted", %{keyring: _keyring} do
       sensitive_keys = [
         "sk-proj-test-key-should-be-masked",
         "sk-ant-another-sensitive-key",
@@ -115,7 +115,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       end
     end
 
-    test "provider requirements don't expose keys in validation errors", %{keyring: keyring} do
+    test "provider requirements don't expose keys in validation errors", %{keyring: _keyring} do
       # Test various invalid keys that might be returned in error messages
       invalid_keys = [
         "sk-invalid-but-potentially-real-key",
@@ -153,12 +153,12 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       end
     end
 
-    test "session isolation prevents credential cross-contamination", %{keyring: keyring} do
+    test "session isolation prevents credential cross-contamination", %{keyring: _keyring} do
       # Set up sensitive keys in main process
       main_sensitive_key = "sk-main-process-secret-key"
       SessionAuthentication.set_for_provider(:openai, main_sensitive_key)
 
-      main_pid = self()
+      _main_pid = self()
 
       # Test that child processes cannot access parent's sensitive data
       child_task =
@@ -191,7 +191,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       assert options[:api_key] == main_sensitive_key
     end
 
-    test "credential masking in authentication resolution logging", %{keyring: keyring} do
+    test "credential masking in authentication resolution logging", %{keyring: _keyring} do
       # Enable debug logging for this test
       original_debug_setting = Application.get_env(:jido_ai, :debug_auth_resolution, false)
       Application.put_env(:jido_ai, :debug_auth_resolution, true)
@@ -233,7 +233,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
   end
 
   describe "secure error handling" do
-    test "authentication failures don't leak system information", %{keyring: keyring} do
+    test "authentication failures don't leak system information", %{keyring: _keyring} do
       # Clear authentication
       SessionAuthentication.clear_for_provider(:openai)
 
@@ -298,7 +298,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       end
     end
 
-    test "provider validation errors are safe", %{keyring: keyring} do
+    test "provider validation errors are safe", %{keyring: _keyring} do
       # Test that validation errors don't expose internal implementation details
       malicious_inputs = [
         "'; DROP TABLE users; --",
@@ -341,7 +341,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
   end
 
   describe "secure session management" do
-    test "session values are properly isolated per process", %{keyring: keyring} do
+    test "session values are properly isolated per process", %{keyring: _keyring} do
       # Create multiple concurrent processes with different sensitive data
       num_processes = 5
       base_key = "sk-isolation-test"
@@ -397,7 +397,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       end
     end
 
-    test "session cleanup prevents data persistence", %{keyring: keyring} do
+    test "session cleanup prevents data persistence", %{keyring: _keyring} do
       sensitive_keys = [
         "sk-should-not-persist-after-cleanup",
         "sk-ant-cleanup-test-key",
@@ -449,7 +449,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       end
     end
 
-    test "concurrent session modifications are safe", %{keyring: keyring} do
+    test "concurrent session modifications are safe", %{keyring: _keyring} do
       # Test concurrent modifications to prevent race conditions that could leak data
       provider = :openai
       num_concurrent_operations = 20

@@ -56,10 +56,10 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
              ]
     end
 
-    test "converts OpenaiEx ChatMessage structs" do
+    test "converts OpenaiEx ChatMessage maps" do
       messages = [
-        %ChatMessage{role: "system", content: "You are helpful"},
-        %ChatMessage{role: "user", content: "Hello"}
+        ChatMessage.system("You are helpful"),
+        ChatMessage.user("Hello")
       ]
 
       # Access private function through the module's public interface
@@ -130,7 +130,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
   end
 
   describe "extract_provider_from_reqllm_id/1" do
-    test "extracts valid providers safely", %{model: model} do
+    test "extracts valid providers safely", %{model: _model} do
       expect(ValidProviders, :list, fn ->
         [:openai, :anthropic, :google, :openrouter]
       end)
@@ -140,7 +140,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       assert result == :openai
     end
 
-    test "extracts different valid providers", %{model: model} do
+    test "extracts different valid providers", %{model: _model} do
       expect(ValidProviders, :list, fn ->
         [:openai, :anthropic, :google, :openrouter]
       end)
@@ -351,7 +351,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
       assert is_list(result_map[:tools])
     end
 
-    test "filters unsupported parameters" do
+    test "filters unsupported parameters", %{model: model} do
       chat_req = %{
         temperature: 0.7,
         unsupported_param: "should_be_ignored",

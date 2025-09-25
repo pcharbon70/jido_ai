@@ -57,7 +57,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       set_provider(:openai, "session-openai-key", keyring)
 
       # Authentication should use session value
-      {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+      {:ok, _headers, key} = Authentication.authenticate_for_provider(:openai, %{})
 
       assert key == "session-openai-key"
       assert headers["authorization"] == "Bearer session-openai-key"
@@ -108,7 +108,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
         SessionAuthentication.set_for_provider(provider, test_key)
 
         # Test authentication
-        {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
+        {:ok, _headers, key} = Authentication.authenticate_for_provider(provider, %{})
 
         assert key == test_key
         assert headers[expected_header] == expected_value
@@ -132,7 +132,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
         "env-openai-key"
       end)
 
-      {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+      {:ok, _headers, key} = Authentication.authenticate_for_provider(:openai, %{})
 
       assert key == "env-openai-key"
       assert headers["authorization"] == "Bearer env-openai-key"
@@ -169,7 +169,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       assert options[:api_key] == "cross-component-key"
 
       # And use it in authentication headers
-      {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+      {:ok, _headers, key} = Authentication.authenticate_for_provider(:openai, %{})
       assert key == "cross-component-key"
       assert headers["authorization"] == "Bearer cross-component-key"
     end
@@ -208,7 +208,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       refute SessionAuthentication.has_session_auth?(:anthropic)
 
       # Authentication should fall back to other methods
-      expect(ReqLlmBridge.Keys, :get, 2, fn provider, %{} ->
+      expect(ReqLlmBridge.Keys, :get, 2, fn _provider, %{} ->
         {:error, "No session value available"}
       end)
 
@@ -225,7 +225,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       SessionAuthentication.set_for_provider(:openai, "transfer-key")
 
       # Verify authentication works in current process
-      {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+      {:ok, _headers, key} = Authentication.authenticate_for_provider(:openai, %{})
       assert key == "transfer-key"
 
       # Create target process and test transfer
@@ -260,7 +260,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       SessionAuthentication.set_for_provider(:openai, "sk-complete-openai-flow")
 
       # Authentication should work
-      {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+      {:ok, _headers, key} = Authentication.authenticate_for_provider(:openai, %{})
       assert key == "sk-complete-openai-flow"
       assert headers["authorization"] == "Bearer sk-complete-openai-flow"
 
@@ -304,7 +304,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
 
       # Test each provider works correctly
       for {provider, expected_key} <- providers do
-        {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
+        {:ok, _headers, key} = Authentication.authenticate_for_provider(provider, %{})
         assert key == expected_key
 
         retrieved_headers = Authentication.get_authentication_headers(provider, %{})
@@ -347,7 +347,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       end)
 
       # Should successfully fall back to keyring
-      {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+      {:ok, _headers, key} = Authentication.authenticate_for_provider(:openai, %{})
       assert key == "keyring-fallback-key"
       assert headers["authorization"] == "Bearer keyring-fallback-key"
 

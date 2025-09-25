@@ -102,7 +102,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
       end)
 
       # Mock response aggregation
-      expected_response = %{
+      _expected_response = %{
         content: "I'll use a tool to help you.",
         tool_calls: tool_calls,
         tool_results: [

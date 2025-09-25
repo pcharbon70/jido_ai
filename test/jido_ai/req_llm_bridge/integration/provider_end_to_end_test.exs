@@ -28,7 +28,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
   end
 
   describe "OpenAI complete authentication flow" do
-    test "full session-based OpenAI authentication", %{keyring: keyring} do
+    test "full session-based OpenAI authentication", %{keyring: _keyring} do
       # Set up session
       SessionAuthentication.set_for_provider(:openai, "sk-openai-session-complete")
 
@@ -65,7 +65,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       assert unified_headers["authorization"] == "Bearer sk-openai-session-complete"
     end
 
-    test "OpenAI fallback chain: session -> ReqLLM -> keyring -> failure", %{keyring: keyring} do
+    test "OpenAI fallback chain: session -> ReqLLM -> keyring -> failure", %{keyring: _keyring} do
       # Test 1: Session authentication (highest priority)
       SessionAuthentication.set_for_provider(:openai, "sk-session-priority")
       {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
@@ -107,7 +107,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
   end
 
   describe "Anthropic complete authentication flow" do
-    test "full Anthropic authentication with version headers", %{keyring: keyring} do
+    test "full Anthropic authentication with version headers", %{keyring: _keyring} do
       # Set up session
       SessionAuthentication.set_for_provider(:anthropic, "sk-ant-complete-flow")
 
@@ -139,7 +139,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       assert :ok = Authentication.validate_authentication(:anthropic, %{})
     end
 
-    test "Anthropic key validation requirements", %{keyring: keyring} do
+    test "Anthropic key validation requirements", %{keyring: _keyring} do
       # Valid key format
       valid_keys = [
         "sk-ant-abcdef123456789012345678",
@@ -169,7 +169,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
   end
 
   describe "Cloudflare multi-factor authentication flow" do
-    test "Cloudflare authentication with email and account ID", %{keyring: keyring} do
+    test "Cloudflare authentication with email and account ID", %{keyring: _keyring} do
       # Test basic key requirements
       requirements = ProviderAuthRequirements.get_requirements(:cloudflare)
       assert requirements.required_keys == [:cloudflare_api_key]
@@ -213,7 +213,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       assert reason == "Invalid email format"
     end
 
-    test "Cloudflare environment variable integration", %{keyring: keyring} do
+    test "Cloudflare environment variable integration", %{keyring: _keyring} do
       # Clear session
       SessionAuthentication.clear_for_provider(:cloudflare)
 
@@ -242,7 +242,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
   end
 
   describe "OpenRouter authentication with metadata" do
-    test "OpenRouter with site metadata", %{keyring: keyring} do
+    test "OpenRouter with site metadata", %{keyring: _keyring} do
       # Test requirements
       requirements = ProviderAuthRequirements.get_requirements(:openrouter)
       assert requirements.required_keys == [:openrouter_api_key]
@@ -279,7 +279,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
   end
 
   describe "Google authentication flow" do
-    test "Google API key authentication", %{keyring: keyring} do
+    test "Google API key authentication", %{keyring: _keyring} do
       # Test requirements
       requirements = ProviderAuthRequirements.get_requirements(:google)
       assert requirements.required_keys == [:google_api_key]
@@ -301,7 +301,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
   end
 
   describe "unknown provider handling" do
-    test "generic provider authentication", %{keyring: keyring} do
+    test "generic provider authentication", %{keyring: _keyring} do
       # Test unknown provider gets generic requirements
       requirements = ProviderAuthRequirements.get_requirements(:unknown_provider)
       assert requirements.required_keys == [:unknown_provider_api_key]
@@ -323,7 +323,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
   end
 
   describe "cross-provider authentication scenarios" do
-    test "multiple providers simultaneously", %{keyring: keyring} do
+    test "multiple providers simultaneously", %{keyring: _keyring} do
       # Set up multiple providers
       provider_configs = [
         {:openai, "sk-multi-openai-key", "authorization", "Bearer sk-multi-openai-key"},
@@ -380,7 +380,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       end
     end
 
-    test "provider switching within single session", %{keyring: keyring} do
+    test "provider switching within single session", %{keyring: _keyring} do
       # Set up multiple providers
       providers = [:openai, :anthropic, :google]
 
@@ -425,7 +425,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
   end
 
   describe "provider-specific error handling and recovery" do
-    test "provider-specific error messages", %{keyring: keyring} do
+    test "provider-specific error messages", %{keyring: _keyring} do
       # Clear all sessions
       SessionAuthentication.clear_all()
 
@@ -454,7 +454,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.ProviderEndToEndTest do
       end
     end
 
-    test "partial provider recovery scenarios", %{keyring: keyring} do
+    test "partial provider recovery scenarios", %{keyring: _keyring} do
       # Scenario: Some providers work, others fail at different stages
 
       # Provider 1: Session works

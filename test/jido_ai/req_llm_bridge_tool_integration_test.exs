@@ -384,21 +384,21 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
     test "handles large number of tools efficiently" do
       # Create multiple actions
       actions =
-        Enum.map(1..20, fn i ->
-          defmodule :"TestAction#{i}" do
+        for i <- 1..20 do
+          Module.create(:"TestAction#{i}", quote do
             use Jido.Action,
-              name: "test_action_#{i}",
-              description: "Test action #{i}",
+              name: unquote("test_action_#{i}"),
+              description: unquote("Test action #{i}"),
               schema: [
-                value: [type: :integer, required: true, doc: "Value #{i}"]
+                value: [type: :integer, required: true, doc: unquote("Value #{i}")]
               ]
 
             @impl true
             def run(params, _context) do
               {:ok, %{value: params.value, action_id: unquote(i)}}
             end
-          end
-        end)
+          end, Elixir)
+        end
 
       expect(ReqLLM.Tool, :tool, 20, fn opts ->
         %{name: opts[:name], callback: opts[:callback]}

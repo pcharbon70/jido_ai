@@ -473,7 +473,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
         provider_part = malicious_id |> String.split(":") |> hd()
 
         # If it contains injection chars, it should be safely rejected
-        if String.contains?(provider_part, ["'", "\"", ";", "${", "#{", "{{", "${"]) do
+        if String.contains?(provider_part, ["'", "\"", ";", "${", "#{", "{{"]) do
           assert result == nil
         end
       end)
@@ -481,7 +481,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
     test "prevents tool injection in function calls" do
       {:ok, model} = Model.from({:openai, [model: "gpt-4", api_key: "test-key"]})
-      model = %{model | reqllm_id: "openai:gpt-4"}
+      model = Map.put(model, :reqllm_id, "openai:gpt-4")
 
       # Test with malicious tool calls
       malicious_tools = [

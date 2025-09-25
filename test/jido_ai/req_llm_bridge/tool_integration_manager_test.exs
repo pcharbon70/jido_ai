@@ -213,7 +213,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManagerTest do
       assert {:ok, "conv_456"} = ToolIntegrationManager.start_conversation([action])
     end
 
-    test "continue_conversation/3 processes message with context", %{weather_action: action} do
+    test "continue_conversation/3 processes message with context", %{weather_action: _action} do
       conversation_id = "conv_789"
       message = "What's the weather like?"
 

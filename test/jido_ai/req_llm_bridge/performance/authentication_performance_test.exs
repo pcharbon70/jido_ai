@@ -29,7 +29,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
   end
 
   describe "authentication performance benchmarks" do
-    test "authentication header generation under 5ms", %{keyring: keyring} do
+    test "authentication header generation under 5ms", %{keyring: _keyring} do
       # Set up session authentication
       SessionAuthentication.set_for_provider(:openai, "sk-performance-test-key")
 
@@ -66,7 +66,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       )
     end
 
-    test "provider requirement validation under 5ms per validation", %{keyring: keyring} do
+    test "provider requirement validation under 5ms per validation", %{keyring: _keyring} do
       # Test different providers and keys
       test_cases = [
         {:openai, "sk-proj-test123456789"},
@@ -118,7 +118,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       )
     end
 
-    test "keyring session resolution under 10ms", %{keyring: keyring} do
+    test "keyring session resolution under 10ms", %{keyring: _keyring} do
       # Set up multiple providers
       providers = [:openai, :anthropic, :google, :cloudflare, :openrouter]
 
@@ -164,7 +164,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       )
     end
 
-    test "provider requirements lookup performance", %{keyring: keyring} do
+    test "provider requirements lookup performance", %{keyring: _keyring} do
       providers = [:openai, :anthropic, :google, :cloudflare, :openrouter, :unknown_provider]
 
       {elapsed_microseconds, requirement_results} =
@@ -202,7 +202,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       )
     end
 
-    test "end-to-end authentication flow performance", %{keyring: keyring} do
+    test "end-to-end authentication flow performance", %{keyring: _keyring} do
       # Set up comprehensive authentication
       SessionAuthentication.set_for_provider(:openai, "sk-e2e-test-key")
 
@@ -226,7 +226,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
 
       {elapsed_microseconds, e2e_results} =
         :timer.tc(fn ->
-          for {provider, expected_source} <- test_scenarios do
+          for {provider, _expected_source} <- test_scenarios do
             results =
               for _i <- 1..25 do
                 # Complete flow: authenticate -> get headers -> validate
@@ -237,7 +237,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
                 {key, headers, retrieved_headers, validation_result}
               end
 
-            {provider, expected_source, results}
+            {provider, _expected_source, results}
           end
         end)
 
@@ -246,7 +246,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       average_ms_per_flow = elapsed_ms / total_flows
 
       # Verify all flows completed successfully
-      for {provider, expected_source, results} <- e2e_results do
+      for {provider, _expected_source, results} <- e2e_results do
         for {key, headers, retrieved_headers, validation_result} <- results do
           assert is_binary(key) and key != "", "No key for #{provider}"
           assert is_map(headers) and map_size(headers) > 0, "No headers for #{provider}"
@@ -265,7 +265,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
   end
 
   describe "concurrent authentication performance" do
-    test "concurrent session access maintains performance", %{keyring: keyring} do
+    test "concurrent session access maintains performance", %{keyring: _keyring} do
       # Set up multiple providers
       providers = [:openai, :anthropic, :google]
 
@@ -326,7 +326,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       )
     end
 
-    test "high-frequency authentication requests maintain stability", %{keyring: keyring} do
+    test "high-frequency authentication requests maintain stability", %{keyring: _keyring} do
       # Set up authentication
       SessionAuthentication.set_for_provider(:openai, "sk-high-freq-test")
 
@@ -382,7 +382,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
   end
 
   describe "memory and resource usage" do
-    test "authentication operations don't leak memory", %{keyring: keyring} do
+    test "authentication operations don't leak memory", %{keyring: _keyring} do
       # Get baseline memory usage
       :erlang.garbage_collect()
       {initial_memory, _} = :erlang.process_info(self(), :memory)
@@ -421,7 +421,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       )
     end
 
-    test "session cleanup properly frees resources", %{keyring: keyring} do
+    test "session cleanup properly frees resources", %{keyring: _keyring} do
       # Set up many providers
       providers = [:openai, :anthropic, :google, :cloudflare, :openrouter]
       keys_per_provider = 100

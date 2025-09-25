@@ -23,7 +23,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
   end
 
   describe "get_for_request/3 - session authentication for requests" do
-    test "returns session_auth when session key exists", %{keyring: keyring} do
+    test "returns session_auth when session key exists", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "session-key")
 
       assert {:session_auth, options} =
@@ -32,14 +32,14 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       assert options[:api_key] == "session-key"
     end
 
-    test "returns no_session_auth when no session key", %{keyring: keyring} do
+    test "returns no_session_auth when no session key", %{keyring: _keyring} do
       SessionAuthentication.clear_for_provider(:openai)
 
       assert {:no_session_auth} =
                SessionAuthentication.get_for_request(:openai, %{})
     end
 
-    test "session key overrides request options", %{keyring: keyring} do
+    test "session key overrides request options", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "session-key")
 
       existing_options = %{api_key: "request-key", other: "value"}
@@ -53,7 +53,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
   end
 
   describe "set_for_provider/3 - setting session authentication" do
-    test "sets session key for provider", %{keyring: keyring} do
+    test "sets session key for provider", %{keyring: _keyring} do
       assert :ok = SessionAuthentication.set_for_provider(:openai, "test-key")
 
       {:session_auth, options} =
@@ -62,7 +62,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       assert options[:api_key] == "test-key"
     end
 
-    test "updates existing session key", %{keyring: keyring} do
+    test "updates existing session key", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "old-key")
       SessionAuthentication.set_for_provider(:openai, "new-key")
 
@@ -72,7 +72,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       assert options[:api_key] == "new-key"
     end
 
-    test "sets different keys for different providers", %{keyring: keyring} do
+    test "sets different keys for different providers", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "openai-key")
       SessionAuthentication.set_for_provider(:anthropic, "anthropic-key")
 
@@ -88,7 +88,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
   end
 
   describe "clear_for_provider/2 - clearing session authentication" do
-    test "clears session key for provider", %{keyring: keyring} do
+    test "clears session key for provider", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "test-key")
       assert :ok = SessionAuthentication.clear_for_provider(:openai)
 
@@ -96,29 +96,29 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
                SessionAuthentication.get_for_request(:openai, %{})
     end
 
-    test "clearing non-existent key succeeds", %{keyring: keyring} do
+    test "clearing non-existent key succeeds", %{keyring: _keyring} do
       assert :ok = SessionAuthentication.clear_for_provider(:nonexistent)
     end
   end
 
   describe "has_session_auth?/2 - checking session authentication" do
-    test "returns true when session auth exists", %{keyring: keyring} do
+    test "returns true when session auth exists", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "key")
       assert SessionAuthentication.has_session_auth?(:openai)
     end
 
-    test "returns false when no session auth", %{keyring: keyring} do
+    test "returns false when no session auth", %{keyring: _keyring} do
       SessionAuthentication.clear_for_provider(:openai)
       refute SessionAuthentication.has_session_auth?(:openai)
     end
   end
 
   describe "list_providers_with_auth/1 - listing authenticated providers" do
-    test "returns empty list when no auth set", %{keyring: keyring} do
+    test "returns empty list when no auth set", %{keyring: _keyring} do
       assert [] = SessionAuthentication.list_providers_with_auth()
     end
 
-    test "returns list of providers with auth", %{keyring: keyring} do
+    test "returns list of providers with auth", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "key1")
       SessionAuthentication.set_for_provider(:anthropic, "key2")
 
@@ -130,7 +130,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
   end
 
   describe "clear_all/1 - clearing all session authentication" do
-    test "clears all provider authentication", %{keyring: keyring} do
+    test "clears all provider authentication", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "key1")
       SessionAuthentication.set_for_provider(:anthropic, "key2")
       SessionAuthentication.set_for_provider(:google, "key3")
@@ -142,7 +142,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
   end
 
   describe "transfer/3 - transferring authentication between processes" do
-    test "transfers authentication to another process", %{keyring: keyring} do
+    test "transfers authentication to another process", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "transfer-key")
 
       # Create a target process
@@ -170,7 +170,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       send(target_pid, :stop)
     end
 
-    test "returns error when no auth to transfer", %{keyring: keyring} do
+    test "returns error when no auth to transfer", %{keyring: _keyring} do
       SessionAuthentication.clear_for_provider(:openai)
 
       {:ok, target_pid} =
@@ -188,7 +188,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
   end
 
   describe "inherit_from/2 - inheriting authentication from parent" do
-    test "inherits all authentication from parent process", %{keyring: keyring} do
+    test "inherits all authentication from parent process", %{keyring: _keyring} do
       # Set up parent authentication
       SessionAuthentication.set_for_provider(:openai, "parent-key1")
       SessionAuthentication.set_for_provider(:anthropic, "parent-key2")
@@ -219,7 +219,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       assert anthropic_key == "parent-key2"
     end
 
-    test "returns empty list when parent has no auth", %{keyring: keyring} do
+    test "returns empty list when parent has no auth", %{keyring: _keyring} do
       SessionAuthentication.clear_all()
 
       parent_pid = self()
@@ -235,7 +235,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
   end
 
   describe "process isolation" do
-    test "session auth is isolated per process", %{keyring: keyring} do
+    test "session auth is isolated per process", %{keyring: _keyring} do
       # Set in main process
       SessionAuthentication.set_for_provider(:openai, "main-key")
 
@@ -266,7 +266,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
       assert main_opts[:api_key] == "main-key"
     end
 
-    test "clearing in one process doesn't affect another", %{keyring: keyring} do
+    test "clearing in one process doesn't affect another", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "main-key")
 
       task =

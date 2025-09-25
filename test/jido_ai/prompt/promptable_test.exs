@@ -1,13 +1,13 @@
 defmodule JidoTest.AI.Prompt.PromptableTest do
   use ExUnit.Case, async: true
-  doctest Promptable
+  doctest Jido.AI.Promptable
   @moduletag :capture_log
-  alias Promptable
+  alias Jido.AI.Promptable
   alias Jido.AI.TestStructs.{Profile, Task, User}
   alias JidoTest.AI.Examples.TestStructs, as: ExampleStructs
 
   # Implement protocol for User
-  defimpl Promptable, for: User do
+  defimpl Jido.AI.Promptable, for: User do
     def to_prompt(%{name: name, age: age}) when is_binary(name) and is_integer(age) do
       "User #{name} is #{age} years old"
     end
@@ -22,14 +22,14 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
   end
 
   # Implement protocol for Task
-  defimpl Promptable, for: Task do
+  defimpl Jido.AI.Promptable, for: Task do
     def to_prompt(%{title: title, status: status, due_date: due_date}) do
       "Task '#{title}' is #{status}, due on #{due_date}"
     end
   end
 
   # Implement protocol for Profile with list handling
-  defimpl Promptable, for: Profile do
+  defimpl Jido.AI.Promptable, for: Profile do
     def to_prompt(%{bio: bio, skills: skills}) when is_list(skills) do
       skills_text = Enum.join(skills, ", ")
       "Profile: #{bio}\nSkills: #{skills_text}"
@@ -44,22 +44,22 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
         email: "alice@example.com"
       }
 
-      assert Promptable.to_prompt(user) == "User Alice is 30 years old"
+      assert Jido.AI.Promptable.to_prompt(user) == "User Alice is 30 years old"
     end
 
     test "formats user with only name" do
       user = %ExampleStructs.User{name: "Bob"}
-      assert Promptable.to_prompt(user) == "User Bob (age unknown)"
+      assert Jido.AI.Promptable.to_prompt(user) == "User Bob (age unknown)"
     end
 
     test "handles empty user" do
       user = %ExampleStructs.User{}
-      assert Promptable.to_prompt(user) == "Unknown user"
+      assert Jido.AI.Promptable.to_prompt(user) == "Unknown user"
     end
 
     test "handles nil values" do
       user = %ExampleStructs.User{name: nil, age: nil}
-      assert Promptable.to_prompt(user) == "Unknown user"
+      assert Jido.AI.Promptable.to_prompt(user) == "Unknown user"
     end
   end
 
@@ -71,7 +71,7 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
         due_date: "2024-03-20"
       }
 
-      assert Promptable.to_prompt(task) ==
+      assert Jido.AI.Promptable.to_prompt(task) ==
                "Task 'Write tests' is in progress, due on 2024-03-20"
     end
 
@@ -82,7 +82,7 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
         due_date: "2024-03-19"
       }
 
-      assert Promptable.to_prompt(task) ==
+      assert Jido.AI.Promptable.to_prompt(task) ==
                "Task 'Review code' is completed, due on 2024-03-19"
     end
   end
@@ -94,7 +94,7 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
         skills: ["Elixir", "Phoenix", "PostgreSQL"]
       }
 
-      assert Promptable.to_prompt(profile) ==
+      assert Jido.AI.Promptable.to_prompt(profile) ==
                "Profile: Software developer\nSkills: Elixir, Phoenix, PostgreSQL"
     end
 
@@ -104,7 +104,7 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
         skills: []
       }
 
-      assert Promptable.to_prompt(profile) ==
+      assert Jido.AI.Promptable.to_prompt(profile) ==
                "Profile: New developer\nSkills: "
     end
   end
@@ -112,7 +112,7 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
   describe "Error handling" do
     test "raises Protocol.UndefinedError for unimplemented types" do
       assert_raise Protocol.UndefinedError, fn ->
-        Promptable.to_prompt(%{some: "map"})
+        Jido.AI.Promptable.to_prompt(%{some: "map"})
       end
     end
   end
