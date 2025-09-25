@@ -45,6 +45,10 @@ defmodule Jido.AI.Model do
     field(:max_retries, non_neg_integer(), default: 0)
     # ReqLLM integration field
     field(:reqllm_id, String.t())
+    # Enhanced ReqLLM metadata fields
+    field(:capabilities, map())
+    field(:modalities, map())
+    field(:cost, map())
   end
 
   @doc """

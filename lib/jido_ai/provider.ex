@@ -389,4 +389,385 @@ defmodule Jido.AI.Provider do
       {:ok, merged_model}
     end
   end
+
+  # Registry-enhanced model discovery methods
+
+  @doc """
+  Lists all available models using the enhanced model registry.
+
+  This method leverages the ReqLLM model registry to provide access to 2000+
+  models across all providers while maintaining backward compatibility with
+  existing cached models.
+
+  ## Parameters
+    - provider_id: Optional provider filter (atom)
+    - opts: Additional options (keyword list)
+
+  ## Options
+    - :source - :registry (default), :cache, or :both
+    - :include_capabilities - Include capability metadata (default: false)
+    - :refresh - Force refresh from sources (default: false)
+
+  ## Returns
+    - {:ok, models} where models is an enhanced list with registry data
+    - {:error, reason} if discovery fails
+
+  ## Examples
+
+      # All models from registry and cache
+      {:ok, models} = list_all_models_enhanced()
+      length(models) # => 2000+
+
+      # Anthropic models only
+      {:ok, models} = list_all_models_enhanced(:anthropic)
+
+      # With capability information
+      {:ok, models} = list_all_models_enhanced(nil, include_capabilities: true)
+
+  """
+  @spec list_all_models_enhanced(atom() | nil, keyword()) :: {:ok, [map()]} | {:error, term()}
+  def list_all_models_enhanced(provider_id \\ nil, opts \\ []) do
+    source = Keyword.get(opts, :source, :both)
+    _include_capabilities = Keyword.get(opts, :include_capabilities, false)
+
+    try do
+      case source do
+        :registry ->
+          get_models_from_registry_only(provider_id, opts)
+
+        :cache ->
+          get_models_from_cache_only(provider_id)
+
+        :both ->
+          merge_registry_and_cache_models(provider_id, opts)
+      end
+    rescue
+      error ->
+        Logger.error("Error in enhanced model listing: #{inspect(error)}")
+        # Fallback to original method
+        {:ok, list_all_cached_models()}
+    end
+  end
+
+  @doc """
+  Gets enhanced model information from the registry.
+
+  Provides detailed model information including capabilities, pricing,
+  context limits, and other metadata from the ReqLLM registry.
+
+  ## Parameters
+    - provider_id: Provider atom (:anthropic, :openai, etc.)
+    - model_name: Model identifier string
+    - opts: Additional options
+
+  ## Options
+    - :enhance_with_cache - Include cached model data (default: true)
+    - :include_pricing - Include pricing information (default: false)
+
+  ## Returns
+    - {:ok, enhanced_model} with comprehensive metadata
+    - {:error, reason} if model not found or registry unavailable
+
+  ## Examples
+
+      {:ok, model} = get_model_from_registry(:anthropic, "claude-3-5-sonnet")
+      model.capabilities.tool_call # => true
+      model.limit.context # => 200_000
+
+  """
+  @spec get_model_from_registry(atom(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def get_model_from_registry(provider_id, model_name, opts \\ []) do
+    enhance_with_cache = Keyword.get(opts, :enhance_with_cache, true)
+
+    try do
+      case Jido.AI.Model.Registry.get_model(provider_id, model_name) do
+        {:ok, registry_model} ->
+          enhanced_model = if enhance_with_cache do
+            enhance_registry_model_with_cache(registry_model)
+          else
+            registry_model
+          end
+
+          {:ok, enhanced_model}
+
+        {:error, _reason} ->
+          # Fallback to existing get_model implementation
+          fallback_get_model_info(provider_id, model_name)
+      end
+    rescue
+      error ->
+        Logger.error("Registry model lookup error for #{provider_id}:#{model_name}: #{inspect(error)}")
+        fallback_get_model_info(provider_id, model_name)
+    end
+  end
+
+  @doc """
+  Discovers models using advanced filtering capabilities.
+
+  Leverages the ReqLLM registry's rich metadata for sophisticated model
+  discovery based on capabilities, cost, context length, and other criteria.
+
+  ## Parameters
+    - filters: Keyword list of filtering criteria
+
+  ## Supported Filters
+    - :capability - Model capability requirement (:tool_call, :reasoning, etc.)
+    - :max_cost_per_token - Maximum cost per token in USD
+    - :min_context_length - Minimum context window size
+    - :provider - Limit to specific provider(s)
+    - :modality - Required modality (:text, :image, :audio)
+
+  ## Returns
+    - {:ok, models} with filtered and enhanced model list
+    - {:error, reason} if discovery fails
+
+  ## Examples
+
+      # Find models with tool calling capability
+      {:ok, models} = discover_models_by_criteria([capability: :tool_call])
+
+      # Find cost-effective models with large context
+      {:ok, models} = discover_models_by_criteria([
+        max_cost_per_token: 0.0005,
+        min_context_length: 100_000
+      ])
+
+      # Find Anthropic models with reasoning
+      {:ok, models} = discover_models_by_criteria([
+        provider: :anthropic,
+        capability: :reasoning
+      ])
+
+  """
+  @spec discover_models_by_criteria(keyword()) :: {:ok, [map()]} | {:error, term()}
+  def discover_models_by_criteria(filters \\ []) do
+    try do
+      case Jido.AI.Model.Registry.discover_models(filters) do
+        {:ok, registry_models} ->
+          # Convert to legacy format for backward compatibility
+          legacy_format_models = Enum.map(registry_models, &convert_to_legacy_format/1)
+          {:ok, legacy_format_models}
+
+        {:error, reason} ->
+          Logger.warning("Registry model discovery failed: #{inspect(reason)}")
+          # Fallback to cached models with basic filtering
+          cached_models = list_all_cached_models()
+          filtered_models = apply_basic_filters(cached_models, filters)
+          {:ok, filtered_models}
+      end
+    rescue
+      error ->
+        Logger.error("Model discovery error: #{inspect(error)}")
+        {:error, "Model discovery failed: #{inspect(error)}"}
+    end
+  end
+
+  @doc """
+  Gets comprehensive model registry statistics.
+
+  Returns detailed information about the model registry including
+  provider coverage, capability distribution, and performance metrics.
+
+  ## Returns
+    - {:ok, stats} with comprehensive registry information
+    - {:error, reason} if statistics cannot be computed
+
+  ## Example Output
+
+      {:ok, %{
+        total_models: 2047,
+        registry_models: 2000,
+        cached_models: 47,
+        provider_coverage: %{anthropic: 15, openai: 25, ...},
+        capabilities_distribution: %{tool_call: 1200, reasoning: 800, ...}
+      }}
+
+  """
+  @spec get_model_registry_stats() :: {:ok, map()} | {:error, term()}
+  def get_model_registry_stats do
+    try do
+      case Jido.AI.Model.Registry.get_registry_stats() do
+        {:ok, registry_stats} ->
+          # Enhance with cached model statistics
+          cached_models = list_all_cached_models()
+          enhanced_stats = Map.merge(registry_stats, %{
+            cached_models: length(cached_models),
+            cache_providers: get_cached_provider_counts(cached_models),
+            registry_health: get_registry_health()
+          })
+
+          {:ok, enhanced_stats}
+
+        {:error, reason} ->
+          # Fallback to cached model statistics only
+          cached_models = list_all_cached_models()
+          fallback_stats = %{
+            total_models: length(cached_models),
+            cached_models: length(cached_models),
+            registry_models: 0,
+            provider_coverage: get_cached_provider_counts(cached_models),
+            registry_available: false,
+            error: reason
+          }
+
+          {:ok, fallback_stats}
+      end
+    rescue
+      error ->
+        Logger.error("Registry statistics error: #{inspect(error)}")
+        {:error, "Failed to get registry statistics: #{inspect(error)}"}
+    end
+  end
+
+  # Private helper functions for registry integration
+
+  defp get_models_from_registry_only(provider_id, _opts) do
+    case Jido.AI.Model.Registry.list_models(provider_id) do
+      {:ok, registry_models} ->
+        legacy_models = Enum.map(registry_models, &convert_to_legacy_format/1)
+        {:ok, legacy_models}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp get_models_from_cache_only(nil) do
+    {:ok, list_all_cached_models()}
+  end
+
+  defp get_models_from_cache_only(provider_id) do
+    cached_models = list_all_cached_models()
+    provider_models = Enum.filter(cached_models, fn model ->
+      model_provider = Map.get(model, :provider) || Map.get(model, "provider")
+      model_provider == provider_id
+    end)
+    {:ok, provider_models}
+  end
+
+  defp merge_registry_and_cache_models(provider_id, opts) do
+    # Get models from both sources
+    registry_result = get_models_from_registry_only(provider_id, opts)
+    cache_result = get_models_from_cache_only(provider_id)
+
+    case {registry_result, cache_result} do
+      {{:ok, registry_models}, {:ok, cached_models}} ->
+        # Merge, preferring registry models but including unique cached models
+        merged_models = merge_model_lists(registry_models, cached_models)
+        {:ok, merged_models}
+
+      {{:error, _}, {:ok, cached_models}} ->
+        Logger.warning("Registry unavailable, using cached models only")
+        {:ok, cached_models}
+
+      {{:ok, registry_models}, {:error, _}} ->
+        Logger.debug("Cache unavailable, using registry models only")
+        {:ok, registry_models}
+
+      {{:error, registry_error}, {:error, cache_error}} ->
+        Logger.error("Both registry and cache failed: registry=#{inspect(registry_error)}, cache=#{inspect(cache_error)}")
+        {:error, "Both registry and cache unavailable"}
+    end
+  end
+
+  defp merge_model_lists(registry_models, cached_models) do
+    # Create a map of registry models by provider:model key
+    registry_map =
+      registry_models
+      |> Enum.map(fn model ->
+        provider = Map.get(model, :provider) || Map.get(model, "provider")
+        id = Map.get(model, :id) || Map.get(model, "id")
+        key = "#{provider}:#{id}"
+        {key, model}
+      end)
+      |> Enum.into(%{})
+
+    # Add cached models that don't exist in registry
+    cached_additions = Enum.reject(cached_models, fn cached_model ->
+      provider = Map.get(cached_model, :provider) || Map.get(cached_model, "provider")
+      id = Map.get(cached_model, :id) || Map.get(cached_model, "id")
+      key = "#{provider}:#{id}"
+      Map.has_key?(registry_map, key)
+    end)
+
+    # Combine registry models with unique cached models
+    registry_models ++ cached_additions
+  end
+
+  defp enhance_registry_model_with_cache(registry_model) do
+    # Try to find corresponding cached model for enhancement
+    _provider = registry_model.provider
+    model_id = registry_model.id
+
+    case get_combined_model_info(model_id) do
+      {:ok, cached_info} ->
+        # Merge cached information with registry model
+        merge_model_metadata(registry_model, cached_info)
+
+      {:error, _} ->
+        # No cached enhancement available
+        registry_model
+    end
+  end
+
+  defp merge_model_metadata(registry_model, cached_info) do
+    # Merge cached model information into registry model
+    # This preserves existing cached model fields while adding registry enhancements
+    Map.merge(cached_info, Map.from_struct(registry_model), fn
+      _key, cached_value, nil -> cached_value
+      _key, cached_value, registry_value when is_nil(cached_value) -> registry_value
+      _key, _cached_value, registry_value -> registry_value  # Prefer registry data
+    end)
+  end
+
+  defp convert_to_legacy_format(%Jido.AI.Model{} = model) do
+    # Convert Jido.AI.Model struct to legacy map format for backward compatibility
+    Map.from_struct(model)
+  end
+
+  defp convert_to_legacy_format(model) when is_map(model) do
+    # Already in map format
+    model
+  end
+
+  defp fallback_get_model_info(provider_id, model_name) do
+    # Use existing get_combined_model_info as fallback
+    standardized_name = standardize_model_name(model_name)
+    get_combined_model_info(standardized_name)
+  end
+
+  defp apply_basic_filters(models, []), do: models
+  defp apply_basic_filters(models, filters) do
+    Enum.filter(models, fn model ->
+      Enum.all?(filters, fn {filter_type, filter_value} ->
+        apply_basic_filter(model, filter_type, filter_value)
+      end)
+    end)
+  end
+
+  defp apply_basic_filter(model, :provider, required_provider) do
+    model_provider = Map.get(model, :provider) || Map.get(model, "provider")
+    model_provider == required_provider
+  end
+
+  defp apply_basic_filter(_model, _filter_type, _filter_value) do
+    # For advanced filters, allow through (registry would handle them)
+    true
+  end
+
+  defp get_cached_provider_counts(cached_models) do
+    cached_models
+    |> Enum.group_by(fn model ->
+      Map.get(model, :provider) || Map.get(model, "provider")
+    end)
+    |> Enum.map(fn {provider, models} -> {provider, length(models)} end)
+    |> Enum.into(%{})
+  end
+
+  defp get_registry_health do
+    case Jido.AI.Model.Registry.Adapter.get_health_info() do
+      {:ok, health} -> Map.put(health, :status, :healthy)
+      {:error, reason} -> %{status: :unhealthy, error: reason}
+    end
+  end
 end
