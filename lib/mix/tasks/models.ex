@@ -502,8 +502,9 @@ defmodule Mix.Tasks.Jido.Ai.Models do
   defp list_available_providers do
     IO.puts("\nAvailable providers:")
 
-    providers = Provider.list()
-    |> Enum.sort_by(& &1.id)
+    providers =
+      Provider.list()
+      |> Enum.sort_by(& &1.id)
 
     # Group providers by implementation status
     {legacy_providers, reqllm_providers} =
@@ -515,6 +516,7 @@ defmodule Mix.Tasks.Jido.Ai.Models do
     # Show legacy providers first
     if length(legacy_providers) > 0 do
       IO.puts("\nFully Implemented (Legacy Adapters):")
+
       Enum.each(legacy_providers, fn provider ->
         IO.puts("  ✓ #{provider.id}: #{provider.name} - #{provider.description}")
       end)
@@ -523,14 +525,21 @@ defmodule Mix.Tasks.Jido.Ai.Models do
     # Show ReqLLM-backed providers
     if length(reqllm_providers) > 0 do
       IO.puts("\nAvailable via ReqLLM Integration:")
+
       reqllm_providers
-      |> Enum.take(20)  # Show first 20 to avoid overwhelming output
+      # Show first 20 to avoid overwhelming output
+      |> Enum.take(20)
       |> Enum.each(fn provider ->
-        status = if Jido.AI.ReqLlmBridge.ProviderMapping.provider_implemented?(provider.id), do: "✓", else: "○"
+        status =
+          if Jido.AI.ReqLlmBridge.ProviderMapping.provider_implemented?(provider.id),
+            do: "✓",
+            else: "○"
+
         IO.puts("  #{status} #{provider.id}: #{provider.name}")
       end)
 
       remaining = length(reqllm_providers) - 20
+
       if remaining > 0 do
         IO.puts("  ... and #{remaining} more providers")
       end
@@ -538,22 +547,6 @@ defmodule Mix.Tasks.Jido.Ai.Models do
 
     IO.puts("\n✓ = Fully implemented, ○ = Metadata only")
     IO.puts("Total providers available: #{length(providers)}")
-  end
-
-  defp show_usage do
-    IO.puts("""
-    Usage:
-      mix jido.ai.cache_models PROVIDER_ID [--verbose] [--refresh]
-      mix jido.ai.cache_models PROVIDER_ID --model=MODEL_ID [--verbose] [--refresh]
-      mix jido.ai.cache_models --all [--verbose] [--refresh]
-      mix jido.ai.cache_models --list-providers
-
-    Examples:
-      mix jido.ai.cache_models anthropic
-      mix jido.ai.cache_models openai --verbose
-      mix jido.ai.cache_models anthropic --model=claude-3-7-sonnet-20250219 --refresh
-      mix jido.ai.cache_models --all
-    """)
   end
 
   # Registry-enhanced functionality
@@ -608,6 +601,7 @@ defmodule Mix.Tasks.Jido.Ai.Models do
         end
 
         Mix.shell().info("\nProvider Coverage:")
+
         stats.provider_coverage
         |> Enum.sort_by(fn {_provider, count} -> count end, :desc)
         |> Enum.each(fn {provider, count} ->
@@ -616,6 +610,7 @@ defmodule Mix.Tasks.Jido.Ai.Models do
 
         if capabilities = Map.get(stats, :capabilities_distribution) do
           Mix.shell().info("\nCapability Distribution:")
+
           capabilities
           |> Enum.sort_by(fn {_capability, count} -> count end, :desc)
           |> Enum.each(fn {capability, count} ->
@@ -714,7 +709,9 @@ defmodule Mix.Tasks.Jido.Ai.Models do
       end
 
       if cost = Map.get(model, :cost) do
-        Mix.shell().info("  Cost: input=$#{Map.get(cost, :input, "?")}/1M, output=$#{Map.get(cost, :output, "?")}/1M")
+        Mix.shell().info(
+          "  Cost: input=$#{Map.get(cost, :input, "?")}/1M, output=$#{Map.get(cost, :output, "?")}/1M"
+        )
       end
 
       if reqllm_id = Map.get(model, :reqllm_id) do
@@ -727,9 +724,10 @@ defmodule Mix.Tasks.Jido.Ai.Models do
 
   defp display_models_summary(models) do
     # Group by provider
-    provider_groups = Enum.group_by(models, fn model ->
-      Map.get(model, :provider) || Map.get(model, "provider")
-    end)
+    provider_groups =
+      Enum.group_by(models, fn model ->
+        Map.get(model, :provider) || Map.get(model, "provider")
+      end)
 
     provider_groups
     |> Enum.sort_by(fn {provider, _models} -> provider end)
@@ -754,6 +752,7 @@ defmodule Mix.Tasks.Jido.Ai.Models do
   end
 
   defp format_capabilities(nil), do: "none specified"
+
   defp format_capabilities(caps) when is_map(caps) do
     enabled_caps =
       caps
@@ -768,6 +767,7 @@ defmodule Mix.Tasks.Jido.Ai.Models do
   end
 
   defp format_capabilities_short(nil), do: ""
+
   defp format_capabilities_short(caps) when is_map(caps) do
     flags = []
     flags = if Map.get(caps, :tool_call), do: ["T" | flags], else: flags
@@ -792,35 +792,40 @@ defmodule Mix.Tasks.Jido.Ai.Models do
   defp build_filters_from_args(args) do
     filters = []
 
-    filters = if capability = args[:capability] do
-      [{:capability, String.to_atom(capability)} | filters]
-    else
-      filters
-    end
+    filters =
+      if capability = args[:capability] do
+        [{:capability, String.to_atom(capability)} | filters]
+      else
+        filters
+      end
 
-    filters = if max_cost = args[:max_cost] do
-      [{:max_cost_per_token, String.to_float(max_cost)} | filters]
-    else
-      filters
-    end
+    filters =
+      if max_cost = args[:max_cost] do
+        [{:max_cost_per_token, String.to_float(max_cost)} | filters]
+      else
+        filters
+      end
 
-    filters = if min_context = args[:min_context] do
-      [{:min_context_length, String.to_integer(min_context)} | filters]
-    else
-      filters
-    end
+    filters =
+      if min_context = args[:min_context] do
+        [{:min_context_length, String.to_integer(min_context)} | filters]
+      else
+        filters
+      end
 
-    filters = if provider = args[:provider_filter] do
-      [{:provider, String.to_atom(provider)} | filters]
-    else
-      filters
-    end
+    filters =
+      if provider = args[:provider_filter] do
+        [{:provider, String.to_atom(provider)} | filters]
+      else
+        filters
+      end
 
-    filters = if modality = args[:modality] do
-      [{:modality, String.to_atom(modality)} | filters]
-    else
-      filters
-    end
+    filters =
+      if modality = args[:modality] do
+        [{:modality, String.to_atom(modality)} | filters]
+      else
+        filters
+      end
 
     filters
   end

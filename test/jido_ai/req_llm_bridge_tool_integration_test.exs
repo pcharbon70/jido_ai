@@ -385,19 +385,23 @@ defmodule Jido.AI.ReqLlmBridgeToolIntegrationTest do
       # Create multiple actions
       actions =
         for i <- 1..20 do
-          Module.create(:"TestAction#{i}", quote do
-            use Jido.Action,
-              name: unquote("test_action_#{i}"),
-              description: unquote("Test action #{i}"),
-              schema: [
-                value: [type: :integer, required: true, doc: unquote("Value #{i}")]
-              ]
+          Module.create(
+            :"TestAction#{i}",
+            quote do
+              use Jido.Action,
+                name: unquote("test_action_#{i}"),
+                description: unquote("Test action #{i}"),
+                schema: [
+                  value: [type: :integer, required: true, doc: unquote("Value #{i}")]
+                ]
 
-            @impl true
-            def run(params, _context) do
-              {:ok, %{value: params.value, action_id: unquote(i)}}
-            end
-          end, Elixir)
+              @impl true
+              def run(params, _context) do
+                {:ok, %{value: params.value, action_id: unquote(i)}}
+              end
+            end,
+            Elixir
+          )
         end
 
       expect(ReqLLM.Tool, :tool, 20, fn opts ->

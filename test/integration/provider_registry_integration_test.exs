@@ -34,12 +34,12 @@ defmodule Jido.AI.ProviderRegistryIntegrationTest do
 
       # Provider structs should be well-formed
       assert Enum.all?(provider_list, fn provider ->
-        is_struct(provider, Provider) and
-        is_atom(provider.id) and
-        is_binary(provider.name) and
-        is_atom(provider.type) and
-        is_boolean(provider.requires_api_key)
-      end)
+               is_struct(provider, Provider) and
+                 is_atom(provider.id) and
+                 is_binary(provider.name) and
+                 is_atom(provider.type) and
+                 is_boolean(provider.requires_api_key)
+             end)
 
       # Available providers test would require keyring setup - skip in unit tests
     end
@@ -79,7 +79,8 @@ defmodule Jido.AI.ProviderRegistryIntegrationTest do
       for legacy_id <- legacy_providers do
         assert {:ok, adapter} = Provider.get_adapter_by_id(legacy_id)
         assert is_atom(adapter)
-        assert adapter != :reqllm_backed  # Should be specific legacy adapters
+        # Should be specific legacy adapters
+        assert adapter != :reqllm_backed
       end
     end
 
@@ -106,9 +107,10 @@ defmodule Jido.AI.ProviderRegistryIntegrationTest do
       all_providers = Provider.providers()
 
       # Find providers that are :reqllm_backed (not legacy)
-      reqllm_providers = Enum.filter(all_providers, fn {_id, adapter} ->
-        adapter == :reqllm_backed
-      end)
+      reqllm_providers =
+        Enum.filter(all_providers, fn {_id, adapter} ->
+          adapter == :reqllm_backed
+        end)
 
       assert length(reqllm_providers) >= 30, "Should discover many ReqLLM providers"
 
@@ -116,7 +118,8 @@ defmodule Jido.AI.ProviderRegistryIntegrationTest do
       {sample_provider_id, :reqllm_backed} = List.first(reqllm_providers)
 
       # Should be able to get metadata
-      {:ok, metadata} = Jido.AI.ReqLlmBridge.ProviderMapping.get_jido_provider_metadata(sample_provider_id)
+      {:ok, metadata} =
+        Jido.AI.ReqLlmBridge.ProviderMapping.get_jido_provider_metadata(sample_provider_id)
 
       assert metadata.id == sample_provider_id
       assert is_binary(metadata.name)
@@ -131,19 +134,21 @@ defmodule Jido.AI.ProviderRegistryIntegrationTest do
       # Skip available providers due to keyring dependency
 
       # Should be able to categorize providers
-      legacy_count = Enum.count(providers, fn provider ->
-        case Provider.get_adapter_by_id(provider.id) do
-          {:ok, adapter} -> is_atom(adapter) and adapter != :reqllm_backed
-          _ -> false
-        end
-      end)
+      legacy_count =
+        Enum.count(providers, fn provider ->
+          case Provider.get_adapter_by_id(provider.id) do
+            {:ok, adapter} -> is_atom(adapter) and adapter != :reqllm_backed
+            _ -> false
+          end
+        end)
 
-      reqllm_count = Enum.count(providers, fn provider ->
-        case Provider.get_adapter_by_id(provider.id) do
-          {:ok, :reqllm_backed} -> true
-          _ -> false
-        end
-      end)
+      reqllm_count =
+        Enum.count(providers, fn provider ->
+          case Provider.get_adapter_by_id(provider.id) do
+            {:ok, :reqllm_backed} -> true
+            _ -> false
+          end
+        end)
 
       # Should have both types
       assert legacy_count >= 5

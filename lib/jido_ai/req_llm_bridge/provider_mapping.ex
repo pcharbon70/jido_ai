@@ -300,7 +300,8 @@ defmodule Jido.AI.ReqLlmBridge.ProviderMapping do
   @spec get_jido_provider_metadata(atom()) :: {:ok, map()} | {:error, term()}
   def get_jido_provider_metadata(provider_id) when is_atom(provider_id) do
     # For now, build metadata from what we know about providers
-    # TODO: Fetch actual metadata from ReqLLM when metadata API is available
+    # Issue: Fetch actual metadata from ReqLLM when provider metadata API becomes available
+    # Currently ReqLLM only provides list_providers(), list_models(), and get_model() methods
     metadata = %{
       id: provider_id,
       name: humanize_provider_name(provider_id),
@@ -308,7 +309,8 @@ defmodule Jido.AI.ReqLlmBridge.ProviderMapping do
       type: get_provider_type(provider_id),
       api_base_url: get_provider_base_url(provider_id),
       requires_api_key: provider_requires_api_key?(provider_id),
-      models: []  # Models loaded dynamically
+      # Models loaded dynamically
+      models: []
     }
 
     {:ok, metadata}
@@ -333,8 +335,7 @@ defmodule Jido.AI.ReqLlmBridge.ProviderMapping do
     atom
     |> Atom.to_string()
     |> String.split("_")
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 
   defp get_provider_description(provider_id) do

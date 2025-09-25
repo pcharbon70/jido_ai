@@ -21,14 +21,15 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
 
           # Registry integration should provide more models (unless registry is unavailable)
           if length(models) > length(cached_models) do
-            assert length(models) >= 50  # Should have many more models from registry
+            # Should have many more models from registry
+            assert length(models) >= 50
           end
 
           # All models should be properly formatted
           assert Enum.all?(models, fn model ->
-            (Map.has_key?(model, :id) || Map.has_key?(model, "id")) &&
-            (Map.has_key?(model, :provider) || Map.has_key?(model, "provider"))
-          end)
+                   (Map.has_key?(model, :id) || Map.has_key?(model, "id")) &&
+                     (Map.has_key?(model, :provider) || Map.has_key?(model, "provider"))
+                 end)
 
         {:error, reason} ->
           # If registry is unavailable, should still work with fallback
@@ -49,9 +50,9 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
 
             # All models should belong to the specified provider
             assert Enum.all?(provider_models, fn model ->
-              model_provider = Map.get(model, :provider) || Map.get(model, "provider")
-              model_provider == provider
-            end)
+                     model_provider = Map.get(model, :provider) || Map.get(model, "provider")
+                     model_provider == provider
+                   end)
 
           {:error, reason} ->
             # Some providers might not be available - that's ok
@@ -68,7 +69,8 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
           assert is_integer(stats.total_models)
           assert stats.total_models >= 0
           assert is_integer(stats.total_providers)
-          assert stats.total_providers >= 5  # At least legacy providers
+          # At least legacy providers
+          assert stats.total_providers >= 5
 
           # Should have provider coverage information
           assert is_map(stats.provider_coverage)
@@ -107,20 +109,23 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
                 [provider: expected_provider] ->
                   # Check that all models are from expected provider
                   assert Enum.all?(filtered_models, fn model ->
-                    model_provider = Map.get(model, :provider) || Map.get(model, "provider")
-                    model_provider == expected_provider
-                  end)
+                           model_provider =
+                             Map.get(model, :provider) || Map.get(model, "provider")
+
+                           model_provider == expected_provider
+                         end)
 
                 [capability: required_cap] ->
                   # Check that models with capabilities have the required one
-                  models_with_caps = Enum.filter(filtered_models, fn model ->
-                    Map.has_key?(model, :capabilities) && model.capabilities != nil
-                  end)
+                  models_with_caps =
+                    Enum.filter(filtered_models, fn model ->
+                      Map.has_key?(model, :capabilities) && model.capabilities != nil
+                    end)
 
                   if length(models_with_caps) > 0 do
                     assert Enum.any?(models_with_caps, fn model ->
-                      Map.get(model.capabilities, required_cap, false)
-                    end)
+                             Map.get(model.capabilities, required_cap, false)
+                           end)
                   end
 
                 _ ->
@@ -159,7 +164,7 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
     test "model metadata enhancement" do
       # Test that models are properly enhanced with registry metadata
       case Registry.list_models() do
-        {:ok, models} when length(models) > 0 ->
+        {:ok, models} when models != [] ->
           # Take a sample of models to test
           sample_models = Enum.take(models, 5)
 
@@ -180,7 +185,9 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
               # Should have reasonable architecture info
               if model.architecture do
                 assert model.architecture.modality in ["text", "multimodal", nil]
-                assert is_binary(model.architecture.tokenizer) || is_nil(model.architecture.tokenizer)
+
+                assert is_binary(model.architecture.tokenizer) ||
+                         is_nil(model.architecture.tokenizer)
               end
             end
           end
@@ -219,7 +226,8 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
       # 3. Provider.providers should still work
       providers = Provider.providers()
       assert is_list(providers)
-      assert length(providers) >= 5  # At least legacy providers
+      # At least legacy providers
+      assert length(providers) >= 5
 
       # 4. Provider.list should still work
       provider_list = Provider.list()
@@ -275,6 +283,7 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
         {:ok, models} ->
           # Should return empty list or fallback models
           assert is_list(models)
+
         {:error, reason} ->
           # Error is acceptable
           assert reason != nil
@@ -285,26 +294,29 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
         {:ok, _model} ->
           # Unlikely but not impossible
           :ok
+
         {:error, reason} ->
           # Expected result
           assert is_binary(reason) || is_atom(reason)
       end
 
       # 3. Test discovery with invalid filters
-      case Provider.discover_models_by_criteria([invalid_filter: "invalid_value"]) do
+      case Provider.discover_models_by_criteria(invalid_filter: "invalid_value") do
         {:ok, models} ->
           # Should ignore invalid filters and return all models
           assert is_list(models)
+
         {:error, reason} ->
           # Error handling is acceptable
           assert reason != nil
       end
 
       # 4. Test enhanced listing with invalid options
-      case Provider.list_all_models_enhanced(nil, [invalid_option: true]) do
+      case Provider.list_all_models_enhanced(nil, invalid_option: true) do
         {:ok, models} ->
           # Should ignore invalid options
           assert is_list(models)
+
         {:error, reason} ->
           # Error handling is acceptable
           assert reason != nil
@@ -323,6 +335,7 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
         {:ok, stats} ->
           # Should have the required fields for display
           required_fields = [:total_models, :total_providers, :provider_coverage]
+
           for field <- required_fields do
             assert Map.has_key?(stats, field), "Missing required field #{field} in stats"
           end
@@ -336,6 +349,7 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
       case Provider.list_all_models_enhanced(nil, source: :both) do
         {:ok, models} ->
           assert is_list(models)
+
         {:error, _reason} ->
           :ok
       end
@@ -361,7 +375,7 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
 
             # Should be a significant improvement (at least 10x more models)
             assert improvement_ratio >= 10.0,
-              "Expected significant model count increase, got #{improvement_ratio}x (from #{legacy_count} to #{enhanced_count})"
+                   "Expected significant model count increase, got #{improvement_ratio}x (from #{legacy_count} to #{enhanced_count})"
           else
             IO.puts("Registry appears unavailable - enhanced count not greater than legacy")
             # This is acceptable - registry might not be available in test environment
@@ -383,12 +397,15 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
       # Should have all legacy providers
       for legacy_provider <- legacy_provider_ids do
         assert legacy_provider in current_provider_ids,
-          "Legacy provider #{legacy_provider} missing from current providers"
+               "Legacy provider #{legacy_provider} missing from current providers"
       end
 
       # Should have additional providers if registry is available
       new_provider_count = length(current_provider_ids) - length(legacy_provider_ids)
-      IO.puts("Legacy providers: #{length(legacy_provider_ids)}, Current providers: #{length(current_provider_ids)}, New: #{new_provider_count}")
+
+      IO.puts(
+        "Legacy providers: #{length(legacy_provider_ids)}, Current providers: #{length(current_provider_ids)}, New: #{new_provider_count}"
+      )
 
       if new_provider_count > 0 do
         assert new_provider_count >= 30, "Expected many new providers, got #{new_provider_count}"
@@ -398,7 +415,7 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
         found_new_providers = Enum.filter(expected_new_providers, &(&1 in current_provider_ids))
 
         assert length(found_new_providers) > 0,
-          "Expected to find some new providers like #{inspect(expected_new_providers)}, but none found"
+               "Expected to find some new providers like #{inspect(expected_new_providers)}, but none found"
 
         IO.puts("Found new providers: #{inspect(found_new_providers)}")
       end
@@ -407,21 +424,24 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
     test "metadata richness verification" do
       # Verify that models now have richer metadata
       case Provider.list_all_models_enhanced(nil, source: :registry) do
-        {:ok, registry_models} when length(registry_models) > 0 ->
+        {:ok, registry_models} when registry_models != [] ->
           # Sample some models to check metadata richness
           sample_models = Enum.take(registry_models, 10)
 
-          models_with_capabilities = Enum.count(sample_models, fn model ->
-            Map.get(model, :capabilities) != nil
-          end)
+          models_with_capabilities =
+            Enum.count(sample_models, fn model ->
+              Map.get(model, :capabilities) != nil
+            end)
 
-          models_with_reqllm_id = Enum.count(sample_models, fn model ->
-            Map.get(model, :reqllm_id) != nil
-          end)
+          models_with_reqllm_id =
+            Enum.count(sample_models, fn model ->
+              Map.get(model, :reqllm_id) != nil
+            end)
 
-          models_with_modalities = Enum.count(sample_models, fn model ->
-            Map.get(model, :modalities) != nil
-          end)
+          models_with_modalities =
+            Enum.count(sample_models, fn model ->
+              Map.get(model, :modalities) != nil
+            end)
 
           IO.puts("Metadata richness in sample of #{length(sample_models)} models:")
           IO.puts("  - With capabilities: #{models_with_capabilities}")

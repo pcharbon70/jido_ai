@@ -29,7 +29,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
 
       # Verify response structure
       assert is_list(providers)
-      assert length(providers) >= 5  # At least legacy providers
+      # At least legacy providers
+      assert length(providers) >= 5
 
       # Verify each provider has required fields and types
       Enum.each(providers, fn provider ->
@@ -70,7 +71,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
 
       # Verify enhanced response maintains structure
       assert is_list(providers)
-      assert length(providers) > 5  # Should have more than legacy
+      # Should have more than legacy
+      assert length(providers) > 5
 
       # Verify structure consistency
       Enum.each(providers, fn provider ->
@@ -120,8 +122,10 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
       case result do
         {:ok, module} ->
           assert is_atom(module)
+
         {:error, reason} ->
           assert is_binary(reason) or is_atom(reason)
+
         other ->
           flunk("Expected {:ok, module} or {:error, reason} tuple, got: #{inspect(other)}")
       end
@@ -135,7 +139,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
       assert is_list(models)
 
       # If models exist, verify structure
-      if length(models) > 0 do
+      if models != [] do
         Enum.each(models, fn model ->
           # Should be a map or struct with required fields
           assert is_map(model)
@@ -185,7 +189,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
           {:ok, models} ->
             assert is_list(models)
             # Verify model structure if models exist
-            if length(models) > 0 do
+            if models != [] do
               Enum.each(models, fn model ->
                 assert is_map(model)
                 assert Map.has_key?(model, :id) or Map.has_key?(model, "id")
@@ -249,7 +253,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
 
       # Should still return valid providers (legacy fallback)
       assert is_list(providers)
-      assert length(providers) >= 5  # Legacy providers
+      # Legacy providers
+      assert length(providers) >= 5
     end
   end
 
@@ -271,9 +276,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
           expect(Code, :ensure_loaded, fn ReqLLM.Provider.Generated.ValidProviders ->
             {:module, ValidProviders}
           end)
+
           expect(ValidProviders, :list, fn ->
             [:openai, :anthropic, :google, :mistral, :cohere]
           end)
+
           # No need to stub get_provider_info as it doesn't exist
         end
       ]
@@ -296,6 +303,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
       # Provider.list/0 -> [%Provider{}]
       providers = Provider.list()
       assert is_list(providers)
+
       if length(providers) > 0 do
         assert %Provider{} = hd(providers)
       end
@@ -303,6 +311,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.ApiPreservationTest do
       # Provider.providers/0 -> [{atom(), atom()}]
       providers_tuples = Provider.providers()
       assert is_list(providers_tuples)
+
       if length(providers_tuples) > 0 do
         {id, adapter} = hd(providers_tuples)
         assert is_atom(id)

@@ -38,8 +38,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
       test_provider_structs = Enum.filter(providers, &(&1.id in test_providers))
 
       # Verify all providers have consistent structure
-      required_fields = [:id, :name, :requires_api_key]
-      optional_fields = [:description, :type, :api_base_url, :endpoints, :models, :proxy_for]
+      _required_fields = [:id, :name, :requires_api_key]
+      _optional_fields = [:description, :type, :api_base_url, :endpoints, :models, :proxy_for]
 
       Enum.each(test_provider_structs, fn provider ->
         # Required fields must be present and correct types
@@ -64,7 +64,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
       end)
 
       expect(ValidProviders, :list, fn ->
-        [:openai, :openrouter]  # Direct and proxy provider examples
+        # Direct and proxy provider examples
+        [:openai, :openrouter]
       end)
 
       providers = Provider.list()
@@ -148,15 +149,16 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
       end)
 
       # Test each provider's models for consistency
-      model_results = Enum.map(providers_and_models, fn {provider, _model_name} ->
-        case Provider.list_all_models_enhanced(provider, source: :registry) do
-          {:ok, models} when length(models) > 0 ->
-            {provider, hd(models)}
+      model_results =
+        Enum.map(providers_and_models, fn {provider, _model_name} ->
+          case Provider.list_all_models_enhanced(provider, source: :registry) do
+            {:ok, models} when models != [] ->
+              {provider, hd(models)}
 
-          _ ->
-            {provider, nil}
-        end
-      end)
+            _ ->
+              {provider, nil}
+          end
+        end)
 
       # Filter successful results
       successful_results = Enum.reject(model_results, fn {_provider, model} -> model == nil end)
@@ -185,9 +187,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
 
           if model.modalities do
             assert is_map(model.modalities)
+
             if Map.has_key?(model.modalities, :input) do
               assert is_list(model.modalities.input)
             end
+
             if Map.has_key?(model.modalities, :output) do
               assert is_list(model.modalities.output)
             end
@@ -219,16 +223,17 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
       end)
 
       # Test each provider's capability format
-      capability_results = Enum.map(providers_with_capabilities, fn provider ->
-        case Provider.list_all_models_enhanced(provider, source: :registry) do
-          {:ok, models} when length(models) > 0 ->
-            model = hd(models)
-            {provider, model.capabilities}
+      capability_results =
+        Enum.map(providers_with_capabilities, fn provider ->
+          case Provider.list_all_models_enhanced(provider, source: :registry) do
+            {:ok, models} when models != [] ->
+              model = hd(models)
+              {provider, model.capabilities}
 
-          _ ->
-            {provider, nil}
-        end
-      end)
+            _ ->
+              {provider, nil}
+          end
+        end)
 
       successful_caps = Enum.reject(capability_results, fn {_provider, caps} -> caps == nil end)
 
@@ -263,16 +268,17 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
         end)
       end)
 
-      pricing_results = Enum.map(providers_with_pricing, fn provider ->
-        case Provider.list_all_models_enhanced(provider, source: :registry) do
-          {:ok, models} when length(models) > 0 ->
-            model = hd(models)
-            {provider, model.cost}
+      pricing_results =
+        Enum.map(providers_with_pricing, fn provider ->
+          case Provider.list_all_models_enhanced(provider, source: :registry) do
+            {:ok, models} when models != [] ->
+              model = hd(models)
+              {provider, model.cost}
 
-          _ ->
-            {provider, nil}
-        end
-      end)
+            _ ->
+              {provider, nil}
+          end
+        end)
 
       successful_pricing = Enum.reject(pricing_results, fn {_provider, cost} -> cost == nil end)
 
@@ -301,21 +307,22 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
       legacy_providers = [:openai, :anthropic, :google]
 
       # Get legacy provider information
-      legacy_provider_data = Enum.map(legacy_providers, fn provider_id ->
-        case Enum.find(Provider.providers(), fn {id, _adapter} -> id == provider_id end) do
-          {id, adapter} when is_atom(adapter) and adapter != :reqllm_backed ->
-            # This is a legacy provider with adapter
-            provider_struct = Enum.find(Provider.list(), &(&1.id == id))
-            {id, provider_struct, :legacy}
+      legacy_provider_data =
+        Enum.map(legacy_providers, fn provider_id ->
+          case Enum.find(Provider.providers(), fn {id, _adapter} -> id == provider_id end) do
+            {id, adapter} when is_atom(adapter) and adapter != :reqllm_backed ->
+              # This is a legacy provider with adapter
+              provider_struct = Enum.find(Provider.list(), &(&1.id == id))
+              {id, provider_struct, :legacy}
 
-          {id, :reqllm_backed} ->
-            provider_struct = Enum.find(Provider.list(), &(&1.id == id))
-            {id, provider_struct, :registry}
+            {id, :reqllm_backed} ->
+              provider_struct = Enum.find(Provider.list(), &(&1.id == id))
+              {id, provider_struct, :registry}
 
-          nil ->
-            {provider_id, nil, :not_found}
-        end
-      end)
+            nil ->
+              {provider_id, nil, :not_found}
+          end
+        end)
 
       # Verify consistency between legacy and registry when both available
       Enum.each(legacy_provider_data, fn {provider_id, provider_struct, source} ->
@@ -333,7 +340,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
             :registry ->
               # Registry providers should have at least the same quality of metadata
               assert provider_struct.type in [:direct, :proxy] or is_nil(provider_struct.type)
-              # May have additional metadata from registry
+
+            # May have additional metadata from registry
 
             :not_found ->
               # Some providers might not be available
@@ -348,7 +356,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
 
       # Get some models from enhanced discovery
       case Provider.list_all_models_enhanced(nil, source: :both) do
-        {:ok, models} when length(models) > 0 ->
+        {:ok, models} when models != [] ->
           sample_models = Enum.take(models, 3)
 
           Enum.each(sample_models, fn model ->
@@ -401,10 +409,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
         {:ok, [:anthropic]}
       end)
 
-      registry_model = create_enhanced_mock_model(:anthropic, "claude-3-5-sonnet", %{
-        capabilities: %{tool_call: true, reasoning: true},
-        cost: %{input: 0.003, output: 0.015}
-      })
+      registry_model =
+        create_enhanced_mock_model(:anthropic, "claude-3-5-sonnet", %{
+          capabilities: %{tool_call: true, reasoning: true},
+          cost: %{input: 0.003, output: 0.015}
+        })
 
       expect(Adapter, :list_models, fn :anthropic ->
         {:ok, [registry_model]}
@@ -458,7 +467,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
       model: "#{provider}-model",
       capabilities: %{
         tool_call: true,
-        reasoning: provider == :anthropic,  # Anthropic known for reasoning
+        # Anthropic known for reasoning
+        reasoning: provider == :anthropic,
         temperature: true,
         attachment: false
       }
@@ -466,11 +476,12 @@ defmodule Jido.AI.ProviderDiscoveryListing.MetadataCompatibilityTest do
   end
 
   defp create_mock_model_with_pricing(provider) do
-    pricing = case provider do
-      :anthropic -> %{input: 0.003, output: 0.015}
-      :openai -> %{input: 0.01, output: 0.03}
-      _ -> %{input: 0.001, output: 0.002}
-    end
+    pricing =
+      case provider do
+        :anthropic -> %{input: 0.003, output: 0.015}
+        :openai -> %{input: 0.01, output: 0.03}
+        _ -> %{input: 0.001, output: 0.002}
+      end
 
     %ReqLLM.Model{
       provider: provider,

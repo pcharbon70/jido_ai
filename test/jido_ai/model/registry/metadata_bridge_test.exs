@@ -33,9 +33,11 @@ defmodule Jido.AI.Model.Registry.MetadataBridgeTest do
 
       # Check derived fields
       assert jido_model.model == "claude-3-5-sonnet"
-      assert jido_model.max_tokens == 4_096  # from limit.output
+      # from limit.output
+      assert jido_model.max_tokens == 4_096
       assert jido_model.max_retries == 3
-      assert jido_model.temperature == 0.7  # default
+      # default
+      assert jido_model.temperature == 0.7
       assert jido_model.base_url == "https://api.anthropic.com"
 
       # Check architecture
@@ -75,14 +77,16 @@ defmodule Jido.AI.Model.Registry.MetadataBridgeTest do
       assert jido_model.reqllm_id == "openai:gpt-4"
 
       # Should have reasonable defaults
-      assert jido_model.max_tokens == 1024  # default when no limit provided
+      # default when no limit provided
+      assert jido_model.max_tokens == 1024
       assert jido_model.max_retries == 3
       assert jido_model.temperature == 0.7
 
       # Should create default endpoint
       assert length(jido_model.endpoints) == 1
       endpoint = hd(jido_model.endpoints)
-      assert endpoint.context_length == 8192  # conservative default
+      # conservative default
+      assert endpoint.context_length == 8192
     end
 
     test "infers provider-specific attributes correctly" do
@@ -347,7 +351,9 @@ defmodule Jido.AI.Model.Registry.MetadataBridgeTest do
       for {input, expected} <- test_cases do
         reqllm_model = %ReqLLM.Model{provider: :test, model: input}
         jido_model = MetadataBridge.to_jido_model(reqllm_model)
-        assert jido_model.name == expected, "Expected #{input} to become #{expected}, got #{jido_model.name}"
+
+        assert jido_model.name == expected,
+               "Expected #{input} to become #{expected}, got #{jido_model.name}"
       end
     end
   end
@@ -357,8 +363,10 @@ defmodule Jido.AI.Model.Registry.MetadataBridgeTest do
       test_cases = [
         {"claude-3-instruct", "instruct"},
         {"gpt-4-chat", "chat"},
-        {"claude-3-5-sonnet", "chat"},  # Anthropic defaults to chat
-        {"gpt-4", "chat"},              # OpenAI defaults to chat
+        # Anthropic defaults to chat
+        {"claude-3-5-sonnet", "chat"},
+        # OpenAI defaults to chat
+        {"gpt-4", "chat"},
         {"mistral-7b-instruct", "instruct"}
       ]
 
@@ -366,6 +374,7 @@ defmodule Jido.AI.Model.Registry.MetadataBridgeTest do
         provider = if String.contains?(model_name, "claude"), do: :anthropic, else: :openai
         reqllm_model = %ReqLLM.Model{provider: provider, model: model_name}
         jido_model = MetadataBridge.to_jido_model(reqllm_model)
+
         assert jido_model.architecture.instruct_type == expected_type,
                "Expected #{model_name} to have instruct_type #{expected_type}, got #{jido_model.architecture.instruct_type}"
       end

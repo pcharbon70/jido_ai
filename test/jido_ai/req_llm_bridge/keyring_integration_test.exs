@@ -37,7 +37,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
   end
 
   describe "get/5 - unified key precedence" do
-    test "returns session value when available (highest precedence)", %{keyring: _keyring} do
+    test "returns session value when available (highest precedence)", %{keyring: keyring} do
       # Set up a session value
       Keyring.set_session_value(keyring, :openai_api_key, "session-key")
 

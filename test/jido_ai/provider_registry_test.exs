@@ -149,7 +149,8 @@ defmodule Jido.AI.ProviderRegistryTest do
       provider_ids = Enum.map(available, & &1.provider)
       assert :openai in provider_ids
       assert :anthropic in provider_ids
-      refute :mistral in provider_ids  # No key available
+      # No key available
+      refute :mistral in provider_ids
     end
 
     test "uses ReqLLM registry when available" do
@@ -163,7 +164,8 @@ defmodule Jido.AI.ProviderRegistryTest do
       stub(ValidProviders, :list, fn -> all_providers end)
 
       stub(ReqLlmBridge, :validate_provider_key, fn _provider ->
-        {:ok, :environment}  # All have keys for testing
+        # All have keys for testing
+        {:ok, :environment}
       end)
 
       available = ReqLlmBridge.list_available_providers()
@@ -195,7 +197,8 @@ defmodule Jido.AI.ProviderRegistryTest do
       assert :google in provider_ids
       assert :cloudflare in provider_ids
       assert :openrouter in provider_ids
-      assert length(provider_ids) == 5  # Only legacy providers
+      # Only legacy providers
+      assert length(provider_ids) == 5
     end
   end
 
@@ -227,11 +230,13 @@ defmodule Jido.AI.ProviderRegistryTest do
       {:ok, metadata} = ProviderMapping.get_jido_provider_metadata(:openai)
 
       assert metadata.id == :openai
-      assert metadata.name == "Openai"  # Humanized
+      # Humanized
+      assert metadata.name == "Openai"
       assert metadata.description != nil
       assert metadata.type in [:direct, :proxy]
       assert metadata.requires_api_key == true
-      assert metadata.models == []  # Loaded dynamically
+      # Loaded dynamically
+      assert metadata.models == []
       assert metadata.api_base_url == "https://api.openai.com/v1"
     end
 
@@ -239,7 +244,8 @@ defmodule Jido.AI.ProviderRegistryTest do
       {:ok, metadata} = ProviderMapping.get_jido_provider_metadata(:unknown_provider)
 
       assert metadata.id == :unknown_provider
-      assert metadata.name == "Unknown Provider"  # Humanized
+      # Humanized
+      assert metadata.name == "Unknown Provider"
       assert metadata.description =~ "ReqLLM"
       assert metadata.requires_api_key == true
     end

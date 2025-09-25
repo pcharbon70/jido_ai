@@ -436,7 +436,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
 
       # Double-check by attempting authentication
       # (should fail and fall back to external sources)
-      expect(ReqLlmBridge.Keys, :get, length(providers), fn provider, %{} ->
+      expect(ReqLlmBridge.Keys, :get, length(providers), fn _provider, %{} ->
         {:error, "No external auth available"}
       end)
 

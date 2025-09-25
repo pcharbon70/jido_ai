@@ -128,7 +128,8 @@ defmodule Jido.AI.Provider do
         type: :direct,
         api_base_url: metadata[:base_url],
         requires_api_key: metadata[:requires_api_key] != false,
-        models: []  # Models will be loaded dynamically
+        # Models will be loaded dynamically
+        models: []
       }
     rescue
       _ ->
@@ -144,7 +145,8 @@ defmodule Jido.AI.Provider do
     end
   end
 
-  defp build_provider_struct(_provider_id, module) when is_atom(module) and module != :reqllm_backed do
+  defp build_provider_struct(_provider_id, module)
+       when is_atom(module) and module != :reqllm_backed do
     # Use legacy adapter definition
     if Code.ensure_loaded?(module) and function_exported?(module, :definition, 0) do
       module.definition()
@@ -166,8 +168,7 @@ defmodule Jido.AI.Provider do
     atom
     |> Atom.to_string()
     |> String.split("_")
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 
   def models(provider, opts \\ []) do
@@ -482,11 +483,12 @@ defmodule Jido.AI.Provider do
     try do
       case Jido.AI.Model.Registry.get_model(provider_id, model_name) do
         {:ok, registry_model} ->
-          enhanced_model = if enhance_with_cache do
-            enhance_registry_model_with_cache(registry_model)
-          else
-            registry_model
-          end
+          enhanced_model =
+            if enhance_with_cache do
+              enhance_registry_model_with_cache(registry_model)
+            else
+              registry_model
+            end
 
           {:ok, enhanced_model}
 
@@ -496,7 +498,10 @@ defmodule Jido.AI.Provider do
       end
     rescue
       error ->
-        Logger.error("Registry model lookup error for #{provider_id}:#{model_name}: #{inspect(error)}")
+        Logger.error(
+          "Registry model lookup error for #{provider_id}:#{model_name}: #{inspect(error)}"
+        )
+
         fallback_get_model_info(provider_id, model_name)
     end
   end
@@ -590,17 +595,20 @@ defmodule Jido.AI.Provider do
         {:ok, registry_stats} ->
           # Enhance with cached model statistics
           cached_models = list_all_cached_models()
-          enhanced_stats = Map.merge(registry_stats, %{
-            cached_models: length(cached_models),
-            cache_providers: get_cached_provider_counts(cached_models),
-            registry_health: get_registry_health()
-          })
+
+          enhanced_stats =
+            Map.merge(registry_stats, %{
+              cached_models: length(cached_models),
+              cache_providers: get_cached_provider_counts(cached_models),
+              registry_health: get_registry_health()
+            })
 
           {:ok, enhanced_stats}
 
         {:error, reason} ->
           # Fallback to cached model statistics only
           cached_models = list_all_cached_models()
+
           fallback_stats = %{
             total_models: length(cached_models),
             cached_models: length(cached_models),
@@ -638,10 +646,13 @@ defmodule Jido.AI.Provider do
 
   defp get_models_from_cache_only(provider_id) do
     cached_models = list_all_cached_models()
-    provider_models = Enum.filter(cached_models, fn model ->
-      model_provider = Map.get(model, :provider) || Map.get(model, "provider")
-      model_provider == provider_id
-    end)
+
+    provider_models =
+      Enum.filter(cached_models, fn model ->
+        model_provider = Map.get(model, :provider) || Map.get(model, "provider")
+        model_provider == provider_id
+      end)
+
     {:ok, provider_models}
   end
 
@@ -659,14 +670,6 @@ defmodule Jido.AI.Provider do
       {{:error, _}, {:ok, cached_models}} ->
         Logger.warning("Registry unavailable, using cached models only")
         {:ok, cached_models}
-
-      {{:ok, registry_models}, {:error, _}} ->
-        Logger.debug("Cache unavailable, using registry models only")
-        {:ok, registry_models}
-
-      {{:error, registry_error}, {:error, cache_error}} ->
-        Logger.error("Both registry and cache failed: registry=#{inspect(registry_error)}, cache=#{inspect(cache_error)}")
-        {:error, "Both registry and cache unavailable"}
     end
   end
 
@@ -683,12 +686,13 @@ defmodule Jido.AI.Provider do
       |> Enum.into(%{})
 
     # Add cached models that don't exist in registry
-    cached_additions = Enum.reject(cached_models, fn cached_model ->
-      provider = Map.get(cached_model, :provider) || Map.get(cached_model, "provider")
-      id = Map.get(cached_model, :id) || Map.get(cached_model, "id")
-      key = "#{provider}:#{id}"
-      Map.has_key?(registry_map, key)
-    end)
+    cached_additions =
+      Enum.reject(cached_models, fn cached_model ->
+        provider = Map.get(cached_model, :provider) || Map.get(cached_model, "provider")
+        id = Map.get(cached_model, :id) || Map.get(cached_model, "id")
+        key = "#{provider}:#{id}"
+        Map.has_key?(registry_map, key)
+      end)
 
     # Combine registry models with unique cached models
     registry_models ++ cached_additions
@@ -716,7 +720,8 @@ defmodule Jido.AI.Provider do
     Map.merge(cached_info, Map.from_struct(registry_model), fn
       _key, cached_value, nil -> cached_value
       _key, cached_value, registry_value when is_nil(cached_value) -> registry_value
-      _key, _cached_value, registry_value -> registry_value  # Prefer registry data
+      # Prefer registry data
+      _key, _cached_value, registry_value -> registry_value
     end)
   end
 
@@ -730,13 +735,14 @@ defmodule Jido.AI.Provider do
     model
   end
 
-  defp fallback_get_model_info(provider_id, model_name) do
+  defp fallback_get_model_info(_provider_id, model_name) do
     # Use existing get_combined_model_info as fallback
     standardized_name = standardize_model_name(model_name)
     get_combined_model_info(standardized_name)
   end
 
   defp apply_basic_filters(models, []), do: models
+
   defp apply_basic_filters(models, filters) do
     Enum.filter(models, fn model ->
       Enum.all?(filters, fn {filter_type, filter_value} ->

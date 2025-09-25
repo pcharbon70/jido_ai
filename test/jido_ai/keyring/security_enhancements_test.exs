@@ -275,14 +275,14 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
   end
 
   describe "process isolation validation" do
-    test "validates process isolation correctly", %{keyring: _keyring} do
+    test "validates process isolation correctly", %{keyring: keyring} do
       result =
         SecurityEnhancements.validate_process_isolation(keyring, :isolation_test, "test_value")
 
       assert result == :ok
     end
 
-    test "detects isolation violations", %{keyring: _keyring} do
+    test "detects isolation violations", %{keyring: keyring} do
       # This test would need to simulate a violation scenario
       # For now, we test that the function handles the normal case
       result =
@@ -325,7 +325,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
   end
 
   describe "integration with keyring operations" do
-    test "security filtering is applied to session operations", %{keyring: _keyring} do
+    test "security filtering is applied to session operations", %{keyring: keyring} do
       sensitive_value = "sk-session123456"
 
       # Set session value (should be filtered internally)
@@ -339,7 +339,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
       assert is_binary(retrieved)
     end
 
-    test "security filtering works with global value retrieval", %{keyring: _keyring} do
+    test "security filtering works with global value retrieval", %{keyring: keyring} do
       # Mock JidoKeys to return sensitive data
       expect(JidoKeys, :get, fn :sensitive_global, nil ->
         "sk-global-secret123"
@@ -354,7 +354,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
   end
 
   describe "performance impact of security features" do
-    test "security filtering doesn't significantly impact performance", %{keyring: _keyring} do
+    test "security filtering doesn't significantly impact performance", %{keyring: keyring} do
       # Test that security enhancements don't cause major performance regression
       test_values = for i <- 1..100, do: "test_value_#{i}"
 

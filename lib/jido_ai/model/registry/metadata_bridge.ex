@@ -120,7 +120,8 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
 
   """
   @spec enhance_with_registry_data(jido_model(), map()) :: jido_model()
-  def enhance_with_registry_data(%Model{} = jido_model, reqllm_metadata) when is_map(reqllm_metadata) do
+  def enhance_with_registry_data(%Model{} = jido_model, reqllm_metadata)
+      when is_map(reqllm_metadata) do
     # Update model with enhanced metadata, preserving existing fields
     jido_model
     |> maybe_update_field(:capabilities, reqllm_metadata[:capabilities])
@@ -159,19 +160,21 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   @spec to_reqllm_model(jido_model()) :: reqllm_model()
   def to_reqllm_model(%Model{} = jido_model) do
     # Create ReqLLM model from Jido AI model
-    base_model = ReqLLM.Model.new(
-      jido_model.provider,
-      jido_model.id || jido_model.model,
-      max_tokens: jido_model.max_tokens,
-      max_retries: jido_model.max_retries
-    )
+    base_model =
+      ReqLLM.Model.new(
+        jido_model.provider,
+        jido_model.id || jido_model.model,
+        max_tokens: jido_model.max_tokens,
+        max_retries: jido_model.max_retries
+      )
 
     # Enhance with additional fields if available
-    %{base_model |
-      capabilities: jido_model.capabilities,
-      modalities: jido_model.modalities,
-      cost: jido_model.cost,
-      limit: extract_limit_from_endpoints(jido_model.endpoints)
+    %{
+      base_model
+      | capabilities: jido_model.capabilities,
+        modalities: jido_model.modalities,
+        cost: jido_model.cost,
+        limit: extract_limit_from_endpoints(jido_model.endpoints)
     }
   end
 
@@ -194,21 +197,25 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
       validate_compatibility(invalid_model) # => {:error, ["missing provider", "invalid model name"]}
 
   """
-  @spec validate_compatibility(reqllm_model() | jido_model()) :: {:ok, :compatible} | {:error, [String.t()]}
+  @spec validate_compatibility(reqllm_model() | jido_model()) ::
+          {:ok, :compatible} | {:error, [String.t()]}
   def validate_compatibility(%ReqLLM.Model{} = reqllm_model) do
     errors = []
 
-    errors = if is_nil(reqllm_model.provider) or not is_atom(reqllm_model.provider) do
-      ["Invalid provider: must be non-nil atom" | errors]
-    else
-      errors
-    end
+    errors =
+      if is_nil(reqllm_model.provider) or not is_atom(reqllm_model.provider) do
+        ["Invalid provider: must be non-nil atom" | errors]
+      else
+        errors
+      end
 
-    errors = if is_nil(reqllm_model.model) or not is_binary(reqllm_model.model) or reqllm_model.model == "" do
-      ["Invalid model name: must be non-empty string" | errors]
-    else
-      errors
-    end
+    errors =
+      if is_nil(reqllm_model.model) or not is_binary(reqllm_model.model) or
+           reqllm_model.model == "" do
+        ["Invalid model name: must be non-empty string" | errors]
+      else
+        errors
+      end
 
     case errors do
       [] -> {:ok, :compatible}
@@ -219,18 +226,21 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   def validate_compatibility(%Model{} = jido_model) do
     errors = []
 
-    errors = if is_nil(jido_model.provider) or not is_atom(jido_model.provider) do
-      ["Invalid provider: must be non-nil atom" | errors]
-    else
-      errors
-    end
+    errors =
+      if is_nil(jido_model.provider) or not is_atom(jido_model.provider) do
+        ["Invalid provider: must be non-nil atom" | errors]
+      else
+        errors
+      end
 
     model_id = jido_model.id || jido_model.model
-    errors = if is_nil(model_id) or not is_binary(model_id) or model_id == "" do
-      ["Invalid model identifier: must be non-empty string" | errors]
-    else
-      errors
-    end
+
+    errors =
+      if is_nil(model_id) or not is_binary(model_id) or model_id == "" do
+        ["Invalid model identifier: must be non-empty string" | errors]
+      else
+        errors
+      end
 
     case errors do
       [] -> {:ok, :compatible}
@@ -247,8 +257,7 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     |> String.replace("-", " ")
     |> String.replace("_", " ")
     |> String.split()
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 
   defp generate_model_description(%ReqLLM.Model{} = reqllm_model) do
@@ -259,12 +268,16 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
 
     # Add capability information if available
     case reqllm_model.capabilities do
-      nil -> base_description
+      nil ->
+        base_description
+
       caps ->
         features = []
         features = if Map.get(caps, :reasoning), do: ["reasoning" | features], else: features
         features = if Map.get(caps, :tool_call), do: ["tool calling" | features], else: features
-        features = if Map.get(caps, :attachment), do: ["file attachments" | features], else: features
+
+        features =
+          if Map.get(caps, :attachment), do: ["file attachments" | features], else: features
 
         if length(features) > 0 do
           feature_text = Enum.join(features, ", ")
@@ -286,11 +299,12 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     modalities = reqllm_model.modalities || %{input: [:text], output: [:text]}
     input_modalities = Map.get(modalities, :input, [:text])
 
-    modality_str = if :text in input_modalities and length(input_modalities) > 1 do
-      "multimodal"
-    else
-      "text"
-    end
+    modality_str =
+      if :text in input_modalities and length(input_modalities) > 1 do
+        "multimodal"
+      else
+        "text"
+      end
 
     %Architecture{
       modality: modality_str,
@@ -314,7 +328,8 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     %Endpoint{
       name: reqllm_model.model,
       provider_name: Atom.to_string(reqllm_model.provider),
-      context_length: 8192,  # Conservative default
+      # Conservative default
+      context_length: 8192,
       max_completion_tokens: reqllm_model.max_tokens || 4096,
       max_prompt_tokens: nil,
       quantization: nil,
@@ -337,20 +352,24 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   end
 
   defp convert_pricing(nil), do: %Pricing{completion: nil, image: nil, prompt: nil, request: nil}
+
   defp convert_pricing(cost) when is_map(cost) do
     %Pricing{
       completion: format_cost(cost.output),
       prompt: format_cost(cost.input),
-      image: nil,  # Most models don't have separate image pricing
+      # Most models don't have separate image pricing
+      image: nil,
       request: nil
     }
   end
 
   defp format_cost(nil), do: nil
+
   defp format_cost(cost) when is_number(cost) do
     # Format cost per token as readable string
     "$#{Float.round(cost * 1_000_000, 2)} / 1M tokens"
   end
+
   defp format_cost(cost) when is_binary(cost), do: cost
 
   defp extract_max_tokens(%ReqLLM.Model{} = reqllm_model) do
@@ -400,29 +419,33 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     base_params = ["max_tokens"]
 
     # Add temperature if supported
-    params = if reqllm_model.capabilities && Map.get(reqllm_model.capabilities, :temperature, true) do
-      ["temperature" | base_params]
-    else
-      base_params
-    end
+    params =
+      if reqllm_model.capabilities && Map.get(reqllm_model.capabilities, :temperature, true) do
+        ["temperature" | base_params]
+      else
+        base_params
+      end
 
     # Add tool calling parameters if supported
-    params = if reqllm_model.capabilities && Map.get(reqllm_model.capabilities, :tool_call, false) do
-      ["tools", "tool_choice" | params]
-    else
-      params
-    end
+    params =
+      if reqllm_model.capabilities && Map.get(reqllm_model.capabilities, :tool_call, false) do
+        ["tools", "tool_choice" | params]
+      else
+        params
+      end
 
     # Add common parameters
     ["top_p", "top_k" | params] |> Enum.uniq()
   end
 
   defp maybe_update_field(model, _field, nil), do: model
+
   defp maybe_update_field(model, field, value) do
     Map.put(model, field, value)
   end
 
   defp maybe_update_limit(model, nil), do: model
+
   defp maybe_update_limit(model, limit) when is_map(limit) do
     # Store limit information in model for potential use
     # This is a custom field that may not exist in base Model struct
@@ -430,14 +453,16 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   end
 
   defp maybe_update_endpoints_from_limit(model, nil), do: model
+
   defp maybe_update_endpoints_from_limit(model, limit) when is_map(limit) do
     # Update endpoint context length and max tokens based on limit
     updated_endpoints =
       model.endpoints
       |> Enum.map(fn endpoint ->
-        %{endpoint |
-          context_length: limit.context || endpoint.context_length,
-          max_completion_tokens: limit.output || endpoint.max_completion_tokens
+        %{
+          endpoint
+          | context_length: limit.context || endpoint.context_length,
+            max_completion_tokens: limit.output || endpoint.max_completion_tokens
         }
       end)
 
@@ -452,6 +477,7 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   defp set_reqllm_id_if_missing(model), do: model
 
   defp extract_limit_from_endpoints([]), do: nil
+
   defp extract_limit_from_endpoints([endpoint | _]) do
     %{
       context: endpoint.context_length,

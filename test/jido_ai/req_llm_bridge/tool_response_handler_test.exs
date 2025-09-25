@@ -294,7 +294,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandlerTest do
         nil
       ]
 
-      context = %{conversation_id: "conv_stream_error"}
+      _context = %{conversation_id: "conv_stream_error"}
 
       assert {:error, {:streaming_processing_failed, _error}} =
                ToolResponseHandler.process_streaming_response(

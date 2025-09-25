@@ -39,8 +39,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
       ]
 
       expect(Adapter, :list_models, 2, fn
-        :anthropic -> {:ok, [hd(models_with_tool_call), hd(models_without_tool_call)]}
-        :openai -> {:ok, [Enum.at(models_with_tool_call, 1), Enum.at(models_without_tool_call, 1)]}
+        :anthropic ->
+          {:ok, [hd(models_with_tool_call), hd(models_without_tool_call)]}
+
+        :openai ->
+          {:ok, [Enum.at(models_with_tool_call, 1), Enum.at(models_without_tool_call, 1)]}
       end)
 
       # Test capability filter
@@ -49,17 +52,19 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
           assert is_list(filtered_models)
 
           # Should only return models with tool_call capability
-          tool_call_models = Enum.filter(filtered_models, fn model ->
-            model.capabilities && model.capabilities.tool_call == true
-          end)
+          tool_call_models =
+            Enum.filter(filtered_models, fn model ->
+              model.capabilities && model.capabilities.tool_call == true
+            end)
 
-          non_tool_call_models = Enum.filter(filtered_models, fn model ->
-            model.capabilities && model.capabilities.tool_call == false
-          end)
+          non_tool_call_models =
+            Enum.filter(filtered_models, fn model ->
+              model.capabilities && model.capabilities.tool_call == false
+            end)
 
           # All returned models should have tool_call capability
-          if length(tool_call_models) > 0 do
-            assert length(non_tool_call_models) == 0,
+          if tool_call_models != [] do
+            assert non_tool_call_models == [],
                    "Filter should exclude models without tool_call capability"
           end
 
@@ -75,10 +80,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
       end)
 
       expect(Adapter, :list_models, fn :anthropic ->
-        {:ok, [
-          create_mock_model(:anthropic, "claude-3-5-sonnet"),
-          create_mock_model(:anthropic, "claude-3-haiku")
-        ]}
+        {:ok,
+         [
+           create_mock_model(:anthropic, "claude-3-5-sonnet"),
+           create_mock_model(:anthropic, "claude-3-haiku")
+         ]}
       end)
 
       case Provider.discover_models_by_criteria(provider: :anthropic) do
@@ -131,6 +137,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
           Enum.each(filtered_models, fn model ->
             if length(model.endpoints) > 0 do
               endpoint = hd(model.endpoints)
+
               assert endpoint.context_length >= min_context,
                      "Model #{model.id} has context #{endpoint.context_length}, expected >= #{min_context}"
             end
@@ -146,7 +153,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
       case Provider.discover_models_by_criteria([]) do
         {:ok, all_models} ->
           assert is_list(all_models)
-          # Should return models (same as unfiltered discovery)
+
+        # Should return models (same as unfiltered discovery)
 
         {:error, _reason} ->
           :ok
@@ -174,10 +182,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
       end)
 
       expect(Adapter, :list_models, fn :anthropic ->
-        {:ok, [
-          create_mock_model(:anthropic, "claude-3-5-sonnet", %{tool_call: true, reasoning: true}),
-          create_mock_model(:anthropic, "claude-3-haiku", %{tool_call: false, reasoning: true})
-        ]}
+        {:ok,
+         [
+           create_mock_model(:anthropic, "claude-3-5-sonnet", %{tool_call: true, reasoning: true}),
+           create_mock_model(:anthropic, "claude-3-haiku", %{tool_call: false, reasoning: true})
+         ]}
       end)
 
       # Filter by both provider and capability
@@ -188,6 +197,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
           Enum.each(filtered_models, fn model ->
             # Must match both criteria
             assert model.provider == :anthropic
+
             if model.capabilities do
               assert model.capabilities.tool_call == true
             end
@@ -273,19 +283,21 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
       case Provider.discover_models_by_criteria(capability: :tool_call, provider: :anthropic) do
         {:ok, filtered_models} ->
           # Should only return models that match ALL criteria
-          matching_models = Enum.filter(filtered_models, fn model ->
-            model.provider == :anthropic and
-            model.capabilities &&
-            model.capabilities.tool_call == true
-          end)
+          _matching_models =
+            Enum.filter(filtered_models, fn model ->
+              (model.provider == :anthropic and
+                 model.capabilities) &&
+                model.capabilities.tool_call == true
+            end)
 
-          non_matching_models = Enum.filter(filtered_models, fn model ->
-            model.provider != :anthropic or
-            not model.capabilities or
-            model.capabilities.tool_call != true
-          end)
+          non_matching_models =
+            Enum.filter(filtered_models, fn model ->
+              model.provider != :anthropic or
+                not model.capabilities or
+                model.capabilities.tool_call != true
+            end)
 
-          assert length(non_matching_models) == 0,
+          assert non_matching_models == [],
                  "Filter should use AND logic, excluding models that don't match all criteria"
 
         {:error, _reason} ->
@@ -320,17 +332,19 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
 
       case Provider.discover_models_by_criteria(capability: :reasoning) do
         {:ok, filtered_models} ->
-          reasoning_found = Enum.filter(filtered_models, fn model ->
-            model.capabilities && model.capabilities.reasoning == true
-          end)
+          reasoning_found =
+            Enum.filter(filtered_models, fn model ->
+              model.capabilities && model.capabilities.reasoning == true
+            end)
 
-          non_reasoning_found = Enum.filter(filtered_models, fn model ->
-            model.capabilities && model.capabilities.reasoning == false
-          end)
+          non_reasoning_found =
+            Enum.filter(filtered_models, fn model ->
+              model.capabilities && model.capabilities.reasoning == false
+            end)
 
           # Should find reasoning models and exclude non-reasoning ones
-          if length(reasoning_found) > 0 do
-            assert length(non_reasoning_found) == 0
+          if reasoning_found != [] do
+            assert non_reasoning_found == []
           end
 
         {:error, _reason} ->
@@ -398,7 +412,9 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
       ]
 
       multimodal_models = [
-        create_mock_model_with_modalities(:anthropic, "claude-3-5-sonnet", [:text, :image], [:text]),
+        create_mock_model_with_modalities(:anthropic, "claude-3-5-sonnet", [:text, :image], [
+          :text
+        ]),
         create_mock_model_with_modalities(:openai, "gpt-4-vision", [:text, :image], [:text])
       ]
 
@@ -436,9 +452,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
 
       # Create models that won't match the filter
       expect(Adapter, :list_models, fn :openai ->
-        {:ok, [
-          create_mock_model_with_cost(:openai, "gpt-4", 0.03, 0.06)  # Expensive model
-        ]}
+        {:ok,
+         [
+           # Expensive model
+           create_mock_model_with_cost(:openai, "gpt-4", 0.03, 0.06)
+         ]}
       end)
 
       # Filter for very cheap models (none should match)
@@ -446,7 +464,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
         {:ok, filtered_models} ->
           # Should return empty list or very few models
           assert is_list(filtered_models)
-          assert length(filtered_models) == 0
+          assert filtered_models == []
 
         {:error, _reason} ->
           # No results error is also acceptable
@@ -557,7 +575,12 @@ defmodule Jido.AI.ProviderDiscoveryListing.FilteringCapabilitiesTest do
     }
   end
 
-  defp create_mock_model_with_modalities(provider, model_name, input_modalities, output_modalities) do
+  defp create_mock_model_with_modalities(
+         provider,
+         model_name,
+         input_modalities,
+         output_modalities
+       ) do
     %ReqLLM.Model{
       provider: provider,
       model: model_name,

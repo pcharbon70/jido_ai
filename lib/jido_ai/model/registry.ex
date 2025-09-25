@@ -41,12 +41,12 @@ defmodule Jido.AI.Model.Registry do
   @type provider_id :: atom()
   @type model_name :: String.t()
   @type model_filter :: [
-    capability: atom(),
-    max_cost_per_token: float(),
-    min_context_length: non_neg_integer(),
-    modality: atom(),
-    tier: atom()
-  ]
+          capability: atom(),
+          max_cost_per_token: float(),
+          min_context_length: non_neg_integer(),
+          modality: atom(),
+          tier: atom()
+        ]
 
   @doc """
   Lists all available models, optionally filtered by provider.
@@ -91,7 +91,9 @@ defmodule Jido.AI.Model.Registry do
           get_models_from_all_legacy_adapters()
 
         {:error, reason} ->
-          Logger.warning("ReqLLM registry unavailable: #{inspect(reason)}, falling back to legacy adapters")
+          Logger.warning(
+            "ReqLLM registry unavailable: #{inspect(reason)}, falling back to legacy adapters"
+          )
 
           if provider_id do
             get_models_from_legacy_adapter(provider_id)
@@ -143,7 +145,10 @@ defmodule Jido.AI.Model.Registry do
           get_model_from_legacy_adapter(provider_id, model_name)
 
         {:error, reason} ->
-          Logger.warning("ReqLLM registry error for #{provider_id}:#{model_name}: #{inspect(reason)}")
+          Logger.warning(
+            "ReqLLM registry error for #{provider_id}:#{model_name}: #{inspect(reason)}"
+          )
+
           get_model_from_legacy_adapter(provider_id, model_name)
       end
     rescue
@@ -269,6 +274,7 @@ defmodule Jido.AI.Model.Registry do
             case Adapter.list_models(provider) do
               {:ok, models} ->
                 Enum.map(models, &MetadataBridge.to_jido_model/1)
+
               {:error, _} ->
                 []
             end
@@ -310,6 +316,7 @@ defmodule Jido.AI.Model.Registry do
       {:ok, adapter} when adapter != :reqllm_backed ->
         # Legacy adapter exists
         provider = %Provider{id: provider_id, name: Atom.to_string(provider_id)}
+
         case Provider.models(provider, []) do
           {:ok, models} -> {:ok, models}
           {:error, reason} -> {:error, reason}
@@ -334,9 +341,9 @@ defmodule Jido.AI.Model.Registry do
     case get_models_from_legacy_adapter(provider_id) do
       {:ok, models} ->
         case Enum.find(models, fn model ->
-          model_id = Map.get(model, :id) || Map.get(model, "id")
-          model_id == model_name
-        end) do
+               model_id = Map.get(model, :id) || Map.get(model, "id")
+               model_id == model_name
+             end) do
           nil -> {:error, "Model #{model_name} not found for provider #{provider_id}"}
           model -> {:ok, model}
         end
@@ -347,6 +354,7 @@ defmodule Jido.AI.Model.Registry do
   end
 
   defp apply_filters(models, []), do: models
+
   defp apply_filters(models, filters) do
     Enum.filter(models, fn model ->
       Enum.all?(filters, fn {filter_type, filter_value} ->
@@ -364,21 +372,26 @@ defmodule Jido.AI.Model.Registry do
 
   defp apply_single_filter(model, :max_cost_per_token, max_cost) do
     case get_model_cost_per_token(model) do
-      nil -> true  # Unknown cost, allow through
+      # Unknown cost, allow through
+      nil -> true
       cost -> cost <= max_cost
     end
   end
 
   defp apply_single_filter(model, :min_context_length, min_length) do
     case get_model_context_length(model) do
-      nil -> false  # Unknown context length, filter out
+      # Unknown context length, filter out
+      nil -> false
       length -> length >= min_length
     end
   end
 
   defp apply_single_filter(model, :modality, required_modality) do
     case model.modalities do
-      nil -> required_modality == :text  # Assume text if unknown
+      # Assume text if unknown
+      nil ->
+        required_modality == :text
+
       modalities ->
         input_modalities = Map.get(modalities, :input, [])
         required_modality in input_modalities
@@ -398,12 +411,15 @@ defmodule Jido.AI.Model.Registry do
 
   defp get_model_cost_per_token(model) do
     # Extract cost per token from model pricing information
-    # This is a simplified implementation
-    case model.pricing do
-      nil -> nil
-      _pricing ->
-        # Parse pricing string or structure
-        # For now, return nil (unknown)
+    case Map.get(model, :cost) do
+      nil ->
+        nil
+
+      cost when is_map(cost) ->
+        # Use input cost as the primary cost metric
+        Map.get(cost, :input)
+
+      _ ->
         nil
     end
   end
@@ -425,8 +441,8 @@ defmodule Jido.AI.Model.Registry do
 
     cond do
       is_nil(cost) or is_nil(context) -> :unknown
-      cost > 0.001 and context > 100_000 -> :premium
-      cost > 0.0005 -> :standard
+      is_number(cost) and is_number(context) and cost > 0.001 and context > 100_000 -> :premium
+      is_number(cost) and cost > 0.0005 -> :standard
       true -> :economy
     end
   end
@@ -457,7 +473,9 @@ defmodule Jido.AI.Model.Registry do
       models
       |> Enum.reduce(%{}, fn model, acc ->
         case model.capabilities do
-          nil -> acc
+          nil ->
+            acc
+
           caps ->
             Enum.reduce(caps, acc, fn {cap, enabled}, cap_acc ->
               if enabled do

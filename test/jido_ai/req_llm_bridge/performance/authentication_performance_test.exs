@@ -449,8 +449,8 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       # Verify cleanup
       remaining_providers = SessionAuthentication.list_providers_with_auth()
 
-      assert length(remaining_providers) == 0,
-             "Session cleanup incomplete: #{length(remaining_providers)} providers remain"
+      assert remaining_providers == [],
+             "Session cleanup incomplete: #{Enum.count(remaining_providers)} providers remain"
 
       # Check memory after cleanup
       :erlang.garbage_collect()

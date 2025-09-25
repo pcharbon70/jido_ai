@@ -84,7 +84,9 @@ defmodule Jido.AI.Model.Registry.Adapter do
                 model_names
                 |> Enum.map(fn model_name ->
                   case get_model_struct(provider_id, model_name) do
-                    {:ok, model} -> model
+                    {:ok, model} ->
+                      model
+
                     {:error, _} ->
                       # Create minimal model struct if metadata unavailable
                       ReqLLM.Model.new(provider_id, model_name)
@@ -95,7 +97,7 @@ defmodule Jido.AI.Model.Registry.Adapter do
               Logger.debug("Registry adapter: found #{length(models)} models for #{provider_id}")
               {:ok, models}
 
-            {:error, :not_found} ->
+            {:error, :provider_not_found} ->
               Logger.warning("Provider #{provider_id} not found in ReqLLM registry")
               {:error, :provider_not_found}
 
@@ -110,11 +112,17 @@ defmodule Jido.AI.Model.Registry.Adapter do
                   ReqLLM.Model.new(provider_id, model_name)
                 end)
 
-              Logger.debug("Registry adapter: found #{length(models)} models for #{provider_id} (legacy format)")
+              Logger.debug(
+                "Registry adapter: found #{length(models)} models for #{provider_id} (legacy format)"
+              )
+
               {:ok, models}
 
             other ->
-              Logger.warning("Unexpected response from ReqLLM registry for #{provider_id}: #{inspect(other)}")
+              Logger.warning(
+                "Unexpected response from ReqLLM registry for #{provider_id}: #{inspect(other)}"
+              )
+
               {:error, :unexpected_response}
           end
 
@@ -124,7 +132,10 @@ defmodule Jido.AI.Model.Registry.Adapter do
       end
     rescue
       error ->
-        Logger.error("Error listing models for #{provider_id} from ReqLLM registry: #{inspect(error)}")
+        Logger.error(
+          "Error listing models for #{provider_id} from ReqLLM registry: #{inspect(error)}"
+        )
+
         {:error, {:registry_error, error}}
     end
   end
@@ -158,7 +169,10 @@ defmodule Jido.AI.Model.Registry.Adapter do
               {:ok, model}
 
             {:error, reason} ->
-              Logger.debug("Model #{provider_id}:#{model_name} not found in registry: #{inspect(reason)}")
+              Logger.debug(
+                "Model #{provider_id}:#{model_name} not found in registry: #{inspect(reason)}"
+              )
+
               {:error, :not_found}
           end
 
@@ -168,7 +182,10 @@ defmodule Jido.AI.Model.Registry.Adapter do
       end
     rescue
       error ->
-        Logger.error("Error getting model #{provider_id}:#{model_name} from ReqLLM registry: #{inspect(error)}")
+        Logger.error(
+          "Error getting model #{provider_id}:#{model_name} from ReqLLM registry: #{inspect(error)}"
+        )
+
         {:error, {:registry_error, error}}
     end
   end
@@ -244,11 +261,12 @@ defmodule Jido.AI.Model.Registry.Adapter do
             |> Enum.sum()
 
           # Estimate total models based on sample
-          estimated_total = if length(sample_providers) > 0 do
-            trunc(total_models * length(providers) / length(sample_providers))
-          else
-            0
-          end
+          estimated_total =
+            if length(sample_providers) > 0 do
+              trunc(total_models * length(providers) / length(sample_providers))
+            else
+              0
+            end
 
           health_info = %{
             registry_available: true,
@@ -302,7 +320,10 @@ defmodule Jido.AI.Model.Registry.Adapter do
       end
     rescue
       error ->
-        Logger.debug("Error getting model struct for #{provider_id}:#{model_name}: #{inspect(error)}")
+        Logger.debug(
+          "Error getting model struct for #{provider_id}:#{model_name}: #{inspect(error)}"
+        )
+
         {:error, error}
     end
   end
@@ -352,15 +373,17 @@ defmodule Jido.AI.Model.Registry.Adapter do
 
   defp extract_limit_info(info) do
     # Extract context length and output limits from model info
-    context = get_nested_value(info, ["limit", "context"]) ||
-              get_nested_value(info, ["context_length"]) ||
-              get_nested_value(info, [:limit, :context]) ||
-              get_nested_value(info, [:context_length])
+    context =
+      get_nested_value(info, ["limit", "context"]) ||
+        get_nested_value(info, ["context_length"]) ||
+        get_nested_value(info, [:limit, :context]) ||
+        get_nested_value(info, [:context_length])
 
-    output = get_nested_value(info, ["limit", "output"]) ||
-             get_nested_value(info, ["max_tokens"]) ||
-             get_nested_value(info, [:limit, :output]) ||
-             get_nested_value(info, [:max_tokens])
+    output =
+      get_nested_value(info, ["limit", "output"]) ||
+        get_nested_value(info, ["max_tokens"]) ||
+        get_nested_value(info, [:limit, :output]) ||
+        get_nested_value(info, [:max_tokens])
 
     if context || output do
       %{
@@ -374,9 +397,10 @@ defmodule Jido.AI.Model.Registry.Adapter do
 
   defp extract_capabilities(info) do
     # Extract capabilities from model info
-    caps = get_nested_value(info, ["capabilities"]) ||
-           get_nested_value(info, [:capabilities]) ||
-           %{}
+    caps =
+      get_nested_value(info, ["capabilities"]) ||
+        get_nested_value(info, [:capabilities]) ||
+        %{}
 
     if map_size(caps) > 0 do
       %{
@@ -392,12 +416,15 @@ defmodule Jido.AI.Model.Registry.Adapter do
 
   defp extract_modalities(info) do
     # Extract input/output modalities
-    modalities = get_nested_value(info, ["modalities"]) ||
-                 get_nested_value(info, [:modalities])
+    modalities =
+      get_nested_value(info, ["modalities"]) ||
+        get_nested_value(info, [:modalities])
 
     if modalities do
       input_modalities = parse_modalities(modalities["input"] || modalities[:input] || ["text"])
-      output_modalities = parse_modalities(modalities["output"] || modalities[:output] || ["text"])
+
+      output_modalities =
+        parse_modalities(modalities["output"] || modalities[:output] || ["text"])
 
       %{
         input: input_modalities,
@@ -410,10 +437,11 @@ defmodule Jido.AI.Model.Registry.Adapter do
 
   defp extract_cost_info(info) do
     # Extract cost information
-    cost = get_nested_value(info, ["cost"]) ||
-           get_nested_value(info, [:cost]) ||
-           get_nested_value(info, ["pricing"]) ||
-           get_nested_value(info, [:pricing])
+    cost =
+      get_nested_value(info, ["cost"]) ||
+        get_nested_value(info, [:cost]) ||
+        get_nested_value(info, ["pricing"]) ||
+        get_nested_value(info, [:pricing])
 
     if cost do
       %{
@@ -436,11 +464,13 @@ defmodule Jido.AI.Model.Registry.Adapter do
   defp parse_modalities(_), do: [:text]
 
   defp get_nested_value(map, []), do: map
+
   defp get_nested_value(map, [key | rest]) when is_map(map) do
     case Map.get(map, key) do
       nil -> nil
       value -> get_nested_value(value, rest)
     end
   end
+
   defp get_nested_value(_, _), do: nil
 end

@@ -35,9 +35,12 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
       discovery_time = System.monotonic_time(:millisecond) - start_time
 
       # Verify provider discovery performance
-      assert discovery_time <= 1000, "Provider discovery took #{discovery_time}ms, expected <= 1000ms"
+      assert discovery_time <= 1000,
+             "Provider discovery took #{discovery_time}ms, expected <= 1000ms"
+
       assert is_list(providers)
-      assert length(providers) >= 4  # Should include mocked providers
+      # Should include mocked providers
+      assert length(providers) >= 4
 
       provider_ids = Enum.map(providers, & &1.id)
       assert :anthropic in provider_ids
@@ -48,47 +51,51 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
 
       expect(Adapter, :list_models, 2, fn
         :anthropic ->
-          {:ok, [
-            create_integration_model(:anthropic, "claude-3-5-sonnet", %{
-              capabilities: %{tool_call: true, reasoning: true},
-              cost: %{input: 0.003, output: 0.015}
-            }),
-            create_integration_model(:anthropic, "claude-3-haiku", %{
-              capabilities: %{tool_call: true, reasoning: false},
-              cost: %{input: 0.0008, output: 0.004}
-            })
-          ]}
+          {:ok,
+           [
+             create_integration_model(:anthropic, "claude-3-5-sonnet", %{
+               capabilities: %{tool_call: true, reasoning: true},
+               cost: %{input: 0.003, output: 0.015}
+             }),
+             create_integration_model(:anthropic, "claude-3-haiku", %{
+               capabilities: %{tool_call: true, reasoning: false},
+               cost: %{input: 0.0008, output: 0.004}
+             })
+           ]}
 
         :openai ->
-          {:ok, [
-            create_integration_model(:openai, "gpt-4", %{
-              capabilities: %{tool_call: true, reasoning: false},
-              cost: %{input: 0.01, output: 0.03}
-            }),
-            create_integration_model(:openai, "gpt-3.5-turbo", %{
-              capabilities: %{tool_call: true, reasoning: false},
-              cost: %{input: 0.002, output: 0.006}
-            })
-          ]}
+          {:ok,
+           [
+             create_integration_model(:openai, "gpt-4", %{
+               capabilities: %{tool_call: true, reasoning: false},
+               cost: %{input: 0.01, output: 0.03}
+             }),
+             create_integration_model(:openai, "gpt-3.5-turbo", %{
+               capabilities: %{tool_call: true, reasoning: false},
+               cost: %{input: 0.002, output: 0.006}
+             })
+           ]}
       end)
 
       start_time = System.monotonic_time(:millisecond)
 
-      model_results = Enum.map(sample_providers, fn provider ->
-        case Provider.list_all_models_enhanced(provider, source: :registry) do
-          {:ok, models} -> {provider, models}
-          {:error, reason} -> {provider, {:error, reason}}
-        end
-      end)
+      model_results =
+        Enum.map(sample_providers, fn provider ->
+          case Provider.list_all_models_enhanced(provider, source: :registry) do
+            {:ok, models} -> {provider, models}
+            {:error, reason} -> {provider, {:error, reason}}
+          end
+        end)
 
       listing_time = System.monotonic_time(:millisecond) - start_time
 
       # Verify model listing performance
       assert listing_time <= 2000, "Model listing took #{listing_time}ms, expected <= 2000ms"
 
-      successful_listings = Enum.reject(model_results, fn {_provider, result} ->
-        match?({:error, _}, result)
-      end)
+      successful_listings =
+        Enum.reject(model_results, fn {_provider, result} ->
+          match?({:error, _}, result)
+        end)
 
       assert length(successful_listings) >= 1, "At least one provider should return models"
 
@@ -145,21 +152,23 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
       start_time = System.monotonic_time(:microsecond)
       providers = Provider.providers()
       end_time = System.monotonic_time(:microsecond)
-      provider_time = (end_time - start_time) / 1000  # Convert to milliseconds
+      # Convert to milliseconds
+      provider_time = (end_time - start_time) / 1000
 
       assert is_list(providers)
       assert provider_time <= 50.0, "Provider listing took #{provider_time}ms, expected <= 50ms"
 
       # Test model registry stats performance
       expect(Adapter, :get_health_info, fn ->
-        {:ok, %{
-          registry_available: true,
-          provider_count: 2,
-          sampled_providers: 2,
-          estimated_total_models: 10,
-          response_time_ms: 5,
-          timestamp: DateTime.utc_now()
-        }}
+        {:ok,
+         %{
+           registry_available: true,
+           provider_count: 2,
+           sampled_providers: 2,
+           estimated_total_models: 10,
+           response_time_ms: 5,
+           timestamp: DateTime.utc_now()
+         }}
       end)
 
       start_time = System.monotonic_time(:microsecond)
@@ -186,7 +195,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
       start_time = System.monotonic_time(:microsecond)
 
       case Provider.list_all_models_enhanced(:anthropic, source: :registry) do
-        {:ok, models} when length(models) > 0 ->
+        {:ok, models} when models != [] ->
           end_time = System.monotonic_time(:microsecond)
           model_time = (end_time - start_time) / 1000
 
@@ -206,14 +215,18 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
       end)
 
       expect(Adapter, :list_providers, fn ->
-        [:anthropic, :openai, :google, :mistral, :cohere]  # 5 providers
+        # 5 providers
+        [:anthropic, :openai, :google, :mistral, :cohere]
       end)
 
       # Create many models per provider to simulate large registry
       expect(Adapter, :list_models, 5, fn provider ->
-        models = Enum.map(1..20, fn i ->  # 20 models per provider = 100 total
-          create_integration_model(provider, "#{provider}-model-#{i}")
-        end)
+        # 20 models per provider = 100 total
+        models =
+          Enum.map(1..20, fn i ->
+            create_integration_model(provider, "#{provider}-model-#{i}")
+          end)
+
         {:ok, models}
       end)
 
@@ -227,10 +240,12 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
           memory_increase = final_memory - initial_memory
 
           assert is_list(models)
-          assert length(models) >= 50  # Should have many models
+          # Should have many models
+          assert length(models) >= 50
 
           # Memory increase should be reasonable (less than 50MB for this test)
           memory_increase_mb = memory_increase / (1024 * 1024)
+
           assert memory_increase_mb <= 50.0,
                  "Memory increased by #{memory_increase_mb}MB, expected <= 50MB"
 
@@ -257,37 +272,42 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
       end)
 
       # Test concurrent provider listings
-      tasks = Enum.map(1..5, fn _i ->
-        Task.async(fn ->
-          Provider.list()
+      tasks =
+        Enum.map(1..5, fn _i ->
+          Task.async(fn ->
+            Provider.list()
+          end)
         end)
-      end)
 
       results = Task.await_many(tasks, 5000)
 
       # All concurrent calls should succeed
       assert length(results) == 5
+
       Enum.each(results, fn providers ->
         assert is_list(providers)
         assert length(providers) >= 2
       end)
 
       # Test concurrent model discoveries
-      model_tasks = Enum.map(1..3, fn _i ->
-        Task.async(fn ->
-          Provider.list_all_models_enhanced(:anthropic, source: :registry)
+      model_tasks =
+        Enum.map(1..3, fn _i ->
+          Task.async(fn ->
+            Provider.list_all_models_enhanced(:anthropic, source: :registry)
+          end)
         end)
-      end)
 
       model_results = Task.await_many(model_tasks, 5000)
 
       # Concurrent model calls should not interfere
-      successful_results = Enum.filter(model_results, fn
-        {:ok, _models} -> true
-        _ -> false
-      end)
+      successful_results =
+        Enum.filter(model_results, fn
+          {:ok, _models} -> true
+          _ -> false
+        end)
 
-      assert length(successful_results) >= 1, "At least some concurrent model calls should succeed"
+      assert length(successful_results) >= 1,
+             "At least some concurrent model calls should succeed"
     end
   end
 
@@ -302,7 +322,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
       # Provider listing should fall back to legacy
       providers = Provider.providers()
       assert is_list(providers)
-      assert length(providers) >= 5  # Should have legacy providers
+      # Should have legacy providers
+      assert length(providers) >= 5
 
       # Provider.list() should work with legacy providers
       provider_structs = Provider.list()
@@ -419,24 +440,27 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
         {:ok, [:anthropic]}
       end)
 
-      consistent_model = create_integration_model(:anthropic, "claude-3-5-sonnet", %{
-        capabilities: %{tool_call: true, reasoning: true},
-        cost: %{input: 0.003, output: 0.015}
-      })
+      consistent_model =
+        create_integration_model(:anthropic, "claude-3-5-sonnet", %{
+          capabilities: %{tool_call: true, reasoning: true},
+          cost: %{input: 0.003, output: 0.015}
+        })
 
       expect(Adapter, :list_models, fn :anthropic ->
         {:ok, [consistent_model]}
       end)
 
       # Multiple calls should return consistent data
-      results = Enum.map(1..3, fn _i ->
-        Provider.list_all_models_enhanced(:anthropic, source: :registry)
-      end)
+      results =
+        Enum.map(1..3, fn _i ->
+          Provider.list_all_models_enhanced(:anthropic, source: :registry)
+        end)
 
-      successful_results = Enum.filter(results, fn
-        {:ok, _} -> true
-        _ -> false
-      end)
+      successful_results =
+        Enum.filter(results, fn
+          {:ok, _} -> true
+          _ -> false
+        end)
 
       if length(successful_results) >= 2 do
         # Compare consistency across calls

@@ -39,7 +39,8 @@ defmodule Jido.AI.ProviderRegistrySimpleTest do
       providers = ProviderMapping.supported_providers()
 
       assert is_list(providers)
-      assert length(providers) > 30  # ReqLLM has many providers
+      # ReqLLM has many providers
+      assert length(providers) > 30
 
       # Should include expected providers
       assert :openai in providers

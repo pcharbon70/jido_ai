@@ -33,24 +33,26 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
 
       expect(Registry.Adapter, :list_models, 2, fn
         :anthropic ->
-          {:ok, [
-            create_mock_reqllm_model(:anthropic, "claude-3-5-sonnet", %{
-              capabilities: %{tool_call: true, reasoning: true},
-              modalities: %{input: [:text], output: [:text]},
-              cost: %{input: 0.003, output: 0.015},
-              limit: %{context: 200_000, output: 4_096}
-            })
-          ]}
+          {:ok,
+           [
+             create_mock_reqllm_model(:anthropic, "claude-3-5-sonnet", %{
+               capabilities: %{tool_call: true, reasoning: true},
+               modalities: %{input: [:text], output: [:text]},
+               cost: %{input: 0.003, output: 0.015},
+               limit: %{context: 200_000, output: 4_096}
+             })
+           ]}
 
         :openai ->
-          {:ok, [
-            create_mock_reqllm_model(:openai, "gpt-4", %{
-              capabilities: %{tool_call: true, reasoning: false},
-              modalities: %{input: [:text], output: [:text]},
-              cost: %{input: 0.01, output: 0.03},
-              limit: %{context: 8_192, output: 4_096}
-            })
-          ]}
+          {:ok,
+           [
+             create_mock_reqllm_model(:openai, "gpt-4", %{
+               capabilities: %{tool_call: true, reasoning: false},
+               modalities: %{input: [:text], output: [:text]},
+               cost: %{input: 0.01, output: 0.03},
+               limit: %{context: 8_192, output: 4_096}
+             })
+           ]}
       end)
 
       {:ok, models} = Provider.list_all_models_enhanced(nil, source: :registry)
@@ -100,11 +102,12 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
       end)
 
       expect(Registry.Adapter, :list_models, fn :anthropic ->
-        {:ok, [
-          create_mock_reqllm_model(:anthropic, "claude-3-5-sonnet", %{
-            capabilities: %{tool_call: true}
-          })
-        ]}
+        {:ok,
+         [
+           create_mock_reqllm_model(:anthropic, "claude-3-5-sonnet", %{
+             capabilities: %{tool_call: true}
+           })
+         ]}
       end)
 
       {:ok, models} = Provider.list_all_models_enhanced(nil, source: :both)
@@ -112,13 +115,15 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
       assert is_list(models)
 
       # Should have models from both sources
-      registry_models = Enum.filter(models, fn model ->
-        Map.get(model, :reqllm_id) != nil
-      end)
+      registry_models =
+        Enum.filter(models, fn model ->
+          Map.get(model, :reqllm_id) != nil
+        end)
 
-      cached_models = Enum.filter(models, fn model ->
-        Map.get(model, :reqllm_id) == nil
-      end)
+      cached_models =
+        Enum.filter(models, fn model ->
+          Map.get(model, :reqllm_id) == nil
+        end)
 
       # Should have at least some registry models if mocking worked
       if length(registry_models) > 0 do
@@ -126,7 +131,9 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
       end
 
       # Total should be sum of unique models from both sources
-      assert length(models) >= length(registry_models) + length(cached_models) - overlap_count(registry_models, cached_models)
+      assert length(models) >=
+               length(registry_models) + length(cached_models) -
+                 overlap_count(registry_models, cached_models)
     end
 
     test "provider-specific enhanced discovery" do
@@ -136,10 +143,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
       end)
 
       expect(Registry.Adapter, :list_models, fn :anthropic ->
-        {:ok, [
-          create_mock_reqllm_model(:anthropic, "claude-3-5-sonnet"),
-          create_mock_reqllm_model(:anthropic, "claude-3-haiku")
-        ]}
+        {:ok,
+         [
+           create_mock_reqllm_model(:anthropic, "claude-3-5-sonnet"),
+           create_mock_reqllm_model(:anthropic, "claude-3-haiku")
+         ]}
       end)
 
       {:ok, models} = Provider.list_all_models_enhanced(:anthropic)
@@ -168,9 +176,11 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
 
       # Create many mock models per provider
       expect(Registry.Adapter, :list_models, 5, fn provider ->
-        models = Enum.map(1..10, fn i ->
-          create_mock_reqllm_model(provider, "#{provider}-model-#{i}")
-        end)
+        models =
+          Enum.map(1..10, fn i ->
+            create_mock_reqllm_model(provider, "#{provider}-model-#{i}")
+          end)
+
         {:ok, models}
       end)
 
@@ -181,6 +191,7 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
           # Registry should provide significantly more models
           if enhanced_count > legacy_count do
             improvement_ratio = enhanced_count / max(legacy_count, 1)
+
             assert improvement_ratio >= 2.0,
                    "Expected significant model increase, got #{improvement_ratio}x"
           end
@@ -204,13 +215,14 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
       end)
 
       expect(Registry.Adapter, :list_models, fn :anthropic ->
-        {:ok, [
-          create_mock_reqllm_model(:anthropic, "claude-3-5-sonnet", %{
-            capabilities: %{tool_call: true, reasoning: true, temperature: true},
-            modalities: %{input: [:text], output: [:text]},
-            cost: %{input: 0.003, output: 0.015}
-          })
-        ]}
+        {:ok,
+         [
+           create_mock_reqllm_model(:anthropic, "claude-3-5-sonnet", %{
+             capabilities: %{tool_call: true, reasoning: true, temperature: true},
+             modalities: %{input: [:text], output: [:text]},
+             cost: %{input: 0.003, output: 0.015}
+           })
+         ]}
       end)
 
       {:ok, models} = Provider.list_all_models_enhanced(:anthropic, source: :registry)
@@ -241,12 +253,13 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
         {:ok, [:openai]}
       end)
 
-      rich_model = create_mock_reqllm_model(:openai, "gpt-4", %{
-        capabilities: %{tool_call: true, reasoning: true, temperature: true, attachment: false},
-        modalities: %{input: [:text, :image], output: [:text]},
-        cost: %{input: 0.01, output: 0.03},
-        limit: %{context: 128_000, output: 4_096}
-      })
+      rich_model =
+        create_mock_reqllm_model(:openai, "gpt-4", %{
+          capabilities: %{tool_call: true, reasoning: true, temperature: true, attachment: false},
+          modalities: %{input: [:text, :image], output: [:text]},
+          cost: %{input: 0.01, output: 0.03},
+          limit: %{context: 128_000, output: 4_096}
+        })
 
       expect(Registry.Adapter, :list_models, fn :openai ->
         {:ok, [rich_model]}
@@ -301,7 +314,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
       assert model.id == "minimal-model"
       assert model.provider == :test_provider
       assert model.reqllm_id == "test_provider:minimal-model"
-      assert is_binary(model.name)  # Should have generated name
+      # Should have generated name
+      assert is_binary(model.name)
     end
   end
 
@@ -317,7 +331,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
           assert is_integer(stats.total_models)
           assert stats.total_models >= 0
           assert is_integer(stats.total_providers)
-          assert stats.total_providers >= 5  # At least legacy providers
+          # At least legacy providers
+          assert stats.total_providers >= 5
           assert is_map(stats.provider_coverage)
 
         {:error, _reason} ->
@@ -346,14 +361,15 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
       end)
 
       expect(Registry.Adapter, :get_health_info, fn ->
-        {:ok, %{
-          registry_available: true,
-          provider_count: 3,
-          sampled_providers: 3,
-          estimated_total_models: 3,
-          response_time_ms: 5,
-          timestamp: DateTime.utc_now()
-        }}
+        {:ok,
+         %{
+           registry_available: true,
+           provider_count: 3,
+           sampled_providers: 3,
+           estimated_total_models: 3,
+           response_time_ms: 5,
+           timestamp: DateTime.utc_now()
+         }}
       end)
 
       case Provider.get_model_registry_stats() do
@@ -406,13 +422,15 @@ defmodule Jido.AI.ProviderDiscoveryListing.ModelDiscoveryCompletenessTest do
 
   defp overlap_count(registry_models, cached_models) do
     # Simple heuristic: count models that might be duplicates based on ID
-    registry_ids = MapSet.new(registry_models, fn model ->
-      Map.get(model, :id) || Map.get(model, "id")
-    end)
+    registry_ids =
+      MapSet.new(registry_models, fn model ->
+        Map.get(model, :id) || Map.get(model, "id")
+      end)
 
-    cached_ids = MapSet.new(cached_models, fn model ->
-      Map.get(model, :id) || Map.get(model, "id")
-    end)
+    cached_ids =
+      MapSet.new(cached_models, fn model ->
+        Map.get(model, :id) || Map.get(model, "id")
+      end)
 
     MapSet.intersection(registry_ids, cached_ids) |> MapSet.size()
   end

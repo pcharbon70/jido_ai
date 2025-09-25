@@ -74,7 +74,7 @@ defmodule JidoTest.AI.Prompt.SplitterTest do
   describe "new/2" do
     # We'll test the structure of the Splitter.new/2 function indirectly
     # since we can't easily mock the Tokenizer.encode function
-    test "creates a new splitter with the expected structure", %{model: _model} do
+    test "creates a new splitter with the expected structure", %{model: model} do
       # We'll create a splitter manually with the same structure that new/2 would create
       input = "test input"
 
