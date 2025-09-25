@@ -3,7 +3,8 @@ defmodule Jido.AI.Provider do
   require Logger
   alias Jido.AI.Provider.Helpers
 
-  @providers [
+  # Legacy hardcoded providers for fallback
+  @legacy_providers [
     {:openrouter, Jido.AI.Provider.OpenRouter},
     {:anthropic, Jido.AI.Provider.Anthropic},
     {:openai, Jido.AI.Provider.OpenAI},
@@ -52,14 +53,121 @@ defmodule Jido.AI.Provider do
     Helpers.standardize_name(model)
   end
 
+  @doc """
+  Returns the list of available providers, combining ReqLLM registry with legacy adapters.
+
+  This function discovers providers from:
+  1. ReqLLM's dynamic provider registry (50+ providers)
+  2. Legacy Jido AI adapter modules
+  """
   def providers do
-    @providers
+    # Try to get providers from ReqLLM registry first
+    reqllm_providers =
+      try do
+        case Code.ensure_loaded(ReqLLM.Provider.Generated.ValidProviders) do
+          {:module, module} ->
+            # Get list of ReqLLM providers and convert to legacy format
+            module.list()
+            |> Enum.map(fn provider_atom ->
+              # Check if we have a legacy adapter for this provider
+              legacy_adapter = get_legacy_adapter(provider_atom)
+              {provider_atom, legacy_adapter || :reqllm_backed}
+            end)
+
+          _ ->
+            []
+        end
+      rescue
+        _ -> []
+      end
+
+    # Merge with legacy providers, preferring legacy adapters when available
+    merge_provider_lists(reqllm_providers, @legacy_providers)
   end
 
-  def list do
-    Enum.map(@providers, fn {_id, module} ->
-      module.definition()
+  defp get_legacy_adapter(provider_atom) do
+    case Enum.find(@legacy_providers, fn {id, _module} -> id == provider_atom end) do
+      {_id, module} -> module
+      nil -> nil
+    end
+  end
+
+  defp merge_provider_lists(reqllm_providers, legacy_providers) do
+    # Start with legacy providers
+    merged = Map.new(legacy_providers)
+
+    # Add ReqLLM providers that aren't already in legacy
+    Enum.reduce(reqllm_providers, merged, fn {provider_id, adapter}, acc ->
+      Map.put_new(acc, provider_id, adapter)
     end)
+    |> Map.to_list()
+  end
+
+  @doc """
+  Lists all available providers with their metadata.
+
+  Returns provider structs for both ReqLLM-backed and legacy adapter providers.
+  """
+  def list do
+    providers()
+    |> Enum.map(fn {provider_id, adapter} ->
+      build_provider_struct(provider_id, adapter)
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp build_provider_struct(provider_id, :reqllm_backed) do
+    # Build provider struct from ReqLLM metadata
+    try do
+      metadata = get_reqllm_provider_metadata(provider_id)
+
+      %__MODULE__{
+        id: provider_id,
+        name: metadata[:name] || humanize_provider_name(provider_id),
+        description: metadata[:description] || "Provider backed by ReqLLM",
+        type: :direct,
+        api_base_url: metadata[:base_url],
+        requires_api_key: metadata[:requires_api_key] != false,
+        models: []  # Models will be loaded dynamically
+      }
+    rescue
+      _ ->
+        # Fallback for providers without metadata
+        %__MODULE__{
+          id: provider_id,
+          name: humanize_provider_name(provider_id),
+          description: "Provider available through ReqLLM",
+          type: :direct,
+          requires_api_key: true,
+          models: []
+        }
+    end
+  end
+
+  defp build_provider_struct(_provider_id, module) when is_atom(module) and module != :reqllm_backed do
+    # Use legacy adapter definition
+    if Code.ensure_loaded?(module) and function_exported?(module, :definition, 0) do
+      module.definition()
+    else
+      nil
+    end
+  end
+
+  defp build_provider_struct(_provider_id, _adapter), do: nil
+
+  defp get_reqllm_provider_metadata(provider_id) do
+    # Use the provider mapping module to get metadata
+    # Note: Currently always returns {:ok, metadata}
+    {:ok, metadata} = Jido.AI.ReqLlmBridge.ProviderMapping.get_jido_provider_metadata(provider_id)
+    metadata
+  end
+
+  defp humanize_provider_name(atom) do
+    atom
+    |> Atom.to_string()
+    |> String.split("_")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
   end
 
   def models(provider, opts \\ []) do
@@ -146,9 +254,16 @@ defmodule Jido.AI.Provider do
     # Ensure provider_id is an atom
     provider_id_atom = ensure_atom(provider_id)
 
-    case Enum.find(@providers, fn {id, _module} -> id == provider_id_atom end) do
-      {_id, module} ->
-        if Code.ensure_loaded?(module) and function_exported?(module, :models, 1) do
+    # Get current providers list (dynamic)
+    current_providers = providers()
+
+    case Enum.find(current_providers, fn {id, _module} -> id == provider_id_atom end) do
+      {_id, :reqllm_backed} ->
+        # Return a special marker for ReqLLM-backed providers
+        {:ok, :reqllm_backed}
+
+      {_id, module} when is_atom(module) ->
+        if Code.ensure_loaded?(module) and function_exported?(module, :definition, 0) do
           {:ok, module}
         else
           {:error, "Adapter module #{module} exists but does not implement required functions"}
@@ -168,7 +283,10 @@ defmodule Jido.AI.Provider do
     # Ensure provider_id is an atom
     provider_id_atom = ensure_atom(provider_id)
 
-    case Enum.find(@providers, fn {id, _module} -> id == provider_id_atom end) do
+    # Get current providers list (dynamic)
+    current_providers = providers()
+
+    case Enum.find(current_providers, fn {id, _module} -> id == provider_id_atom end) do
       {_id, module} -> {:ok, module}
       nil -> {:error, "No adapter found for provider: #{provider_id}"}
     end

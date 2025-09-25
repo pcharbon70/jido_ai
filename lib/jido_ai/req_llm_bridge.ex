@@ -731,7 +731,10 @@ defmodule Jido.AI.ReqLlmBridge do
   """
   @spec list_available_providers() :: [%{provider: atom(), source: atom()}]
   def list_available_providers do
-    [:openai, :anthropic, :openrouter, :google, :cloudflare]
+    # Get providers from ReqLLM registry
+    providers = get_reqllm_providers()
+
+    providers
     |> Enum.map(fn provider ->
       case validate_provider_key(provider) do
         {:ok, source} -> %{provider: provider, source: source}
@@ -739,5 +742,22 @@ defmodule Jido.AI.ReqLlmBridge do
       end
     end)
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp get_reqllm_providers do
+    try do
+      case Code.ensure_loaded(ReqLLM.Provider.Generated.ValidProviders) do
+        {:module, module} ->
+          module.list()
+
+        _ ->
+          # Fallback to legacy providers if ReqLLM not available
+          [:openai, :anthropic, :openrouter, :google, :cloudflare]
+      end
+    rescue
+      _ ->
+        # Fallback to legacy providers on error
+        [:openai, :anthropic, :openrouter, :google, :cloudflare]
+    end
   end
 end

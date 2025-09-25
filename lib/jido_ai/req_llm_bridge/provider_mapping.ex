@@ -253,14 +253,141 @@ defmodule Jido.AI.ReqLlmBridge.ProviderMapping do
   end
 
   @doc """
-  Returns a list of supported providers for ReqLLM integration.
+  Returns a list of supported providers from the ReqLLM registry.
+
+  This function dynamically discovers all available providers from ReqLLM's
+  comprehensive registry system.
 
   ## Returns
     - List of atoms representing supported providers
   """
   @spec supported_providers() :: [atom()]
   def supported_providers do
-    Map.values(@provider_mapping) |> Enum.uniq()
+    try do
+      ValidProviders.list()
+    rescue
+      _ ->
+        # Fallback to mapped providers if registry unavailable
+        Map.values(@provider_mapping) |> Enum.uniq()
+    end
+  end
+
+  @doc """
+  Gets provider metadata in Jido format from ReqLLM provider information.
+
+  This function bridges between ReqLLM's provider metadata structure and
+  Jido AI's expected format, ensuring backward compatibility.
+
+  ## Parameters
+    - provider_id: Atom representing the provider
+
+  ## Returns
+    - `{:ok, metadata}` with provider information in Jido format
+    - `{:error, reason}` if metadata cannot be retrieved
+
+  ## Examples
+
+      iex> Jido.AI.ReqLlmBridge.ProviderMapping.get_jido_provider_metadata(:openai)
+      {:ok, %{
+        id: :openai,
+        name: "OpenAI",
+        description: "OpenAI language models including GPT-4",
+        type: :direct,
+        requires_api_key: true,
+        models: []
+      }}
+  """
+  @spec get_jido_provider_metadata(atom()) :: {:ok, map()} | {:error, term()}
+  def get_jido_provider_metadata(provider_id) when is_atom(provider_id) do
+    # For now, build metadata from what we know about providers
+    # TODO: Fetch actual metadata from ReqLLM when metadata API is available
+    metadata = %{
+      id: provider_id,
+      name: humanize_provider_name(provider_id),
+      description: get_provider_description(provider_id),
+      type: get_provider_type(provider_id),
+      api_base_url: get_provider_base_url(provider_id),
+      requires_api_key: provider_requires_api_key?(provider_id),
+      models: []  # Models loaded dynamically
+    }
+
+    {:ok, metadata}
+  end
+
+  @doc """
+  Checks if a provider is fully implemented in ReqLLM.
+
+  ## Parameters
+    - provider_id: Atom representing the provider
+
+  ## Returns
+    - Boolean indicating if the provider has full ReqLLM implementation
+  """
+  @spec provider_implemented?(atom()) :: boolean()
+  def provider_implemented?(provider_id) when is_atom(provider_id) do
+    # Check if provider is in the ValidProviders list
+    provider_id in supported_providers()
+  end
+
+  defp humanize_provider_name(atom) do
+    atom
+    |> Atom.to_string()
+    |> String.split("_")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
+  end
+
+  defp get_provider_description(provider_id) do
+    descriptions = %{
+      openai: "OpenAI language models including GPT-4 and GPT-3.5",
+      anthropic: "Anthropic's Claude family of AI assistants",
+      google: "Google's Gemini and PaLM language models",
+      openrouter: "Unified API gateway for multiple AI providers",
+      cloudflare: "Cloudflare Workers AI platform",
+      mistral: "Mistral AI's open and commercial models",
+      cohere: "Cohere's language understanding and generation models",
+      together: "Together AI's optimized model inference platform",
+      perplexity: "Perplexity AI's information-focused models",
+      groq: "Groq's high-performance LPU inference",
+      deepinfra: "DeepInfra's scalable model hosting",
+      replicate: "Replicate's model deployment platform"
+    }
+
+    Map.get(descriptions, provider_id, "Provider available through ReqLLM integration")
+  end
+
+  defp get_provider_type(provider_id) do
+    # Proxy providers vs direct providers
+    proxy_providers = [:openrouter, :together, :deepinfra, :replicate]
+
+    if provider_id in proxy_providers do
+      :proxy
+    else
+      :direct
+    end
+  end
+
+  defp get_provider_base_url(provider_id) do
+    base_urls = %{
+      openai: "https://api.openai.com/v1",
+      anthropic: "https://api.anthropic.com",
+      google: "https://generativelanguage.googleapis.com",
+      openrouter: "https://openrouter.ai/api/v1",
+      cloudflare: "https://api.cloudflare.com",
+      mistral: "https://api.mistral.ai",
+      cohere: "https://api.cohere.ai",
+      groq: "https://api.groq.com"
+    }
+
+    Map.get(base_urls, provider_id)
+  end
+
+  defp provider_requires_api_key?(provider_id) do
+    # Most providers require API keys
+    # Only a few local or open providers might not
+    no_key_providers = [:ollama, :llamacpp, :local]
+
+    provider_id not in no_key_providers
   end
 
   @doc """

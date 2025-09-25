@@ -499,11 +499,42 @@ defmodule Mix.Tasks.Jido.Ai.Models do
   defp list_available_providers do
     IO.puts("\nAvailable providers:")
 
-    Provider.list()
+    providers = Provider.list()
     |> Enum.sort_by(& &1.id)
-    |> Enum.each(fn provider ->
-      IO.puts("  #{provider.id}: #{provider.name} - #{provider.description}")
-    end)
+
+    # Group providers by implementation status
+    {legacy_providers, reqllm_providers} =
+      Enum.split_with(providers, fn provider ->
+        # Check if provider has a legacy adapter
+        provider.id in [:openai, :anthropic, :google, :cloudflare, :openrouter]
+      end)
+
+    # Show legacy providers first
+    if length(legacy_providers) > 0 do
+      IO.puts("\nFully Implemented (Legacy Adapters):")
+      Enum.each(legacy_providers, fn provider ->
+        IO.puts("  ✓ #{provider.id}: #{provider.name} - #{provider.description}")
+      end)
+    end
+
+    # Show ReqLLM-backed providers
+    if length(reqllm_providers) > 0 do
+      IO.puts("\nAvailable via ReqLLM Integration:")
+      reqllm_providers
+      |> Enum.take(20)  # Show first 20 to avoid overwhelming output
+      |> Enum.each(fn provider ->
+        status = if Jido.AI.ReqLlmBridge.ProviderMapping.provider_implemented?(provider.id), do: "✓", else: "○"
+        IO.puts("  #{status} #{provider.id}: #{provider.name}")
+      end)
+
+      remaining = length(reqllm_providers) - 20
+      if remaining > 0 do
+        IO.puts("  ... and #{remaining} more providers")
+      end
+    end
+
+    IO.puts("\n✓ = Fully implemented, ○ = Metadata only")
+    IO.puts("Total providers available: #{length(providers)}")
   end
 
   defp show_usage do
