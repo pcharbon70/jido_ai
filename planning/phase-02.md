@@ -50,14 +50,14 @@ Local model support through Ollama and LM Studio (accessible via ReqLLM) enables
 - [x] 2.1.3.4 Validate connection health checks and error handling
 
 ### 2.1.4 Enterprise and Regional Provider Validation
-- [ ] **Task 2.1.4 Complete**
+- [x] **Task 2.1.4 Complete**
 
 Enterprise providers (Azure OpenAI, Amazon Bedrock) and regional providers are available through ReqLLM. This task validates enterprise-specific features.
 
-- [ ] 2.1.4.1 Validate Azure OpenAI with tenant-specific configurations
-- [ ] 2.1.4.2 Validate Amazon Bedrock AWS integration and authentication
-- [ ] 2.1.4.3 Validate regional providers (Alibaba Cloud, etc.)
-- [ ] 2.1.4.4 Test provider-specific authentication and authorization flows
+- [x] 2.1.4.1 Validate Azure OpenAI with tenant-specific configurations
+- [x] 2.1.4.2 Validate Amazon Bedrock AWS integration and authentication
+- [x] 2.1.4.3 Validate regional providers (Alibaba Cloud, etc.)
+- [x] 2.1.4.4 Test provider-specific authentication and authorization flows
 
 ### Unit Tests - Section 2.1
 - [ ] **Unit Tests 2.1 Complete**

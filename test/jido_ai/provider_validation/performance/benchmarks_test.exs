@@ -939,12 +939,12 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
         connection_start = :os.system_time(:millisecond)
 
         # Test model configuration (connection would be tested during actual usage)
-        case provider_id do
+        config = case provider_id do
           :ollama ->
-            config = {:ollama, [model: "test-model"]}
+            {:ollama, [model: "test-model"]}
 
           :openai ->
-            config = {:openai, [model: "local-model", base_url: endpoint]}
+            {:openai, [model: "local-model", base_url: endpoint]}
         end
 
         case Model.from(config) do

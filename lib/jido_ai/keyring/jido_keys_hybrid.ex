@@ -338,9 +338,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
     end
   rescue
     error ->
-      Logger.debug(
-        "[Keyring-JidoKeys] Error getting session value for #{key}: #{inspect(error)}"
-      )
+      Logger.debug("[Keyring-JidoKeys] Error getting session value for #{key}: #{inspect(error)}")
 
       nil
   end

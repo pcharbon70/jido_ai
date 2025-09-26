@@ -124,7 +124,7 @@ defmodule Jido.AI.ProviderValidation.Functional.LmStudioValidationTest do
       # Test patterns that would indicate LM Studio desktop app integration
       # LM Studio is typically a GUI application that provides local API server
 
-      expected_characteristics = [
+      _expected_characteristics = [
         # Desktop app typically runs local server
         desktop_app: true,
         local_server: true,

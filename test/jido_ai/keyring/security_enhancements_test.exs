@@ -354,7 +354,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
   end
 
   describe "performance impact of security features" do
-    test "security filtering doesn't significantly impact performance", %{keyring: keyring} do
+    test "security filtering doesn't significantly impact performance", %{keyring: _keyring} do
       # Test that security enhancements don't cause major performance regression
       test_values = for i <- 1..100, do: "test_value_#{i}"
 

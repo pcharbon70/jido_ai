@@ -269,9 +269,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
     SchemaValidator.convert_schema_to_reqllm(schema)
   rescue
     error ->
-      Logger.warning(
-        "Failed to convert schema for #{action_module}: #{Exception.message(error)}"
-      )
+      Logger.warning("Failed to convert schema for #{action_module}: #{Exception.message(error)}")
 
       %{}
   end
