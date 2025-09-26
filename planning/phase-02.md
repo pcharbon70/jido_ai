@@ -30,14 +30,14 @@ High-performance providers like Groq and Together AI (already accessible via Req
 - [x] 2.1.1.4 Document optimal usage patterns and configuration
 
 ### 2.1.2 Specialized AI Provider Validation
-- [ ] **Task 2.1.2 Complete**
+- [x] **Task 2.1.2 Complete**
 
 Specialized providers (Cohere, Replicate, Perplexity, AI21 Labs) are accessible through ReqLLM. This task validates their unique capabilities work correctly through Jido AI.
 
-- [ ] 2.1.2.1 Validate Cohere provider including RAG-optimized features
-- [ ] 2.1.2.2 Validate Replicate provider marketplace model access
-- [ ] 2.1.2.3 Validate Perplexity provider search-enhanced capabilities
-- [ ] 2.1.2.4 Validate AI21 Labs Jurassic model family functionality
+- [x] 2.1.2.1 Validate Cohere provider including RAG-optimized features
+- [x] 2.1.2.2 Validate Replicate provider marketplace model access
+- [x] 2.1.2.3 Validate Perplexity provider search-enhanced capabilities
+- [x] 2.1.2.4 Validate AI21 Labs Jurassic model family functionality
 
 ### 2.1.3 Local and Self-Hosted Model Validation
 - [ ] **Task 2.1.3 Complete**

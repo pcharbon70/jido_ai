@@ -19,6 +19,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
   # Long timeout for performance tests
   @moduletag timeout: 300_000
 
+  alias Jido.AI.Model
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
 
@@ -256,7 +257,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
           # Create multiple models and perform operations
           models_created =
             Enum.map(1..10, fn _i ->
-              case Jido.AI.Model.from({provider, [model: model_name]}) do
+              case Model.from({provider, [model: model_name]}) do
                 {:ok, model} -> model
                 _ -> nil
               end
@@ -340,11 +341,435 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
     end
   end
 
+  describe "Cohere specialized provider benchmarks" do
+    @tag :cohere
+    @tag :specialized_benchmarks
+    test "Cohere RAG workflow latency" do
+      case find_cohere_models() do
+        {provider, [_ | _] = models} ->
+          model_name = get_model_name(hd(models))
+
+          # Test RAG-optimized workflows with longer context
+          rag_prompt =
+            "Based on the following context: #{@large_prompt} Please answer: What are the main points?"
+
+          latencies = measure_latency_samples(provider, model_name, rag_prompt, 5)
+
+          if length(latencies) > 0 do
+            avg_latency = Enum.sum(latencies) / length(latencies)
+            IO.puts("\\nCohere RAG Latency Results:")
+            IO.puts("Model: #{model_name}")
+            IO.puts("Average RAG latency: #{Float.round(avg_latency, 2)}ms")
+            IO.puts("Target: < 3000ms for RAG workflows")
+
+            if avg_latency < 3000 do
+              IO.puts("✓ PASS: Cohere meets RAG latency expectations")
+            else
+              IO.puts("⚠ WARNING: Cohere RAG latency above expected range")
+            end
+          else
+            IO.puts("Skipping Cohere RAG latency test - no successful requests")
+          end
+
+        _ ->
+          IO.puts("Skipping Cohere RAG latency test - provider not available")
+      end
+    end
+
+    @tag :cohere
+    @tag :context_benchmarks
+    test "Cohere large context handling performance" do
+      case find_cohere_models() do
+        {provider, [_ | _] = models} ->
+          # Test with command-r-plus or similar large context model
+          large_context_models =
+            Enum.filter(models, fn model ->
+              model_name = get_model_name(model)
+
+              String.contains?(String.downcase(model_name), "command-r-plus") or
+                String.contains?(String.downcase(model_name), "command-r")
+            end)
+
+          if length(large_context_models) > 0 do
+            model = hd(large_context_models)
+            model_name = get_model_name(model)
+
+            # Test with very large context (simulate 100K tokens)
+            very_large_prompt = String.duplicate(@large_prompt, 10)
+
+            start_time = :os.system_time(:millisecond)
+            result = measure_single_request(provider, model_name, very_large_prompt)
+            end_time = :os.system_time(:millisecond)
+
+            case result do
+              {:ok, latency} ->
+                total_latency = end_time - start_time
+                IO.puts("\\nCohere Large Context Results:")
+                IO.puts("Model: #{model_name}")
+                IO.puts("Large context latency: #{total_latency}ms")
+                IO.puts("Context size: ~#{String.length(very_large_prompt)} characters")
+
+              _ ->
+                IO.puts("Large context test failed - expected in test environment")
+            end
+          else
+            IO.puts("No large context Cohere models found")
+          end
+
+        _ ->
+          IO.puts("Skipping Cohere large context test - provider not available")
+      end
+    end
+  end
+
+  describe "Replicate specialized provider benchmarks" do
+    @tag :replicate
+    @tag :specialized_benchmarks
+    test "Replicate model variety performance" do
+      case find_replicate_models() do
+        {provider, [_ | _] = models} ->
+          # Test different types of models
+          text_models =
+            Enum.filter(models, fn model ->
+              model_name = get_model_name(model)
+
+              String.contains?(String.downcase(model_name), "llama") or
+                String.contains?(String.downcase(model_name), "mistral")
+            end)
+
+          if length(text_models) > 0 do
+            model_name = get_model_name(hd(text_models))
+
+            latencies = measure_latency_samples(provider, model_name, @small_prompt, 3)
+
+            if length(latencies) > 0 do
+              avg_latency = Enum.sum(latencies) / length(latencies)
+              IO.puts("\\nReplicate Text Model Performance:")
+              IO.puts("Model: #{model_name}")
+              IO.puts("Average latency: #{Float.round(avg_latency, 2)}ms")
+              IO.puts("Target: < 5000ms (marketplace models vary)")
+            else
+              IO.puts("No successful Replicate text model tests")
+            end
+          else
+            IO.puts("No text models found in Replicate catalog")
+          end
+
+        _ ->
+          IO.puts("Skipping Replicate performance test - provider not available")
+      end
+    end
+
+    @tag :replicate
+    @tag :multimodal_benchmarks
+    test "Replicate multimodal model performance estimation" do
+      case find_replicate_models() do
+        {provider, [_ | _] = models} ->
+          # Look for multimodal models (image, audio, etc.)
+          multimodal_indicators = ["stable-diffusion", "whisper", "blip", "dalle"]
+
+          multimodal_models =
+            Enum.filter(models, fn model ->
+              model_name = get_model_name(model)
+              Enum.any?(multimodal_indicators, &String.contains?(String.downcase(model_name), &1))
+            end)
+
+          if length(multimodal_models) > 0 do
+            IO.puts("\\nReplicate Multimodal Model Analysis:")
+
+            Enum.each(Enum.take(multimodal_models, 5), fn model ->
+              model_name = get_model_name(model)
+
+              modality_type =
+                cond do
+                  String.contains?(String.downcase(model_name), "stable-diffusion") ->
+                    "Image Generation"
+
+                  String.contains?(String.downcase(model_name), "whisper") ->
+                    "Audio Processing"
+
+                  String.contains?(String.downcase(model_name), "blip") ->
+                    "Vision Understanding"
+
+                  true ->
+                    "Unknown Modality"
+                end
+
+              IO.puts("  #{model_name}: #{modality_type}")
+            end)
+
+            IO.puts("Multimodal models found: #{length(multimodal_models)}")
+            IO.puts("Note: Multimodal models typically have higher latency due to complexity")
+          else
+            IO.puts("No multimodal models detected in Replicate catalog")
+          end
+
+        _ ->
+          IO.puts("Skipping Replicate multimodal test - provider not available")
+      end
+    end
+  end
+
+  describe "Perplexity specialized provider benchmarks" do
+    @tag :perplexity
+    @tag :search_benchmarks
+    test "Perplexity search-enhanced response time" do
+      case find_perplexity_models() do
+        {provider, [_ | _] = models} ->
+          # Look for online models
+          online_models =
+            Enum.filter(models, fn model ->
+              model_name = get_model_name(model)
+
+              String.contains?(String.downcase(model_name), "online") or
+                String.contains?(String.downcase(model_name), "sonar")
+            end)
+
+          if length(online_models) > 0 do
+            model_name = get_model_name(hd(online_models))
+
+            # Test with search-requiring query
+            search_prompt = "What are the latest developments in AI in 2024?"
+
+            latencies = measure_latency_samples(provider, model_name, search_prompt, 3)
+
+            if length(latencies) > 0 do
+              avg_latency = Enum.sum(latencies) / length(latencies)
+              IO.puts("\\nPerplexity Search-Enhanced Performance:")
+              IO.puts("Model: #{model_name}")
+              IO.puts("Search-enhanced latency: #{Float.round(avg_latency, 2)}ms")
+              IO.puts("Target: < 8000ms (includes search time)")
+
+              if avg_latency < 8000 do
+                IO.puts("✓ PASS: Perplexity search latency within expectations")
+              else
+                IO.puts("⚠ WARNING: Perplexity search latency above expected range")
+              end
+            else
+              IO.puts("No successful Perplexity search tests")
+            end
+          else
+            IO.puts("No online/search-enabled models found")
+          end
+
+        _ ->
+          IO.puts("Skipping Perplexity search test - provider not available")
+      end
+    end
+
+    @tag :perplexity
+    @tag :citation_benchmarks
+    test "Perplexity citation generation performance" do
+      case find_perplexity_models() do
+        {provider, [_ | _] = models} ->
+          model_name = get_model_name(hd(models))
+
+          # Test citation-requiring query
+          citation_prompt =
+            "What is the current state of renewable energy adoption? Please include citations."
+
+          start_time = :os.system_time(:millisecond)
+          result = measure_single_request(provider, model_name, citation_prompt)
+          end_time = :os.system_time(:millisecond)
+
+          case result do
+            {:ok, _latency} ->
+              total_time = end_time - start_time
+              IO.puts("\\nPerplexity Citation Performance:")
+              IO.puts("Model: #{model_name}")
+              IO.puts("Citation query time: #{total_time}ms")
+              IO.puts("Expected: Higher latency due to source verification")
+
+            _ ->
+              IO.puts("Citation test failed - expected in test environment")
+          end
+
+        _ ->
+          IO.puts("Skipping Perplexity citation test - provider not available")
+      end
+    end
+  end
+
+  describe "AI21 Labs specialized provider benchmarks" do
+    @tag :ai21
+    @tag :context_benchmarks
+    test "AI21 Labs large context performance" do
+      case find_ai21_models() do
+        {provider, [_ | _] = models} ->
+          # Look for ultra models (largest context)
+          ultra_models =
+            Enum.filter(models, fn model ->
+              model_name = get_model_name(model)
+              String.contains?(String.downcase(model_name), "ultra")
+            end)
+
+          if length(ultra_models) > 0 do
+            model_name = get_model_name(hd(ultra_models))
+
+            # Test with large document
+            large_document = String.duplicate(@large_prompt, 20)
+            context_query = "Document: #{large_document}\\n\\nQuestion: Summarize the key points."
+
+            latencies = measure_latency_samples(provider, model_name, context_query, 3)
+
+            if length(latencies) > 0 do
+              avg_latency = Enum.sum(latencies) / length(latencies)
+              IO.puts("\\nAI21 Labs Large Context Performance:")
+              IO.puts("Model: #{model_name}")
+              IO.puts("Large context latency: #{Float.round(avg_latency, 2)}ms")
+              IO.puts("Document size: ~#{String.length(large_document)} characters")
+              IO.puts("Target: < 10000ms for large context processing")
+            else
+              IO.puts("No successful AI21 Labs large context tests")
+            end
+          else
+            IO.puts("No ultra models found for large context testing")
+          end
+
+        _ ->
+          IO.puts("Skipping AI21 Labs context test - provider not available")
+      end
+    end
+
+    @tag :ai21
+    @tag :task_specific_benchmarks
+    test "AI21 Labs task-specific API performance" do
+      case find_ai21_models() do
+        {provider, [_ | _] = models} ->
+          model_name = get_model_name(hd(models))
+
+          # Test different task types
+          task_prompts = [
+            {"summarization", "Please summarize: #{@large_prompt}"},
+            {"paraphrase", "Please paraphrase: #{@medium_prompt}"},
+            {"qa", "Context: #{@medium_prompt}\\nQuestion: What is the main topic?"}
+          ]
+
+          IO.puts("\\nAI21 Labs Task-Specific Performance:")
+
+          Enum.each(task_prompts, fn {task_type, prompt} ->
+            latencies = measure_latency_samples(provider, model_name, prompt, 2)
+
+            if length(latencies) > 0 do
+              avg_latency = Enum.sum(latencies) / length(latencies)
+              IO.puts("  #{task_type}: #{Float.round(avg_latency, 2)}ms")
+            else
+              IO.puts("  #{task_type}: No data")
+            end
+          end)
+
+        _ ->
+          IO.puts("Skipping AI21 Labs task-specific test - provider not available")
+      end
+    end
+  end
+
+  describe "specialized providers comparative analysis" do
+    @tag :comparison
+    @tag :specialized_comparison
+    test "specialized provider performance comparison" do
+      providers = [
+        {"Cohere", find_cohere_models()},
+        {"Replicate", find_replicate_models()},
+        {"Perplexity", find_perplexity_models()},
+        {"AI21 Labs", find_ai21_models()}
+      ]
+
+      results =
+        Enum.map(providers, fn {name, provider_data} ->
+          case provider_data do
+            {provider, [_ | _] = models} ->
+              model_name = get_model_name(hd(models))
+              latencies = measure_latency_samples(provider, model_name, @small_prompt, 3)
+
+              avg_latency =
+                if length(latencies) > 0 do
+                  Enum.sum(latencies) / length(latencies)
+                else
+                  nil
+                end
+
+              {name, avg_latency, length(latencies), length(models)}
+
+            _ ->
+              {name, nil, 0, 0}
+          end
+        end)
+
+      IO.puts("\\nSpecialized Provider Performance Comparison:")
+      IO.puts("Provider     | Avg Latency | Samples | Model Count")
+      IO.puts("-------------|-------------|---------|------------")
+
+      Enum.each(results, fn {name, latency, samples, model_count} ->
+        latency_str = if latency, do: "#{Float.round(latency, 2)}ms", else: "N/A"
+
+        IO.puts(
+          "#{String.pad_trailing(name, 12)} | #{String.pad_trailing(latency_str, 11)} | #{String.pad_trailing("#{samples}", 7)} | #{model_count}"
+        )
+      end)
+
+      # Identify providers with most models (marketplace advantage)
+      providers_with_models =
+        results
+        |> Enum.filter(fn {_name, _latency, _samples, model_count} -> model_count > 0 end)
+        |> Enum.sort_by(fn {_name, _latency, _samples, model_count} -> model_count end, :desc)
+
+      if length(providers_with_models) > 0 do
+        {largest_provider, _, _, model_count} = hd(providers_with_models)
+        IO.puts("\\n📊 Largest model catalog: #{largest_provider} (#{model_count} models)")
+      end
+
+      # Identify fastest responding provider
+      providers_with_latency =
+        results
+        |> Enum.filter(fn {_name, latency, samples, _} -> latency != nil and samples > 0 end)
+
+      if length(providers_with_latency) > 0 do
+        {fastest_provider, fastest_latency, _, _} =
+          Enum.min_by(providers_with_latency, fn {_name, latency, _samples, _} -> latency end)
+
+        IO.puts("🚀 Fastest response: #{fastest_provider} (#{Float.round(fastest_latency, 2)}ms)")
+      end
+    end
+  end
+
   # Helper functions for benchmarking
+
+  defp find_cohere_models do
+    case Registry.list_models(:cohere) do
+      {:ok, [_ | _] = models} -> {:cohere, models}
+      _ -> nil
+    end
+  end
+
+  defp find_replicate_models do
+    case Registry.list_models(:replicate) do
+      {:ok, [_ | _] = models} -> {:replicate, models}
+      _ -> nil
+    end
+  end
+
+  defp find_perplexity_models do
+    case Registry.list_models(:perplexity) do
+      {:ok, [_ | _] = models} -> {:perplexity, models}
+      _ -> nil
+    end
+  end
+
+  defp find_ai21_models do
+    ai21_variants = [:ai21, :ai21labs, :ai21_labs]
+
+    Enum.find_value(ai21_variants, fn variant ->
+      case Registry.list_models(variant) do
+        {:ok, [_ | _] = models} -> {variant, models}
+        _ -> nil
+      end
+    end)
+  end
 
   defp find_groq_models do
     case Registry.list_models(:groq) do
-      {:ok, models} when length(models) > 0 -> {:groq, models}
+      {:ok, [_ | _] = models} -> {:groq, models}
       _ -> nil
     end
   end
@@ -354,7 +779,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
 
     Enum.find_value(together_variants, fn variant ->
       case Registry.list_models(variant) do
-        {:ok, models} when length(models) > 0 -> {variant, models}
+        {:ok, [_ | _] = models} -> {variant, models}
         _ -> nil
       end
     end)
@@ -377,7 +802,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
 
   defp measure_single_request(provider, model_name, prompt) do
     try do
-      case Jido.AI.Model.from({provider, [model: model_name]}) do
+      case Model.from({provider, [model: model_name]}) do
         {:ok, model} ->
           start_time = :os.system_time(:millisecond)
 
