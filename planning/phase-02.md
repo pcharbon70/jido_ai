@@ -112,20 +112,22 @@ Cost and performance metrics help applications make informed decisions about mod
 
 ---
 
-## 2.3 Legacy Code Removal
+## 2.3 Legacy Code Removal and Internal Migration
 - [ ] **Section 2.3 Complete**
 
-This section systematically removes the old provider-specific implementations that are now replaced by ReqLLM. This reduces maintenance burden and code complexity while ensuring no functionality is lost.
+This section systematically migrates internal provider-specific implementations to ReqLLM and removes unused dependencies. This reduces maintenance burden and code complexity while ensuring the public API remains unchanged.
 
-### 2.3.1 Provider-Specific Action Removal
+> ⚠️ **Important**: The module names `Jido.AI.Actions.OpenaiEx` and its submodules (`Embeddings`, `ImageGeneration`, `ResponseRetrieve`, `ToolHelper`) are part of the public API and **must be preserved**. Only the internal implementation should be changed to use ReqLLM. Users must be able to continue calling these modules exactly as before.
+
+### 2.3.1 Provider Implementation Migration
 - [ ] **Task 2.3.1 Complete**
 
-Remove the provider-specific action implementations that directly called provider APIs. These are now redundant as all calls go through ReqLLM.
+Migrate provider-specific internal implementations to use ReqLLM while preserving public module names and APIs. The module names like `Jido.AI.Actions.OpenaiEx` must remain unchanged as they are part of the public API documented in guides and used by existing applications.
 
-- [ ] 2.3.1.1 Remove direct OpenAI API implementation code
-- [ ] 2.3.1.2 Remove direct Anthropic API implementation code
-- [ ] 2.3.1.3 Remove direct Google API implementation code
-- [ ] 2.3.1.4 Remove OpenRouter and Cloudflare specific implementations
+- [ ] 2.3.1.1 Replace OpenAI API calls inside `Jido.AI.Actions.OpenaiEx` with ReqLLM bridge (preserve module name and public functions)
+- [ ] 2.3.1.2 Replace internal Anthropic API calls with ReqLLM while keeping any public interfaces intact
+- [ ] 2.3.1.3 Replace internal Google API calls with ReqLLM while keeping any public interfaces intact
+- [ ] 2.3.1.4 Replace OpenRouter and Cloudflare internal implementations with ReqLLM calls
 
 ### 2.3.2 HTTP Client Code Cleanup
 - [ ] **Task 2.3.2 Complete**
@@ -140,12 +142,12 @@ Remove custom HTTP client code that was used for provider-specific API calls. Re
 ### 2.3.3 Dependency Reduction
 - [ ] **Task 2.3.3 Complete**
 
-Remove dependencies that are no longer needed after the ReqLLM migration, reducing the application's dependency footprint.
+Remove dependencies that are no longer needed after the ReqLLM migration, reducing the application's dependency footprint while ensuring all public APIs continue to function.
 
-- [ ] 2.3.3.1 Remove OpenaiEx dependency if fully replaced
-- [ ] 2.3.3.2 Evaluate and potentially remove provider-specific SDKs
-- [ ] 2.3.3.3 Update mix.exs to remove unused dependencies
-- [ ] 2.3.3.4 Run dependency audit and cleanup
+- [ ] 2.3.3.1 Remove OpenaiEx library dependency from mix.exs after confirming all internal calls are migrated to ReqLLM
+- [ ] 2.3.3.2 Evaluate and potentially remove provider-specific SDKs that are no longer used internally
+- [ ] 2.3.3.3 Update mix.exs to remove unused dependencies while ensuring public module compilation
+- [ ] 2.3.3.4 Run dependency audit and cleanup, verify all public APIs still work
 
 ### Unit Tests - Section 2.3
 - [ ] **Unit Tests 2.3 Complete**
