@@ -4,8 +4,8 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
 
   @moduletag :capture_log
 
-  alias Jido.AI.Keyring.SecurityEnhancements
   alias Jido.AI.Keyring
+  alias Jido.AI.Keyring.SecurityEnhancements
 
   setup do
     # Start a unique Keyring for testing

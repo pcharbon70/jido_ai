@@ -328,16 +328,14 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegration do
 
   # ReqLLM key resolution using ReqLlmBridge.Keys
   defp resolve_reqllm_key(provider, default) do
-    try do
-      # Use ReqLlmBridge.Keys with provider atom, falling back to default
-      case ReqLLM.Keys.get(provider, default) do
-        {:ok, key, _source} -> key
-        key when is_binary(key) -> key
-        _ -> default
-      end
-    rescue
+    # Use ReqLlmBridge.Keys with provider atom, falling back to default
+    case ReqLLM.Keys.get(provider, default) do
+      {:ok, key, _source} -> key
+      key when is_binary(key) -> key
       _ -> default
     end
+  rescue
+    _ -> default
   end
 
   # Maps ReqLLM provider atom to corresponding Jido key

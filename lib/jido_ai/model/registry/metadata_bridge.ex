@@ -25,7 +25,7 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
 
   require Logger
   alias Jido.AI.Model
-  alias Jido.AI.Model.{Architecture, Pricing, Endpoint}
+  alias Jido.AI.Model.{Architecture, Endpoint, Pricing}
 
   @type reqllm_model :: ReqLLM.Model.t()
   @type jido_model :: Jido.AI.Model.t()

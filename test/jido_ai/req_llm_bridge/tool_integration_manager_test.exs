@@ -5,10 +5,10 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManagerTest do
   @moduletag :capture_log
 
   alias Jido.AI.ReqLlmBridge.{
-    ToolIntegrationManager,
+    ConversationManager,
     ToolBuilder,
-    ToolResponseHandler,
-    ConversationManager
+    ToolIntegrationManager,
+    ToolResponseHandler
   }
 
   # Add global mock setup

@@ -32,7 +32,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManager do
       )
   """
 
-  alias Jido.AI.ReqLlmBridge.{ToolBuilder, ToolResponseHandler, ConversationManager}
+  alias Jido.AI.ReqLlmBridge.{ConversationManager, ToolBuilder, ToolResponseHandler}
 
   @default_options %{
     model: "gpt-4",

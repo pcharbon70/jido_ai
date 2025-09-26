@@ -15,7 +15,7 @@ defmodule Jido.AI.ReqLlmBridge do
 
   require Logger
 
-  alias Jido.AI.ReqLlmBridge.{StreamingAdapter, ToolBuilder, Authentication}
+  alias Jido.AI.ReqLlmBridge.{Authentication, StreamingAdapter, ToolBuilder}
 
   @doc """
   Converts Jido AI message format to ReqLLM context format.
@@ -745,19 +745,17 @@ defmodule Jido.AI.ReqLlmBridge do
   end
 
   defp get_reqllm_providers do
-    try do
-      case Code.ensure_loaded(ReqLLM.Provider.Generated.ValidProviders) do
-        {:module, module} ->
-          module.list()
+    case Code.ensure_loaded(ReqLLM.Provider.Generated.ValidProviders) do
+      {:module, module} ->
+        module.list()
 
-        _ ->
-          # Fallback to legacy providers if ReqLLM not available
-          [:openai, :anthropic, :openrouter, :google, :cloudflare]
-      end
-    rescue
       _ ->
-        # Fallback to legacy providers on error
+        # Fallback to legacy providers if ReqLLM not available
         [:openai, :anthropic, :openrouter, :google, :cloudflare]
     end
+  rescue
+    _ ->
+      # Fallback to legacy providers on error
+      [:openai, :anthropic, :openrouter, :google, :cloudflare]
   end
 end

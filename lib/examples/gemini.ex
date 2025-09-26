@@ -21,6 +21,7 @@ defmodule JidoAi.Examples.Gemini do
   """
 
   alias Jido.AI.Actions.OpenaiEx
+  alias Jido.AI.Keyring
   alias Jido.AI.Model
 
   def run do
@@ -30,7 +31,7 @@ defmodule JidoAi.Examples.Gemini do
         {:google,
          [
            model: "gemini-2.0-flash",
-           api_key: Jido.AI.Keyring.get(:google_api_key)
+           api_key: Keyring.get(:google_api_key)
          ]}
       )
 

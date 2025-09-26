@@ -22,6 +22,8 @@ defmodule Jido.AI.ProviderValidation.Functional.PerplexityValidationTest do
   @moduletag :perplexity
   @moduletag :specialized_providers
 
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
@@ -211,7 +213,7 @@ defmodule Jido.AI.ProviderValidation.Functional.PerplexityValidationTest do
       Enum.each(search_models, fn model_name ->
         model_opts = {:perplexity, [model: model_name]}
 
-        case Jido.AI.Model.from(model_opts) do
+        case Model.from(model_opts) do
           {:ok, model} ->
             assert model.provider == :perplexity
             assert model.reqllm_id == "perplexity:#{model_name}"
@@ -587,7 +589,7 @@ defmodule Jido.AI.ProviderValidation.Functional.PerplexityValidationTest do
       # Test invalid Perplexity configurations
       invalid_opts = {:perplexity, []}
 
-      case Jido.AI.Model.from(invalid_opts) do
+      case Model.from(invalid_opts) do
         {:error, reason} ->
           assert is_binary(reason), "Should return a descriptive error message"
 
@@ -599,7 +601,7 @@ defmodule Jido.AI.ProviderValidation.Functional.PerplexityValidationTest do
       # Test with unsupported model name
       unsupported_opts = {:perplexity, [model: "nonexistent-model"]}
 
-      case Jido.AI.Model.from(unsupported_opts) do
+      case Model.from(unsupported_opts) do
         {:error, reason} ->
           assert is_binary(reason)
 
@@ -624,10 +626,10 @@ defmodule Jido.AI.ProviderValidation.Functional.PerplexityValidationTest do
     end
 
     test "Perplexity compatibility with keyring system" do
-      keyring_compatible = function_exported?(Jido.AI.Keyring, :get, 2)
+      keyring_compatible = function_exported?(Keyring, :get, 2)
       assert keyring_compatible, "Keyring system should be available for authentication"
 
-      result = Jido.AI.Keyring.get(Jido.AI.Keyring, :perplexity_api_key, "default")
+      result = Keyring.get(Keyring, :perplexity_api_key, "default")
       assert is_binary(result), "Keyring should return string value"
     end
 
@@ -664,7 +666,7 @@ defmodule Jido.AI.ProviderValidation.Functional.PerplexityValidationTest do
       Enum.each(search_params, fn {param, value} ->
         opts = {:perplexity, [{:model, "pplx-7b-online"} | [{param, value}]]}
 
-        case Jido.AI.Model.from(opts) do
+        case Model.from(opts) do
           {:ok, model} ->
             # Check if the parameter is preserved in model options
             model_opts = Map.get(model, :opts, %{})

@@ -4,8 +4,8 @@ defmodule Jido.AI.ProviderDiscoveryListing.Section16IntegrationTest do
 
   @moduletag :capture_log
 
-  alias Jido.AI.Provider
   alias Jido.AI.Model.Registry.Adapter
+  alias Jido.AI.Provider
   alias ReqLLM.Provider.Generated.ValidProviders
 
   setup :set_mimic_global

@@ -564,7 +564,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsReqLLMTest do
       assert {:ok, _response} = Embeddings.run(params, %{})
 
       # Verify the call was made with secure key management
-      # assert_called(JidoKeys.put(:openai, "test-api-key")) # TODO: Fix assertion syntax
+      # assert_called(JidoKeys.put(:openai, "test-api-key"))
     end
 
     test "provider validation prevents injection", %{model: model} do

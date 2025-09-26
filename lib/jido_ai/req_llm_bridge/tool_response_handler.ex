@@ -32,7 +32,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolResponseHandler do
   - Circuit breaker prevents cascade failures
   """
 
-  alias Jido.AI.ReqLlmBridge.{ToolExecutor, ResponseAggregator, ConversationManager, ErrorHandler}
+  alias Jido.AI.ReqLlmBridge.{ConversationManager, ErrorHandler, ResponseAggregator, ToolExecutor}
   require Logger
 
   @tool_execution_timeout 30_000

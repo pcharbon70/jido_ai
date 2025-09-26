@@ -4,8 +4,8 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirementsTest do
 
   @moduletag :capture_log
 
-  alias Jido.AI.ReqLlmBridge.ProviderAuthRequirements
   alias Jido.AI.Keyring
+  alias Jido.AI.ReqLlmBridge.ProviderAuthRequirements
 
   setup :set_mimic_global
 

@@ -28,7 +28,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
       callback_fn = ToolExecutor.create_callback(MyAction, %{user_id: 123})
   """
 
-  alias Jido.AI.ReqLlmBridge.{ParameterConverter, ErrorHandler}
+  alias Jido.AI.ReqLlmBridge.{ErrorHandler, ParameterConverter}
 
   require Logger
 
@@ -211,20 +211,18 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
   end
 
   defp validate_params_against_schema(params, action_module) do
-    try do
-      case action_module.validate_params(params) do
-        {:ok, validated_params} -> {:ok, validated_params}
-        {:error, reason} -> {:error, reason}
-      end
-    rescue
-      error ->
-        {:error,
-         %{
-           type: "schema_validation_error",
-           message: "Schema validation failed",
-           details: Exception.message(error)
-         }}
+    case action_module.validate_params(params) do
+      {:ok, validated_params} -> {:ok, validated_params}
+      {:error, reason} -> {:error, reason}
     end
+  rescue
+    error ->
+      {:error,
+       %{
+         type: "schema_validation_error",
+         message: "Schema validation failed",
+         details: Exception.message(error)
+       }}
   end
 
   defp execute_action_safely(action_module, params, context, timeout) do
@@ -279,34 +277,32 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutor do
   end
 
   defp ensure_json_serializable(data) do
-    try do
-      # Test if data can be JSON encoded
-      case Jason.encode(data) do
-        {:ok, _json} ->
-          {:ok, data}
+    # Test if data can be JSON encoded
+    case Jason.encode(data) do
+      {:ok, _json} ->
+        {:ok, data}
 
-        {:error, _reason} ->
-          # Attempt to sanitize the data
-          sanitized_data = sanitize_for_json(data)
+      {:error, _reason} ->
+        # Attempt to sanitize the data
+        sanitized_data = sanitize_for_json(data)
 
-          case Jason.encode(sanitized_data) do
-            {:ok, _json} ->
-              {:ok, sanitized_data}
+        case Jason.encode(sanitized_data) do
+          {:ok, _json} ->
+            {:ok, sanitized_data}
 
-            {:error, _} ->
-              # Fallback to string representation
-              {:ok, %{result: inspect(data), serialization_fallback: true}}
-          end
-      end
-    rescue
-      error ->
-        {:error,
-         %{
-           type: "serialization_error",
-           message: "Failed to ensure JSON serialization",
-           details: Exception.message(error)
-         }}
+          {:error, _} ->
+            # Fallback to string representation
+            {:ok, %{result: inspect(data), serialization_fallback: true}}
+        end
     end
+  rescue
+    error ->
+      {:error,
+       %{
+         type: "serialization_error",
+         message: "Failed to ensure JSON serialization",
+         details: Exception.message(error)
+       }}
   end
 
   defp sanitize_for_json(data) when is_map(data) do

@@ -26,7 +26,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
       :ok = ToolBuilder.validate_action_compatibility(MyAction)
   """
 
-  alias Jido.AI.ReqLlmBridge.{ToolExecutor, SchemaValidator}
+  alias Jido.AI.ReqLlmBridge.{SchemaValidator, ToolExecutor}
 
   require Logger
 
@@ -216,27 +216,25 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
   end
 
   defp build_tool_specification(action_module) do
-    try do
-      name = get_tool_name(action_module)
-      description = get_tool_description(action_module)
-      schema = convert_action_schema(action_module)
+    name = get_tool_name(action_module)
+    description = get_tool_description(action_module)
+    schema = convert_action_schema(action_module)
 
-      tool_spec = %{
-        name: name,
-        description: description,
-        schema: schema
-      }
+    tool_spec = %{
+      name: name,
+      description: description,
+      schema: schema
+    }
 
-      {:ok, tool_spec}
-    rescue
-      error ->
-        {:error,
-         %{
-           reason: "tool_specification_error",
-           details: Exception.message(error),
-           module: action_module
-         }}
-    end
+    {:ok, tool_spec}
+  rescue
+    error ->
+      {:error,
+       %{
+         reason: "tool_specification_error",
+         details: Exception.message(error),
+         module: action_module
+       }}
   end
 
   defp create_execution_callback(action_module, options) do
@@ -251,52 +249,44 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilder do
   end
 
   defp get_tool_name(action_module) do
-    try do
-      action_module.name()
-    rescue
-      _ ->
-        action_module
-        |> Module.split()
-        |> List.last()
-        |> Macro.underscore()
-    end
+    action_module.name()
+  rescue
+    _ ->
+      action_module
+      |> Module.split()
+      |> List.last()
+      |> Macro.underscore()
   end
 
   defp get_tool_description(action_module) do
-    try do
-      action_module.description() || "No description provided"
-    rescue
-      _ -> "No description provided"
-    end
+    action_module.description() || "No description provided"
+  rescue
+    _ -> "No description provided"
   end
 
   defp convert_action_schema(action_module) do
-    try do
-      schema = action_module.schema()
-      SchemaValidator.convert_schema_to_reqllm(schema)
-    rescue
-      error ->
-        Logger.warning(
-          "Failed to convert schema for #{action_module}: #{Exception.message(error)}"
-        )
+    schema = action_module.schema()
+    SchemaValidator.convert_schema_to_reqllm(schema)
+  rescue
+    error ->
+      Logger.warning(
+        "Failed to convert schema for #{action_module}: #{Exception.message(error)}"
+      )
 
-        %{}
-    end
+      %{}
   end
 
   defp validate_schema_compatibility(action_module) do
-    try do
-      schema = action_module.schema()
-      SchemaValidator.validate_nimble_schema_compatibility(schema)
-    rescue
-      error ->
-        {:error,
-         %{
-           reason: "schema_compatibility_error",
-           details: Exception.message(error),
-           module: action_module
-         }}
-    end
+    schema = action_module.schema()
+    SchemaValidator.validate_nimble_schema_compatibility(schema)
+  rescue
+    error ->
+      {:error,
+       %{
+         reason: "schema_compatibility_error",
+         details: Exception.message(error),
+         module: action_module
+       }}
   end
 
   defp validate_tool_descriptor_if_enabled(tool_spec, options) do

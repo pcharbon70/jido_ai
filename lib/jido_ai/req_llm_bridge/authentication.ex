@@ -327,14 +327,12 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
 
   # Resolves authentication using ReqLlmBridge.Keys
   defp resolve_reqllm_authentication(provider, req_options) do
-    try do
-      case ReqLLM.Keys.get(provider, req_options) do
-        {:ok, key, source} -> {:ok, key, source}
-        {:error, reason} -> {:error, reason}
-      end
-    rescue
-      error -> {:error, "ReqLLM authentication error: #{inspect(error)}"}
+    case ReqLLM.Keys.get(provider, req_options) do
+      {:ok, key, source} -> {:ok, key, source}
+      {:error, reason} -> {:error, reason}
     end
+  rescue
+    error -> {:error, "ReqLLM authentication error: #{inspect(error)}"}
   end
 
   # Resolves authentication using Keyring as fallback

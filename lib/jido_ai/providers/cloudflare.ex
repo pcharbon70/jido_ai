@@ -5,6 +5,7 @@ defmodule Jido.AI.Provider.Cloudflare do
   Implements the ProviderBehavior for Cloudflare's AI API.
   """
   @behaviour Jido.AI.Model.Provider.Adapter
+  alias Jido.AI.Model
   alias Jido.AI.Provider
   alias Jido.AI.Provider.Helpers
 
@@ -113,7 +114,7 @@ defmodule Jido.AI.Provider.Cloudflare do
   @impl true
   def validate_model_opts(opts) do
     {:ok,
-     %Jido.AI.Model{
+     %Model{
        id: opts[:model] || "cloudflare_default",
        name: opts[:model_name] || "Cloudflare Model",
        provider: :cloudflare
@@ -146,7 +147,7 @@ defmodule Jido.AI.Provider.Cloudflare do
       {:error, "model is required for Cloudflare models"}
     else
       # Create the model struct with all necessary fields
-      model_struct = %Jido.AI.Model{
+      model_struct = %Model{
         id: Keyword.get(opts, :id, "cloudflare_#{model}"),
         name: Keyword.get(opts, :name, "Cloudflare #{model}"),
         provider: :cloudflare,
@@ -156,7 +157,7 @@ defmodule Jido.AI.Provider.Cloudflare do
         temperature: Keyword.get(opts, :temperature, 0.7),
         max_tokens: Keyword.get(opts, :max_tokens, 1024),
         max_retries: Keyword.get(opts, :max_retries, 0),
-        architecture: %Jido.AI.Model.Architecture{
+        architecture: %Model.Architecture{
           modality: Keyword.get(opts, :modality, "text"),
           tokenizer: Keyword.get(opts, :tokenizer, "unknown"),
           instruct_type: Keyword.get(opts, :instruct_type)
@@ -164,7 +165,7 @@ defmodule Jido.AI.Provider.Cloudflare do
         description: Keyword.get(opts, :description, "Cloudflare model"),
         created: System.system_time(:second),
         endpoints: [],
-        reqllm_id: Jido.AI.Model.compute_reqllm_id(:cloudflare, model)
+        reqllm_id: Model.compute_reqllm_id(:cloudflare, model)
       }
 
       {:ok, model_struct}

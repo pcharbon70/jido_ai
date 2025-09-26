@@ -82,7 +82,7 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
       {:ok, conv_id} = ConversationManager.create_conversation()
   """
   @spec create_conversation() :: {:ok, conversation_id()} | {:error, term()}
-  def create_conversation() do
+  def create_conversation do
     GenServer.call(__MODULE__, :create_conversation)
   end
 
@@ -387,7 +387,7 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
       # Use conversation_ids as needed
   """
   @spec list_conversations() :: {:ok, [conversation_id()]} | {:error, term()}
-  def list_conversations() do
+  def list_conversations do
     GenServer.call(__MODULE__, :list_conversations)
   end
 
@@ -575,7 +575,7 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
 
   # Private Functions
 
-  defp generate_conversation_id() do
+  defp generate_conversation_id do
     :crypto.strong_rand_bytes(16)
     |> Base.encode16(case: :lower)
     |> String.slice(0, 32)
@@ -632,7 +632,7 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
       {:error, {:update_failed, error}}
   end
 
-  defp schedule_cleanup() do
+  defp schedule_cleanup do
     Process.send_after(self(), :cleanup_expired_conversations, @cleanup_interval)
   end
 

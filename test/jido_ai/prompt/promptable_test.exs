@@ -44,67 +44,67 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
         email: "alice@example.com"
       }
 
-      assert Jido.AI.Promptable.to_prompt(user) == "User Alice is 30 years old"
+      assert Promptable.to_prompt(user) == "User Alice is 30 years old"
     end
 
     test "formats user with only name" do
       user = %ExampleStructs.User{name: "Bob"}
-      assert Jido.AI.Promptable.to_prompt(user) == "User Bob (age unknown)"
+      assert Promptable.to_prompt(user) == "User Bob (age unknown)"
     end
 
     test "handles empty user" do
       user = %ExampleStructs.User{}
-      assert Jido.AI.Promptable.to_prompt(user) == "Unknown user"
+      assert Promptable.to_prompt(user) == "Unknown user"
     end
 
     test "handles nil values" do
       user = %ExampleStructs.User{name: nil, age: nil}
-      assert Jido.AI.Promptable.to_prompt(user) == "Unknown user"
+      assert Promptable.to_prompt(user) == "Unknown user"
     end
   end
 
   describe "Task implementation" do
     test "formats task with all fields" do
-      task = %JidoTest.AI.Examples.TestStructs.Task{
+      task = %ExampleStructs.Task{
         title: "Write tests",
         status: "in progress",
         due_date: "2024-03-20"
       }
 
-      assert Jido.AI.Promptable.to_prompt(task) ==
+      assert Promptable.to_prompt(task) ==
                "Task 'Write tests' is in progress, due on 2024-03-20"
     end
 
     test "handles task with different status" do
-      task = %JidoTest.AI.Examples.TestStructs.Task{
+      task = %ExampleStructs.Task{
         title: "Review code",
         status: "completed",
         due_date: "2024-03-19"
       }
 
-      assert Jido.AI.Promptable.to_prompt(task) ==
+      assert Promptable.to_prompt(task) ==
                "Task 'Review code' is completed, due on 2024-03-19"
     end
   end
 
   describe "Profile implementation" do
     test "formats profile with skills list" do
-      profile = %JidoTest.AI.Examples.TestStructs.Profile{
+      profile = %ExampleStructs.Profile{
         bio: "Software developer",
         skills: ["Elixir", "Phoenix", "PostgreSQL"]
       }
 
-      assert Jido.AI.Promptable.to_prompt(profile) ==
+      assert Promptable.to_prompt(profile) ==
                "Profile: Software developer\nSkills: Elixir, Phoenix, PostgreSQL"
     end
 
     test "handles empty skills list" do
-      profile = %JidoTest.AI.Examples.TestStructs.Profile{
+      profile = %ExampleStructs.Profile{
         bio: "New developer",
         skills: []
       }
 
-      assert Jido.AI.Promptable.to_prompt(profile) ==
+      assert Promptable.to_prompt(profile) ==
                "Profile: New developer\nSkills: "
     end
   end
@@ -112,7 +112,7 @@ defmodule JidoTest.AI.Prompt.PromptableTest do
   describe "Error handling" do
     test "raises Protocol.UndefinedError for unimplemented types" do
       assert_raise Protocol.UndefinedError, fn ->
-        Jido.AI.Promptable.to_prompt(%{some: "map"})
+        Promptable.to_prompt(%{some: "map"})
       end
     end
   end

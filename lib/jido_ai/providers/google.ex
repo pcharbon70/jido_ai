@@ -5,6 +5,8 @@ defmodule Jido.AI.Provider.Google do
   Implements the ProviderBehavior for Google's OpenAI-compatible API.
   """
   @behaviour Jido.AI.Model.Provider.Adapter
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
   alias Jido.AI.Provider
 
   @base_url "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -184,7 +186,7 @@ defmodule Jido.AI.Provider.Google do
   @impl true
   def request_headers(opts) do
     api_key =
-      Keyword.get(opts, :api_key) || Jido.AI.Keyring.get(:google_api_key)
+      Keyword.get(opts, :api_key) || Keyring.get(:google_api_key)
 
     if api_key do
       %{
@@ -199,7 +201,7 @@ defmodule Jido.AI.Provider.Google do
   @impl true
   def validate_model_opts(opts) do
     {:ok,
-     %Jido.AI.Model{
+     %Model{
        id: opts[:model] || "google_default",
        name: opts[:model_name] || "Google Gemini Model",
        provider: :google
@@ -250,7 +252,7 @@ defmodule Jido.AI.Provider.Google do
         temperature: Map.get(opts, "temperature", 0.7),
         max_tokens: Map.get(opts, "outputTokenLimit", 1024),
         max_retries: Map.get(opts, :max_retries, 0),
-        architecture: %Jido.AI.Model.Architecture{
+        architecture: %Model.Architecture{
           modality: Map.get(opts, :modality, "text+image->text"),
           tokenizer: Map.get(opts, :tokenizer, "gemini"),
           instruct_type: Map.get(opts, :instruct_type, "gemini")
@@ -259,7 +261,7 @@ defmodule Jido.AI.Provider.Google do
           Map.get(opts, "description") || Map.get(opts, :description, "Google Gemini model"),
         created: System.system_time(:second),
         endpoints: [],
-        reqllm_id: Jido.AI.Model.compute_reqllm_id(:google, model)
+        reqllm_id: Model.compute_reqllm_id(:google, model)
       }
 
       {:ok, model_struct}

@@ -5,6 +5,8 @@ defmodule Jido.AI.Provider.OpenRouter do
   Implements the ProviderBehavior for OpenRouter's specific API.
   """
   @behaviour Jido.AI.Model.Provider.Adapter
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
   alias Jido.AI.Provider
   alias Jido.AI.Provider.Helpers
 
@@ -124,7 +126,7 @@ defmodule Jido.AI.Provider.OpenRouter do
   @impl true
   def request_headers(opts) do
     api_key =
-      Keyword.get(opts, :api_key) || Jido.AI.Keyring.get(:openrouter_api_key)
+      Keyword.get(opts, :api_key) || Keyring.get(:openrouter_api_key)
 
     base_headers = %{
       "HTTP-Referer" => "https://agentjido.xyz",
@@ -142,7 +144,7 @@ defmodule Jido.AI.Provider.OpenRouter do
   @impl true
   def validate_model_opts(opts) do
     {:ok,
-     %Jido.AI.Model{
+     %Model{
        id: opts[:model] || "openrouter_default",
        name: opts[:model_name] || "OpenRouter Model",
        provider: :openrouter
@@ -176,7 +178,7 @@ defmodule Jido.AI.Provider.OpenRouter do
       {:error, "model is required for OpenRouter models"}
     else
       # Create the model struct with all necessary fields
-      model_struct = %Jido.AI.Model{
+      model_struct = %Model{
         id: Keyword.get(opts, :id, "openrouter_#{model}"),
         name: Keyword.get(opts, :name, "OpenRouter #{model}"),
         provider: :openrouter,
@@ -186,7 +188,7 @@ defmodule Jido.AI.Provider.OpenRouter do
         temperature: Keyword.get(opts, :temperature, 0.7),
         max_tokens: Keyword.get(opts, :max_tokens, 1024),
         max_retries: Keyword.get(opts, :max_retries, 0),
-        architecture: %Jido.AI.Model.Architecture{
+        architecture: %Model.Architecture{
           modality: Keyword.get(opts, :modality, "text"),
           tokenizer: Keyword.get(opts, :tokenizer, "unknown"),
           instruct_type: Keyword.get(opts, :instruct_type)
@@ -194,7 +196,7 @@ defmodule Jido.AI.Provider.OpenRouter do
         description: Keyword.get(opts, :description, "OpenRouter model"),
         created: System.system_time(:second),
         endpoints: [],
-        reqllm_id: Jido.AI.Model.compute_reqllm_id(:openrouter, model)
+        reqllm_id: Model.compute_reqllm_id(:openrouter, model)
       }
 
       {:ok, model_struct}

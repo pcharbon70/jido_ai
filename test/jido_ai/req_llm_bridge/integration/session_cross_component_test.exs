@@ -6,8 +6,8 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
 
   alias Jido.AI.Keyring
   alias Jido.AI.ReqLlmBridge.Authentication
-  alias Jido.AI.ReqLlmBridge.SessionAuthentication
   alias Jido.AI.ReqLlmBridge.ProviderAuthRequirements
+  alias Jido.AI.ReqLlmBridge.SessionAuthentication
 
   setup :set_mimic_global
 

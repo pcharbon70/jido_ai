@@ -135,20 +135,18 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
   def validate_and_convert_key(key) when is_atom(key), do: {:ok, key}
 
   def validate_and_convert_key(key) when is_binary(key) do
-    try do
-      case JidoKeys.to_llm_atom(key) do
-        atom when is_atom(atom) -> {:ok, atom}
-        # If string returned, try existing atom
-        ^key -> {:ok, String.to_existing_atom(key)}
-      end
-    rescue
-      ArgumentError ->
-        # Key doesn't exist as atom, return as string for compatibility
-        {:ok, key}
-
-      error ->
-        {:error, error}
+    case JidoKeys.to_llm_atom(key) do
+      atom when is_atom(atom) -> {:ok, atom}
+      # If string returned, try existing atom
+      ^key -> {:ok, String.to_existing_atom(key)}
     end
+  rescue
+    ArgumentError ->
+      # Key doesn't exist as atom, return as string for compatibility
+      {:ok, key}
+
+    error ->
+      {:error, error}
   end
 
   def validate_and_convert_key(_), do: {:error, :invalid_key_type}
@@ -199,19 +197,17 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
   @spec ensure_session_isolation(GenServer.server(), atom(), term(), pid()) ::
           :ok | {:error, term()}
   def ensure_session_isolation(server, key, value, pid) do
-    try do
-      registry = GenServer.call(server, :get_registry)
-      filtered_value = filter_sensitive_value(value, key)
+    registry = GenServer.call(server, :get_registry)
+    filtered_value = filter_sensitive_value(value, key)
 
-      :ets.insert(registry, {{pid, key}, filtered_value})
-      :ok
-    rescue
-      error ->
-        {:error, error}
-    catch
-      :exit, reason ->
-        {:error, reason}
-    end
+    :ets.insert(registry, {{pid, key}, filtered_value})
+    :ok
+  rescue
+    error ->
+      {:error, error}
+  catch
+    :exit, reason ->
+      {:error, reason}
   end
 
   @doc """
@@ -283,21 +279,19 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
 
   @spec get_jido_keys_value(atom() | String.t()) :: term() | nil
   defp get_jido_keys_value(key) do
-    try do
-      case JidoKeys.get(key, nil) do
-        nil -> nil
-        value -> value
-      end
-    rescue
-      error ->
-        Logger.debug("[Keyring-JidoKeys] Error getting value for #{key}: #{inspect(error)}")
-        nil
+    case JidoKeys.get(key, nil) do
+      nil -> nil
+      value -> value
     end
+  rescue
+    error ->
+      Logger.debug("[Keyring-JidoKeys] Error getting value for #{key}: #{inspect(error)}")
+      nil
   end
 
   @spec filter_sensitive_value(term(), atom() | String.t()) :: term()
   defp filter_sensitive_value(value, key) when is_binary(value) do
-    if is_sensitive_key?(key) do
+    if sensitive_key?(key) do
       filter_sensitive_data(value)
     else
       value
@@ -306,12 +300,12 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
 
   defp filter_sensitive_value(value, _key), do: value
 
-  @spec is_sensitive_key?(atom() | String.t()) :: boolean()
-  defp is_sensitive_key?(key) when is_atom(key) do
-    is_sensitive_key?(Atom.to_string(key))
+  @spec sensitive_key?(atom() | String.t()) :: boolean()
+  defp sensitive_key?(key) when is_atom(key) do
+    sensitive_key?(Atom.to_string(key))
   end
 
-  defp is_sensitive_key?(key) when is_binary(key) do
+  defp sensitive_key?(key) when is_binary(key) do
     key_lower = String.downcase(key)
 
     sensitive_patterns = [
@@ -332,25 +326,23 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
     Enum.any?(sensitive_patterns, &String.contains?(key_lower, &1))
   end
 
-  defp is_sensitive_key?(_), do: false
+  defp sensitive_key?(_), do: false
 
   @spec get_session_value_direct(GenServer.server(), atom(), pid()) :: term() | nil
   defp get_session_value_direct(server, key, pid) do
-    try do
-      registry = GenServer.call(server, :get_registry)
+    registry = GenServer.call(server, :get_registry)
 
-      case :ets.lookup(registry, {pid, key}) do
-        [{{^pid, ^key}, value}] -> value
-        [] -> nil
-      end
-    rescue
-      error ->
-        Logger.debug(
-          "[Keyring-JidoKeys] Error getting session value for #{key}: #{inspect(error)}"
-        )
-
-        nil
+    case :ets.lookup(registry, {pid, key}) do
+      [{{^pid, ^key}, value}] -> value
+      [] -> nil
     end
+  rescue
+    error ->
+      Logger.debug(
+        "[Keyring-JidoKeys] Error getting session value for #{key}: #{inspect(error)}"
+      )
+
+      nil
   end
 
   @spec apply_basic_filtering(String.t()) :: String.t()

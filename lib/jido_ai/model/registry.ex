@@ -74,38 +74,36 @@ defmodule Jido.AI.Model.Registry do
   """
   @spec list_models(provider_id() | nil) :: {:ok, [Jido.AI.Model.t()]} | {:error, term()}
   def list_models(provider_id \\ nil) do
-    try do
-      # Primary path: ReqLLM registry
-      case get_models_from_registry(provider_id) do
-        {:ok, [_ | _] = registry_models} ->
-          # Enhance registry models with legacy adapter data if available
-          enhanced_models = enhance_with_legacy_data(registry_models, provider_id)
-          {:ok, enhanced_models}
+    # Primary path: ReqLLM registry
+    case get_models_from_registry(provider_id) do
+      {:ok, [_ | _] = registry_models} ->
+        # Enhance registry models with legacy adapter data if available
+        enhanced_models = enhance_with_legacy_data(registry_models, provider_id)
+        {:ok, enhanced_models}
 
-        {:ok, []} when not is_nil(provider_id) ->
-          # Fallback to legacy adapter for specific provider
+      {:ok, []} when not is_nil(provider_id) ->
+        # Fallback to legacy adapter for specific provider
+        get_models_from_legacy_adapter(provider_id)
+
+      {:ok, []} ->
+        # Fallback to all legacy adapters
+        get_models_from_all_legacy_adapters()
+
+      {:error, reason} ->
+        Logger.warning(
+          "ReqLLM registry unavailable: #{inspect(reason)}, falling back to legacy adapters"
+        )
+
+        if provider_id do
           get_models_from_legacy_adapter(provider_id)
-
-        {:ok, []} ->
-          # Fallback to all legacy adapters
+        else
           get_models_from_all_legacy_adapters()
-
-        {:error, reason} ->
-          Logger.warning(
-            "ReqLLM registry unavailable: #{inspect(reason)}, falling back to legacy adapters"
-          )
-
-          if provider_id do
-            get_models_from_legacy_adapter(provider_id)
-          else
-            get_models_from_all_legacy_adapters()
-          end
-      end
-    rescue
-      error ->
-        Logger.error("Model registry error: #{inspect(error)}")
-        {:error, "Failed to discover models: #{inspect(error)}"}
+        end
     end
+  rescue
+    error ->
+      Logger.error("Model registry error: #{inspect(error)}")
+      {:error, "Failed to discover models: #{inspect(error)}"}
   end
 
   @doc """
@@ -131,31 +129,29 @@ defmodule Jido.AI.Model.Registry do
   """
   @spec get_model(provider_id(), model_name()) :: {:ok, Jido.AI.Model.t()} | {:error, term()}
   def get_model(provider_id, model_name) when is_atom(provider_id) and is_binary(model_name) do
-    try do
-      # Primary path: ReqLLM registry
-      case Adapter.get_model(provider_id, model_name) do
-        {:ok, registry_model} ->
-          # Convert and enhance with legacy data
-          jido_model = MetadataBridge.to_jido_model(registry_model)
-          enhanced_model = enhance_single_model_with_legacy_data(jido_model, provider_id)
-          {:ok, enhanced_model}
+    # Primary path: ReqLLM registry
+    case Adapter.get_model(provider_id, model_name) do
+      {:ok, registry_model} ->
+        # Convert and enhance with legacy data
+        jido_model = MetadataBridge.to_jido_model(registry_model)
+        enhanced_model = enhance_single_model_with_legacy_data(jido_model, provider_id)
+        {:ok, enhanced_model}
 
-        {:error, :not_found} ->
-          # Fallback to legacy adapter
-          get_model_from_legacy_adapter(provider_id, model_name)
+      {:error, :not_found} ->
+        # Fallback to legacy adapter
+        get_model_from_legacy_adapter(provider_id, model_name)
 
-        {:error, reason} ->
-          Logger.warning(
-            "ReqLLM registry error for #{provider_id}:#{model_name}: #{inspect(reason)}"
-          )
+      {:error, reason} ->
+        Logger.warning(
+          "ReqLLM registry error for #{provider_id}:#{model_name}: #{inspect(reason)}"
+        )
 
-          get_model_from_legacy_adapter(provider_id, model_name)
-      end
-    rescue
-      error ->
-        Logger.error("Model lookup error for #{provider_id}:#{model_name}: #{inspect(error)}")
-        {:error, "Failed to get model: #{inspect(error)}"}
+        get_model_from_legacy_adapter(provider_id, model_name)
     end
+  rescue
+    error ->
+      Logger.error("Model lookup error for #{provider_id}:#{model_name}: #{inspect(error)}")
+      {:error, "Failed to get model: #{inspect(error)}"}
   end
 
   @doc """
@@ -196,21 +192,19 @@ defmodule Jido.AI.Model.Registry do
   """
   @spec discover_models(model_filter()) :: {:ok, [Jido.AI.Model.t()]} | {:error, term()}
   def discover_models(filters \\ []) do
-    try do
-      # Get all models from registry
-      case list_models() do
-        {:ok, models} ->
-          filtered_models = apply_filters(models, filters)
-          {:ok, filtered_models}
+    # Get all models from registry
+    case list_models() do
+      {:ok, models} ->
+        filtered_models = apply_filters(models, filters)
+        {:ok, filtered_models}
 
-        {:error, reason} ->
-          {:error, reason}
-      end
-    rescue
-      error ->
-        Logger.error("Model discovery error: #{inspect(error)}")
-        {:error, "Failed to discover models: #{inspect(error)}"}
+      {:error, reason} ->
+        {:error, reason}
     end
+  rescue
+    error ->
+      Logger.error("Model discovery error: #{inspect(error)}")
+      {:error, "Failed to discover models: #{inspect(error)}"}
   end
 
   @doc """
@@ -246,20 +240,18 @@ defmodule Jido.AI.Model.Registry do
   """
   @spec get_registry_stats() :: {:ok, map()} | {:error, term()}
   def get_registry_stats do
-    try do
-      case list_models() do
-        {:ok, models} ->
-          stats = calculate_registry_statistics(models)
-          {:ok, stats}
+    case list_models() do
+      {:ok, models} ->
+        stats = calculate_registry_statistics(models)
+        {:ok, stats}
 
-        {:error, reason} ->
-          {:error, reason}
-      end
-    rescue
-      error ->
-        Logger.error("Registry stats error: #{inspect(error)}")
-        {:error, "Failed to compute registry statistics: #{inspect(error)}"}
+      {:error, reason} ->
+        {:error, reason}
     end
+  rescue
+    error ->
+      Logger.error("Registry stats error: #{inspect(error)}")
+      {:error, "Failed to compute registry statistics: #{inspect(error)}"}
   end
 
   # Private helper functions

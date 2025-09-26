@@ -22,6 +22,8 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
   @moduletag :ai21
   @moduletag :specialized_providers
 
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
@@ -278,7 +280,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
         Enum.each(jurassic_models, fn model_name ->
           model_opts = {ai21_provider, [model: model_name]}
 
-          case Jido.AI.Model.from(model_opts) do
+          case Model.from(model_opts) do
             {:ok, model} ->
               assert model.provider == ai21_provider
               assert model.reqllm_id == "#{ai21_provider}:#{model_name}"
@@ -716,7 +718,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
         # Test invalid AI21 configurations
         invalid_opts = {ai21_provider, []}
 
-        case Jido.AI.Model.from(invalid_opts) do
+        case Model.from(invalid_opts) do
           {:error, reason} ->
             assert is_binary(reason), "Should return a descriptive error message"
 
@@ -728,7 +730,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
         # Test with unsupported model name
         unsupported_opts = {ai21_provider, [model: "nonexistent-jurassic-model"]}
 
-        case Jido.AI.Model.from(unsupported_opts) do
+        case Model.from(unsupported_opts) do
           {:error, reason} ->
             assert is_binary(reason)
 
@@ -766,7 +768,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
     end
 
     test "AI21 compatibility with keyring system", %{ai21_provider: ai21_provider} do
-      keyring_compatible = function_exported?(Jido.AI.Keyring, :get, 2)
+      keyring_compatible = function_exported?(Keyring, :get, 2)
       assert keyring_compatible, "Keyring system should be available for authentication"
 
       if ai21_provider do
@@ -774,12 +776,12 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
         key_names = [:ai21_api_key, :ai21labs_api_key, :ai21_labs_api_key]
 
         Enum.each(key_names, fn key_name ->
-          result = Jido.AI.Keyring.get(Jido.AI.Keyring, key_name, "default")
+          result = Keyring.get(Keyring, key_name, "default")
           assert is_binary(result), "Keyring should return string value for #{key_name}"
         end)
       else
         # Test generic keyring functionality
-        result = Jido.AI.Keyring.get(Jido.AI.Keyring, :ai21_api_key, "default")
+        result = Keyring.get(Keyring, :ai21_api_key, "default")
         assert is_binary(result), "Keyring should return string value"
       end
     end

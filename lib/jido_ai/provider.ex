@@ -1,15 +1,23 @@
 defmodule Jido.AI.Provider do
   use TypedStruct
   require Logger
+  alias Jido.AI.Model
+  alias Jido.AI.Model.Registry.Adapter
+  alias Jido.AI.Provider.Anthropic
+  alias Jido.AI.Provider.Cloudflare
+  alias Jido.AI.Provider.Google
   alias Jido.AI.Provider.Helpers
+  alias Jido.AI.Provider.OpenAI
+  alias Jido.AI.Provider.OpenRouter
+  alias Jido.AI.ReqLlmBridge.ProviderMapping
 
   # Legacy hardcoded providers for fallback
   @legacy_providers [
-    {:openrouter, Jido.AI.Provider.OpenRouter},
-    {:anthropic, Jido.AI.Provider.Anthropic},
-    {:openai, Jido.AI.Provider.OpenAI},
-    {:cloudflare, Jido.AI.Provider.Cloudflare},
-    {:google, Jido.AI.Provider.Google}
+    {:openrouter, OpenRouter},
+    {:anthropic, Anthropic},
+    {:openai, OpenAI},
+    {:cloudflare, Cloudflare},
+    {:google, Google}
   ]
 
   @type provider_id :: atom()
@@ -118,31 +126,29 @@ defmodule Jido.AI.Provider do
 
   defp build_provider_struct(provider_id, :reqllm_backed) do
     # Build provider struct from ReqLLM metadata
-    try do
-      metadata = get_reqllm_provider_metadata(provider_id)
+    metadata = get_reqllm_provider_metadata(provider_id)
 
+    %__MODULE__{
+      id: provider_id,
+      name: metadata[:name] || humanize_provider_name(provider_id),
+      description: metadata[:description] || "Provider backed by ReqLLM",
+      type: :direct,
+      api_base_url: metadata[:base_url],
+      requires_api_key: metadata[:requires_api_key] != false,
+      # Models will be loaded dynamically
+      models: []
+    }
+  rescue
+    _ ->
+      # Fallback for providers without metadata
       %__MODULE__{
         id: provider_id,
-        name: metadata[:name] || humanize_provider_name(provider_id),
-        description: metadata[:description] || "Provider backed by ReqLLM",
+        name: humanize_provider_name(provider_id),
+        description: "Provider available through ReqLLM",
         type: :direct,
-        api_base_url: metadata[:base_url],
-        requires_api_key: metadata[:requires_api_key] != false,
-        # Models will be loaded dynamically
+        requires_api_key: true,
         models: []
       }
-    rescue
-      _ ->
-        # Fallback for providers without metadata
-        %__MODULE__{
-          id: provider_id,
-          name: humanize_provider_name(provider_id),
-          description: "Provider available through ReqLLM",
-          type: :direct,
-          requires_api_key: true,
-          models: []
-        }
-    end
   end
 
   defp build_provider_struct(_provider_id, module)
@@ -160,7 +166,7 @@ defmodule Jido.AI.Provider do
   defp get_reqllm_provider_metadata(provider_id) do
     # Use the provider mapping module to get metadata
     # Note: Currently always returns {:ok, metadata}
-    {:ok, metadata} = Jido.AI.ReqLlmBridge.ProviderMapping.get_jido_provider_metadata(provider_id)
+    {:ok, metadata} = ProviderMapping.get_jido_provider_metadata(provider_id)
     metadata
   end
 
@@ -311,11 +317,11 @@ defmodule Jido.AI.Provider do
     end
   end
 
-  defp module_for(:anthropic), do: Jido.AI.Provider.Anthropic
-  defp module_for(:cloudflare), do: Jido.AI.Provider.Cloudflare
-  defp module_for(:openai), do: Jido.AI.Provider.OpenAI
-  defp module_for(:openrouter), do: Jido.AI.Provider.OpenRouter
-  defp module_for(:google), do: Jido.AI.Provider.Google
+  defp module_for(:anthropic), do: Anthropic
+  defp module_for(:cloudflare), do: Cloudflare
+  defp module_for(:openai), do: OpenAI
+  defp module_for(:openrouter), do: OpenRouter
+  defp module_for(:google), do: Google
 
   @doc """
   Lists all cached models across all providers.
@@ -481,7 +487,7 @@ defmodule Jido.AI.Provider do
     enhance_with_cache = Keyword.get(opts, :enhance_with_cache, true)
 
     try do
-      case Jido.AI.Model.Registry.get_model(provider_id, model_name) do
+      case Model.Registry.get_model(provider_id, model_name) do
         {:ok, registry_model} ->
           enhanced_model =
             if enhance_with_cache do
@@ -546,25 +552,23 @@ defmodule Jido.AI.Provider do
   """
   @spec discover_models_by_criteria(keyword()) :: {:ok, [map()]} | {:error, term()}
   def discover_models_by_criteria(filters \\ []) do
-    try do
-      case Jido.AI.Model.Registry.discover_models(filters) do
-        {:ok, registry_models} ->
-          # Convert to legacy format for backward compatibility
-          legacy_format_models = Enum.map(registry_models, &convert_to_legacy_format/1)
-          {:ok, legacy_format_models}
+    case Model.Registry.discover_models(filters) do
+      {:ok, registry_models} ->
+        # Convert to legacy format for backward compatibility
+        legacy_format_models = Enum.map(registry_models, &convert_to_legacy_format/1)
+        {:ok, legacy_format_models}
 
-        {:error, reason} ->
-          Logger.warning("Registry model discovery failed: #{inspect(reason)}")
-          # Fallback to cached models with basic filtering
-          cached_models = list_all_cached_models()
-          filtered_models = apply_basic_filters(cached_models, filters)
-          {:ok, filtered_models}
-      end
-    rescue
-      error ->
-        Logger.error("Model discovery error: #{inspect(error)}")
-        {:error, "Model discovery failed: #{inspect(error)}"}
+      {:error, reason} ->
+        Logger.warning("Registry model discovery failed: #{inspect(reason)}")
+        # Fallback to cached models with basic filtering
+        cached_models = list_all_cached_models()
+        filtered_models = apply_basic_filters(cached_models, filters)
+        {:ok, filtered_models}
     end
+  rescue
+    error ->
+      Logger.error("Model discovery error: #{inspect(error)}")
+      {:error, "Model discovery failed: #{inspect(error)}"}
   end
 
   @doc """
@@ -590,47 +594,45 @@ defmodule Jido.AI.Provider do
   """
   @spec get_model_registry_stats() :: {:ok, map()} | {:error, term()}
   def get_model_registry_stats do
-    try do
-      case Jido.AI.Model.Registry.get_registry_stats() do
-        {:ok, registry_stats} ->
-          # Enhance with cached model statistics
-          cached_models = list_all_cached_models()
+    case Model.Registry.get_registry_stats() do
+      {:ok, registry_stats} ->
+        # Enhance with cached model statistics
+        cached_models = list_all_cached_models()
 
-          enhanced_stats =
-            Map.merge(registry_stats, %{
-              cached_models: length(cached_models),
-              cache_providers: get_cached_provider_counts(cached_models),
-              registry_health: get_registry_health()
-            })
-
-          {:ok, enhanced_stats}
-
-        {:error, reason} ->
-          # Fallback to cached model statistics only
-          cached_models = list_all_cached_models()
-
-          fallback_stats = %{
-            total_models: length(cached_models),
+        enhanced_stats =
+          Map.merge(registry_stats, %{
             cached_models: length(cached_models),
-            registry_models: 0,
-            provider_coverage: get_cached_provider_counts(cached_models),
-            registry_available: false,
-            error: reason
-          }
+            cache_providers: get_cached_provider_counts(cached_models),
+            registry_health: get_registry_health()
+          })
 
-          {:ok, fallback_stats}
-      end
-    rescue
-      error ->
-        Logger.error("Registry statistics error: #{inspect(error)}")
-        {:error, "Failed to get registry statistics: #{inspect(error)}"}
+        {:ok, enhanced_stats}
+
+      {:error, reason} ->
+        # Fallback to cached model statistics only
+        cached_models = list_all_cached_models()
+
+        fallback_stats = %{
+          total_models: length(cached_models),
+          cached_models: length(cached_models),
+          registry_models: 0,
+          provider_coverage: get_cached_provider_counts(cached_models),
+          registry_available: false,
+          error: reason
+        }
+
+        {:ok, fallback_stats}
     end
+  rescue
+    error ->
+      Logger.error("Registry statistics error: #{inspect(error)}")
+      {:error, "Failed to get registry statistics: #{inspect(error)}"}
   end
 
   # Private helper functions for registry integration
 
   defp get_models_from_registry_only(provider_id, _opts) do
-    case Jido.AI.Model.Registry.list_models(provider_id) do
+    case Model.Registry.list_models(provider_id) do
       {:ok, registry_models} ->
         legacy_models = Enum.map(registry_models, &convert_to_legacy_format/1)
         {:ok, legacy_models}
@@ -725,8 +727,8 @@ defmodule Jido.AI.Provider do
     end)
   end
 
-  defp convert_to_legacy_format(%Jido.AI.Model{} = model) do
-    # Convert Jido.AI.Model struct to legacy map format for backward compatibility
+  defp convert_to_legacy_format(%Model{} = model) do
+    # Convert Model struct to legacy map format for backward compatibility
     Map.from_struct(model)
   end
 
@@ -771,7 +773,7 @@ defmodule Jido.AI.Provider do
   end
 
   defp get_registry_health do
-    case Jido.AI.Model.Registry.Adapter.get_health_info() do
+    case Adapter.get_health_info() do
       {:ok, health} -> Map.put(health, :status, :healthy)
       {:error, reason} -> %{status: :unhealthy, error: reason}
     end

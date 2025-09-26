@@ -20,6 +20,8 @@ defmodule Jido.AI.ProviderValidation.Functional.CohereValidationTest do
   @moduletag :cohere
   @moduletag :specialized_providers
 
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
@@ -149,7 +151,7 @@ defmodule Jido.AI.ProviderValidation.Functional.CohereValidationTest do
       Enum.each(rag_models, fn model_name ->
         model_opts = {:cohere, [model: model_name]}
 
-        case Jido.AI.Model.from(model_opts) do
+        case Model.from(model_opts) do
           {:ok, model} ->
             assert model.provider == :cohere
             assert model.reqllm_id == "cohere:#{model_name}"
@@ -412,7 +414,7 @@ defmodule Jido.AI.ProviderValidation.Functional.CohereValidationTest do
       # Test invalid Cohere configurations
       invalid_opts = {:cohere, []}
 
-      case Jido.AI.Model.from(invalid_opts) do
+      case Model.from(invalid_opts) do
         {:error, reason} ->
           assert is_binary(reason), "Should return a descriptive error message"
 
@@ -437,10 +439,10 @@ defmodule Jido.AI.ProviderValidation.Functional.CohereValidationTest do
     end
 
     test "Cohere compatibility with keyring system" do
-      keyring_compatible = function_exported?(Jido.AI.Keyring, :get, 2)
+      keyring_compatible = function_exported?(Keyring, :get, 2)
       assert keyring_compatible, "Keyring system should be available for authentication"
 
-      result = Jido.AI.Keyring.get(Jido.AI.Keyring, :cohere_api_key, "default")
+      result = Keyring.get(Keyring, :cohere_api_key, "default")
       assert is_binary(result), "Keyring should return string value"
     end
 

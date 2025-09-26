@@ -18,6 +18,8 @@ defmodule Jido.AI.ProviderValidation.Functional.GroqValidationTest do
   @moduletag :functional_validation
   @moduletag :groq
 
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
@@ -147,7 +149,7 @@ defmodule Jido.AI.ProviderValidation.Functional.GroqValidationTest do
       # Test creating a Jido.AI.Model with Groq provider
       model_opts = {:groq, [model: "llama2-70b-4096"]}
 
-      case Jido.AI.Model.from(model_opts) do
+      case Model.from(model_opts) do
         {:ok, model} ->
           assert model.provider == :groq
           assert model.reqllm_id == "groq:llama2-70b-4096"
@@ -188,7 +190,7 @@ defmodule Jido.AI.ProviderValidation.Functional.GroqValidationTest do
       # Missing required model parameter
       invalid_opts = {:groq, []}
 
-      case Jido.AI.Model.from(invalid_opts) do
+      case Model.from(invalid_opts) do
         {:error, reason} ->
           assert is_binary(reason), "Should return a descriptive error message"
 
@@ -216,11 +218,11 @@ defmodule Jido.AI.ProviderValidation.Functional.GroqValidationTest do
 
     test "Groq compatibility with keyring system" do
       # Test that Groq works with the keyring authentication system
-      keyring_compatible = function_exported?(Jido.AI.Keyring, :get, 2)
+      keyring_compatible = function_exported?(Keyring, :get, 2)
       assert keyring_compatible, "Keyring system should be available for authentication"
 
       # Test getting a hypothetical Groq API key (should not crash)
-      result = Jido.AI.Keyring.get(Jido.AI.Keyring, :groq_api_key, "default")
+      result = Keyring.get(Keyring, :groq_api_key, "default")
       assert is_binary(result), "Keyring should return string value"
     end
   end

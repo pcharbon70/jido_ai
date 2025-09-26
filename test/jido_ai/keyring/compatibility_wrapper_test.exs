@@ -4,8 +4,8 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
 
   @moduletag :capture_log
 
-  alias Jido.AI.Keyring.CompatibilityWrapper
   alias Jido.AI.Keyring
+  alias Jido.AI.Keyring.CompatibilityWrapper
 
   setup do
     # Start a unique Keyring for testing

@@ -65,31 +65,29 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   @spec convert_to_jido_format(map(), module()) :: conversion_result()
   def convert_to_jido_format(params, action_module)
       when is_map(params) and is_atom(action_module) do
-    try do
-      schema = get_action_schema(action_module)
-      schema_map = build_schema_map(schema)
+    schema = get_action_schema(action_module)
+    schema_map = build_schema_map(schema)
 
-      params
-      |> Enum.reduce_while({:ok, %{}}, fn {key, value}, {:ok, acc} ->
-        case convert_parameter(key, value, schema_map) do
-          {:ok, converted_key, converted_value} ->
-            {:cont, {:ok, Map.put(acc, converted_key, converted_value)}}
+    params
+    |> Enum.reduce_while({:ok, %{}}, fn {key, value}, {:ok, acc} ->
+      case convert_parameter(key, value, schema_map) do
+        {:ok, converted_key, converted_value} ->
+          {:cont, {:ok, Map.put(acc, converted_key, converted_value)}}
 
-          {:error, reason} ->
-            {:halt, {:error, {:parameter_conversion_error, key, reason}}}
-        end
-      end)
-      |> case do
-        {:ok, converted_params} ->
-          apply_default_values(converted_params, schema_map)
-
-        error ->
-          error
+        {:error, reason} ->
+          {:halt, {:error, {:parameter_conversion_error, key, reason}}}
       end
-    rescue
+    end)
+    |> case do
+      {:ok, converted_params} ->
+        apply_default_values(converted_params, schema_map)
+
       error ->
-        {:error, {:conversion_exception, Exception.message(error)}}
+        error
     end
+  rescue
+    error ->
+      {:error, {:conversion_exception, Exception.message(error)}}
   end
 
   def convert_to_jido_format(params, _action_module) do
@@ -275,15 +273,13 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
 
   def coerce_type(value, :keyword_list) when is_map(value) do
     # Convert map to keyword list
-    try do
-      keyword_list =
-        value
-        |> Enum.map(fn {k, v} -> {String.to_existing_atom(to_string(k)), v} end)
+    keyword_list =
+      value
+      |> Enum.map(fn {k, v} -> {String.to_existing_atom(to_string(k)), v} end)
 
-      {:ok, keyword_list}
-    rescue
-      ArgumentError -> {:error, "Cannot convert map with invalid atom keys to keyword list"}
-    end
+    {:ok, keyword_list}
+  rescue
+    ArgumentError -> {:error, "Cannot convert map with invalid atom keys to keyword list"}
   end
 
   def coerce_type(value, :keyword_list),
@@ -309,11 +305,9 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   # Private helper functions
 
   defp get_action_schema(action_module) do
-    try do
-      action_module.schema()
-    rescue
-      _ -> []
-    end
+    action_module.schema()
+  rescue
+    _ -> []
   end
 
   defp build_schema_map(schema) when is_list(schema) do
@@ -348,11 +342,9 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   end
 
   defp try_string_to_existing_atom(string) do
-    try do
-      String.to_existing_atom(string)
-    rescue
-      ArgumentError -> nil
-    end
+    String.to_existing_atom(string)
+  rescue
+    ArgumentError -> nil
   end
 
   @doc """
@@ -394,38 +386,34 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   end
 
   defp sanitize_for_json(data) when is_map(data) do
-    try do
-      sanitized =
-        data
-        |> Enum.map(fn {key, value} ->
-          case sanitize_value_for_json(value) do
-            {:ok, sanitized_value} -> {key, sanitized_value}
-            {:error, _} -> {key, inspect(value)}
-          end
-        end)
-        |> Map.new()
-        |> Map.put(:_sanitized, true)
+    sanitized =
+      data
+      |> Enum.map(fn {key, value} ->
+        case sanitize_value_for_json(value) do
+          {:ok, sanitized_value} -> {key, sanitized_value}
+          {:error, _} -> {key, inspect(value)}
+        end
+      end)
+      |> Map.new()
+      |> Map.put(:_sanitized, true)
 
-      {:ok, sanitized}
-    rescue
-      _ -> {:error, :sanitization_failed}
-    end
+    {:ok, sanitized}
+  rescue
+    _ -> {:error, :sanitization_failed}
   end
 
   defp sanitize_for_json(data) when is_list(data) do
-    try do
-      sanitized =
-        Enum.map(data, fn item ->
-          case sanitize_value_for_json(item) do
-            {:ok, sanitized_item} -> sanitized_item
-            {:error, _} -> inspect(item)
-          end
-        end)
+    sanitized =
+      Enum.map(data, fn item ->
+        case sanitize_value_for_json(item) do
+          {:ok, sanitized_item} -> sanitized_item
+          {:error, _} -> inspect(item)
+        end
+      end)
 
-      {:ok, sanitized}
-    rescue
-      _ -> {:error, :sanitization_failed}
-    end
+    {:ok, sanitized}
+  rescue
+    _ -> {:error, :sanitization_failed}
   end
 
   defp sanitize_for_json(data) do
@@ -438,11 +426,9 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverter do
   defp sanitize_value_for_json(value) when is_port(value), do: {:ok, inspect(value)}
 
   defp sanitize_value_for_json(%{__struct__: _} = struct) do
-    try do
-      {:ok, Map.from_struct(struct)}
-    rescue
-      _ -> {:ok, inspect(struct)}
-    end
+    {:ok, Map.from_struct(struct)}
+  rescue
+    _ -> {:ok, inspect(struct)}
   end
 
   defp sanitize_value_for_json(value) when is_map(value), do: sanitize_for_json(value)

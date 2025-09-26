@@ -25,6 +25,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
   """
 
   require Logger
+  alias Jido.AI.Keyring
   alias Jido.AI.Keyring.SecurityEnhancements
 
   @doc """
@@ -166,17 +167,17 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
         case operation do
           :get ->
             for _i <- 1..iterations do
-              Jido.AI.Keyring.get(:test_perf_key, "default")
+              Keyring.get(:test_perf_key, "default")
             end
 
           :set_session ->
             for i <- 1..iterations do
-              Jido.AI.Keyring.set_session_value(:"test_perf_key_#{i}", "test_value")
+              Keyring.set_session_value(:"test_perf_key_#{i}", "test_value")
             end
 
           :get_env ->
             for _i <- 1..iterations do
-              Jido.AI.Keyring.get_env_value(:test_perf_key, "default")
+              Keyring.get_env_value(:test_perf_key, "default")
             end
 
           _ ->
@@ -240,7 +241,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
     * `{:error, failed_tests}` if any compatibility tests fail
   """
   @spec run_compatibility_tests() :: :ok | {:error, list()}
-  def run_compatibility_tests() do
+  def run_compatibility_tests do
     tests = [
       &test_get_compatibility/0,
       &test_session_compatibility/0,
@@ -329,121 +330,109 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
   # Compatibility test functions
 
   @spec test_get_compatibility() :: :ok | {:error, String.t()}
-  defp test_get_compatibility() do
-    try do
-      # Test basic get operation
-      result = Jido.AI.Keyring.get(:test_compat_key, "default")
+  defp test_get_compatibility do
+    # Test basic get operation
+    result = Keyring.get(:test_compat_key, "default")
 
-      # Should return string or nil, not complex structures
-      case result do
-        value when is_binary(value) or is_nil(value) -> :ok
-        _ -> {:error, "get/2 returned unexpected type: #{inspect(result)}"}
-      end
-    rescue
-      error -> {:error, "get/2 compatibility failed: #{inspect(error)}"}
+    # Should return string or nil, not complex structures
+    case result do
+      value when is_binary(value) or is_nil(value) -> :ok
+      _ -> {:error, "get/2 returned unexpected type: #{inspect(result)}"}
     end
+  rescue
+    error -> {:error, "get/2 compatibility failed: #{inspect(error)}"}
   end
 
   @spec test_session_compatibility() :: :ok | {:error, String.t()}
-  defp test_session_compatibility() do
-    try do
-      key = :test_session_compat
-      value = "test_value"
+  defp test_session_compatibility do
+    key = :test_session_compat
+    value = "test_value"
 
-      # Test session operations
-      :ok = Jido.AI.Keyring.set_session_value(key, value)
-      ^value = Jido.AI.Keyring.get_session_value(key)
-      :ok = Jido.AI.Keyring.clear_session_value(key)
-      nil = Jido.AI.Keyring.get_session_value(key)
+    # Test session operations
+    :ok = Keyring.set_session_value(key, value)
+    ^value = Keyring.get_session_value(key)
+    :ok = Keyring.clear_session_value(key)
+    nil = Keyring.get_session_value(key)
 
-      :ok
-    rescue
-      error -> {:error, "session compatibility failed: #{inspect(error)}"}
-    end
+    :ok
+  rescue
+    error -> {:error, "session compatibility failed: #{inspect(error)}"}
   end
 
   @spec test_env_value_compatibility() :: :ok | {:error, String.t()}
-  defp test_env_value_compatibility() do
-    try do
-      # Test environment value retrieval
-      result = Jido.AI.Keyring.get_env_value(:test_env_compat, "default")
+  defp test_env_value_compatibility do
+    # Test environment value retrieval
+    result = Keyring.get_env_value(:test_env_compat, "default")
 
-      # Should return expected format
-      case result do
-        value when is_binary(value) -> :ok
-        _ -> {:error, "get_env_value/2 returned unexpected type: #{inspect(result)}"}
-      end
-    rescue
-      error -> {:error, "env_value compatibility failed: #{inspect(error)}"}
+    # Should return expected format
+    case result do
+      value when is_binary(value) -> :ok
+      _ -> {:error, "get_env_value/2 returned unexpected type: #{inspect(result)}"}
     end
+  rescue
+    error -> {:error, "env_value compatibility failed: #{inspect(error)}"}
   end
 
   @spec test_list_compatibility() :: :ok | {:error, String.t()}
-  defp test_list_compatibility() do
-    try do
-      # Test list operation
-      result = Jido.AI.Keyring.list()
+  defp test_list_compatibility do
+    # Test list operation
+    result = Keyring.list()
 
-      # Should return list of atoms
-      case result do
-        keys when is_list(keys) ->
-          if Enum.all?(keys, &is_atom/1) do
-            :ok
-          else
-            {:error, "list/0 returned non-atom keys"}
-          end
+    # Should return list of atoms
+    case result do
+      keys when is_list(keys) ->
+        if Enum.all?(keys, &is_atom/1) do
+          :ok
+        else
+          {:error, "list/0 returned non-atom keys"}
+        end
 
-        _ ->
-          {:error, "list/0 returned non-list: #{inspect(result)}"}
-      end
-    rescue
-      error -> {:error, "list compatibility failed: #{inspect(error)}"}
+      _ ->
+        {:error, "list/0 returned non-list: #{inspect(result)}"}
     end
+  rescue
+    error -> {:error, "list compatibility failed: #{inspect(error)}"}
   end
 
   @spec test_error_handling_compatibility() :: :ok | {:error, String.t()}
-  defp test_error_handling_compatibility() do
-    try do
-      # Test error handling patterns
-      # These should not raise but return expected values
-      nil_result = Jido.AI.Keyring.get(:nonexistent_key)
-      default_result = Jido.AI.Keyring.get(:nonexistent_key, "default")
+  defp test_error_handling_compatibility do
+    # Test error handling patterns
+    # These should not raise but return expected values
+    nil_result = Keyring.get(:nonexistent_key)
+    default_result = Keyring.get(:nonexistent_key, "default")
 
-      case {nil_result, default_result} do
-        {nil, "default"} -> :ok
-        _ -> {:error, "error handling changed: #{inspect({nil_result, default_result})}"}
-      end
-    rescue
-      error -> {:error, "error handling compatibility failed: #{inspect(error)}"}
+    case {nil_result, default_result} do
+      {nil, "default"} -> :ok
+      _ -> {:error, "error handling changed: #{inspect({nil_result, default_result})}"}
     end
+  rescue
+    error -> {:error, "error handling compatibility failed: #{inspect(error)}"}
   end
 
   @spec test_process_isolation_compatibility() :: :ok | {:error, String.t()}
-  defp test_process_isolation_compatibility() do
-    try do
-      # Test that process isolation still works as expected
-      key = :test_isolation_compat
-      parent_value = "parent_value"
+  defp test_process_isolation_compatibility do
+    # Test that process isolation still works as expected
+    key = :test_isolation_compat
+    parent_value = "parent_value"
 
-      # Set value in current process
-      :ok = Jido.AI.Keyring.set_session_value(key, parent_value)
+    # Set value in current process
+    :ok = Keyring.set_session_value(key, parent_value)
 
-      # Test in child process
-      task =
-        Task.async(fn ->
-          child_value = Jido.AI.Keyring.get_session_value(key)
-          {child_value, self()}
-        end)
+    # Test in child process
+    task =
+      Task.async(fn ->
+        child_value = Keyring.get_session_value(key)
+        {child_value, self()}
+      end)
 
-      {child_result, _child_pid} = Task.await(task)
+    {child_result, _child_pid} = Task.await(task)
 
-      # Child should not see parent's value
-      case child_result do
-        nil -> :ok
-        _ -> {:error, "process isolation broken: child saw parent value"}
-      end
-    rescue
-      error -> {:error, "process isolation compatibility failed: #{inspect(error)}"}
+    # Child should not see parent's value
+    case child_result do
+      nil -> :ok
+      _ -> {:error, "process isolation broken: child saw parent value"}
     end
+  rescue
+    error -> {:error, "process isolation compatibility failed: #{inspect(error)}"}
   end
 end

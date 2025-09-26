@@ -2,6 +2,7 @@ defmodule Jido.AI.ProviderRegistryIntegrationTest do
   use ExUnit.Case, async: true
 
   alias Jido.AI.Provider
+  alias Jido.AI.ReqLlmBridge.ProviderMapping
 
   @moduletag :integration
 
@@ -119,7 +120,7 @@ defmodule Jido.AI.ProviderRegistryIntegrationTest do
 
       # Should be able to get metadata
       {:ok, metadata} =
-        Jido.AI.ReqLlmBridge.ProviderMapping.get_jido_provider_metadata(sample_provider_id)
+        ProviderMapping.get_jido_provider_metadata(sample_provider_id)
 
       assert metadata.id == sample_provider_id
       assert is_binary(metadata.name)

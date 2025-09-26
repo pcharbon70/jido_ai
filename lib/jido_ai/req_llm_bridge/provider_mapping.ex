@@ -263,13 +263,11 @@ defmodule Jido.AI.ReqLlmBridge.ProviderMapping do
   """
   @spec supported_providers() :: [atom()]
   def supported_providers do
-    try do
-      ValidProviders.list()
-    rescue
-      _ ->
-        # Fallback to mapped providers if registry unavailable
-        Map.values(@provider_mapping) |> Enum.uniq()
-    end
+    ValidProviders.list()
+  rescue
+    _ ->
+      # Fallback to mapped providers if registry unavailable
+      Map.values(@provider_mapping) |> Enum.uniq()
   end
 
   @doc """

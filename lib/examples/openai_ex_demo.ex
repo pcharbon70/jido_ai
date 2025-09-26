@@ -1,4 +1,5 @@
 defmodule OpenAIExDemo do
+  alias Jido.Actions.Arithmetic.Add
   alias Jido.AI.Model
   alias Jido.AI.Provider.OpenRouter
   alias OpenaiEx.Chat
@@ -302,7 +303,7 @@ defmodule OpenAIExDemo do
     #     }
     #   """)
 
-    tool = Jido.Actions.Arithmetic.Add.to_tool()
+    tool = Add.to_tool()
     # Tool: %{
     #   function: #Function<3.116548139/2 in Jido.Action.Tool.to_tool/1>,
     #   name: "add",

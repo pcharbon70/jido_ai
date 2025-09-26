@@ -191,7 +191,7 @@ defmodule Jido.AI.Provider.Anthropic do
         description: Keyword.get(opts, :description, "Anthropic Claude model"),
         created: System.system_time(:second),
         endpoints: [],
-        reqllm_id: Jido.AI.Model.compute_reqllm_id(:anthropic, model)
+        reqllm_id: Model.compute_reqllm_id(:anthropic, model)
       }
 
       {:ok, model_struct}

@@ -20,6 +20,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   """
 
   require Logger
+  alias Jido.AI.Keyring
   alias Jido.AI.Keyring.JidoKeysHybrid
 
   @sensitive_patterns [
@@ -71,7 +72,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
     # Filter map values that might contain credentials
     Map.new(data, fn {key, value} ->
       filtered_value =
-        case is_sensitive_key?(key) do
+        case sensitive_key?(key) do
           true -> filter_credential_data(to_string(value))
           false -> value
         end
@@ -101,17 +102,17 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
 
     * `true` if key appears to be sensitive, `false` otherwise
   """
-  @spec is_sensitive_key?(atom() | String.t()) :: boolean()
-  def is_sensitive_key?(key) when is_atom(key) do
-    is_sensitive_key?(Atom.to_string(key))
+  @spec sensitive_key?(atom() | String.t()) :: boolean()
+  def sensitive_key?(key) when is_atom(key) do
+    sensitive_key?(Atom.to_string(key))
   end
 
-  def is_sensitive_key?(key) when is_binary(key) do
+  def sensitive_key?(key) when is_binary(key) do
     key_lower = String.downcase(key)
     Enum.any?(@sensitive_patterns, &String.contains?(key_lower, &1))
   end
 
-  def is_sensitive_key?(_), do: false
+  def sensitive_key?(_), do: false
 
   @doc """
   Logs operations safely with automatic credential filtering.
@@ -245,48 +246,44 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   @spec validate_process_isolation(GenServer.server(), atom(), String.t()) ::
           :ok | {:error, term()}
   def validate_process_isolation(server, test_key, test_value) do
-    try do
-      parent_pid = self()
+    parent_pid = self()
 
-      # Set value in current process
-      :ok = Jido.AI.Keyring.set_session_value(server, test_key, test_value, parent_pid)
+    # Set value in current process
+    :ok = Keyring.set_session_value(server, test_key, test_value, parent_pid)
 
-      # Spawn child process and verify isolation
-      child_task =
-        Task.async(fn ->
-          child_pid = self()
+    # Spawn child process and verify isolation
+    child_task =
+      Task.async(fn ->
+        child_pid = self()
 
-          # Child should not see parent's session value
-          child_value = Jido.AI.Keyring.get_session_value(server, test_key, child_pid)
+        # Child should not see parent's session value
+        child_value = Keyring.get_session_value(server, test_key, child_pid)
 
-          # Set different value in child
-          child_test_value = "child_#{test_value}"
-          :ok = Jido.AI.Keyring.set_session_value(server, test_key, child_test_value, child_pid)
+        # Set different value in child
+        child_test_value = "child_#{test_value}"
+        :ok = Keyring.set_session_value(server, test_key, child_test_value, child_pid)
 
-          {child_value, child_test_value}
-        end)
+        {child_value, child_test_value}
+      end)
 
-      {child_session_value, _child_set_value} = Task.await(child_task)
+    {child_session_value, _child_set_value} = Task.await(child_task)
 
-      # Verify isolation
-      cond do
-        child_session_value != nil ->
-          {:error, "Session values leaked between processes"}
+    # Verify isolation
+    if child_session_value != nil do
+      {:error, "Session values leaked between processes"}
+    else
+      # Verify parent value unchanged
+      parent_value = Keyring.get_session_value(server, test_key, parent_pid)
 
-        true ->
-          # Verify parent value unchanged
-          parent_value = Jido.AI.Keyring.get_session_value(server, test_key, parent_pid)
-
-          if parent_value == test_value do
-            :ok
-          else
-            {:error, "Parent session value corrupted"}
-          end
+      if parent_value == test_value do
+        :ok
+      else
+        {:error, "Parent session value corrupted"}
       end
-    rescue
-      error ->
-        {:error, error}
     end
+  rescue
+    error ->
+      {:error, error}
   end
 
   @doc """
@@ -301,7 +298,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
     * `{:error, failed_tests}` if any tests fail
   """
   @spec test_credential_filtering() :: :ok | {:error, list()}
-  def test_credential_filtering() do
+  def test_credential_filtering do
     test_cases = [
       {"api_key_test", "sk-1234567890abcdef", true},
       {"normal_key", "normal_value", false},

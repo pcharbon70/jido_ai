@@ -36,23 +36,21 @@ defmodule Jido.AI.Model.Registry.Adapter do
   """
   @spec list_providers() :: {:ok, [provider_id()]} | {:error, term()}
   def list_providers do
-    try do
-      case Code.ensure_loaded(ReqLLM.Provider.Registry) do
-        {:module, _module} ->
-          providers = ReqLLM.Provider.Registry.list_providers()
+    case Code.ensure_loaded(ReqLLM.Provider.Registry) do
+      {:module, _module} ->
+        providers = ReqLLM.Provider.Registry.list_providers()
 
-          Logger.debug("Registry adapter: discovered #{length(providers)} providers")
-          {:ok, providers}
+        Logger.debug("Registry adapter: discovered #{length(providers)} providers")
+        {:ok, providers}
 
-        {:error, reason} ->
-          Logger.warning("ReqLLM.Provider.Registry not available: #{inspect(reason)}")
-          {:error, :registry_unavailable}
-      end
-    rescue
-      error ->
-        Logger.error("Error listing providers from ReqLLM registry: #{inspect(error)}")
-        {:error, {:registry_error, error}}
+      {:error, reason} ->
+        Logger.warning("ReqLLM.Provider.Registry not available: #{inspect(reason)}")
+        {:error, :registry_unavailable}
     end
+  rescue
+    error ->
+      Logger.error("Error listing providers from ReqLLM registry: #{inspect(error)}")
+      {:error, {:registry_error, error}}
   end
 
   @doc """
@@ -74,70 +72,68 @@ defmodule Jido.AI.Model.Registry.Adapter do
   """
   @spec list_models(provider_id()) :: {:ok, [reqllm_model()]} | {:error, term()}
   def list_models(provider_id) when is_atom(provider_id) do
-    try do
-      case Code.ensure_loaded(ReqLLM.Provider.Registry) do
-        {:module, _module} ->
-          case ReqLLM.Provider.Registry.list_models(provider_id) do
-            {:ok, model_names} when is_list(model_names) ->
-              # Convert model names to ReqLLM.Model structs
-              models =
-                model_names
-                |> Enum.map(fn model_name ->
-                  case get_model_struct(provider_id, model_name) do
-                    {:ok, model} ->
-                      model
+    case Code.ensure_loaded(ReqLLM.Provider.Registry) do
+      {:module, _module} ->
+        case ReqLLM.Provider.Registry.list_models(provider_id) do
+          {:ok, model_names} when is_list(model_names) ->
+            # Convert model names to ReqLLM.Model structs
+            models =
+              model_names
+              |> Enum.map(fn model_name ->
+                case get_model_struct(provider_id, model_name) do
+                  {:ok, model} ->
+                    model
 
-                    {:error, _} ->
-                      # Create minimal model struct if metadata unavailable
-                      ReqLLM.Model.new(provider_id, model_name)
-                  end
-                end)
-                |> Enum.reject(&is_nil/1)
+                  {:error, _} ->
+                    # Create minimal model struct if metadata unavailable
+                    ReqLLM.Model.new(provider_id, model_name)
+                end
+              end)
+              |> Enum.reject(&is_nil/1)
 
-              Logger.debug("Registry adapter: found #{length(models)} models for #{provider_id}")
-              {:ok, models}
+            Logger.debug("Registry adapter: found #{length(models)} models for #{provider_id}")
+            {:ok, models}
 
-            {:error, :provider_not_found} ->
-              Logger.warning("Provider #{provider_id} not found in ReqLLM registry")
-              {:error, :provider_not_found}
+          {:error, :provider_not_found} ->
+            Logger.warning("Provider #{provider_id} not found in ReqLLM registry")
+            {:error, :provider_not_found}
 
-            {:error, reason} ->
-              Logger.warning("Error listing models for #{provider_id}: #{inspect(reason)}")
-              {:error, reason}
+          {:error, reason} ->
+            Logger.warning("Error listing models for #{provider_id}: #{inspect(reason)}")
+            {:error, reason}
 
-            model_names when is_list(model_names) ->
-              # Direct list of model names (legacy format)
-              models =
-                Enum.map(model_names, fn model_name ->
-                  ReqLLM.Model.new(provider_id, model_name)
-                end)
+          model_names when is_list(model_names) ->
+            # Direct list of model names (legacy format)
+            models =
+              Enum.map(model_names, fn model_name ->
+                ReqLLM.Model.new(provider_id, model_name)
+              end)
 
-              Logger.debug(
-                "Registry adapter: found #{length(models)} models for #{provider_id} (legacy format)"
-              )
+            Logger.debug(
+              "Registry adapter: found #{length(models)} models for #{provider_id} (legacy format)"
+            )
 
-              {:ok, models}
+            {:ok, models}
 
-            other ->
-              Logger.warning(
-                "Unexpected response from ReqLLM registry for #{provider_id}: #{inspect(other)}"
-              )
+          other ->
+            Logger.warning(
+              "Unexpected response from ReqLLM registry for #{provider_id}: #{inspect(other)}"
+            )
 
-              {:error, :unexpected_response}
-          end
+            {:error, :unexpected_response}
+        end
 
-        {:error, reason} ->
-          Logger.warning("ReqLLM.Provider.Registry not available: #{inspect(reason)}")
-          {:error, :registry_unavailable}
-      end
-    rescue
-      error ->
-        Logger.error(
-          "Error listing models for #{provider_id} from ReqLLM registry: #{inspect(error)}"
-        )
-
-        {:error, {:registry_error, error}}
+      {:error, reason} ->
+        Logger.warning("ReqLLM.Provider.Registry not available: #{inspect(reason)}")
+        {:error, :registry_unavailable}
     end
+  rescue
+    error ->
+      Logger.error(
+        "Error listing models for #{provider_id} from ReqLLM registry: #{inspect(error)}"
+      )
+
+      {:error, {:registry_error, error}}
   end
 
   @doc """
@@ -160,34 +156,32 @@ defmodule Jido.AI.Model.Registry.Adapter do
   """
   @spec get_model(provider_id(), model_name()) :: {:ok, reqllm_model()} | {:error, term()}
   def get_model(provider_id, model_name) when is_atom(provider_id) and is_binary(model_name) do
-    try do
-      case Code.ensure_loaded(ReqLLM.Provider.Registry) do
-        {:module, _module} ->
-          case get_model_struct(provider_id, model_name) do
-            {:ok, model} ->
-              Logger.debug("Registry adapter: found model #{provider_id}:#{model_name}")
-              {:ok, model}
+    case Code.ensure_loaded(ReqLLM.Provider.Registry) do
+      {:module, _module} ->
+        case get_model_struct(provider_id, model_name) do
+          {:ok, model} ->
+            Logger.debug("Registry adapter: found model #{provider_id}:#{model_name}")
+            {:ok, model}
 
-            {:error, reason} ->
-              Logger.debug(
-                "Model #{provider_id}:#{model_name} not found in registry: #{inspect(reason)}"
-              )
+          {:error, reason} ->
+            Logger.debug(
+              "Model #{provider_id}:#{model_name} not found in registry: #{inspect(reason)}"
+            )
 
-              {:error, :not_found}
-          end
+            {:error, :not_found}
+        end
 
-        {:error, reason} ->
-          Logger.warning("ReqLLM.Provider.Registry not available: #{inspect(reason)}")
-          {:error, :registry_unavailable}
-      end
-    rescue
-      error ->
-        Logger.error(
-          "Error getting model #{provider_id}:#{model_name} from ReqLLM registry: #{inspect(error)}"
-        )
-
-        {:error, {:registry_error, error}}
+      {:error, reason} ->
+        Logger.warning("ReqLLM.Provider.Registry not available: #{inspect(reason)}")
+        {:error, :registry_unavailable}
     end
+  rescue
+    error ->
+      Logger.error(
+        "Error getting model #{provider_id}:#{model_name} from ReqLLM registry: #{inspect(error)}"
+      )
+
+      {:error, {:registry_error, error}}
   end
 
   @doc """
@@ -239,93 +233,89 @@ defmodule Jido.AI.Model.Registry.Adapter do
   """
   @spec get_health_info() :: {:ok, map()} | {:error, term()}
   def get_health_info do
-    try do
-      start_time = System.monotonic_time(:millisecond)
+    start_time = System.monotonic_time(:millisecond)
 
-      case list_providers() do
-        {:ok, providers} ->
-          end_time = System.monotonic_time(:millisecond)
-          response_time = end_time - start_time
+    case list_providers() do
+      {:ok, providers} ->
+        end_time = System.monotonic_time(:millisecond)
+        response_time = end_time - start_time
 
-          # Sample a few providers to check model availability
-          sample_providers = Enum.take(providers, 3)
+        # Sample a few providers to check model availability
+        sample_providers = Enum.take(providers, 3)
 
-          total_models =
-            sample_providers
-            |> Enum.map(fn provider ->
-              case list_models(provider) do
-                {:ok, models} -> length(models)
-                {:error, _} -> 0
-              end
-            end)
-            |> Enum.sum()
-
-          # Estimate total models based on sample
-          estimated_total =
-            if length(sample_providers) > 0 do
-              trunc(total_models * length(providers) / length(sample_providers))
-            else
-              0
+        total_models =
+          sample_providers
+          |> Enum.map(fn provider ->
+            case list_models(provider) do
+              {:ok, models} -> length(models)
+              {:error, _} -> 0
             end
+          end)
+          |> Enum.sum()
 
-          health_info = %{
-            registry_available: true,
-            provider_count: length(providers),
-            sampled_providers: length(sample_providers),
-            estimated_total_models: estimated_total,
-            response_time_ms: response_time,
-            timestamp: DateTime.utc_now()
-          }
+        # Estimate total models based on sample
+        estimated_total =
+          if length(sample_providers) > 0 do
+            trunc(total_models * length(providers) / length(sample_providers))
+          else
+            0
+          end
 
-          {:ok, health_info}
+        health_info = %{
+          registry_available: true,
+          provider_count: length(providers),
+          sampled_providers: length(sample_providers),
+          estimated_total_models: estimated_total,
+          response_time_ms: response_time,
+          timestamp: DateTime.utc_now()
+        }
 
-        {:error, reason} ->
-          health_info = %{
-            registry_available: false,
-            error: reason,
-            timestamp: DateTime.utc_now()
-          }
+        {:ok, health_info}
 
-          {:ok, health_info}
-      end
-    rescue
-      error ->
-        Logger.error("Error getting registry health info: #{inspect(error)}")
-        {:error, {:health_check_failed, error}}
+      {:error, reason} ->
+        health_info = %{
+          registry_available: false,
+          error: reason,
+          timestamp: DateTime.utc_now()
+        }
+
+        {:ok, health_info}
     end
+  rescue
+    error ->
+      Logger.error("Error getting registry health info: #{inspect(error)}")
+      {:error, {:health_check_failed, error}}
   end
 
   # Private helper functions
 
   defp get_model_struct(provider_id, model_name) do
-    try do
-      case ReqLLM.Provider.Registry.get_model(provider_id, model_name) do
-        {:ok, model} when is_struct(model, ReqLLM.Model) ->
-          {:ok, model}
+    case ReqLLM.Provider.Registry.get_model(provider_id, model_name) do
+      {:ok, model} when is_struct(model, ReqLLM.Model) ->
+        {:ok, model}
 
-        {:ok, model_info} when is_map(model_info) ->
-          # Convert model info map to ReqLLM.Model struct
-          model = create_model_from_info(provider_id, model_name, model_info)
-          {:ok, model}
+      {:ok, model_info} when is_map(model_info) ->
+        # Convert model info map to ReqLLM.Model struct
+        model = create_model_from_info(provider_id, model_name, model_info)
+        {:ok, model}
 
-        {:error, reason} ->
-          {:error, reason}
+      {:error, reason} ->
+        {:error, reason}
 
-        other ->
-          Logger.warning("Unexpected model format from registry: #{inspect(other)}")
+      other ->
+        Logger.warning("Unexpected model format from registry: #{inspect(other)}")
 
-          # Create minimal model as fallback
-          model = ReqLLM.Model.new(provider_id, model_name)
-          {:ok, model}
-      end
-    rescue
-      error ->
-        Logger.debug(
-          "Error getting model struct for #{provider_id}:#{model_name}: #{inspect(error)}"
-        )
-
-        {:error, error}
+        # Create minimal model as fallback
+        model = ReqLLM.Model.new(provider_id, model_name)
+        {:ok, model}
     end
+  rescue
+    error ->
+      Logger.debug(
+        "Error getting model struct for #{provider_id}:#{model_name}: #{inspect(error)}"
+      )
+
+      {:error, error}
   end
 
   defp create_model_from_info(provider_id, model_name, model_info) do

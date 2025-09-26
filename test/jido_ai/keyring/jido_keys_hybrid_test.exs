@@ -4,8 +4,8 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
 
   @moduletag :capture_log
 
-  alias Jido.AI.Keyring.JidoKeysHybrid
   alias Jido.AI.Keyring
+  alias Jido.AI.Keyring.JidoKeysHybrid
 
   setup do
     # Copy JidoKeys for mocking

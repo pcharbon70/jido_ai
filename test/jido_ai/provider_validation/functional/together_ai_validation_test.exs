@@ -19,6 +19,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
   @moduletag :functional_validation
   @moduletag :together_ai
 
+  alias Jido.AI.Model
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
@@ -265,7 +266,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
             model_name = Map.get(model, :name, Map.get(model, :id, "unknown"))
             model_opts = {provider, [model: model_name]}
 
-            case Jido.AI.Model.from(model_opts) do
+            case Model.from(model_opts) do
               {:ok, jido_model} ->
                 assert jido_model.provider == provider
                 assert jido_model.model == model_name
@@ -347,8 +348,8 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
             # Test switching between models
             [model1, model2 | _] = model_names
 
-            {:ok, jido_model1} = Jido.AI.Model.from({provider, [model: model1]})
-            {:ok, jido_model2} = Jido.AI.Model.from({provider, [model: model2]})
+            {:ok, jido_model1} = Model.from({provider, [model: model1]})
+            {:ok, jido_model2} = Model.from({provider, [model: model2]})
 
             # Both should work with same provider but different models
             assert jido_model1.provider == jido_model2.provider
@@ -380,7 +381,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
 
                   String.contains?(String.downcase(model_name), "32k") or
                     String.contains?(String.downcase(model_name), "long") or
-                    Map.get(model, :context_length, 0) > 16000
+                    Map.get(model, :context_length, 0) > 16_000
                 end)
 
               if length(large_models) > 0, do: {variant, large_models}, else: nil
@@ -395,7 +396,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
           sample_model = hd(models)
           model_name = Map.get(sample_model, :name, Map.get(sample_model, :id))
 
-          case Jido.AI.Model.from({provider, [model: model_name]}) do
+          case Model.from({provider, [model: model_name]}) do
             {:ok, jido_model} ->
               # Verify the model was created successfully for large context handling
               assert jido_model.model == model_name
@@ -483,7 +484,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
              frequency_penalty: 0.1
            ]}
 
-        case Jido.AI.Model.from(advanced_opts) do
+        case Model.from(advanced_opts) do
           {:ok, jido_model} ->
             # Model creation with advanced parameters should succeed
             assert jido_model.model == model_name
@@ -528,7 +529,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
             # Test invalid model configuration
             invalid_opts = {variant, [model: "non-existent-model-xyz-123"]}
 
-            case Jido.AI.Model.from(invalid_opts) do
+            case Model.from(invalid_opts) do
               {:error, reason} ->
                 assert is_binary(reason), "Should return descriptive error for #{variant}"
 
@@ -570,7 +571,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
         # Create multiple models quickly
         results =
           Enum.map(model_names, fn model_name ->
-            Jido.AI.Model.from({working_provider, [model: model_name]})
+            Model.from({working_provider, [model: model_name]})
           end)
 
         end_time = :os.system_time(:millisecond)

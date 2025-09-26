@@ -29,8 +29,8 @@ defmodule Jido.AI.Keyring do
   use GenServer
   require Logger
 
-  alias Jido.AI.ReqLlmBridge.KeyringIntegration
   alias Jido.AI.Keyring.JidoKeysHybrid
+  alias Jido.AI.ReqLlmBridge.KeyringIntegration
 
   @session_registry :jido_ai_keyring_sessions
   @default_name __MODULE__

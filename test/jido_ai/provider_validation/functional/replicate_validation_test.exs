@@ -21,6 +21,8 @@ defmodule Jido.AI.ProviderValidation.Functional.ReplicateValidationTest do
   @moduletag :replicate
   @moduletag :specialized_providers
 
+  alias Jido.AI.Keyring
+  alias Jido.AI.Model
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
@@ -198,7 +200,7 @@ defmodule Jido.AI.ProviderValidation.Functional.ReplicateValidationTest do
       Enum.each(text_models, fn model_name ->
         model_opts = {:replicate, [model: model_name]}
 
-        case Jido.AI.Model.from(model_opts) do
+        case Model.from(model_opts) do
           {:ok, model} ->
             assert model.provider == :replicate
             assert model.reqllm_id == "replicate:#{model_name}"
@@ -544,7 +546,7 @@ defmodule Jido.AI.ProviderValidation.Functional.ReplicateValidationTest do
       # Test invalid Replicate model format (should be owner/model)
       invalid_opts = {:replicate, [model: "invalid-model-format"]}
 
-      case Jido.AI.Model.from(invalid_opts) do
+      case Model.from(invalid_opts) do
         {:error, reason} ->
           assert is_binary(reason), "Should return a descriptive error message"
 
@@ -556,7 +558,7 @@ defmodule Jido.AI.ProviderValidation.Functional.ReplicateValidationTest do
       # Test completely empty configuration
       empty_opts = {:replicate, []}
 
-      case Jido.AI.Model.from(empty_opts) do
+      case Model.from(empty_opts) do
         {:error, reason} ->
           assert is_binary(reason)
 
@@ -580,10 +582,10 @@ defmodule Jido.AI.ProviderValidation.Functional.ReplicateValidationTest do
     end
 
     test "Replicate compatibility with keyring system" do
-      keyring_compatible = function_exported?(Jido.AI.Keyring, :get, 2)
+      keyring_compatible = function_exported?(Keyring, :get, 2)
       assert keyring_compatible, "Keyring system should be available for authentication"
 
-      result = Jido.AI.Keyring.get(Jido.AI.Keyring, :replicate_api_token, "default")
+      result = Keyring.get(Keyring, :replicate_api_token, "default")
       assert is_binary(result), "Keyring should return string value"
     end
 

@@ -118,25 +118,23 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
   """
   @spec validate_params(map(), module()) :: validation_result()
   def validate_params(params, action_module) when is_map(params) and is_atom(action_module) do
-    try do
-      schema = get_action_schema(action_module)
+    schema = get_action_schema(action_module)
 
-      case NimbleOptions.validate(params, schema) do
-        {:ok, validated_params} ->
-          {:ok, validated_params}
+    case NimbleOptions.validate(params, schema) do
+      {:ok, validated_params} ->
+        {:ok, validated_params}
 
-        {:error, %NimbleOptions.ValidationError{} = error} ->
-          {:error, format_nimble_error(error)}
-      end
-    rescue
-      error ->
-        {:error,
-         %{
-           type: "schema_validation_exception",
-           message: Exception.message(error),
-           action_module: action_module
-         }}
+      {:error, %NimbleOptions.ValidationError{} = error} ->
+        {:error, format_nimble_error(error)}
     end
+  rescue
+    error ->
+      {:error,
+       %{
+         type: "schema_validation_exception",
+         message: Exception.message(error),
+         action_module: action_module
+       }}
   end
 
   @doc """
@@ -239,13 +237,11 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
   # Private helper functions
 
   defp get_action_schema(action_module) do
-    try do
-      action_module.schema()
-    rescue
-      _ ->
-        Logger.warning("Could not retrieve schema from #{action_module}")
-        []
-    end
+    action_module.schema()
+  rescue
+    _ ->
+      Logger.warning("Could not retrieve schema from #{action_module}")
+      []
   end
 
   defp convert_type_to_json_schema(type) do

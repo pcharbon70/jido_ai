@@ -1055,31 +1055,29 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
   end
 
   defp measure_single_request(provider, model_name, prompt) do
-    try do
-      case Model.from({provider, [model: model_name]}) do
-        {:ok, model} ->
-          start_time = :os.system_time(:millisecond)
+    case Model.from({provider, [model: model_name]}) do
+      {:ok, model} ->
+        start_time = :os.system_time(:millisecond)
 
-          # Simulate a basic request (we can't actually call APIs in tests without keys)
-          # This measures model creation + basic operations
-          _result = %{
-            model: model,
-            prompt: prompt,
-            timestamp: DateTime.utc_now()
-          }
+        # Simulate a basic request (we can't actually call APIs in tests without keys)
+        # This measures model creation + basic operations
+        _result = %{
+          model: model,
+          prompt: prompt,
+          timestamp: DateTime.utc_now()
+        }
 
-          end_time = :os.system_time(:millisecond)
-          latency = end_time - start_time
+        end_time = :os.system_time(:millisecond)
+        latency = end_time - start_time
 
-          {:ok, latency}
+        {:ok, latency}
 
-        {:error, _reason} ->
-          {:error, :model_creation_failed}
-      end
-    rescue
-      _error ->
-        {:error, :request_failed}
+      {:error, _reason} ->
+        {:error, :model_creation_failed}
     end
+  rescue
+    _error ->
+      {:error, :request_failed}
   end
 
   defp measure_sustained_throughput(provider, model_name, end_target) do
