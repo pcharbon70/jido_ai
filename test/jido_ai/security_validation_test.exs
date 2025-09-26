@@ -26,7 +26,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
   describe "arbitrary atom creation prevention" do
     test "extract_provider_from_reqllm_id prevents arbitrary atom creation in OpenaiEx" do
       expect(ValidProviders, :list, fn ->
-        [:openai, :anthropic, :google]  # Known safe providers
+        # Known safe providers
+        [:openai, :anthropic, :google]
       end)
 
       # Test with malicious input that could create arbitrary atoms
@@ -61,7 +62,11 @@ defmodule JidoTest.AI.SecurityValidationTest do
       end)
 
       # Create model with malicious provider
-      model = %{reqllm_id: "malicious_provider" <> ":" <> "text-embedding-ada-002", api_key: "test-key"}
+      model = %{
+        reqllm_id: "malicious_provider" <> ":" <> "text-embedding-ada-002",
+        api_key: "test-key"
+      }
+
       params = %{model: model, input: ["test"]}
 
       expect(ReqLLM, :embed_many, fn _reqllm_id, _input, _opts ->
@@ -86,13 +91,20 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
       # Test provider mapping with various inputs
       test_cases = [
-        {"openai:gpt-4", :openai},  # Valid
-        {"anthropic:claude-3", :anthropic},  # Valid
-        {"unknown_provider:model", nil},  # Invalid - should not create atom
-        {"':model", nil},  # Malformed
-        {"", nil},  # Empty
-        {"::", nil},  # Only colons
-        {"hack_attempt:'; DROP TABLE providers; --", nil}  # SQL injection attempt
+        # Valid
+        {"openai:gpt-4", :openai},
+        # Valid
+        {"anthropic:claude-3", :anthropic},
+        # Invalid - should not create atom
+        {"unknown_provider:model", nil},
+        # Malformed
+        {"':model", nil},
+        # Empty
+        {"", nil},
+        # Only colons
+        {"::", nil},
+        # SQL injection attempt
+        {"hack_attempt:'; DROP TABLE providers; --", nil}
       ]
 
       Enum.each(test_cases, fn {input, expected} ->
@@ -109,7 +121,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
     test "ReqLLM integration respects provider whitelist" do
       expect(ValidProviders, :list, fn ->
-        [:openai, :anthropic]  # Limited whitelist
+        # Limited whitelist
+        [:openai, :anthropic]
       end)
 
       # Test with non-whitelisted provider
@@ -137,8 +150,10 @@ defmodule JidoTest.AI.SecurityValidationTest do
         "string_model",
         123,
         %{invalid: "structure"},
-        %{reqllm_id: nil},  # Missing reqllm_id
-        %{reqllm_id: ""}   # Empty reqllm_id
+        # Missing reqllm_id
+        %{reqllm_id: nil},
+        # Empty reqllm_id
+        %{reqllm_id: ""}
       ]
 
       Enum.each(invalid_models, fn invalid_model ->
@@ -156,7 +171,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
         "string_model",
         123,
         %{invalid: "structure"},
-        %{reqllm_id: nil, api_key: "key"},  # Missing reqllm_id
+        # Missing reqllm_id
+        %{reqllm_id: nil, api_key: "key"}
       ]
 
       Enum.each(invalid_models, fn invalid_model ->
@@ -178,7 +194,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
         [%{role: :user, content: "'; DROP TABLE messages; --"}],
         [%{role: :user, content: "<script>alert('xss')</script>"}],
         [%{role: :user, content: "#{System.cmd("whoami", [])}"}],
-        [%{role: :user, content: String.duplicate("A", 100_000)}]  # Very long input
+        # Very long input
+        [%{role: :user, content: String.duplicate("A", 100_000)}]
       ]
 
       expect(ValidProviders, :list, fn -> [:openai] end)
@@ -210,9 +227,12 @@ defmodule JidoTest.AI.SecurityValidationTest do
       dangerous_inputs = [
         ["'; DROP TABLE embeddings; --"],
         ["<script>alert('xss')</script>"],
-        [String.duplicate("A", 100_000)],  # Very long input
-        ["\0\1\2\3\4\5"],  # Binary data
-        ["#{System.cmd("id", [])}"]  # Command injection attempt
+        # Very long input
+        [String.duplicate("A", 100_000)],
+        # Binary data
+        ["\0\1\2\3\4\5"],
+        # Command injection attempt
+        ["#{System.cmd("id", [])}"]
       ]
 
       expect(ValidProviders, :list, fn -> [:openai] end)
@@ -238,21 +258,29 @@ defmodule JidoTest.AI.SecurityValidationTest do
       expect(ValidProviders, :list, fn -> [:openai, :anthropic] end)
 
       malformed_ids = [
-        "",           # Empty
-        "no_colon",   # No separator
-        ":no_provider", # Empty provider
-        "provider:",  # Empty model
-        ":::",        # Multiple colons
-        "provider:model:extra", # Too many parts
-        nil           # Nil value
+        # Empty
+        "",
+        # No separator
+        "no_colon",
+        # Empty provider
+        ":no_provider",
+        # Empty model
+        "provider:",
+        # Multiple colons
+        ":::",
+        # Too many parts
+        "provider:model:extra",
+        # Nil value
+        nil
       ]
 
       Enum.each(malformed_ids, fn reqllm_id ->
-        result = if reqllm_id do
-          TestHelpers.extract_provider_from_reqllm_id(reqllm_id)
-        else
-          nil
-        end
+        result =
+          if reqllm_id do
+            TestHelpers.extract_provider_from_reqllm_id(reqllm_id)
+          else
+            nil
+          end
 
         # Should handle malformed IDs gracefully
         assert result == nil
@@ -272,7 +300,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
       expect(JidoKeys, :put, fn _provider, _key -> :ok end)
 
       # Simulate very large response from ReqLLM
-      large_content = String.duplicate("A", 10_000_000)  # 10MB response
+      # 10MB response
+      large_content = String.duplicate("A", 10_000_000)
 
       expect(ReqLLM, :generate_text, fn _messages, _reqllm_id, _opts ->
         {:ok, %{content: large_content}}
@@ -280,7 +309,9 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
       # Should handle large responses without crashing
       assert {:ok, response} = OpenaiEx.run(params, %{})
-      assert String.length(get_in(response, [:choices, Access.at(0), :message, :content])) > 1_000_000
+
+      assert String.length(get_in(response, [:choices, Access.at(0), :message, :content])) >
+               1_000_000
     end
   end
 
@@ -354,12 +385,18 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
     test "validates API key format before storage" do
       test_cases = [
-        {"", false},                    # Empty string
-        {"   ", false},                 # Whitespace only
-        {"short", false},               # Too short
-        {"sk-" <> String.duplicate("a", 45), true},  # Valid OpenAI format
-        {"valid-api-key-format", true}, # Valid general format
-        {nil, false}                    # Nil value
+        # Empty string
+        {"", false},
+        # Whitespace only
+        {"   ", false},
+        # Too short
+        {"short", false},
+        # Valid OpenAI format
+        {"sk-" <> String.duplicate("a", 45), true},
+        # Valid general format
+        {"valid-api-key-format", true},
+        # Nil value
+        {nil, false}
       ]
 
       Enum.each(test_cases, fn {api_key, should_store} ->
@@ -368,7 +405,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
         expect(ValidProviders, :list, fn -> [:openai] end)
 
-        if should_store and api_key && String.trim(api_key) != "" do
+        if (should_store and api_key) && String.trim(api_key) != "" do
           expect(Jido.AI.ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
           expect(JidoKeys, :put, fn _env_var, _key -> :ok end)
         else
@@ -405,7 +442,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
       # Test invalid providers
       invalid_cases = [
-        "openrouter:model",  # Not in whitelist
+        # Not in whitelist
+        "openrouter:model",
         "custom_provider:model",
         "malicious:model",
         "unknown:model"
@@ -419,7 +457,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
     test "whitelist is enforced at runtime" do
       # Test that the whitelist can change at runtime
-      expect(ValidProviders, :list, fn -> [:openai] end)  # Only OpenAI allowed
+      # Only OpenAI allowed
+      expect(ValidProviders, :list, fn -> [:openai] end)
 
       # Should work for OpenAI
       result1 = TestHelpers.extract_provider_from_reqllm_id("openai:gpt-4")
@@ -438,7 +477,8 @@ defmodule JidoTest.AI.SecurityValidationTest do
     end
 
     test "empty whitelist prevents all providers" do
-      expect(ValidProviders, :list, fn -> [] end)  # No providers allowed
+      # No providers allowed
+      expect(ValidProviders, :list, fn -> [] end)
 
       test_providers = ["openai:gpt-4", "anthropic:claude-3", "google:gemini"]
 
@@ -474,6 +514,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
         # If it contains injection chars, it should be safely rejected
         injection_chars = ["'", "\"", ";", "${", "\#{", "{{"]
+
         if Enum.any?(injection_chars, &String.contains?(provider_part, &1)) do
           assert result == nil
         end
@@ -487,8 +528,14 @@ defmodule JidoTest.AI.SecurityValidationTest do
       # Test with malicious tool calls
       malicious_tools = [
         %{type: "function", function: %{name: "'; DROP TABLE tools; --", arguments: "{}"}},
-        %{type: "function", function: %{name: "eval", arguments: ~s[{"code": "system('rm -rf /')"}]}},
-        %{type: "function", function: %{name: "normal_tool", arguments: ~s[{"param": "'; DELETE FROM data; --"}]}}
+        %{
+          type: "function",
+          function: %{name: "eval", arguments: ~s[{"code": "system('rm -rf /')"}]}
+        },
+        %{
+          type: "function",
+          function: %{name: "normal_tool", arguments: ~s[{"param": "'; DELETE FROM data; --"}]}
+        }
       ]
 
       params = %{
@@ -541,9 +588,10 @@ defmodule JidoTest.AI.SecurityValidationTest do
 
     test "prevents stack overflow in nested data" do
       # Create deeply nested structure
-      deeply_nested = Enum.reduce(1..1000, %{}, fn i, acc ->
-        %{"level_#{i}" => acc}
-      end)
+      deeply_nested =
+        Enum.reduce(1..1000, %{}, fn i, acc ->
+          %{"level_#{i}" => acc}
+        end)
 
       chunk = %{
         content: "test",

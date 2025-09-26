@@ -375,7 +375,7 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     # Format cost per token as readable string avoiding scientific notation
     # Cost appears to be in thousandths, so multiply by 1000 to get the right scale
     cost_value = cost * 1_000
-    formatted_cost = :erlang.float_to_binary(cost_value, [decimals: 1])
+    formatted_cost = :erlang.float_to_binary(cost_value, decimals: 1)
     "$#{formatted_cost} / 1M tokens"
   end
 
@@ -466,10 +466,12 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
   defp maybe_update_endpoints_from_limit(%{endpoints: nil} = model, limit) when is_map(limit) do
     # Create default endpoint if none exist
     alias Jido.AI.Model.Endpoint
+
     default_endpoint = %Endpoint{
       context_length: limit.context || 8192,
       max_completion_tokens: limit.output || 4096
     }
+
     %{model | endpoints: [default_endpoint]}
   end
 
