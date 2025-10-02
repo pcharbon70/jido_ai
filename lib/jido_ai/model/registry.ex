@@ -36,6 +36,7 @@ defmodule Jido.AI.Model.Registry do
   require Logger
   alias Jido.AI.Model.Registry.Adapter
   alias Jido.AI.Model.Registry.MetadataBridge
+  alias Jido.AI.Model.CapabilityIndex
   alias Jido.AI.Provider
 
   @type provider_id :: atom()
@@ -192,15 +193,41 @@ defmodule Jido.AI.Model.Registry do
   """
   @spec discover_models(model_filter()) :: {:ok, [Jido.AI.Model.t()]} | {:error, term()}
   def discover_models(filters \\ []) do
+    start_time = System.monotonic_time(:microsecond)
+
     # Get all models from registry
-    case list_models() do
+    result = case list_models() do
       {:ok, models} ->
-        filtered_models = apply_filters(models, filters)
+        # Build capability index if not exists
+        ensure_capability_index(models)
+
+        # Apply filters using optimized path
+        filtered_models = apply_filters_optimized(models, filters)
         {:ok, filtered_models}
 
       {:error, reason} ->
         {:error, reason}
     end
+
+    # Emit telemetry event
+    duration_us = System.monotonic_time(:microsecond) - start_time
+    model_count = case result do
+      {:ok, models} when is_list(models) -> length(models)
+      _ -> 0
+    end
+
+    try do
+      :telemetry.execute(
+        [:jido, :registry, :discover_models],
+        %{duration: duration_us * 1.0, model_count: model_count},
+        %{filters: filters}
+      )
+    rescue
+      e ->
+        Logger.warning("Telemetry execution failed: #{inspect(e)}")
+    end
+
+    result
   rescue
     error ->
       Logger.error("Model discovery error: #{inspect(error)}")
@@ -263,11 +290,25 @@ defmodule Jido.AI.Model.Registry do
         all_models =
           providers
           |> Enum.flat_map(fn provider ->
-            case Adapter.list_models(provider) do
-              {:ok, models} ->
-                Enum.map(models, &MetadataBridge.to_jido_model/1)
+            try do
+              case Adapter.list_models(provider) do
+                {:ok, models} ->
+                  Enum.flat_map(models, fn model ->
+                    try do
+                      [MetadataBridge.to_jido_model(model)]
+                    rescue
+                      e ->
+                        Logger.warning("Failed to convert model from #{provider}: #{inspect(e)}")
+                        []
+                    end
+                  end)
 
-              {:error, _} ->
+                {:error, _} ->
+                  []
+              end
+            rescue
+              e ->
+                Logger.warning("Failed to list models for provider #{provider}: #{inspect(e)}")
                 []
             end
           end)
@@ -345,6 +386,65 @@ defmodule Jido.AI.Model.Registry do
     end
   end
 
+  # Ensures capability index exists and is up to date
+  defp ensure_capability_index(models) do
+    unless CapabilityIndex.exists?() do
+      case CapabilityIndex.build(models) do
+        :ok -> :ok
+        {:error, reason} ->
+          Logger.warning("Failed to build capability index: #{inspect(reason)}, falling back to non-indexed filtering")
+          :error
+      end
+    end
+  end
+
+  # Optimized filter application using capability index when possible
+  defp apply_filters_optimized(models, []), do: models
+
+  defp apply_filters_optimized(models, filters) do
+    # Check if we can use capability index for optimization
+    capability_filters = Keyword.get_values(filters, :capability)
+
+    case capability_filters do
+      [capability | _] when is_atom(capability) ->
+        # Use index for capability filtering
+        apply_filters_with_index(models, filters, capability)
+
+      _ ->
+        # Fallback to standard filtering
+        apply_filters(models, filters)
+    end
+  end
+
+  # Apply filters using capability index for O(1) capability lookup
+  defp apply_filters_with_index(models, filters, capability) do
+    # Get candidate models from index
+    case CapabilityIndex.lookup_by_capability(capability, true) do
+      {:ok, candidate_ids} ->
+        # Build a map for O(1) model lookup, handling both atom and string keys
+        model_map = Map.new(models, fn model ->
+          model_id = Map.get(model, :id) || Map.get(model, "id")
+          {model_id, model}
+        end)
+
+        # Get candidate models
+        candidates = Enum.flat_map(candidate_ids, fn id ->
+          case Map.get(model_map, id) do
+            nil -> []
+            model -> [model]
+          end
+        end)
+
+        # Apply remaining filters to candidates only
+        remaining_filters = Keyword.delete(filters, :capability)
+        apply_filters(candidates, remaining_filters)
+
+      {:error, :index_not_found} ->
+        # Index not available, use standard filtering
+        apply_filters(models, filters)
+    end
+  end
+
   defp apply_filters(models, []), do: models
 
   defp apply_filters(models, filters) do
@@ -403,13 +503,19 @@ defmodule Jido.AI.Model.Registry do
 
   defp get_model_cost_per_token(model) do
     # Extract cost per token from model pricing information
-    case Map.get(model, :cost) do
+    cost = Map.get(model, :cost) || Map.get(model, "cost")
+
+    case cost do
       nil ->
         nil
 
       cost when is_map(cost) ->
-        # Use input cost as the primary cost metric
-        Map.get(cost, :input)
+        # Use input cost as the primary cost metric, handle both atom and string keys
+        input_cost = Map.get(cost, :input) || Map.get(cost, "input")
+        if is_number(input_cost), do: input_cost, else: nil
+
+      cost when is_number(cost) ->
+        cost
 
       _ ->
         nil
@@ -418,9 +524,14 @@ defmodule Jido.AI.Model.Registry do
 
   defp get_model_context_length(model) do
     # Extract context length from model metadata
-    case model.endpoints do
+    endpoints = Map.get(model, :endpoints) || Map.get(model, "endpoints")
+
+    case endpoints do
+      nil -> nil
       [] -> nil
-      [endpoint | _] -> endpoint.context_length
+      [endpoint | _] when is_map(endpoint) ->
+        context = Map.get(endpoint, :context_length) || Map.get(endpoint, "context_length")
+        if is_number(context), do: context, else: nil
       _ -> nil
     end
   end

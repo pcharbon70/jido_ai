@@ -14,6 +14,8 @@ defmodule Jido.AI.Model.RegistryTest do
     # Copy modules that will be mocked
     copy(Adapter)
     copy(Provider)
+    copy(MetadataBridge)
+    copy(Registry)
     :ok
   end
 
