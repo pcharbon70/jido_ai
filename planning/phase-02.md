@@ -212,14 +212,14 @@ Expose advanced generation parameters that are supported by modern models but we
 - [x] 2.5.1.4 Expose model-specific fine-tuning parameters
 
 ### 2.5.2 Context Window Management
-- [ ] **Task 2.5.2 Complete**
+- [x] **Task 2.5.2 Complete**
 
 Implement intelligent context window management to handle models with varying context sizes, from 4K to 1M+ tokens.
 
-- [ ] 2.5.2.1 Add automatic context window detection per model
-- [ ] 2.5.2.2 Implement intelligent context truncation strategies
-- [ ] 2.5.2.3 Add support for extended context models (100K+ tokens)
-- [ ] 2.5.2.4 Create context window optimization utilities
+- [x] 2.5.2.1 Add automatic context window detection per model
+- [x] 2.5.2.2 Implement intelligent context truncation strategies
+- [x] 2.5.2.3 Add support for extended context models (100K+ tokens)
+- [x] 2.5.2.4 Create context window optimization utilities
 
 ### 2.5.3 Specialized Model Features
 - [ ] **Task 2.5.3 Complete**
@@ -234,7 +234,7 @@ Enable access to specialized features offered by specific models or providers th
 ### Unit Tests - Section 2.5
 - [ ] **Unit Tests 2.5 Complete**
 - [x] Test advanced parameter validation and application
-- [ ] Test context window management across different models
+- [x] Test context window management across different models
 - [ ] Validate specialized feature availability detection
 - [ ] Test graceful degradation when features aren't supported
 

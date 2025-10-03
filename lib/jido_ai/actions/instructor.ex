@@ -9,6 +9,7 @@ defmodule Jido.AI.Actions.Instructor do
   - Streaming capabilities with array or partial response models
   - Response mode configuration (:json, :function_call)
   - Structured output validation with automatic retries
+  - Optional context window validation and automatic truncation
 
   ## Usage
 
@@ -58,6 +59,16 @@ defmodule Jido.AI.Actions.Instructor do
       top_logprobs: 5
     ]
   })
+
+  # Advanced: Context window validation
+  {:ok, result, _} = Jido.AI.Actions.Instructor.run(%{
+    model: %Jido.AI.Model{provider: :openai, model: "gpt-3.5-turbo", api_key: "key"},
+    prompt: very_long_prompt,
+    response_model: Analysis,
+    check_context_window: true,
+    truncation_strategy: :smart_truncate,
+    max_tokens: 500
+  })
   ```
 
   ## Advanced Parameters
@@ -78,6 +89,17 @@ defmodule Jido.AI.Actions.Instructor do
   - Groq: `[reasoning_effort: "high"]` - Control reasoning depth
   - Anthropic: `[anthropic_top_k: 40]` - Nucleus sampling parameter
   - OpenRouter: `[openrouter_models: ["fallback/model"]]` - Fallback models
+
+  ### Context Window Management
+  The `check_context_window` and `truncation_strategy` parameters enable automatic prompt management:
+  - **`check_context_window: true`** - Validates prompt fits in model's context window
+  - **`truncation_strategy`** - Chooses how to truncate if needed:
+    - `:smart_truncate` (default) - Preserves system message, first user message, and recent context
+    - `:keep_recent` - Keeps only the most recent messages
+    - `:keep_bookends` - Preserves system message plus recent messages
+    - `:sliding_window` - Uses overlapping windows for continuity
+  - Automatically reserves space for `max_tokens` completion
+  - Logs warning when truncation occurs
 
   ### Grammar Constraints (Note)
   Traditional grammar-constrained generation (GBNF/BNF) is not currently supported
@@ -153,11 +175,20 @@ defmodule Jido.AI.Actions.Instructor do
         - Anthropic: [anthropic_top_k: 40]
         - OpenRouter: [openrouter_top_logprobs: 5, openrouter_models: ["fallback/model"]]
         """
+      ],
+      check_context_window: [
+        type: :boolean,
+        default: false,
+        doc: "Enable automatic context window validation and truncation if needed"
+      ],
+      truncation_strategy: [
+        type: {:in, [:keep_recent, :keep_bookends, :sliding_window, :smart_truncate]},
+        default: :smart_truncate,
+        doc: "Strategy to use if context window truncation is needed"
       ]
     ]
 
-  alias Jido.AI.Model
-  alias Jido.AI.Prompt
+  alias Jido.AI.{Model, Prompt, ContextWindow}
   require Logger
 
   @impl true
@@ -201,7 +232,9 @@ defmodule Jido.AI.Actions.Instructor do
         mode: nil,
         response_format: nil,
         logit_bias: nil,
-        provider_options: nil
+        provider_options: nil,
+        check_context_window: false,
+        truncation_strategy: :smart_truncate
       }
       # Apply prompt options over defaults
       |> Map.merge(prompt_opts)
@@ -218,12 +251,47 @@ defmodule Jido.AI.Actions.Instructor do
           :mode,
           :response_format,
           :logit_bias,
-          :provider_options
+          :provider_options,
+          :check_context_window,
+          :truncation_strategy
         ])
       )
       # Always keep required params
       |> Map.merge(required_params)
 
+    # Validate and potentially truncate prompt if context window checking is enabled
+    case maybe_check_context(params_with_defaults) do
+      {:ok, final_params} ->
+        execute_instructor_call(final_params)
+
+      {:error, reason} ->
+        Logger.error("Context window validation failed: #{inspect(reason)}")
+        {:error, "Context window exceeded: #{inspect(reason)}", %{}}
+    end
+  end
+
+  defp maybe_check_context(%{check_context_window: false} = params), do: {:ok, params}
+
+  defp maybe_check_context(params) do
+    case ContextWindow.ensure_fit(
+           params.prompt,
+           params.model,
+           strategy: params.truncation_strategy,
+           reserve_completion: params.max_tokens
+         ) do
+      {:ok, truncated_prompt} ->
+        if truncated_prompt != params.prompt do
+          Logger.info("Prompt truncated to fit context window")
+        end
+
+        {:ok, %{params | prompt: truncated_prompt}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp execute_instructor_call(params_with_defaults) do
     # Build the Instructor options
     model = get_model(params_with_defaults.model)
 
@@ -233,7 +301,7 @@ defmodule Jido.AI.Actions.Instructor do
     opts =
       [
         model: model,
-        messages: convert_messages(params.prompt.messages),
+        messages: convert_messages(params_with_defaults.prompt.messages),
         response_model: get_response_model(params_with_defaults),
         temperature: params_with_defaults.temperature,
         max_tokens: params_with_defaults.max_tokens,
