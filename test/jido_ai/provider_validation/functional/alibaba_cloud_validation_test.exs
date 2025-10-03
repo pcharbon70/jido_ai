@@ -336,7 +336,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AlibabaCloudValidationTest do
 
       # Verify multilingual response
       has_english = String.match?(content, ~r/[a-zA-Z]{5,}/)
-      has_chinese = String.match?(content, ~r/[\u4e00-\u9fff]{3,}/)
+      has_chinese = String.match?(content, ~r/[\x{4e00}-\x{9fff}]{3,}/u)
 
       assert has_english and has_chinese,
              "Response should contain both English and Chinese content"

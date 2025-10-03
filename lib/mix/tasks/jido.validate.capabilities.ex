@@ -54,49 +54,57 @@ defmodule Mix.Tasks.Jido.Validate.Capabilities do
     Mix.shell().info("Validating #{total} models...\n")
 
     results =
-      Enum.reduce(models, %{valid: 0, missing_capabilities: 0, invalid_format: 0, providers: %{}}, fn model,
-                                                                                                        acc ->
-        model_id = Map.get(model, :id) || Map.get(model, "id") || "unknown"
-        provider = Map.get(model, :provider) || Map.get(model, "provider") || :unknown
+      Enum.reduce(
+        models,
+        %{valid: 0, missing_capabilities: 0, invalid_format: 0, providers: %{}},
+        fn model, acc ->
+          model_id = Map.get(model, :id) || Map.get(model, "id") || "unknown"
+          provider = Map.get(model, :provider) || Map.get(model, "provider") || :unknown
 
-        # Update provider count
-        provider_stats = Map.get(acc.providers, provider, %{total: 0, valid: 0})
-        provider_stats = Map.update!(provider_stats, :total, &(&1 + 1))
+          # Update provider count
+          provider_stats = Map.get(acc.providers, provider, %{total: 0, valid: 0})
+          provider_stats = Map.update!(provider_stats, :total, &(&1 + 1))
 
-        result =
-          cond do
-            # Check for missing capabilities
-            is_nil(Map.get(model, :capabilities)) and is_nil(Map.get(model, "capabilities")) ->
-              if verbose do
-                Mix.shell().info("  ⚠️  #{model_id}: Missing capabilities field")
-              end
+          result =
+            cond do
+              # Check for missing capabilities
+              is_nil(Map.get(model, :capabilities)) and is_nil(Map.get(model, "capabilities")) ->
+                if verbose do
+                  Mix.shell().info("  ⚠️  #{model_id}: Missing capabilities field")
+                end
 
-              provider_stats = Map.put(acc.providers, provider, provider_stats)
-              %{acc | missing_capabilities: acc.missing_capabilities + 1, providers: provider_stats}
+                provider_stats = Map.put(acc.providers, provider, provider_stats)
 
-            # Check for invalid format
-            not is_valid_capabilities_format?(model) ->
-              if verbose do
-                Mix.shell().info("  ❌ #{model_id}: Invalid capabilities format")
-              end
+                %{
+                  acc
+                  | missing_capabilities: acc.missing_capabilities + 1,
+                    providers: provider_stats
+                }
 
-              provider_stats = Map.put(acc.providers, provider, provider_stats)
-              %{acc | invalid_format: acc.invalid_format + 1, providers: provider_stats}
+              # Check for invalid format
+              not is_valid_capabilities_format?(model) ->
+                if verbose do
+                  Mix.shell().info("  ❌ #{model_id}: Invalid capabilities format")
+                end
 
-            # Valid
-            true ->
-              if verbose do
-                caps = Map.get(model, :capabilities) || Map.get(model, "capabilities")
-                Mix.shell().info("  ✅ #{model_id}: #{format_capabilities(caps)}")
-              end
+                provider_stats = Map.put(acc.providers, provider, provider_stats)
+                %{acc | invalid_format: acc.invalid_format + 1, providers: provider_stats}
 
-              provider_stats = Map.update!(provider_stats, :valid, &(&1 + 1))
-              provider_stats = Map.put(acc.providers, provider, provider_stats)
-              %{acc | valid: acc.valid + 1, providers: provider_stats}
-          end
+              # Valid
+              true ->
+                if verbose do
+                  caps = Map.get(model, :capabilities) || Map.get(model, "capabilities")
+                  Mix.shell().info("  ✅ #{model_id}: #{format_capabilities(caps)}")
+                end
 
-        result
-      end)
+                provider_stats = Map.update!(provider_stats, :valid, &(&1 + 1))
+                provider_stats = Map.put(acc.providers, provider, provider_stats)
+                %{acc | valid: acc.valid + 1, providers: provider_stats}
+            end
+
+          result
+        end
+      )
 
     print_summary(results, total)
   end
@@ -117,8 +125,7 @@ defmodule Mix.Tasks.Jido.Validate.Capabilities do
   defp format_capabilities(caps) when is_map(caps) do
     caps
     |> Enum.filter(fn {_k, v} -> v == true end)
-    |> Enum.map(fn {k, _v} -> to_string(k) end)
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", fn {k, _v} -> to_string(k) end)
   end
 
   defp format_capabilities(_), do: "none"

@@ -89,9 +89,21 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
     # Run validation for each modality type
     results = %{
       total_models: total,
-      vision: if(!modality_filter || modality_filter == :vision, do: validate_vision(models, verbose), else: nil),
-      audio: if(!modality_filter || modality_filter == :audio, do: validate_audio(models, verbose), else: nil),
-      document: if(!modality_filter || modality_filter == :document, do: validate_document(models, verbose), else: nil),
+      vision:
+        if(!modality_filter || modality_filter == :vision,
+          do: validate_vision(models, verbose),
+          else: nil
+        ),
+      audio:
+        if(!modality_filter || modality_filter == :audio,
+          do: validate_audio(models, verbose),
+          else: nil
+        ),
+      document:
+        if(!modality_filter || modality_filter == :document,
+          do: validate_document(models, verbose),
+          else: nil
+        ),
       modality_groups: modality_groups,
       multimodal_models: identify_multimodal_models(models),
       provider_stats: calculate_provider_stats(models)
@@ -127,15 +139,18 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
 
     if verbose do
       Mix.shell().info("Vision-capable models:")
+
       Enum.each(vision_models, fn model ->
         model_id = get_model_id(model)
         provider = get_model_provider(model)
         Mix.shell().info("  ✅ #{provider}:#{model_id}")
       end)
+
       Mix.shell().info("")
     end
 
-    accuracy = if total_known > 0, do: Float.round(known_detected / total_known * 100, 1), else: 0.0
+    accuracy =
+      if total_known > 0, do: Float.round(known_detected / total_known * 100, 1), else: 0.0
 
     %{
       total: length(vision_models),
@@ -156,15 +171,18 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
 
     if verbose do
       Mix.shell().info("Audio-capable models:")
+
       Enum.each(audio_models, fn model ->
         model_id = get_model_id(model)
         provider = get_model_provider(model)
         Mix.shell().info("  ✅ #{provider}:#{model_id}")
       end)
+
       Mix.shell().info("")
     end
 
-    accuracy = if total_known > 0, do: Float.round(known_detected / total_known * 100, 1), else: 0.0
+    accuracy =
+      if total_known > 0, do: Float.round(known_detected / total_known * 100, 1), else: 0.0
 
     %{
       total: length(audio_models),
@@ -179,19 +197,22 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
     Mix.shell().info("=== Validating Document Processing Capabilities ===\n")
 
     # Look for document modality or document-related patterns
-    document_models = Enum.filter(models, fn model ->
-      has_modality?(model, :input, :document) ||
-      has_document_indicators?(model)
-    end)
+    document_models =
+      Enum.filter(models, fn model ->
+        has_modality?(model, :input, :document) ||
+          has_document_indicators?(model)
+      end)
 
     if verbose do
       Mix.shell().info("Document-capable models:")
+
       Enum.each(document_models, fn model ->
         model_id = get_model_id(model)
         provider = get_model_provider(model)
         indicators = get_document_indicators(model)
         Mix.shell().info("  ✅ #{provider}:#{model_id} - #{indicators}")
       end)
+
       Mix.shell().info("")
     end
 
@@ -229,18 +250,21 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
     |> Enum.map(fn {provider, provider_models} ->
       vision_count = Enum.count(provider_models, &has_modality?(&1, :input, :image))
       audio_count = Enum.count(provider_models, &has_modality?(&1, :input, :audio))
-      multimodal_count = Enum.count(provider_models, fn model ->
-        modalities = get_model_modalities(model)
-        input_mods = Map.get(modalities, :input, [:text])
-        length(input_mods) >= 2
-      end)
 
-      {provider, %{
-        total: length(provider_models),
-        vision: vision_count,
-        audio: audio_count,
-        multimodal: multimodal_count
-      }}
+      multimodal_count =
+        Enum.count(provider_models, fn model ->
+          modalities = get_model_modalities(model)
+          input_mods = Map.get(modalities, :input, [:text])
+          length(input_mods) >= 2
+        end)
+
+      {provider,
+       %{
+         total: length(provider_models),
+         vision: vision_count,
+         audio: audio_count,
+         multimodal: multimodal_count
+       }}
     end)
     |> Enum.into(%{})
   end
@@ -259,7 +283,11 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
     if results.vision do
       Mix.shell().info("Vision Capabilities:")
       Mix.shell().info("  Models with vision: #{results.vision.total}")
-      Mix.shell().info("  Known vision models detected: #{results.vision.known_detected}/#{results.vision.total_known}")
+
+      Mix.shell().info(
+        "  Known vision models detected: #{results.vision.known_detected}/#{results.vision.total_known}"
+      )
+
       Mix.shell().info("  Detection accuracy: #{results.vision.accuracy}%")
 
       if results.vision.accuracy >= 90.0 do
@@ -267,6 +295,7 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
       else
         Mix.shell().info("  ⚠️  Vision detection below target (>90%)")
       end
+
       Mix.shell().info("")
     end
 
@@ -274,7 +303,11 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
     if results.audio do
       Mix.shell().info("Audio Capabilities:")
       Mix.shell().info("  Models with audio: #{results.audio.total}")
-      Mix.shell().info("  Known audio models detected: #{results.audio.known_detected}/#{results.audio.total_known}")
+
+      Mix.shell().info(
+        "  Known audio models detected: #{results.audio.known_detected}/#{results.audio.total_known}"
+      )
+
       Mix.shell().info("  Detection accuracy: #{results.audio.accuracy}%")
 
       if results.audio.accuracy >= 90.0 do
@@ -282,6 +315,7 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
       else
         Mix.shell().info("  ⚠️  Audio detection below target (>90%)")
       end
+
       Mix.shell().info("")
     end
 
@@ -298,11 +332,12 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
 
     if length(results.multimodal_models) > 0 do
       Mix.shell().info("\n  Top multi-modal models:")
+
       results.multimodal_models
       |> Enum.take(10)
       |> Enum.each(fn model ->
-        input_str = model.input_modalities |> Enum.map(&to_string/1) |> Enum.join(", ")
-        output_str = model.output_modalities |> Enum.map(&to_string/1) |> Enum.join(", ")
+        input_str = Enum.map_join(model.input_modalities, ", ", &to_string/1)
+        output_str = Enum.map_join(model.output_modalities, ", ", &to_string/1)
         Mix.shell().info("    #{model.provider}:#{model.id}")
         Mix.shell().info("      Input: #{input_str}")
         Mix.shell().info("      Output: #{output_str}")
@@ -310,6 +345,7 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
     end
 
     Mix.shell().info("\n=== Provider Statistics ===")
+
     results.provider_stats
     |> Enum.sort_by(fn {provider, _} -> provider end)
     |> Enum.each(fn {provider, stats} ->
@@ -321,6 +357,7 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
     end)
 
     Mix.shell().info("\n=== Modality Distribution ===")
+
     results.modality_groups
     |> Enum.sort()
     |> Enum.each(fn {{direction, modality}, count} ->
@@ -387,8 +424,8 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
     Models supporting 2 or more input modalities:
 
     #{Enum.map_join(results.multimodal_models, "\n", fn model ->
-      input_str = model.input_modalities |> Enum.map(&to_string/1) |> Enum.join(", ")
-      output_str = model.output_modalities |> Enum.map(&to_string/1) |> Enum.join(", ")
+      input_str = Enum.map_join(model.input_modalities, ", ", &to_string/1)
+      output_str = Enum.map_join(model.output_modalities, ", ", &to_string/1)
       "- **#{model.provider}:#{model.id}**\n  - Input: #{input_str}\n  - Output: #{output_str}"
     end)}
 
@@ -396,15 +433,11 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
 
     | Provider | Total Models | Vision | Audio | Multi-Modal |
     |----------|--------------|--------|-------|-------------|
-    #{Enum.map_join(results.provider_stats |> Enum.sort(), "\n", fn {provider, stats} ->
-      "| #{provider} | #{stats.total} | #{stats.vision} | #{stats.audio} | #{stats.multimodal} |"
-    end)}
+    #{Enum.map_join(results.provider_stats |> Enum.sort(), "\n", fn {provider, stats} -> "| #{provider} | #{stats.total} | #{stats.vision} | #{stats.audio} | #{stats.multimodal} |" end)}
 
     ## Modality Distribution
 
-    #{Enum.map_join(results.modality_groups |> Enum.sort(), "\n", fn {{direction, modality}, count} ->
-      "- **#{direction} #{modality}**: #{count} models"
-    end)}
+    #{Enum.map_join(results.modality_groups |> Enum.sort(), "\n", fn {{direction, modality}, count} -> "- **#{direction} #{modality}**: #{count} models" end)}
 
     ## Notes
 
@@ -439,7 +472,9 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
 
   defp has_document_indicators?(model) do
     model_id = get_model_id(model) |> String.downcase()
-    description = (Map.get(model, :description) || Map.get(model, "description") || "") |> String.downcase()
+
+    description =
+      (Map.get(model, :description) || Map.get(model, "description") || "") |> String.downcase()
 
     # Check for document-related keywords
     Enum.any?(["document", "pdf", "ocr", "vision"], fn keyword ->
@@ -448,7 +483,6 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
   end
 
   defp get_document_indicators(model) do
-    modalities = get_model_modalities(model)
     has_doc_modality = has_modality?(model, :input, :document)
     has_vision = has_modality?(model, :input, :image)
 
@@ -467,6 +501,7 @@ defmodule Mix.Tasks.Jido.Validate.Modalities do
 
     Enum.count(known_model_names, fn known_name ->
       known_lower = String.downcase(known_name)
+
       Enum.any?(detected_ids, fn detected_id ->
         String.contains?(detected_id, known_lower)
       end)

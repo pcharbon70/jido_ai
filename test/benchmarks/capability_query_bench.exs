@@ -32,10 +32,11 @@ defmodule Jido.AI.Benchmarks.CapabilityQueryBench do
           {:ok, _models} = Registry.discover_models(capability: :tool_call)
         end,
         "discover_with_multiple_filters" => fn ->
-          {:ok, _models} = Registry.discover_models([
-            capability: :tool_call,
-            min_context_length: 100_000
-          ])
+          {:ok, _models} =
+            Registry.discover_models(
+              capability: :tool_call,
+              min_context_length: 100_000
+            )
         end,
         "discover_with_cost_filter" => fn ->
           {:ok, _models} = Registry.discover_models(max_cost_per_token: 0.001)

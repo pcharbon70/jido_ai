@@ -195,6 +195,7 @@ defmodule Jido.AI.Model.CapabilityIndex do
     if exists?() do
       clear_tables()
     end
+
     :ok
   end
 
@@ -212,12 +213,13 @@ defmodule Jido.AI.Model.CapabilityIndex do
       model_entries = :ets.info(@model_capabilities_table, :size)
       memory_bytes = :ets.info(@capability_index_table, :memory) * :erlang.system_info(:wordsize)
 
-      {:ok, %{
-        capability_index_entries: capability_entries,
-        model_entries: model_entries,
-        memory_bytes: memory_bytes,
-        memory_mb: Float.round(memory_bytes / 1_048_576, 2)
-      }}
+      {:ok,
+       %{
+         capability_index_entries: capability_entries,
+         model_entries: model_entries,
+         memory_bytes: memory_bytes,
+         memory_mb: Float.round(memory_bytes / 1_048_576, 2)
+       }}
     else
       {:error, :index_not_found}
     end
@@ -254,10 +256,11 @@ defmodule Jido.AI.Model.CapabilityIndex do
       key = {capability, value}
 
       # Get existing model list for this capability
-      existing_models = case :ets.lookup(@capability_index_table, key) do
-        [{^key, models}] -> models
-        [] -> []
-      end
+      existing_models =
+        case :ets.lookup(@capability_index_table, key) do
+          [{^key, models}] -> models
+          [] -> []
+        end
 
       # Add this model to the list
       updated_models = [model_id | existing_models] |> Enum.uniq()
@@ -278,10 +281,11 @@ defmodule Jido.AI.Model.CapabilityIndex do
         Enum.each(capabilities, fn {capability, value} ->
           key = {capability, value}
 
-          existing_models = case :ets.lookup(@capability_index_table, key) do
-            [{^key, models}] -> models
-            [] -> []
-          end
+          existing_models =
+            case :ets.lookup(@capability_index_table, key) do
+              [{^key, models}] -> models
+              [] -> []
+            end
 
           updated_models = [model_id | existing_models] |> Enum.uniq()
           :ets.insert(@capability_index_table, {key, updated_models})
@@ -315,6 +319,7 @@ defmodule Jido.AI.Model.CapabilityIndex do
           case :ets.lookup(@capability_index_table, key) do
             [{^key, models}] ->
               updated_models = List.delete(models, model_id)
+
               if updated_models == [] do
                 :ets.delete(@capability_index_table, key)
               else

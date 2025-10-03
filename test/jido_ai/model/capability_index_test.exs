@@ -141,7 +141,8 @@ defmodule Jido.AI.Model.CapabilityIndexTest do
     end
 
     test "returns error when index not built" do
-      assert {:error, :index_not_found} = CapabilityIndex.get_capabilities("anthropic:claude-3-5-sonnet")
+      assert {:error, :index_not_found} =
+               CapabilityIndex.get_capabilities("anthropic:claude-3-5-sonnet")
     end
   end
 
@@ -160,7 +161,8 @@ defmodule Jido.AI.Model.CapabilityIndexTest do
         provider: :anthropic,
         capabilities: %{
           tool_call: true,
-          reasoning: false,  # Changed from true to false
+          # Changed from true to false
+          reasoning: false,
           temperature: true,
           attachment: false
         }
@@ -261,28 +263,33 @@ defmodule Jido.AI.Model.CapabilityIndexTest do
   describe "performance" do
     test "handles large model sets efficiently" do
       # Create 1000 models
-      large_model_set = Enum.map(1..1000, fn i ->
-        %Model{
-          id: "provider#{rem(i, 10)}:model#{i}",
-          name: "model#{i}",
-          provider: :"provider#{rem(i, 10)}",
-          capabilities: %{
-            tool_call: rem(i, 2) == 0,
-            reasoning: rem(i, 3) == 0,
-            temperature: true
+      large_model_set =
+        Enum.map(1..1000, fn i ->
+          %Model{
+            id: "provider#{rem(i, 10)}:model#{i}",
+            name: "model#{i}",
+            provider: :"provider#{rem(i, 10)}",
+            capabilities: %{
+              tool_call: rem(i, 2) == 0,
+              reasoning: rem(i, 3) == 0,
+              temperature: true
+            }
           }
-        }
-      end)
+        end)
 
       # Build should complete quickly
       {time_us, :ok} = :timer.tc(fn -> CapabilityIndex.build(large_model_set) end)
-      assert time_us < 500_000  # Less than 500ms
+      # Less than 500ms
+      assert time_us < 500_000
 
       # Lookups should be fast
-      {lookup_time_us, {:ok, _ids}} = :timer.tc(fn ->
-        CapabilityIndex.lookup_by_capability(:tool_call, true)
-      end)
-      assert lookup_time_us < 10_000  # Less than 10ms
+      {lookup_time_us, {:ok, _ids}} =
+        :timer.tc(fn ->
+          CapabilityIndex.lookup_by_capability(:tool_call, true)
+        end)
+
+      # Less than 10ms
+      assert lookup_time_us < 10_000
     end
   end
 end

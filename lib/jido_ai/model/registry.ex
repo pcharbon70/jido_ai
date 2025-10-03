@@ -196,25 +196,28 @@ defmodule Jido.AI.Model.Registry do
     start_time = System.monotonic_time(:microsecond)
 
     # Get all models from registry
-    result = case list_models() do
-      {:ok, models} ->
-        # Build capability index if not exists
-        ensure_capability_index(models)
+    result =
+      case list_models() do
+        {:ok, models} ->
+          # Build capability index if not exists
+          ensure_capability_index(models)
 
-        # Apply filters using optimized path
-        filtered_models = apply_filters_optimized(models, filters)
-        {:ok, filtered_models}
+          # Apply filters using optimized path
+          filtered_models = apply_filters_optimized(models, filters)
+          {:ok, filtered_models}
 
-      {:error, reason} ->
-        {:error, reason}
-    end
+        {:error, reason} ->
+          {:error, reason}
+      end
 
     # Emit telemetry event
     duration_us = System.monotonic_time(:microsecond) - start_time
-    model_count = case result do
-      {:ok, models} when is_list(models) -> length(models)
-      _ -> 0
-    end
+
+    model_count =
+      case result do
+        {:ok, models} when is_list(models) -> length(models)
+        _ -> 0
+      end
 
     try do
       :telemetry.execute(
@@ -390,9 +393,14 @@ defmodule Jido.AI.Model.Registry do
   defp ensure_capability_index(models) do
     unless CapabilityIndex.exists?() do
       case CapabilityIndex.build(models) do
-        :ok -> :ok
+        :ok ->
+          :ok
+
         {:error, reason} ->
-          Logger.warning("Failed to build capability index: #{inspect(reason)}, falling back to non-indexed filtering")
+          Logger.warning(
+            "Failed to build capability index: #{inspect(reason)}, falling back to non-indexed filtering"
+          )
+
           :error
       end
     end
@@ -422,18 +430,20 @@ defmodule Jido.AI.Model.Registry do
     case CapabilityIndex.lookup_by_capability(capability, true) do
       {:ok, candidate_ids} ->
         # Build a map for O(1) model lookup, handling both atom and string keys
-        model_map = Map.new(models, fn model ->
-          model_id = Map.get(model, :id) || Map.get(model, "id")
-          {model_id, model}
-        end)
+        model_map =
+          Map.new(models, fn model ->
+            model_id = Map.get(model, :id) || Map.get(model, "id")
+            {model_id, model}
+          end)
 
         # Get candidate models
-        candidates = Enum.flat_map(candidate_ids, fn id ->
-          case Map.get(model_map, id) do
-            nil -> []
-            model -> [model]
-          end
-        end)
+        candidates =
+          Enum.flat_map(candidate_ids, fn id ->
+            case Map.get(model_map, id) do
+              nil -> []
+              model -> [model]
+            end
+          end)
 
         # Apply remaining filters to candidates only
         remaining_filters = Keyword.delete(filters, :capability)
@@ -527,12 +537,18 @@ defmodule Jido.AI.Model.Registry do
     endpoints = Map.get(model, :endpoints) || Map.get(model, "endpoints")
 
     case endpoints do
-      nil -> nil
-      [] -> nil
+      nil ->
+        nil
+
+      [] ->
+        nil
+
       [endpoint | _] when is_map(endpoint) ->
         context = Map.get(endpoint, :context_length) || Map.get(endpoint, "context_length")
         if is_number(context), do: context, else: nil
-      _ -> nil
+
+      _ ->
+        nil
     end
   end
 
