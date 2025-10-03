@@ -120,14 +120,14 @@ This section systematically migrates internal provider-specific implementations 
 > ⚠️ **Important**: The module names `Jido.AI.Actions.OpenaiEx` and its submodules (`Embeddings`, `ImageGeneration`, `ResponseRetrieve`, `ToolHelper`) are part of the public API and **must be preserved**. Only the internal implementation should be changed to use ReqLLM. Users must be able to continue calling these modules exactly as before.
 
 ### 2.3.1 Provider Implementation Migration
-- [ ] **Task 2.3.1 Complete**
+- [x] **Task 2.3.1 Complete**
 
 Migrate provider-specific internal implementations to use ReqLLM while preserving public module names and APIs. The module names like `Jido.AI.Actions.OpenaiEx` must remain unchanged as they are part of the public API documented in guides and used by existing applications.
 
-- [ ] 2.3.1.1 Replace OpenAI API calls inside `Jido.AI.Actions.OpenaiEx` with ReqLLM bridge (preserve module name and public functions)
-- [ ] 2.3.1.2 Replace internal Anthropic API calls with ReqLLM while keeping any public interfaces intact
-- [ ] 2.3.1.3 Replace internal Google API calls with ReqLLM while keeping any public interfaces intact
-- [ ] 2.3.1.4 Replace OpenRouter and Cloudflare internal implementations with ReqLLM calls
+- [x] 2.3.1.1 Replace OpenAI API calls inside `Jido.AI.Actions.OpenaiEx` with ReqLLM bridge (preserve module name and public functions)
+- [x] 2.3.1.2 Replace internal Anthropic API calls with ReqLLM while keeping any public interfaces intact
+- [x] 2.3.1.3 Replace internal Google API calls with ReqLLM while keeping any public interfaces intact
+- [x] 2.3.1.4 Replace OpenRouter and Cloudflare internal implementations with ReqLLM calls
 
 ### 2.3.2 HTTP Client Code Cleanup
 - [ ] **Task 2.3.2 Complete**
