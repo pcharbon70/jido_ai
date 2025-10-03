@@ -75,8 +75,24 @@ defmodule Jido.AI.Model.Registry do
   """
   @spec list_models(provider_id() | nil) :: {:ok, [Jido.AI.Model.t()]} | {:error, term()}
   def list_models(provider_id \\ nil) do
+    # Check cache first if provider specified
+    case provider_id && Jido.AI.Model.Registry.Cache.get(provider_id) do
+      {:ok, cached_models} ->
+        {:ok, cached_models}
+
+      _ ->
+        # Cache miss or no provider - fetch from registry
+        fetch_and_cache_models(provider_id)
+    end
+  rescue
+    error ->
+      Logger.error("Model registry error: #{inspect(error)}")
+      {:error, "Failed to discover models: #{inspect(error)}"}
+  end
+
+  defp fetch_and_cache_models(provider_id) do
     # Primary path: ReqLLM registry
-    case get_models_from_registry(provider_id) do
+    result = case get_models_from_registry(provider_id) do
       {:ok, [_ | _] = registry_models} ->
         # Enhance registry models with legacy adapter data if available
         enhanced_models = enhance_with_legacy_data(registry_models, provider_id)
@@ -101,10 +117,64 @@ defmodule Jido.AI.Model.Registry do
           get_models_from_all_legacy_adapters()
         end
     end
-  rescue
-    error ->
-      Logger.error("Model registry error: #{inspect(error)}")
-      {:error, "Failed to discover models: #{inspect(error)}"}
+
+    # Cache successful results for specific providers
+    case {result, provider_id} do
+      {{:ok, models}, pid} when is_atom(pid) and not is_nil(pid) ->
+        Jido.AI.Model.Registry.Cache.put(pid, models)
+      _ ->
+        :ok
+    end
+
+    result
+  end
+
+  @doc """
+  Batch fetches models from multiple providers concurrently.
+
+  This function optimizes model discovery across multiple providers by fetching
+  them in parallel, significantly reducing total discovery time.
+
+  ## Parameters
+    - provider_ids: List of provider atoms to fetch models from
+
+  ## Options
+    - `:max_concurrency` - Maximum concurrent requests (default: 10)
+    - `:timeout` - Timeout per provider request in ms (default: 30_000)
+
+  ## Returns
+    - `{:ok, results}` where results is a list of `{provider_id, {:ok, models} | {:error, reason}}`
+
+  ## Examples
+
+      # Fetch from multiple providers concurrently
+      {:ok, results} = batch_get_models([:openai, :anthropic, :google])
+
+      # With custom concurrency
+      {:ok, results} = batch_get_models([:openai, :anthropic], max_concurrency: 5)
+
+  """
+  @spec batch_get_models(list(provider_id()), keyword()) :: {:ok, list({provider_id(), {:ok, list()} | {:error, term()}})}
+  def batch_get_models(provider_ids, opts \\ []) when is_list(provider_ids) do
+    max_concurrency = Keyword.get(opts, :max_concurrency, 10)
+    timeout = Keyword.get(opts, :timeout, 30_000)
+
+    results =
+      provider_ids
+      |> Task.async_stream(
+        fn provider_id ->
+          {provider_id, list_models(provider_id)}
+        end,
+        max_concurrency: max_concurrency,
+        timeout: timeout,
+        on_timeout: :kill_task
+      )
+      |> Enum.map(fn
+        {:ok, result} -> result
+        {:exit, reason} -> {:error, {:batch_timeout, reason}}
+      end)
+
+    {:ok, results}
   end
 
   @doc """
