@@ -118,15 +118,25 @@ Created `test/jido_ai/actions/instructor_advanced_params_test.exs` with 20 tests
 #### Test Results
 
 ```
-20 tests, 0 failures
+44 tests, 0 failures (20 unit + 24 integration)
 ```
 
 All tests pass successfully, validating:
+
+**Unit Tests (20):**
 - Parameter schema acceptance
 - Type validation (map, keyword list)
 - Optional parameter handling
 - Provider-specific option support
 - Parameter priority and merging logic
+
+**Integration Tests (24):**
+- Parameters correctly pass through to Instructor.chat_completion
+- response_format, logit_bias, provider_options work end-to-end
+- Parameter priority (explicit > prompt > defaults) enforced at runtime
+- Error handling with advanced parameters
+- Streaming compatibility (array and partial modes)
+- Provider adapter configuration with advanced params
 
 ## Subtask Completion
 
@@ -174,10 +184,15 @@ All tests pass successfully, validating:
 
 1. **test/jido_ai/actions/instructor_advanced_params_test.exs**
    - 20 comprehensive unit tests
-   - Full coverage of advanced parameters
+   - Full coverage of parameter acceptance
    - Provider-specific option testing
 
-2. **notes/features/task-2-5-1-advanced-generation-summary.md** (this file)
+2. **test/jido_ai/actions/instructor_advanced_params_integration_test.exs**
+   - 24 integration tests with Instructor mocking
+   - Verifies parameters pass through correctly
+   - Tests parameter priority, error handling, streaming
+
+3. **notes/features/task-2-5-1-advanced-generation-summary.md** (this file)
 
 ## Technical Decisions
 
