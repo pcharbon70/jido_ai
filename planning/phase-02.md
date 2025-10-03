@@ -202,14 +202,14 @@ Optimize response processing to handle provider-specific response formats effici
 This section exposes advanced model features that are now accessible through ReqLLM, including features that weren't previously available in Jido AI.
 
 ### 2.5.1 Advanced Generation Parameters
-- [ ] **Task 2.5.1 Complete**
+- [x] **Task 2.5.1 Complete**
 
 Expose advanced generation parameters that are supported by modern models but weren't previously accessible through Jido AI.
 
-- [ ] 2.5.1.1 Add support for JSON mode and structured output formats
-- [ ] 2.5.1.2 Implement grammar-constrained generation where supported
-- [ ] 2.5.1.3 Add support for logit bias and token probability access
-- [ ] 2.5.1.4 Expose model-specific fine-tuning parameters
+- [x] 2.5.1.1 Add support for JSON mode and structured output formats
+- [x] 2.5.1.2 Implement grammar-constrained generation where supported
+- [x] 2.5.1.3 Add support for logit bias and token probability access
+- [x] 2.5.1.4 Expose model-specific fine-tuning parameters
 
 ### 2.5.2 Context Window Management
 - [ ] **Task 2.5.2 Complete**
@@ -233,7 +233,7 @@ Enable access to specialized features offered by specific models or providers th
 
 ### Unit Tests - Section 2.5
 - [ ] **Unit Tests 2.5 Complete**
-- [ ] Test advanced parameter validation and application
+- [x] Test advanced parameter validation and application
 - [ ] Test context window management across different models
 - [ ] Validate specialized feature availability detection
 - [ ] Test graceful degradation when features aren't supported
