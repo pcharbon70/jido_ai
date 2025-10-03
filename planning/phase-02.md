@@ -84,14 +84,14 @@ The capability detection system (implemented in Phase 1) already provides model 
 - [x] 2.2.1.4 Validate capability metadata accuracy across all 57+ providers
 
 ### 2.2.2 Multi-Modal Support Validation
-- [ ] **Task 2.2.2 Complete**
+- [x] **Task 2.2.2 Complete**
 
 Multi-modal support detection is already implemented via the modalities field in the registry. This task validates modality detection accuracy and prepares for Phase 3's implementation.
 
-- [ ] 2.2.2.1 Validate vision capability detection across providers
-- [ ] 2.2.2.2 Validate audio capability detection and metadata
-- [ ] 2.2.2.3 Validate document processing capability indicators
-- [ ] 2.2.2.4 Generate comprehensive modality compatibility matrix
+- [x] 2.2.2.1 Validate vision capability detection across providers
+- [x] 2.2.2.2 Validate audio capability detection and metadata
+- [x] 2.2.2.3 Validate document processing capability indicators
+- [x] 2.2.2.4 Generate comprehensive modality compatibility matrix
 
 ### 2.2.3 Cost and Performance Optimization
 - [ ] **Task 2.2.3 Complete**
