@@ -177,4 +177,17 @@ defmodule Jido.AI.FeaturesTest do
       assert :together in providers
     end
   end
+
+  describe "edge cases" do
+    test "supports?/2 returns false when Model.from/1 fails" do
+      # Model.from/1 will fail for non-existent provider format
+      refute Features.supports?("invalid-format", :rag)
+    end
+
+    test "capabilities/1 returns empty list when Model.from/1 fails" do
+      # Model.from/1 will fail for non-existent provider format
+      caps = Features.capabilities("invalid-format")
+      assert caps == []
+    end
+  end
 end

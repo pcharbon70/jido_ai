@@ -54,6 +54,18 @@ defmodule Jido.AI.Features.RAGTest do
       assert get_in(formatted, [Access.at(0), "inline_data", "mime_type"]) == "text/plain"
     end
 
+    test "prepares documents for Google with metadata" do
+      documents = [
+        %{content: "Doc with metadata", metadata: %{source: "test", version: 1}}
+      ]
+
+      {:ok, formatted} = RAG.prepare_documents(documents, :google)
+
+      # Metadata is preserved with atom keys
+      assert get_in(formatted, [Access.at(0), "metadata", :source]) == "test"
+      assert get_in(formatted, [Access.at(0), "metadata", :version]) == 1
+    end
+
     test "prepares documents for Anthropic", %{documents: documents} do
       {:ok, formatted_text} = RAG.prepare_documents(documents, :anthropic)
 
@@ -199,6 +211,65 @@ defmodule Jido.AI.Features.RAGTest do
       response = %{}
 
       {:ok, citations} = RAG.extract_citations(response, :cohere)
+
+      assert citations == []
+    end
+
+    test "handles Cohere citations with integer document_ids" do
+      response = %{
+        "citations" => [
+          %{
+            "text" => "cited",
+            "document_ids" => [2],
+            "start" => 0,
+            "end" => 5
+          }
+        ]
+      }
+
+      {:ok, citations} = RAG.extract_citations(response, :cohere)
+
+      assert Enum.at(citations, 0).document_index == 2
+    end
+
+    test "handles Cohere citations with string document_ids" do
+      response = %{
+        "citations" => [
+          %{
+            "text" => "cited",
+            "document_ids" => ["3"],
+            "start" => 0,
+            "end" => 5
+          }
+        ]
+      }
+
+      {:ok, citations} = RAG.extract_citations(response, :cohere)
+
+      assert Enum.at(citations, 0).document_index == 3
+    end
+
+    test "handles Cohere citations with invalid document_ids" do
+      response = %{
+        "citations" => [
+          %{
+            "text" => "cited",
+            "document_ids" => ["invalid"],
+            "start" => 0,
+            "end" => 5
+          }
+        ]
+      }
+
+      {:ok, citations} = RAG.extract_citations(response, :cohere)
+
+      assert Enum.at(citations, 0).document_index == 0
+    end
+
+    test "returns empty list for unsupported provider" do
+      response = %{"content" => "Response"}
+
+      {:ok, citations} = RAG.extract_citations(response, :ollama)
 
       assert citations == []
     end

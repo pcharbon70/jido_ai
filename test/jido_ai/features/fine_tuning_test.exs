@@ -144,4 +144,33 @@ defmodule Jido.AI.Features.FineTuningTest do
       assert {:error, :invalid_model_id} = FineTuning.parse_model_id(%{}, :openai)
     end
   end
+
+  describe "discover/2" do
+    test "returns not implemented error" do
+      assert {:error, :not_implemented} = FineTuning.discover(:openai, "test-api-key")
+    end
+
+    test "returns not implemented for any provider" do
+      assert {:error, :not_implemented} = FineTuning.discover(:google, "test-key")
+      assert {:error, :not_implemented} = FineTuning.discover(:cohere, "test-key")
+    end
+  end
+
+  describe "supports_capability?/2" do
+    test "returns false for base model" do
+      model = %Model{provider: :openai, model: "gpt-4"}
+      refute FineTuning.supports_capability?(model, :streaming)
+    end
+
+    test "returns false when base model cannot be parsed" do
+      model = %Model{provider: :openai, model: "ft:invalid-format"}
+      refute FineTuning.supports_capability?(model, :streaming)
+    end
+
+    test "returns false when base model lookup fails" do
+      # Model with valid fine-tuned format but invalid base model
+      model = %Model{provider: :openai, model: "ft:nonexistent-model:org:id"}
+      refute FineTuning.supports_capability?(model, :streaming)
+    end
+  end
 end
