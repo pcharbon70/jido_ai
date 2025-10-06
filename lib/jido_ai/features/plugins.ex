@@ -78,7 +78,6 @@ defmodule Jido.AI.Features.Plugins do
 
   # Validation limits
   @max_plugin_name_length 128
-  @max_description_length 1000
   @max_args_count 50
 
   @doc """

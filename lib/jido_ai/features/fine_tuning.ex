@@ -37,8 +37,6 @@ defmodule Jido.AI.Features.FineTuning do
 
   # Validation limits
   @max_model_id_length 512
-  @max_organization_length 128
-  @max_suffix_length 128
 
   @type fine_tune_info :: %{
           provider: atom(),
