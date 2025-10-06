@@ -10,6 +10,11 @@ defmodule Jido.AI.Actions.Instructor do
   - Response mode configuration (:json, :function_call)
   - Structured output validation with automatic retries
   - Optional context window validation and automatic truncation
+  - Specialized features support (RAG, code execution, plugins, fine-tuning)
+    - Check feature availability: `Jido.AI.Features.supports?(model, :rag)`
+    - RAG document preparation: `Jido.AI.Features.RAG.prepare_documents/2`
+    - Plugin configuration: `Jido.AI.Features.Plugins.configure_plugin/2`
+    - Fine-tuning detection: `Jido.AI.Features.FineTuning.is_fine_tuned?/1`
 
   ## Usage
 
