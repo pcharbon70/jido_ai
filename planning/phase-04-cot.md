@@ -31,14 +31,14 @@ The foundation enables immediate value through simple "Let's think step by step"
 This section implements the core `Jido.Runner.ChainOfThought` module that intercepts instruction execution and adds reasoning steps before action invocation. The custom runner integrates seamlessly with JidoAI's pluggable runner system, providing transparent CoT capabilities without requiring action modifications. The runner analyzes pending instructions, generates reasoning plans, and executes actions with enriched context containing reasoning traces.
 
 ### 1.1.1 Runner Module Foundation
-- [ ] **Task 1.1.1 Complete**
+- [x] **Task 1.1.1 Complete**
 
 Create the foundational CoT runner module implementing the `Jido.Runner` behavior. This establishes the core execution flow that will be enhanced in subsequent tasks.
 
-- [ ] 1.1.1.1 Create `lib/jido/runner/chain_of_thought.ex` module implementing `@behaviour Jido.Runner`
-- [ ] 1.1.1.2 Implement `run/2` function that accepts agent and context, returns `{:ok, agent}` or `{:error, reason}`
-- [ ] 1.1.1.3 Add module documentation with usage examples and configuration options
-- [ ] 1.1.1.4 Create module schema defining runner configuration parameters (mode, max_iterations, model)
+- [x] 1.1.1.1 Create `lib/jido/runner/chain_of_thought.ex` module implementing `@behaviour Jido.Runner`
+- [x] 1.1.1.2 Implement `run/2` function that accepts agent and context, returns `{:ok, agent}` or `{:error, reason}`
+- [x] 1.1.1.3 Add module documentation with usage examples and configuration options
+- [x] 1.1.1.4 Create module schema defining runner configuration parameters (mode, max_iterations, model)
 
 ### 1.1.2 Zero-Shot Reasoning Generation
 - [ ] **Task 1.1.2 Complete**
