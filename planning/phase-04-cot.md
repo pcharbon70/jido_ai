@@ -41,14 +41,14 @@ Create the foundational CoT runner module implementing the `Jido.Runner` behavio
 - [x] 1.1.1.4 Create module schema defining runner configuration parameters (mode, max_iterations, model)
 
 ### 1.1.2 Zero-Shot Reasoning Generation
-- [ ] **Task 1.1.2 Complete**
+- [x] **Task 1.1.2 Complete**
 
 Implement zero-shot CoT reasoning generation that analyzes instruction sequences and produces step-by-step reasoning plans before execution. This uses the "Let's think step by step" prompting pattern proven to improve reasoning by 8-15%.
 
-- [ ] 1.1.2.1 Implement `generate_reasoning_plan/3` function analyzing instructions and state
-- [ ] 1.1.2.2 Create prompt template for zero-shot reasoning with instruction context
-- [ ] 1.1.2.3 Integrate with `Jido.AI.Actions.ChatCompletion` for LLM reasoning generation
-- [ ] 1.1.2.4 Parse and structure reasoning output into executable steps with expected outcomes
+- [x] 1.1.2.1 Implement `generate_reasoning_plan/3` function analyzing instructions and state
+- [x] 1.1.2.2 Create prompt template for zero-shot reasoning with instruction context
+- [x] 1.1.2.3 Integrate with `Jido.AI.Actions.ChatCompletion` for LLM reasoning generation
+- [x] 1.1.2.4 Parse and structure reasoning output into executable steps with expected outcomes
 
 ### 1.1.3 Reasoning-Guided Execution
 - [ ] **Task 1.1.3 Complete**

@@ -111,6 +111,11 @@ defmodule Jido.Runner.ChainOfThought do
 
   require Logger
 
+  alias Jido.Runner.ChainOfThought.ReasoningPrompt
+  alias Jido.Runner.ChainOfThought.ReasoningParser
+  alias Jido.AI.Actions.OpenaiEx
+  alias Jido.AI.Model
+
   # Type definitions
 
   typedstruct module: Config do
@@ -261,6 +266,84 @@ defmodule Jido.Runner.ChainOfThought do
   end
 
   @doc false
+  @spec generate_reasoning_plan(list(), agent(), config()) ::
+          {:ok, ReasoningParser.ReasoningPlan.t()} | {:error, term()}
+  defp generate_reasoning_plan(instructions, agent, config) do
+    Logger.debug("Generating reasoning plan for #{length(instructions)} instructions")
+
+    with {:ok, prompt} <- build_reasoning_prompt(instructions, agent, config),
+         {:ok, model} <- get_reasoning_model(config),
+         {:ok, reasoning_text} <- call_llm_for_reasoning(prompt, model, config),
+         {:ok, reasoning_plan} <- ReasoningParser.parse(reasoning_text),
+         :ok <- ReasoningParser.validate(reasoning_plan) do
+      Logger.debug("Successfully generated and validated reasoning plan")
+      {:ok, reasoning_plan}
+    else
+      {:error, reason} = error ->
+        Logger.warning("Failed to generate reasoning plan: #{inspect(reason)}")
+        error
+    end
+  end
+
+  @doc false
+  @spec build_reasoning_prompt(list(), agent(), config()) :: {:ok, Jido.AI.Prompt.t()} | {:error, term()}
+  defp build_reasoning_prompt(instructions, agent, %Config{mode: :zero_shot}) do
+    prompt = ReasoningPrompt.zero_shot(instructions, agent.state || %{})
+    {:ok, prompt}
+  end
+
+  defp build_reasoning_prompt(instructions, agent, %Config{mode: :few_shot}) do
+    prompt = ReasoningPrompt.few_shot(instructions, agent.state || %{})
+    {:ok, prompt}
+  end
+
+  defp build_reasoning_prompt(instructions, agent, %Config{mode: :structured}) do
+    prompt = ReasoningPrompt.structured(instructions, agent.state || %{})
+    {:ok, prompt}
+  end
+
+  defp build_reasoning_prompt(_instructions, _agent, config) do
+    {:error, "Unknown reasoning mode: #{inspect(config.mode)}"}
+  end
+
+  @doc false
+  @spec get_reasoning_model(config()) :: {:ok, Model.t()} | {:error, term()}
+  defp get_reasoning_model(%Config{model: model_name}) when is_binary(model_name) do
+    # Use specified model
+    Model.from({:openai, model: model_name})
+  end
+
+  defp get_reasoning_model(%Config{model: nil}) do
+    # Use default reasoning model
+    Model.from({:openai, model: "gpt-4o"})
+  end
+
+  @doc false
+  @spec call_llm_for_reasoning(Jido.AI.Prompt.t(), Model.t(), config()) ::
+          {:ok, String.t()} | {:error, term()}
+  defp call_llm_for_reasoning(prompt, model, config) do
+    params = %{
+      model: model,
+      prompt: prompt,
+      temperature: config.temperature,
+      max_tokens: 2000
+    }
+
+    case OpenaiEx.run(params, %{}) do
+      {:ok, %{content: content}} when is_binary(content) ->
+        {:ok, content}
+
+      {:ok, response} ->
+        Logger.warning("Unexpected response format: #{inspect(response)}")
+        {:error, "Invalid response format from LLM"}
+
+      {:error, reason} = error ->
+        Logger.error("LLM call failed: #{inspect(reason)}")
+        error
+    end
+  end
+
+  @doc false
   @spec execute_with_reasoning(agent(), list(), config()) ::
           {:ok, agent(), directives()} | {:error, term()}
   defp execute_with_reasoning(agent, [], _config) do
@@ -268,7 +351,7 @@ defmodule Jido.Runner.ChainOfThought do
     {:ok, agent, []}
   end
 
-  defp execute_with_reasoning(agent, _instructions, config) do
+  defp execute_with_reasoning(agent, instructions, config) do
     Logger.info("""
     ChainOfThought runner executing with config:
       mode: #{config.mode}
@@ -277,13 +360,32 @@ defmodule Jido.Runner.ChainOfThought do
       temperature: #{config.temperature}
     """)
 
-    # TODO: Implement actual reasoning and execution in Task 1.1.2 and 1.1.3
-    # For now, fall back to simple execution
-    if config.fallback_on_error do
-      Logger.info("Falling back to simple runner (reasoning not yet implemented)")
-      Jido.Runner.Simple.run(agent)
-    else
-      {:error, "Reasoning execution not yet implemented"}
+    case generate_reasoning_plan(instructions, agent, config) do
+      {:ok, reasoning_plan} ->
+        Logger.info("""
+        Generated reasoning plan:
+          Goal: #{reasoning_plan.goal}
+          Steps: #{length(reasoning_plan.steps)}
+        """)
+
+        # TODO: Task 1.1.3 will implement actual execution with reasoning context
+        # For now, log the reasoning and fall back
+        if config.fallback_on_error do
+          Logger.info("Reasoning generated successfully, falling back to simple runner for execution")
+          Jido.Runner.Simple.run(agent)
+        else
+          {:error, "Reasoning-guided execution not yet implemented (Task 1.1.3)"}
+        end
+
+      {:error, reason} ->
+        Logger.warning("Reasoning generation failed: #{inspect(reason)}")
+
+        if config.fallback_on_error do
+          Logger.info("Falling back to simple runner due to reasoning failure")
+          Jido.Runner.Simple.run(agent)
+        else
+          {:error, "Reasoning generation failed: #{inspect(reason)}"}
+        end
     end
   end
 end
