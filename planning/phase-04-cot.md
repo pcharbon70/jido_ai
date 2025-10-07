@@ -26,7 +26,7 @@ The foundation enables immediate value through simple "Let's think step by step"
 ---
 
 ## 1.1 Custom CoT Runner Implementation
-- [ ] **Section 1.1 Complete**
+- [x] **Section 1.1 Complete**
 
 This section implements the core `Jido.Runner.ChainOfThought` module that intercepts instruction execution and adds reasoning steps before action invocation. The custom runner integrates seamlessly with JidoAI's pluggable runner system, providing transparent CoT capabilities without requiring action modifications. The runner analyzes pending instructions, generates reasoning plans, and executes actions with enriched context containing reasoning traces.
 
@@ -71,13 +71,13 @@ Implement robust error handling for reasoning generation failures and execution 
 - [x] 1.1.4.4 Add comprehensive error logging with failure context
 
 ### Unit Tests - Section 1.1
-- [ ] **Unit Tests 1.1 Complete**
-- [ ] Test runner module initialization and configuration validation
-- [ ] Test reasoning generation with various instruction sequences
-- [ ] Test execution flow with reasoning context enrichment
-- [ ] Test error handling and fallback mechanisms
-- [ ] Test outcome validation logic with matching and mismatching results
-- [ ] Validate reasoning trace structure and completeness
+- [x] **Unit Tests 1.1 Complete**
+- [x] Test runner module initialization and configuration validation
+- [x] Test reasoning generation with various instruction sequences
+- [x] Test execution flow with reasoning context enrichment
+- [x] Test error handling and fallback mechanisms
+- [x] Test outcome validation logic with matching and mismatching results
+- [x] Validate reasoning trace structure and completeness
 
 ---
 
