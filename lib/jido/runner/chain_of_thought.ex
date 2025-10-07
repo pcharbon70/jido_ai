@@ -115,7 +115,8 @@ defmodule Jido.Runner.ChainOfThought do
   alias Jido.Runner.ChainOfThought.ReasoningParser
   alias Jido.Runner.ChainOfThought.ExecutionContext
   alias Jido.Runner.ChainOfThought.OutcomeValidator
-  alias Jido.AI.Actions.OpenaiEx
+  alias Jido.Runner.ChainOfThought.ErrorHandler
+  alias Jido.AI.Actions.TextCompletion
   alias Jido.AI.Model
 
   # Type definitions
@@ -324,25 +325,33 @@ defmodule Jido.Runner.ChainOfThought do
   @spec call_llm_for_reasoning(Jido.AI.Prompt.t(), Model.t(), config()) ::
           {:ok, String.t()} | {:error, term()}
   defp call_llm_for_reasoning(prompt, model, config) do
-    params = %{
-      model: model,
-      prompt: prompt,
-      temperature: config.temperature,
-      max_tokens: 2000
-    }
+    # Wrap LLM call with retry logic for transient failures
+    ErrorHandler.with_retry(
+      fn ->
+        params = %{
+          model: model,
+          prompt: prompt,
+          temperature: config.temperature,
+          max_tokens: 2000
+        }
 
-    case OpenaiEx.run(params, %{}) do
-      {:ok, %{content: content}} when is_binary(content) ->
-        {:ok, content}
+        case TextCompletion.run(params, %{}) do
+          {:ok, %{content: content}, _directives} when is_binary(content) ->
+            {:ok, content}
 
-      {:ok, response} ->
-        Logger.warning("Unexpected response format: #{inspect(response)}")
-        {:error, "Invalid response format from LLM"}
+          {:ok, response, _directives} ->
+            Logger.warning("Unexpected response format: #{inspect(response)}")
+            {:error, :invalid_response}
 
-      {:error, reason} = error ->
-        Logger.error("LLM call failed: #{inspect(reason)}")
-        error
-    end
+          {:error, reason} ->
+            Logger.debug("LLM call failed (will retry if appropriate): #{inspect(reason)}")
+            {:error, reason}
+        end
+      end,
+      max_retries: 3,
+      initial_delay_ms: 1000,
+      backoff_factor: 2.0
+    )
   end
 
   @doc false
@@ -367,14 +376,40 @@ defmodule Jido.Runner.ChainOfThought do
         log_reasoning_plan(reasoning_plan)
         execute_instructions_with_reasoning(agent, instructions, reasoning_plan, config)
 
-      {:error, reason} ->
-        Logger.warning("Reasoning generation failed: #{inspect(reason)}")
+      {:error, %ErrorHandler.Error{} = error} ->
+        # Structured error from ErrorHandler
+        ErrorHandler.log_error(error,
+          operation: "reasoning_generation",
+          instructions: length(instructions)
+        )
 
         if config.fallback_on_error do
-          Logger.info("Falling back to simple runner due to reasoning failure")
-          Jido.Runner.Simple.run(agent)
+          ErrorHandler.handle_error(error, %{agent: agent, operation: "reasoning_generation"},
+            strategy: :fallback_direct,
+            fallback_fn: fn -> Jido.Runner.Simple.run(agent) end
+          )
         else
-          {:error, "Reasoning generation failed: #{inspect(reason)}"}
+          {:error, error}
+        end
+
+      {:error, reason} ->
+        # Unstructured error - wrap in ErrorHandler
+        error =
+          ErrorHandler.create_error(:llm_error, reason,
+            operation: "reasoning_generation",
+            instructions: length(instructions),
+            mode: config.mode
+          )
+
+        ErrorHandler.log_error(error)
+
+        if config.fallback_on_error do
+          ErrorHandler.handle_error(error, %{agent: agent},
+            strategy: :fallback_direct,
+            fallback_fn: fn -> Jido.Runner.Simple.run(agent) end
+          )
+        else
+          {:error, error}
         end
     end
   end
@@ -415,20 +450,45 @@ defmodule Jido.Runner.ChainOfThought do
         {:ok, updated_agent, new_directives, validation} ->
           log_step_completion(index + 1, validation)
 
+          # Handle unexpected outcomes
           if config.enable_validation and OutcomeValidator.unexpected_outcome?(validation) do
-            Logger.warning("Unexpected outcome detected at step #{index + 1}")
+            case ErrorHandler.handle_unexpected_outcome(validation, config) do
+              :continue ->
+                {:cont, {:ok, updated_agent, acc_directives ++ new_directives}}
+
+              {:error, _error} = error ->
+                if config.fallback_on_error do
+                  Logger.info("Falling back to simple runner due to unexpected outcome")
+                  {:halt, Jido.Runner.Simple.run(agent)}
+                else
+                  {:halt, error}
+                end
+            end
+          else
+            {:cont, {:ok, updated_agent, acc_directives ++ new_directives}}
           end
 
-          {:cont, {:ok, updated_agent, acc_directives ++ new_directives}}
+        {:error, reason} ->
+          error =
+            ErrorHandler.create_error(:execution_error, reason,
+              operation: "instruction_execution",
+              step: index + 1,
+              instruction: inspect(instruction)
+            )
 
-        {:error, reason} = error ->
-          Logger.error("Execution failed at step #{index + 1}: #{inspect(reason)}")
+          ErrorHandler.log_error(error)
 
           if config.fallback_on_error do
-            Logger.info("Falling back to simple runner")
-            {:halt, Jido.Runner.Simple.run(agent)}
+            ErrorHandler.handle_error(error, %{agent: agent, step: index + 1},
+              strategy: :fallback_direct,
+              fallback_fn: fn -> Jido.Runner.Simple.run(agent) end
+            )
+            |> case do
+              {:ok, _, _} = success -> {:halt, success}
+              error -> {:halt, error}
+            end
           else
-            {:halt, error}
+            {:halt, {:error, error}}
           end
       end
     end)
@@ -486,7 +546,7 @@ defmodule Jido.Runner.ChainOfThought do
         # Future: integrate with Jido's directive processing
         {:ok, agent, [], {:ok, result}}
 
-      {:error, reason} = error ->
+      {:error, _reason} = error ->
         error
     end
   end
