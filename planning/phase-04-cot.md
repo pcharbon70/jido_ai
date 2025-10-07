@@ -87,14 +87,14 @@ Implement robust error handling for reasoning generation failures and execution 
 This section implements lighter-weight CoT integration through JidoAI's lifecycle hooks (`on_before_plan`, `on_before_run`, `on_after_run`). This approach provides CoT capabilities without full runner replacement, suitable for existing agents that need reasoning enhancement without major refactoring. Hook integration offers lower overhead than custom runners while still enabling planning reasoning, execution analysis, and result validation.
 
 ### 1.2.1 Planning Hook Implementation
-- [ ] **Task 1.2.1 Complete**
+- [x] **Task 1.2.1 Complete**
 
 Implement `on_before_plan` hook integration that generates high-level reasoning before instructions are queued, providing strategic planning capabilities.
 
-- [ ] 1.2.1.1 Create example agent module with `on_before_plan/3` callback implementation
-- [ ] 1.2.1.2 Implement planning reasoning generation analyzing instruction intent and dependencies
-- [ ] 1.2.1.3 Add reasoning to context for downstream consumption by other hooks
-- [ ] 1.2.1.4 Support opt-in behavior via context flag `enable_planning_cot`
+- [x] 1.2.1.1 Create example agent module with `on_before_plan/3` callback implementation
+- [x] 1.2.1.2 Implement planning reasoning generation analyzing instruction intent and dependencies
+- [x] 1.2.1.3 Add reasoning to context for downstream consumption by other hooks
+- [x] 1.2.1.4 Support opt-in behavior via context flag `enable_planning_cot`
 
 ### 1.2.2 Execution Hook Implementation
 - [ ] **Task 1.2.2 Complete**
