@@ -113,6 +113,8 @@ defmodule Jido.Runner.ChainOfThought do
 
   alias Jido.Runner.ChainOfThought.ReasoningPrompt
   alias Jido.Runner.ChainOfThought.ReasoningParser
+  alias Jido.Runner.ChainOfThought.ExecutionContext
+  alias Jido.Runner.ChainOfThought.OutcomeValidator
   alias Jido.AI.Actions.OpenaiEx
   alias Jido.AI.Model
 
@@ -362,20 +364,8 @@ defmodule Jido.Runner.ChainOfThought do
 
     case generate_reasoning_plan(instructions, agent, config) do
       {:ok, reasoning_plan} ->
-        Logger.info("""
-        Generated reasoning plan:
-          Goal: #{reasoning_plan.goal}
-          Steps: #{length(reasoning_plan.steps)}
-        """)
-
-        # TODO: Task 1.1.3 will implement actual execution with reasoning context
-        # For now, log the reasoning and fall back
-        if config.fallback_on_error do
-          Logger.info("Reasoning generated successfully, falling back to simple runner for execution")
-          Jido.Runner.Simple.run(agent)
-        else
-          {:error, "Reasoning-guided execution not yet implemented (Task 1.1.3)"}
-        end
+        log_reasoning_plan(reasoning_plan)
+        execute_instructions_with_reasoning(agent, instructions, reasoning_plan, config)
 
       {:error, reason} ->
         Logger.warning("Reasoning generation failed: #{inspect(reason)}")
@@ -388,4 +378,183 @@ defmodule Jido.Runner.ChainOfThought do
         end
     end
   end
+
+  @doc false
+  @spec log_reasoning_plan(ReasoningParser.ReasoningPlan.t()) :: :ok
+  defp log_reasoning_plan(plan) do
+    Logger.info("""
+    === Chain-of-Thought Reasoning Plan ===
+    Goal: #{plan.goal}
+
+    Analysis:
+    #{indent_text(plan.analysis, 2)}
+
+    Execution Steps (#{length(plan.steps)}):
+    #{format_steps(plan.steps)}
+
+    Expected Results:
+    #{indent_text(plan.expected_results, 2)}
+
+    Potential Issues:
+    #{format_issues(plan.potential_issues)}
+    ======================================
+    """)
+  end
+
+  @doc false
+  @spec execute_instructions_with_reasoning(agent(), list(), ReasoningParser.ReasoningPlan.t(), config()) ::
+          {:ok, agent(), directives()} | {:error, term()}
+  defp execute_instructions_with_reasoning(agent, instructions, reasoning_plan, config) do
+    Logger.info("Starting reasoning-guided execution of #{length(instructions)} instructions")
+
+    # Execute each instruction with reasoning context
+    instructions
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, agent, []}, fn {instruction, index}, {:ok, current_agent, acc_directives} ->
+      case execute_single_instruction(current_agent, instruction, reasoning_plan, index, config) do
+        {:ok, updated_agent, new_directives, validation} ->
+          log_step_completion(index + 1, validation)
+
+          if config.enable_validation and OutcomeValidator.unexpected_outcome?(validation) do
+            Logger.warning("Unexpected outcome detected at step #{index + 1}")
+          end
+
+          {:cont, {:ok, updated_agent, acc_directives ++ new_directives}}
+
+        {:error, reason} = error ->
+          Logger.error("Execution failed at step #{index + 1}: #{inspect(reason)}")
+
+          if config.fallback_on_error do
+            Logger.info("Falling back to simple runner")
+            {:halt, Jido.Runner.Simple.run(agent)}
+          else
+            {:halt, error}
+          end
+      end
+    end)
+  end
+
+  @doc false
+  @spec execute_single_instruction(agent(), term(), ReasoningParser.ReasoningPlan.t(), integer(), config()) ::
+          {:ok, agent(), directives(), OutcomeValidator.ValidationResult.t()} | {:error, term()}
+  defp execute_single_instruction(agent, instruction, reasoning_plan, step_index, config) do
+    # Enrich context with reasoning information
+    base_context = %{agent: agent, state: agent.state || %{}}
+    enriched_context = ExecutionContext.enrich(base_context, reasoning_plan, step_index)
+
+    # Log reasoning trace for this step
+    if step = Enum.at(reasoning_plan.steps, step_index) do
+      log_step_execution(step_index + 1, step)
+    end
+
+    # Execute the instruction with enriched context
+    case execute_instruction_with_context(agent, instruction, enriched_context) do
+      {:ok, updated_agent, directives, result} ->
+        # Validate outcome against reasoning prediction
+        validation =
+          if config.enable_validation do
+            case Enum.at(reasoning_plan.steps, step_index) do
+              nil ->
+                %OutcomeValidator.ValidationResult{matches_expectation: true}
+
+              step ->
+                OutcomeValidator.validate(result, step, log_discrepancies: true)
+            end
+          else
+            %OutcomeValidator.ValidationResult{matches_expectation: true}
+          end
+
+        {:ok, updated_agent, directives, validation}
+
+      {:error, reason} = error ->
+        Logger.error("Instruction execution failed: #{inspect(reason)}")
+        error
+    end
+  end
+
+  @doc false
+  @spec execute_instruction_with_context(agent(), term(), map()) ::
+          {:ok, agent(), directives(), term()} | {:error, term()}
+  defp execute_instruction_with_context(agent, instruction, context) do
+    # Extract action and params from instruction
+    {action_module, params} = extract_action_and_params(instruction)
+
+    # Execute the action with enriched context
+    case apply_action(action_module, params, context) do
+      {:ok, result} ->
+        # For now, return agent unchanged with empty directives
+        # Future: integrate with Jido's directive processing
+        {:ok, agent, [], {:ok, result}}
+
+      {:error, reason} = error ->
+        error
+    end
+  end
+
+  defp extract_action_and_params(%{action: action, params: params}), do: {action, params}
+  defp extract_action_and_params(%{"action" => action, "params" => params}), do: {action, params}
+  defp extract_action_and_params(instruction), do: {nil, instruction}
+
+  defp apply_action(nil, _params, _context), do: {:error, "No action specified"}
+
+  defp apply_action(action_module, params, context) when is_atom(action_module) do
+    if function_exported?(action_module, :run, 2) do
+      action_module.run(params, context)
+    else
+      {:error, "Action module #{inspect(action_module)} does not export run/2"}
+    end
+  end
+
+  defp apply_action(action, _params, _context) do
+    {:error, "Invalid action: #{inspect(action)}"}
+  end
+
+  defp log_step_execution(step_number, step) do
+    Logger.info("""
+    Executing Step #{step_number}:
+      Description: #{step.description}
+      Expected Outcome: #{step.expected_outcome || "Not specified"}
+    """)
+  end
+
+  defp log_step_completion(step_number, validation) do
+    status = if validation.matches_expectation, do: "✓", else: "✗"
+
+    Logger.info("""
+    Step #{step_number} completed #{status}:
+      Matches Expectation: #{validation.matches_expectation}
+      Confidence: #{Float.round(validation.confidence, 2)}
+    """)
+  end
+
+  defp format_steps(steps) do
+    steps
+    |> Enum.map_join("\n", fn step ->
+      outcome =
+        if step.expected_outcome != "" do
+          " → #{step.expected_outcome}"
+        else
+          ""
+        end
+
+      "  #{step.number}. #{step.description}#{outcome}"
+    end)
+  end
+
+  defp format_issues([]), do: "  None identified"
+
+  defp format_issues(issues) do
+    issues
+    |> Enum.map_join("\n", fn issue -> "  • #{issue}" end)
+  end
+
+  defp indent_text(text, spaces) when is_binary(text) do
+    indent = String.duplicate(" ", spaces)
+
+    text
+    |> String.split("\n")
+    |> Enum.map_join("\n", fn line -> indent <> line end)
+  end
+
+  defp indent_text(_, _), do: ""
 end
