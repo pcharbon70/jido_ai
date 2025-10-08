@@ -143,14 +143,14 @@ Create the foundational skill module structure with mounting, configuration, and
 - [x] 1.3.1.4 Add configuration to agent state with `Jido.Agent.set/2`
 
 ### 1.3.2 CoT-Specific Actions
-- [ ] **Task 1.3.2 Complete**
+- [x] **Task 1.3.2 Complete**
 
 Implement the core CoT actions that provide reasoning capabilities when the skill is mounted.
 
-- [ ] 1.3.2.1 Create `Jido.Actions.CoT.GenerateReasoning` action with mode support (zero_shot, few_shot, structured)
-- [ ] 1.3.2.2 Implement `Jido.Actions.CoT.ReasoningStep` action executing action with thought logging
-- [ ] 1.3.2.3 Create `Jido.Actions.CoT.ValidateReasoning` action comparing outcomes to expectations
-- [ ] 1.3.2.4 Implement `Jido.Actions.CoT.SelfCorrect` action for error recovery
+- [x] 1.3.2.1 Create `Jido.Actions.CoT.GenerateReasoning` action with mode support (zero_shot, few_shot, structured)
+- [x] 1.3.2.2 Implement `Jido.Actions.CoT.ReasoningStep` action executing action with thought logging
+- [x] 1.3.2.3 Create `Jido.Actions.CoT.ValidateReasoning` action comparing outcomes to expectations
+- [x] 1.3.2.4 Implement `Jido.Actions.CoT.SelfCorrect` action for error recovery
 
 ### 1.3.3 Skill Router Configuration
 - [ ] **Task 1.3.3 Complete**
