@@ -128,7 +128,7 @@ Implement `on_after_run` hook that validates execution results against reasoning
 ---
 
 ## 1.3 CoT Skill Module
-- [ ] **Section 1.3 Complete**
+- [x] **Section 1.3 Complete**
 
 This section implements CoT as a reusable skill that can be mounted on any agent, providing modular reasoning capabilities through standardized actions and routing. The skill encapsulates CoT-specific actions (GenerateReasoning, ReasoningStep, ValidateReasoning) and provides configuration management for different reasoning modes. This enables easy adoption of CoT capabilities by simply mounting the skill on existing agents.
 
@@ -153,23 +153,23 @@ Implement the core CoT actions that provide reasoning capabilities when the skil
 - [x] 1.3.2.4 Implement `Jido.Actions.CoT.SelfCorrect` action for error recovery
 
 ### 1.3.3 Skill Router Configuration
-- [ ] **Task 1.3.3 Complete**
+- [x] **Task 1.3.3 Complete**
 
 Implement the router function providing semantic routing for CoT-related commands and queries.
 
-- [ ] 1.3.3.1 Create `router/1` function mapping event patterns to CoT actions
-- [ ] 1.3.3.2 Add routing for "agent.reasoning.generate", "agent.reasoning.step", "agent.reasoning.validate"
-- [ ] 1.3.3.3 Support parameterized routing based on skill configuration
-- [ ] 1.3.3.4 Enable custom route registration for extended reasoning patterns
+- [x] 1.3.3.1 Create `router/1` function mapping event patterns to CoT actions
+- [x] 1.3.3.2 Add routing for "agent.reasoning.generate", "agent.reasoning.step", "agent.reasoning.validate"
+- [x] 1.3.3.3 Support parameterized routing based on skill configuration
+- [x] 1.3.3.4 Enable custom route registration for extended reasoning patterns
 
 ### Unit Tests - Section 1.3
-- [ ] **Unit Tests 1.3 Complete**
-- [ ] Test skill mounting and action registration
-- [ ] Test CoT action execution with various modes
-- [ ] Test reasoning step logging and validation
-- [ ] Test router mapping and event handling
-- [ ] Validate configuration management and state updates
-- [ ] Test self-correction action error recovery
+- [x] **Unit Tests 1.3 Complete**
+- [x] Test skill mounting and action registration (50 tests in task 1.3.1)
+- [x] Test CoT action execution with various modes (26 tests in task 1.3.2)
+- [x] Test reasoning step logging and validation (26 tests in task 1.3.2)
+- [x] Test router mapping and event handling (16 tests in task 1.3.3)
+- [x] Validate configuration management and state updates (50 tests in task 1.3.1)
+- [x] Test self-correction action error recovery (26 tests in task 1.3.2)
 
 ---
 

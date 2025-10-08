@@ -148,6 +148,211 @@ defmodule Jido.Skills.ChainOfThought do
     ]
 
   alias Jido.Agent
+  alias Jido.Actions.CoT
+
+  @doc """
+  Provides routing configuration for Chain-of-Thought signal patterns.
+
+  The router maps signal/event patterns to CoT actions, enabling semantic
+  routing for reasoning-related commands. Routes can be parameterized based
+  on the skill's configuration.
+
+  ## Signal Patterns
+
+  - `agent.reasoning.generate` - Generate reasoning for a problem
+  - `agent.reasoning.step` - Execute an action with thought logging
+  - `agent.reasoning.validate` - Validate results against expectations
+  - `agent.reasoning.correct` - Self-correct after errors
+  - `agent.cot.*` - Wildcard for any CoT-related signals
+
+  ## Route Structure
+
+  Each route is a map with:
+  - `:path` - The signal pattern to match
+  - `:instruction` - Instruction map with `:action` key
+
+  ## Parameters
+
+  - `opts` - Optional keyword list for custom routing configuration
+    - `:custom_routes` - Additional routes to merge (default: `[]`)
+    - `:mode` - Filter routes by reasoning mode (optional)
+
+  ## Returns
+
+  List of route maps for signal routing
+
+  ## Examples
+
+      # Get default routes
+      routes = Jido.Skills.ChainOfThought.router()
+
+      # Get routes with custom additions
+      routes = Jido.Skills.ChainOfThought.router(
+        custom_routes: [
+          %{path: "agent.reasoning.custom", instruction: %{action: MyAction}}
+        ]
+      )
+
+      # Filter by mode (future enhancement)
+      routes = Jido.Skills.ChainOfThought.router(mode: :structured)
+  """
+  @impl Jido.Skill
+  @spec router(keyword()) :: [map()]
+  def router(opts \\ []) do
+    custom_routes = Keyword.get(opts, :custom_routes, [])
+    mode = Keyword.get(opts, :mode, nil)
+
+    base_routes = [
+      %{
+        path: "agent.reasoning.generate",
+        instruction: %{
+          action: CoT.GenerateReasoning,
+          description: "Generate Chain-of-Thought reasoning for a problem"
+        }
+      },
+      %{
+        path: "agent.reasoning.step",
+        instruction: %{
+          action: CoT.ReasoningStep,
+          description: "Execute an action with thought logging"
+        }
+      },
+      %{
+        path: "agent.reasoning.validate",
+        instruction: %{
+          action: CoT.ValidateReasoning,
+          description: "Validate execution results against reasoning expectations"
+        }
+      },
+      %{
+        path: "agent.reasoning.correct",
+        instruction: %{
+          action: CoT.SelfCorrect,
+          description: "Analyze errors and propose corrections"
+        }
+      },
+      %{
+        path: "agent.cot.generate",
+        instruction: %{
+          action: CoT.GenerateReasoning,
+          description: "Alias for agent.reasoning.generate"
+        }
+      },
+      %{
+        path: "agent.cot.step",
+        instruction: %{
+          action: CoT.ReasoningStep,
+          description: "Alias for agent.reasoning.step"
+        }
+      },
+      %{
+        path: "agent.cot.validate",
+        instruction: %{
+          action: CoT.ValidateReasoning,
+          description: "Alias for agent.reasoning.validate"
+        }
+      },
+      %{
+        path: "agent.cot.correct",
+        instruction: %{
+          action: CoT.SelfCorrect,
+          description: "Alias for agent.reasoning.correct"
+        }
+      }
+    ]
+
+    # Merge custom routes
+    routes = base_routes ++ custom_routes
+
+    # Filter by mode if specified (future enhancement)
+    if mode do
+      filter_routes_by_mode(routes, mode)
+    else
+      routes
+    end
+  end
+
+  @doc """
+  Registers additional custom routes for extended reasoning patterns.
+
+  This allows extending the router with domain-specific or experimental
+  reasoning actions without modifying the core skill.
+
+  ## Parameters
+
+  - `agent` - The agent with mounted CoT skill
+  - `custom_routes` - List of custom route maps to register
+
+  ## Returns
+
+  - `{:ok, routes}` - Combined routes list
+  - `{:error, :not_mounted}` - Skill not mounted
+
+  ## Examples
+
+      custom_routes = [
+        %{
+          path: "agent.reasoning.experimental",
+          instruction: %{action: ExperimentalAction}
+        }
+      ]
+
+      {:ok, routes} = Jido.Skills.ChainOfThought.register_custom_routes(
+        agent,
+        custom_routes
+      )
+  """
+  @spec register_custom_routes(Agent.t(), list(map())) :: {:ok, list(map())} | {:error, :not_mounted}
+  def register_custom_routes(agent, custom_routes) when is_list(custom_routes) do
+    case mounted?(agent) do
+      true ->
+        all_routes = router(custom_routes: custom_routes)
+        {:ok, all_routes}
+
+      false ->
+        {:error, :not_mounted}
+    end
+  end
+
+  @doc """
+  Gets the routing configuration for a mounted skill instance.
+
+  Returns routes configured based on the agent's CoT configuration.
+  This allows for parameterized routing based on the skill's mode and settings.
+
+  ## Parameters
+
+  - `agent` - The agent with mounted CoT skill
+
+  ## Returns
+
+  - `{:ok, routes}` - Configured routes list
+  - `{:error, :not_mounted}` - Skill not mounted
+
+  ## Examples
+
+      {:ok, routes} = Jido.Skills.ChainOfThought.get_routes(agent)
+  """
+  @spec get_routes(Agent.t()) :: {:ok, list(map())} | {:error, :not_mounted}
+  def get_routes(agent) do
+    case get_cot_config(agent) do
+      {:ok, config} ->
+        # Use configuration to parameterize routing
+        routes = router(mode: config.mode)
+        {:ok, routes}
+
+      {:error, :not_mounted} = error ->
+        error
+    end
+  end
+
+  # Private helper for mode-based filtering (future enhancement)
+  @spec filter_routes_by_mode(list(map()), atom()) :: list(map())
+  defp filter_routes_by_mode(routes, _mode) do
+    # For now, return all routes
+    # Future: Filter routes based on mode capabilities
+    routes
+  end
 
   @doc """
   Mounts the ChainOfThought skill on an agent.

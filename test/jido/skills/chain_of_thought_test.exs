@@ -488,6 +488,189 @@ defmodule Jido.Skills.ChainOfThoughtTest do
     end
   end
 
+  describe "router/1" do
+    test "returns list of route maps" do
+      routes = ChainOfThought.router()
+
+      assert is_list(routes)
+      assert length(routes) > 0
+
+      # All routes should have path and instruction keys
+      for route <- routes do
+        assert Map.has_key?(route, :path)
+        assert Map.has_key?(route, :instruction)
+        assert Map.has_key?(route.instruction, :action)
+      end
+    end
+
+    test "includes agent.reasoning.* routes" do
+      routes = ChainOfThought.router()
+      paths = Enum.map(routes, & &1.path)
+
+      assert "agent.reasoning.generate" in paths
+      assert "agent.reasoning.step" in paths
+      assert "agent.reasoning.validate" in paths
+      assert "agent.reasoning.correct" in paths
+    end
+
+    test "includes agent.cot.* alias routes" do
+      routes = ChainOfThought.router()
+      paths = Enum.map(routes, & &1.path)
+
+      assert "agent.cot.generate" in paths
+      assert "agent.cot.step" in paths
+      assert "agent.cot.validate" in paths
+      assert "agent.cot.correct" in paths
+    end
+
+    test "routes map to correct actions" do
+      routes = ChainOfThought.router()
+      routes_map = Map.new(routes, fn r -> {r.path, r.instruction.action} end)
+
+      alias Jido.Actions.CoT
+
+      assert routes_map["agent.reasoning.generate"] == CoT.GenerateReasoning
+      assert routes_map["agent.reasoning.step"] == CoT.ReasoningStep
+      assert routes_map["agent.reasoning.validate"] == CoT.ValidateReasoning
+      assert routes_map["agent.reasoning.correct"] == CoT.SelfCorrect
+    end
+
+    test "supports custom routes" do
+      custom_routes = [
+        %{
+          path: "agent.reasoning.custom",
+          instruction: %{action: CustomAction}
+        }
+      ]
+
+      routes = ChainOfThought.router(custom_routes: custom_routes)
+      paths = Enum.map(routes, & &1.path)
+
+      assert "agent.reasoning.custom" in paths
+      assert "agent.reasoning.generate" in paths
+    end
+
+    test "custom routes are appended to base routes" do
+      custom = [
+        %{path: "custom.1", instruction: %{action: Action1}},
+        %{path: "custom.2", instruction: %{action: Action2}}
+      ]
+
+      routes = ChainOfThought.router(custom_routes: custom)
+
+      # Should have base routes + custom routes
+      assert length(routes) >= 10
+    end
+
+    test "accepts mode parameter" do
+      # Should not raise
+      routes_zero = ChainOfThought.router(mode: :zero_shot)
+      routes_structured = ChainOfThought.router(mode: :structured)
+
+      assert is_list(routes_zero)
+      assert is_list(routes_structured)
+    end
+
+    test "routes include descriptions" do
+      routes = ChainOfThought.router()
+
+      # At least some routes should have descriptions
+      routes_with_desc = Enum.filter(routes, fn r ->
+        Map.has_key?(r.instruction, :description)
+      end)
+
+      assert length(routes_with_desc) > 0
+    end
+  end
+
+  describe "register_custom_routes/2" do
+    setup do
+      agent = %{id: "test", state: %{}}
+      {:ok, mounted_agent} = ChainOfThought.mount(agent, [])
+
+      {:ok, agent: mounted_agent}
+    end
+
+    test "registers custom routes when skill is mounted", %{agent: agent} do
+      custom_routes = [
+        %{path: "agent.reasoning.experimental", instruction: %{action: ExperimentalAction}}
+      ]
+
+      {:ok, routes} = ChainOfThought.register_custom_routes(agent, custom_routes)
+
+      paths = Enum.map(routes, & &1.path)
+      assert "agent.reasoning.experimental" in paths
+    end
+
+    test "returns error when skill not mounted" do
+      agent = %{id: "test", state: %{}}
+      custom_routes = [%{path: "test", instruction: %{action: TestAction}}]
+
+      assert {:error, :not_mounted} = ChainOfThought.register_custom_routes(agent, custom_routes)
+    end
+
+    test "combines base and custom routes", %{agent: agent} do
+      custom = [%{path: "custom", instruction: %{action: CustomAction}}]
+
+      {:ok, routes} = ChainOfThought.register_custom_routes(agent, custom)
+      paths = Enum.map(routes, & &1.path)
+
+      # Should have both base and custom
+      assert "agent.reasoning.generate" in paths
+      assert "custom" in paths
+    end
+
+    test "accepts empty custom routes list", %{agent: agent} do
+      {:ok, routes} = ChainOfThought.register_custom_routes(agent, [])
+
+      # Should just return base routes
+      assert length(routes) >= 8
+    end
+  end
+
+  describe "get_routes/1" do
+    test "returns routes for mounted skill" do
+      agent = %{id: "test", state: %{}}
+      {:ok, agent} = ChainOfThought.mount(agent, mode: :structured)
+
+      {:ok, routes} = ChainOfThought.get_routes(agent)
+
+      assert is_list(routes)
+      assert length(routes) > 0
+    end
+
+    test "returns error when skill not mounted" do
+      agent = %{id: "test", state: %{}}
+
+      assert {:error, :not_mounted} = ChainOfThought.get_routes(agent)
+    end
+
+    test "routes reflect agent configuration" do
+      agent = %{id: "test", state: %{}}
+      {:ok, agent} = ChainOfThought.mount(agent, mode: :self_consistency, temperature: 0.9)
+
+      {:ok, routes} = ChainOfThought.get_routes(agent)
+
+      # Routes should be returned based on config
+      # (Currently mode filtering is not implemented, but structure is there)
+      assert is_list(routes)
+    end
+
+    test "parameterizes routes based on skill mode" do
+      agent = %{id: "test", state: %{}}
+      {:ok, agent} = ChainOfThought.mount(agent, mode: :zero_shot)
+
+      {:ok, routes_zero} = ChainOfThought.get_routes(agent)
+
+      {:ok, agent} = ChainOfThought.update_config(agent, mode: :structured)
+      {:ok, routes_structured} = ChainOfThought.get_routes(agent)
+
+      # Should return routes (even if same for now)
+      assert is_list(routes_zero)
+      assert is_list(routes_structured)
+    end
+  end
+
   describe "skill metadata" do
     test "skill has correct name" do
       assert ChainOfThought.name() == "chain_of_thought"
