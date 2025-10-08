@@ -42,7 +42,7 @@ defmodule Examples.FullLifecycleHookAgent do
     actions: [],
     schema: []
 
-  alias Jido.Runner.ChainOfThought.{PlanningHook, ExecutionHook}
+  alias Jido.Runner.ChainOfThought.{PlanningHook, ExecutionHook, ValidationHook}
 
   @doc """
   Planning hook - generates strategic reasoning before instructions are queued.
@@ -86,60 +86,52 @@ defmodule Examples.FullLifecycleHookAgent do
   @doc """
   Validation hook - validates execution results against planning and execution context.
 
-  Has access to both planning reasoning and execution plan for comprehensive validation.
+  Uses ValidationHook for comprehensive validation with automatic retry support.
+  Has access to both planning reasoning and execution plan for validation.
   """
   @impl Jido.Agent
   def on_after_run(agent, result, unapplied_directives) do
-    require Logger
-
-    planning_result = PlanningHook.get_planning_reasoning(agent)
-    execution_result = ExecutionHook.get_execution_plan(agent)
-
-    case {planning_result, execution_result} do
-      {{:ok, planning}, {:ok, plan}} ->
-        Logger.info("""
-        Validating execution with full CoT context:
-          Planning Goal: #{planning.goal}
-          Anticipated Issues: #{length(planning.potential_issues)}
-          Execution Steps: #{length(plan.steps)}
-          Error Points: #{length(plan.error_points)}
-          Result: #{inspect(result, limit: 3)}
-        """)
-
-        # Cross-reference planning issues with execution error points
-        validate_against_planning(planning, plan, result)
-
-        {:ok, agent}
-
-      {{:ok, planning}, {:error, _}} ->
-        Logger.info("Validation with planning context only")
-        {:ok, agent}
-
-      {{:error, _}, {:ok, plan}} ->
-        Logger.info("Validation with execution plan only")
-        {:ok, agent}
-
-      _ ->
-        Logger.debug("Validation without CoT context")
-        {:ok, agent}
-    end
-  end
-
-  # Private validation logic
-  defp validate_against_planning(planning, plan, result) do
-    # Example: Check if anticipated issues occurred
-    for issue <- planning.potential_issues do
-      # Check against execution error points
-      matching_errors = Enum.filter(plan.error_points, fn ep ->
-        String.contains?(String.downcase(ep.description), String.downcase(issue))
-      end)
-
-      if length(matching_errors) > 0 do
+    case ValidationHook.validate_execution(agent, result, unapplied_directives) do
+      {:ok, validated_agent} = success ->
         require Logger
-        Logger.debug("Anticipated issue '#{issue}' identified in execution plan")
-      end
-    end
 
-    :ok
+        # Log comprehensive validation results
+        planning_result = PlanningHook.get_planning_reasoning(validated_agent)
+        execution_result = ExecutionHook.get_execution_plan(validated_agent)
+        validation_result = ValidationHook.get_validation_result(validated_agent)
+
+        case {planning_result, execution_result, validation_result} do
+          {{:ok, planning}, {:ok, plan}, {:ok, validation}} ->
+            Logger.info("""
+            Full Lifecycle Validation:
+              Planning Goal: #{planning.goal}
+              Anticipated Issues: #{length(planning.potential_issues)}
+              Execution Steps: #{length(plan.steps)}
+              Error Points: #{length(plan.error_points)}
+              Validation Status: #{validation.status}
+              Match Score: #{Float.round(validation.match_score, 2)}
+              Recommendation: #{validation.recommendation}
+            """)
+
+            if validation.reflection != "" do
+              Logger.info("Reflection: #{validation.reflection}")
+            end
+
+          _ ->
+            Logger.debug("Validation completed with partial context")
+        end
+
+        success
+
+      {:retry, agent, params} ->
+        require Logger
+        Logger.warning("Full lifecycle validation recommends retry: #{inspect(params)}")
+        {:retry, agent, params}
+
+      {:error, reason} = error ->
+        require Logger
+        Logger.error("Full lifecycle validation failed: #{inspect(reason)}")
+        error
+    end
   end
 end
