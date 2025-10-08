@@ -82,7 +82,7 @@ Implement robust error handling for reasoning generation failures and execution 
 ---
 
 ## 1.2 Lifecycle Hook Integration
-- [ ] **Section 1.2 Complete**
+- [x] **Section 1.2 Complete**
 
 This section implements lighter-weight CoT integration through JidoAI's lifecycle hooks (`on_before_plan`, `on_before_run`, `on_after_run`). This approach provides CoT capabilities without full runner replacement, suitable for existing agents that need reasoning enhancement without major refactoring. Hook integration offers lower overhead than custom runners while still enabling planning reasoning, execution analysis, and result validation.
 
@@ -117,13 +117,13 @@ Implement `on_after_run` hook that validates execution results against reasoning
 - [x] 1.2.3.4 Support automatic retry with adjusted parameters on validation failure
 
 ### Unit Tests - Section 1.2
-- [ ] **Unit Tests 1.2 Complete**
-- [ ] Test planning hook reasoning generation and context enrichment
-- [ ] Test execution hook analysis and plan creation
-- [ ] Test validation hook result comparison and matching logic
-- [ ] Test full lifecycle integration with all hooks active
-- [ ] Validate opt-in behavior and graceful degradation when hooks disabled
-- [ ] Test retry behavior on validation failure
+- [x] **Unit Tests 1.2 Complete**
+- [x] Test planning hook reasoning generation and context enrichment
+- [x] Test execution hook analysis and plan creation
+- [x] Test validation hook result comparison and matching logic
+- [x] Test full lifecycle integration with all hooks active
+- [x] Validate opt-in behavior and graceful degradation when hooks disabled
+- [x] Test retry behavior on validation failure
 
 ---
 
