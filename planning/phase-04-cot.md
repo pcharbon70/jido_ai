@@ -564,58 +564,58 @@ The stage focuses on specialized use cases rather than general application: self
 ---
 
 ## 3.1 Self-Consistency Implementation
-- [ ] **Section 3.1 Complete**
+- [x] **Section 3.1 Complete**
 
 This section implements self-consistency CoT where multiple independent reasoning paths are generated and the most common answer is selected through voting. This pattern provides +17.9% accuracy improvement on GSM8K at 5-10x cost. The implementation uses parallel execution of reasoning paths with diversity encouragement (temperature=0.7) and sophisticated voting mechanisms that weight answers by both frequency and confidence.
 
 ### 3.1.1 Parallel Reasoning Path Generation
-- [ ] **Task 3.1.1 Complete**
+- [x] **Task 3.1.1 Complete**
 
 Implement parallel generation of multiple diverse reasoning paths for the same problem, encouraging different approaches.
 
-- [ ] 3.1.1.1 Create `Jido.Runner.SelfConsistency` implementing parallel path generation
-- [ ] 3.1.1.2 Implement diversity encouragement through temperature and prompt variation
-- [ ] 3.1.1.3 Add configurable sample count k (default: 5-10 based on research)
-- [ ] 3.1.1.4 Support parallel execution using Elixir Tasks for concurrency
+- [x] 3.1.1.1 Create `Jido.Runner.SelfConsistency` implementing parallel path generation
+- [x] 3.1.1.2 Implement diversity encouragement through temperature and prompt variation
+- [x] 3.1.1.3 Add configurable sample count k (default: 5-10 based on research)
+- [x] 3.1.1.4 Support parallel execution using Elixir Tasks for concurrency
 
 ### 3.1.2 Answer Extraction and Normalization
-- [ ] **Task 3.1.2 Complete**
+- [x] **Task 3.1.2 Complete**
 
 Implement extraction of final answers from reasoning paths and normalization for voting comparison.
 
-- [ ] 3.1.2.1 Create answer extraction parsing final conclusions from reasoning
-- [ ] 3.1.2.2 Implement answer normalization handling format variations
-- [ ] 3.1.2.3 Add semantic equivalence detection for similar but non-identical answers
-- [ ] 3.1.2.4 Support domain-specific answer extractors for specialized tasks
+- [x] 3.1.2.1 Create answer extraction parsing final conclusions from reasoning
+- [x] 3.1.2.2 Implement answer normalization handling format variations
+- [x] 3.1.2.3 Add semantic equivalence detection for similar but non-identical answers
+- [x] 3.1.2.4 Support domain-specific answer extractors for specialized tasks
 
 ### 3.1.3 Voting and Consensus Mechanisms
-- [ ] **Task 3.1.3 Complete**
+- [x] **Task 3.1.3 Complete**
 
 Implement voting mechanisms that select the most reliable answer from multiple reasoning paths.
 
-- [ ] 3.1.3.1 Create majority voting counting answer frequency across paths
-- [ ] 3.1.3.2 Implement confidence-weighted voting using path confidence scores
-- [ ] 3.1.3.3 Add tie-breaking strategies for equal-vote scenarios
-- [ ] 3.1.3.4 Support minimum consensus threshold requiring k/n agreement
+- [x] 3.1.3.1 Create majority voting counting answer frequency across paths
+- [x] 3.1.3.2 Implement confidence-weighted voting using path confidence scores
+- [x] 3.1.3.3 Add tie-breaking strategies for equal-vote scenarios
+- [x] 3.1.3.4 Support minimum consensus threshold requiring k/n agreement
 
 ### 3.1.4 Path Quality Analysis
-- [ ] **Task 3.1.4 Complete**
+- [x] **Task 3.1.4 Complete**
 
 Implement analysis of reasoning path quality to identify and filter low-quality paths before voting.
 
-- [ ] 3.1.4.1 Create path quality scoring based on reasoning coherence
-- [ ] 3.1.4.2 Implement outlier detection for obviously incorrect paths
-- [ ] 3.1.4.3 Add confidence calibration adjusting path weights by quality
-- [ ] 3.1.4.4 Support quality threshold filtering removing low-quality paths
+- [x] 3.1.4.1 Create path quality scoring based on reasoning coherence
+- [x] 3.1.4.2 Implement outlier detection for obviously incorrect paths
+- [x] 3.1.4.3 Add confidence calibration adjusting path weights by quality
+- [x] 3.1.4.4 Support quality threshold filtering removing low-quality paths
 
 ### Unit Tests - Section 3.1
-- [ ] **Unit Tests 3.1 Complete**
-- [ ] Test parallel path generation with diversity
-- [ ] Test answer extraction and normalization
-- [ ] Test voting mechanisms with various distributions
-- [ ] Test quality analysis and filtering
-- [ ] Validate accuracy improvement over single-path CoT
-- [ ] Benchmark cost increase (target: 5-10x for k=5-10)
+- [x] **Unit Tests 3.1 Complete**
+- [x] Test parallel path generation with diversity
+- [x] Test answer extraction and normalization
+- [x] Test voting mechanisms with various distributions
+- [x] Test quality analysis and filtering
+- [x] Validate accuracy improvement over single-path CoT
+- [x] Benchmark cost increase (target: 5-10x for k=5-10)
 
 ---
 
