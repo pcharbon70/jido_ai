@@ -53,7 +53,9 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
           temperature: float(),
           depth: non_neg_integer(),
           tree_size: non_neg_integer(),
-          thought_fn: function() | nil
+          thought_fn: function() | nil,
+          context: map() | nil,
+          model: String.t() | nil
         ]
 
   @doc """
@@ -70,6 +72,8 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
     - `:depth` - Current depth in tree
     - `:tree_size` - Current tree size
     - `:thought_fn` - Custom thought generation function (for testing)
+    - `:context` - Context for LLM calls (optional)
+    - `:model` - Model name for LLM (optional)
 
   ## Returns
 
@@ -96,6 +100,8 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
     depth = Keyword.get(opts, :depth, 0)
     tree_size = Keyword.get(opts, :tree_size, 0)
     thought_fn = Keyword.get(opts, :thought_fn)
+    context = Keyword.get(opts, :context)
+    model = Keyword.get(opts, :model)
 
     # Determine effective beam width (adaptive if needed)
     effective_beam_width =
@@ -122,10 +128,19 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
       thoughts = thought_fn.(opts)
       {:ok, thoughts}
     else
+      generation_opts = [
+        problem: problem,
+        parent_state: parent_state,
+        beam_width: effective_beam_width,
+        temperature: effective_temperature,
+        context: context,
+        model: model
+      ]
+
       case strategy do
-        :sampling -> generate_sampling(problem, parent_state, effective_beam_width, effective_temperature)
-        :proposal -> generate_proposal(problem, parent_state, effective_beam_width, effective_temperature)
-        :adaptive -> generate_sampling(problem, parent_state, effective_beam_width, effective_temperature)
+        :sampling -> generate_sampling(generation_opts)
+        :proposal -> generate_proposal(generation_opts)
+        :adaptive -> generate_sampling(generation_opts)
       end
     end
   end
@@ -163,26 +178,34 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
 
   # Private functions
 
-  defp generate_sampling(problem, parent_state, beam_width, temperature) do
+  defp generate_sampling(opts) do
     # Sampling strategy: Generate diverse i.i.d. thoughts in parallel
     # Each thought is independent, exploring different approaches
 
-    _prompt = build_sampling_prompt(problem, parent_state, beam_width)
+    problem = Keyword.fetch!(opts, :problem)
+    parent_state = Keyword.fetch!(opts, :parent_state)
+    beam_width = Keyword.fetch!(opts, :beam_width)
+    temperature = Keyword.fetch!(opts, :temperature)
+    context = Keyword.get(opts, :context)
+    model = Keyword.get(opts, :model)
 
-    # In production, this would call LLM
-    # For now, simulate diverse thoughts
-    thoughts = simulate_sampling_thoughts(problem, parent_state, beam_width, temperature)
-
-    {:ok, thoughts}
+    prompt = build_sampling_prompt(problem, parent_state, beam_width)
+    call_llm(prompt, beam_width, temperature, model, context)
   end
 
-  defp generate_proposal(problem, parent_state, beam_width, temperature) do
+  defp generate_proposal(opts) do
     # Proposal strategy: Generate thoughts sequentially
     # Each thought is aware of previous proposals
 
-    thoughts = simulate_proposal_thoughts(problem, parent_state, beam_width, temperature)
+    problem = Keyword.fetch!(opts, :problem)
+    parent_state = Keyword.fetch!(opts, :parent_state)
+    beam_width = Keyword.fetch!(opts, :beam_width)
+    temperature = Keyword.fetch!(opts, :temperature)
+    context = Keyword.get(opts, :context)
+    model = Keyword.get(opts, :model)
 
-    {:ok, thoughts}
+    prompt = build_proposal_prompt(problem, parent_state, beam_width)
+    call_llm(prompt, beam_width, temperature, model, context)
   end
 
   defp build_sampling_prompt(problem, parent_state, k) do
@@ -198,7 +221,121 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
     """
   end
 
-  defp simulate_sampling_thoughts(problem, _parent_state, beam_width, _temperature) do
+  defp build_proposal_prompt(problem, parent_state, k) do
+    """
+    Problem: #{problem}
+
+    Current state: #{inspect(parent_state, pretty: true)}
+
+    Generate #{k} sequential thought proposals to solve this problem.
+    Each proposal should build on understanding from previous proposals.
+    Proposals should be deliberate and coherent.
+
+    Format each thought as a clear, actionable step.
+    """
+  end
+
+  defp call_llm(prompt, beam_width, temperature, model_str, _context) do
+    alias Jido.AI.Model
+
+    system_message = """
+    You are an expert reasoning assistant helping to explore multiple solution paths.
+    Generate exactly #{beam_width} distinct thoughts or approaches to solve the given problem.
+
+    Return your response as a JSON array of strings, where each string is a complete thought.
+    Example: ["First approach...", "Second approach...", "Third approach..."]
+
+    Each thought should be clear, actionable, and distinct from the others.
+    """
+
+    # Build model (default to openai:gpt-4 if not specified)
+    model = build_model(model_str || "openai:gpt-4")
+
+    # Build ReqLLM model tuple with options
+    reqllm_model = {model.provider, model.model, [
+      temperature: temperature,
+      max_tokens: 2000
+    ] |> maybe_add_api_key(model)}
+
+    # Build messages using ReqLLM.Context
+    messages = [
+      ReqLLM.Context.system(system_message),
+      ReqLLM.Context.user(prompt)
+    ]
+
+    try do
+      case ReqLLM.generate_text(reqllm_model, messages) do
+        {:ok, response} ->
+          content = ReqLLM.Response.text(response) || ""
+
+          # Try to parse JSON response
+          case Jason.decode(content) do
+            {:ok, thoughts} when is_list(thoughts) ->
+              {:ok, Enum.take(thoughts, beam_width)}
+
+            _ ->
+              # If not JSON, split by newlines and filter empty
+              thoughts =
+                content
+                |> String.split("\n")
+                |> Enum.map(&String.trim/1)
+                |> Enum.reject(&(&1 == "" or String.starts_with?(&1, ["[", "]"])))
+                |> Enum.take(beam_width)
+
+              {:ok, thoughts}
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    rescue
+      error ->
+        {:error, {:llm_error, error}}
+    end
+  end
+
+  # Build a Jido.AI.Model from a model string
+  defp build_model(model_str) when is_binary(model_str) do
+    case String.split(model_str, ":", parts: 2) do
+      [provider_str, model_name] ->
+        provider = String.to_atom(provider_str)
+        %Jido.AI.Model{provider: provider, model: model_name}
+        |> Jido.AI.Model.ensure_reqllm_id()
+
+      [model_name] ->
+        %Jido.AI.Model{provider: :openai, model: model_name}
+        |> Jido.AI.Model.ensure_reqllm_id()
+    end
+  end
+
+  defp build_model(_), do: build_model("openai:gpt-4")
+
+  # Add API key to options if present in model
+  defp maybe_add_api_key(opts, %Jido.AI.Model{api_key: api_key}) when is_binary(api_key) do
+    Keyword.put(opts, :api_key, api_key)
+  end
+
+  defp maybe_add_api_key(opts, _model), do: opts
+
+  @doc """
+  Simulates sampling thoughts for testing purposes.
+
+  This function generates fake diverse thoughts without calling an LLM.
+  Use this via the `thought_fn` parameter in tests.
+
+  ## Parameters
+
+  - `problem` - The problem being solved
+  - `parent_state` - State at parent node
+  - `beam_width` - Number of thoughts to generate
+  - `temperature` - Temperature setting (unused in simulation)
+
+  ## Returns
+
+  List of simulated thought strings
+  """
+  @spec simulate_sampling_thoughts(String.t(), map(), pos_integer(), float()) :: list(String.t())
+  def simulate_sampling_thoughts(problem, _parent_state, beam_width, _temperature) do
     # Simulate diverse thoughts for testing
     # In production, this would be actual LLM calls
 
@@ -221,7 +358,25 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
     end)
   end
 
-  defp simulate_proposal_thoughts(problem, _parent_state, beam_width, _temperature) do
+  @doc """
+  Simulates proposal thoughts for testing purposes.
+
+  This function generates fake sequential thoughts without calling an LLM.
+  Use this via the `thought_fn` parameter in tests.
+
+  ## Parameters
+
+  - `problem` - The problem being solved
+  - `parent_state` - State at parent node
+  - `beam_width` - Number of thoughts to generate
+  - `temperature` - Temperature setting (unused in simulation)
+
+  ## Returns
+
+  List of simulated thought strings
+  """
+  @spec simulate_proposal_thoughts(String.t(), map(), pos_integer(), float()) :: list(String.t())
+  def simulate_proposal_thoughts(problem, _parent_state, beam_width, _temperature) do
     # Simulate sequential proposal thoughts
     # Each builds on understanding from previous
 

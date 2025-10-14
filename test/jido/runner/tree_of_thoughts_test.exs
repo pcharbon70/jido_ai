@@ -252,12 +252,22 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
 
   describe "ThoughtGenerator" do
     test "generates thoughts with sampling strategy" do
+      thought_fn = fn opts ->
+        ThoughtGenerator.simulate_sampling_thoughts(
+          opts[:problem],
+          opts[:parent_state],
+          opts[:beam_width],
+          opts[:temperature] || 0.7
+        )
+      end
+
       {:ok, thoughts} =
         ThoughtGenerator.generate(
           problem: "Solve 2+2",
           parent_state: %{},
           strategy: :sampling,
-          beam_width: 3
+          beam_width: 3,
+          thought_fn: thought_fn
         )
 
       assert length(thoughts) == 3
@@ -265,12 +275,22 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
     end
 
     test "generates thoughts with proposal strategy" do
+      thought_fn = fn opts ->
+        ThoughtGenerator.simulate_proposal_thoughts(
+          opts[:problem],
+          opts[:parent_state],
+          opts[:beam_width],
+          opts[:temperature] || 0.4
+        )
+      end
+
       {:ok, thoughts} =
         ThoughtGenerator.generate(
           problem: "Write fibonacci",
           parent_state: %{},
           strategy: :proposal,
-          beam_width: 4
+          beam_width: 4,
+          thought_fn: thought_fn
         )
 
       assert length(thoughts) == 4
@@ -278,6 +298,16 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
     end
 
     test "generates thoughts with adaptive beam width" do
+      thought_fn = fn opts ->
+        # Adaptive strategy uses sampling, so use sampling simulation
+        ThoughtGenerator.simulate_sampling_thoughts(
+          opts[:problem],
+          opts[:parent_state],
+          opts[:beam_width],
+          opts[:temperature] || 0.7
+        )
+      end
+
       {:ok, thoughts} =
         ThoughtGenerator.generate(
           problem: "Complex problem",
@@ -285,7 +315,8 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
           strategy: :adaptive,
           beam_width: 5,
           depth: 3,
-          tree_size: 100
+          tree_size: 100,
+          thought_fn: thought_fn
         )
 
       # Should reduce beam width based on depth/size
@@ -328,11 +359,20 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
 
   describe "ThoughtEvaluator" do
     test "evaluates thought with value strategy" do
+      evaluation_fn = fn opts ->
+        ThoughtEvaluator.simulate_value_evaluation(
+          opts[:thought],
+          opts[:problem],
+          opts[:state] || %{}
+        )
+      end
+
       {:ok, score} =
         ThoughtEvaluator.evaluate(
           thought: "Try approach X to solve Y",
           problem: "Solve Y",
-          strategy: :value
+          strategy: :value,
+          evaluation_fn: evaluation_fn
         )
 
       assert is_float(score)
@@ -340,12 +380,21 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
     end
 
     test "evaluates thought with vote strategy" do
+      evaluation_fn = fn opts ->
+        ThoughtEvaluator.simulate_value_evaluation(
+          opts[:thought],
+          opts[:problem],
+          opts[:state] || %{}
+        )
+      end
+
       {:ok, score} =
         ThoughtEvaluator.evaluate(
           thought: "Complex step",
           problem: "Hard problem",
           strategy: :vote,
-          num_votes: 3
+          num_votes: 3,
+          evaluation_fn: evaluation_fn
         )
 
       assert is_float(score)
@@ -367,11 +416,20 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
     end
 
     test "evaluates thought with hybrid strategy" do
+      evaluation_fn = fn opts ->
+        ThoughtEvaluator.simulate_value_evaluation(
+          opts[:thought],
+          opts[:problem],
+          opts[:state] || %{}
+        )
+      end
+
       {:ok, score} =
         ThoughtEvaluator.evaluate(
           thought: "Hybrid test",
           problem: "Test",
-          strategy: :hybrid
+          strategy: :hybrid,
+          evaluation_fn: evaluation_fn
         )
 
       assert is_float(score)
@@ -394,11 +452,20 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
     test "evaluates batch of thoughts" do
       thoughts = ["Thought 1", "Thought 2", "Thought 3"]
 
+      evaluation_fn = fn opts ->
+        ThoughtEvaluator.simulate_value_evaluation(
+          opts[:thought],
+          opts[:problem],
+          opts[:state] || %{}
+        )
+      end
+
       {:ok, scores} =
         ThoughtEvaluator.evaluate_batch(
           thoughts,
           problem: "Test problem",
-          strategy: :value
+          strategy: :value,
+          evaluation_fn: evaluation_fn
         )
 
       assert length(scores) == 3

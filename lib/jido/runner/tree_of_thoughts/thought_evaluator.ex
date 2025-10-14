@@ -60,7 +60,9 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
           strategy: :value | :vote | :heuristic | :hybrid,
           num_votes: pos_integer(),
           heuristic_fn: function() | nil,
-          evaluation_fn: function() | nil
+          evaluation_fn: function() | nil,
+          context: map() | nil,
+          model: String.t() | nil
         ]
 
   @doc """
@@ -76,6 +78,8 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     - `:num_votes` - Number of votes for vote strategy (default: 3)
     - `:heuristic_fn` - Custom heuristic function
     - `:evaluation_fn` - Custom evaluation function (for testing)
+    - `:context` - Context for LLM calls (optional)
+    - `:model` - Model name for LLM (optional)
 
   ## Returns
 
@@ -100,6 +104,8 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     num_votes = Keyword.get(opts, :num_votes, 3)
     heuristic_fn = Keyword.get(opts, :heuristic_fn)
     evaluation_fn = Keyword.get(opts, :evaluation_fn)
+    context = Keyword.get(opts, :context)
+    model = Keyword.get(opts, :model)
 
     Logger.debug("Evaluating thought with strategy: #{strategy}")
 
@@ -107,11 +113,21 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     if evaluation_fn do
       {:ok, evaluation_fn.(opts)}
     else
+      eval_opts = [
+        thought: thought,
+        problem: problem,
+        state: state,
+        num_votes: num_votes,
+        heuristic_fn: heuristic_fn,
+        context: context,
+        model: model
+      ]
+
       case strategy do
-        :value -> evaluate_value(thought, problem, state)
-        :vote -> evaluate_vote(thought, problem, state, num_votes)
-        :heuristic -> evaluate_heuristic(thought, problem, state, heuristic_fn)
-        :hybrid -> evaluate_hybrid(thought, problem, state, num_votes, heuristic_fn)
+        :value -> evaluate_value(eval_opts)
+        :vote -> evaluate_vote(eval_opts)
+        :heuristic -> evaluate_heuristic(eval_opts)
+        :hybrid -> evaluate_hybrid(eval_opts)
       end
     end
   end
@@ -150,35 +166,50 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
 
   # Private functions
 
-  defp evaluate_value(thought, problem, state) do
+  defp evaluate_value(opts) do
     # Value evaluation: Single LLM call for scalar score
-    # In production, this would call LLM with value prompt
+    thought = Keyword.fetch!(opts, :thought)
+    problem = Keyword.fetch!(opts, :problem)
+    state = Keyword.fetch!(opts, :state)
+    context = Keyword.get(opts, :context)
+    model = Keyword.get(opts, :model)
 
-    score = simulate_value_evaluation(thought, problem, state)
-    {:ok, score}
+    prompt = build_value_prompt(thought, problem, state)
+    call_llm_for_value(prompt, model, context)
   end
 
-  defp evaluate_vote(thought, problem, state, num_votes) do
+  defp evaluate_vote(opts) do
     # Vote evaluation: Multiple independent evaluations
     # More robust against single evaluation errors
+    thought = Keyword.fetch!(opts, :thought)
+    problem = Keyword.fetch!(opts, :problem)
+    state = Keyword.fetch!(opts, :state)
+    num_votes = Keyword.fetch!(opts, :num_votes)
+    context = Keyword.get(opts, :context)
+    model = Keyword.get(opts, :model)
 
+    prompt = build_value_prompt(thought, problem, state)
+
+    # Perform multiple independent evaluations
     votes =
-      Enum.map(1..num_votes, fn i ->
-        # Each vote would be independent LLM call
-        # Add slight variation to simulate independence
-        base_score = simulate_value_evaluation(thought, problem, state)
-        variation = (i - (num_votes / 2)) * 0.05
-        max(0.0, min(1.0, base_score + variation))
+      Enum.map(1..num_votes, fn _i ->
+        case call_llm_for_value(prompt, model, context) do
+          {:ok, score} -> score
+          {:error, _} -> 0.5
+        end
       end)
 
     # Aggregate votes (mean)
     avg_score = Enum.sum(votes) / num_votes
-
     {:ok, avg_score}
   end
 
-  defp evaluate_heuristic(thought, problem, state, heuristic_fn) do
+  defp evaluate_heuristic(opts) do
     # Heuristic evaluation: Domain-specific rules
+    thought = Keyword.fetch!(opts, :thought)
+    problem = Keyword.fetch!(opts, :problem)
+    state = Keyword.fetch!(opts, :state)
+    heuristic_fn = Keyword.get(opts, :heuristic_fn)
 
     score =
       if heuristic_fn do
@@ -191,14 +222,14 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     {:ok, score}
   end
 
-  defp evaluate_hybrid(thought, problem, state, _num_votes, heuristic_fn) do
+  defp evaluate_hybrid(opts) do
     # Hybrid: Combine value, vote, and heuristic
 
     # Get value score (fast)
-    {:ok, value_score} = evaluate_value(thought, problem, state)
+    {:ok, value_score} = evaluate_value(opts)
 
     # Get heuristic score (fast, deterministic)
-    {:ok, heuristic_score} = evaluate_heuristic(thought, problem, state, heuristic_fn)
+    {:ok, heuristic_score} = evaluate_heuristic(opts)
 
     # Combine with weights
     # If heuristic is very confident (close to 0 or 1), trust it more
@@ -217,7 +248,113 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     {:ok, combined}
   end
 
-  defp simulate_value_evaluation(thought, problem, _state) do
+  defp build_value_prompt(thought, problem, state) do
+    """
+    Problem: #{problem}
+
+    Current state: #{inspect(state, pretty: true)}
+
+    Thought to evaluate: #{thought}
+
+    Evaluate the quality and promise of this thought on a scale from 0.0 to 1.0:
+    - 0.0: This thought is clearly wrong or will lead to a dead end
+    - 0.5: This thought is uncertain, may or may not be helpful
+    - 1.0: This thought is very promising and likely to lead to a solution
+
+    Return ONLY a single number between 0.0 and 1.0.
+    """
+  end
+
+  defp call_llm_for_value(prompt, model_str, _context) do
+    alias Jido.AI.Model
+
+    system_message = """
+    You are an expert reasoning evaluator.
+    Your task is to evaluate the quality and promise of reasoning steps.
+
+    Return ONLY a single floating point number between 0.0 and 1.0.
+    Do not include any explanation, just the number.
+    """
+
+    # Build model (default to openai:gpt-4 if not specified)
+    model = build_model(model_str || "openai:gpt-4")
+
+    # Build ReqLLM model tuple with options
+    reqllm_model = {model.provider, model.model, [
+      temperature: 0.3,
+      max_tokens: 10
+    ] |> maybe_add_api_key(model)}
+
+    # Build messages using ReqLLM.Context
+    messages = [
+      ReqLLM.Context.system(system_message),
+      ReqLLM.Context.user(prompt)
+    ]
+
+    try do
+      case ReqLLM.generate_text(reqllm_model, messages) do
+        {:ok, response} ->
+          content = String.trim(ReqLLM.Response.text(response) || "")
+
+          # Parse the score
+          case Float.parse(content) do
+            {score, _} when score >= 0.0 and score <= 1.0 ->
+              {:ok, score}
+
+            _ ->
+              {:error, :invalid_score}
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    rescue
+      error ->
+        {:error, {:llm_error, error}}
+    end
+  end
+
+  # Build a Jido.AI.Model from a model string
+  defp build_model(model_str) when is_binary(model_str) do
+    case String.split(model_str, ":", parts: 2) do
+      [provider_str, model_name] ->
+        provider = String.to_atom(provider_str)
+        %Jido.AI.Model{provider: provider, model: model_name}
+        |> Jido.AI.Model.ensure_reqllm_id()
+
+      [model_name] ->
+        %Jido.AI.Model{provider: :openai, model: model_name}
+        |> Jido.AI.Model.ensure_reqllm_id()
+    end
+  end
+
+  defp build_model(_), do: build_model("openai:gpt-4")
+
+  # Add API key to options if present in model
+  defp maybe_add_api_key(opts, %Jido.AI.Model{api_key: api_key}) when is_binary(api_key) do
+    Keyword.put(opts, :api_key, api_key)
+  end
+
+  defp maybe_add_api_key(opts, _model), do: opts
+
+  @doc """
+  Simulates value evaluation for testing purposes.
+
+  This function generates fake evaluation scores without calling an LLM.
+  Use this via the `evaluation_fn` parameter in tests.
+
+  ## Parameters
+
+  - `thought` - The thought to evaluate
+  - `problem` - The problem context
+  - `state` - Current state
+
+  ## Returns
+
+  Simulated score from 0.0 to 1.0
+  """
+  @spec simulate_value_evaluation(String.t(), String.t(), map()) :: float()
+  def simulate_value_evaluation(thought, problem, _state) do
     # Simulate LLM value evaluation
     # In production, this would be actual LLM call
 
@@ -248,7 +385,24 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     clamped_score
   end
 
-  defp default_heuristic_score(thought, _problem, _state) do
+  @doc """
+  Default heuristic scoring for testing purposes.
+
+  This function provides basic heuristic scoring without domain-specific knowledge.
+  Use this via the `heuristic_fn` parameter in tests.
+
+  ## Parameters
+
+  - `thought` - The thought to evaluate
+  - `problem` - The problem context
+  - `state` - Current state
+
+  ## Returns
+
+  Heuristic score from 0.0 to 1.0
+  """
+  @spec default_heuristic_score(String.t(), String.t(), map()) :: float()
+  def default_heuristic_score(thought, _problem, _state) do
     # Default heuristics when no custom function provided
 
     score = 0.5
