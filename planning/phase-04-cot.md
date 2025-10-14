@@ -676,58 +676,58 @@ Implement seamless integration with JidoAI's existing action system, treating ac
 ---
 
 ## 3.3 Tree-of-Thoughts Implementation
-- [ ] **Section 3.3 Complete**
+- [x] **Section 3.3 Complete**
 
 This section implements Tree-of-Thoughts (ToT) enabling exploration of multiple reasoning branches with lookahead and backtracking. ToT provides dramatic accuracy improvements (+70% on Game of 24) but at significant cost (50-150x). The implementation supports both breadth-first and depth-first search strategies, thought evaluation (value or vote), and pruning of low-quality branches. ToT is reserved for critical accuracy tasks where exhaustive exploration is justified.
 
 ### 3.3.1 Tree Structure Management
-- [ ] **Task 3.3.1 Complete**
+- [x] **Task 3.3.1 Complete**
 
 Implement tree data structure managing reasoning branches with efficient traversal and manipulation.
 
-- [ ] 3.3.1.1 Create tree node structure capturing thought, state, children, and parent
-- [ ] 3.3.1.2 Implement tree construction with branch expansion
-- [ ] 3.3.1.3 Add tree traversal utilities (BFS, DFS, path extraction)
-- [ ] 3.3.1.4 Support tree pruning removing low-value branches
+- [x] 3.3.1.1 Create tree node structure capturing thought, state, children, and parent
+- [x] 3.3.1.2 Implement tree construction with branch expansion
+- [x] 3.3.1.3 Add tree traversal utilities (BFS, DFS, path extraction)
+- [x] 3.3.1.4 Support tree pruning removing low-value branches
 
 ### 3.3.2 Thought Generation Strategies
-- [ ] **Task 3.3.2 Complete**
+- [x] **Task 3.3.2 Complete**
 
 Implement thought generation strategies producing diverse candidate thoughts at each tree level.
 
-- [ ] 3.3.2.1 Create sampling strategy using temperature for diverse i.i.d. thoughts
-- [ ] 3.3.2.2 Implement proposal strategy with sequential deliberate thought generation
-- [ ] 3.3.2.3 Add configurable beam width k controlling thoughts per node (default: 3-5)
-- [ ] 3.3.2.4 Support adaptive k based on node depth and tree size
+- [x] 3.3.2.1 Create sampling strategy using temperature for diverse i.i.d. thoughts
+- [x] 3.3.2.2 Implement proposal strategy with sequential deliberate thought generation
+- [x] 3.3.2.3 Add configurable beam width k controlling thoughts per node (default: 3-5)
+- [x] 3.3.2.4 Support adaptive k based on node depth and tree size
 
 ### 3.3.3 Thought Evaluation
-- [ ] **Task 3.3.3 Complete**
+- [x] **Task 3.3.3 Complete**
 
 Implement evaluation strategies scoring thought quality to guide search prioritization and pruning.
 
-- [ ] 3.3.3.1 Create value evaluation using LLM scoring (0=impossible, 0.5=maybe, 1=sure)
-- [ ] 3.3.3.2 Implement vote evaluation using multiple LLM evaluations with majority voting
-- [ ] 3.3.3.3 Add heuristic evaluation for domain-specific quality metrics
-- [ ] 3.3.3.4 Support hybrid evaluation combining multiple strategies
+- [x] 3.3.3.1 Create value evaluation using LLM scoring (0=impossible, 0.5=maybe, 1=sure)
+- [x] 3.3.3.2 Implement vote evaluation using multiple LLM evaluations with majority voting
+- [x] 3.3.3.3 Add heuristic evaluation for domain-specific quality metrics
+- [x] 3.3.3.4 Support hybrid evaluation combining multiple strategies
 
 ### 3.3.4 Search Strategy Implementation
-- [ ] **Task 3.3.4 Complete**
+- [x] **Task 3.3.4 Complete**
 
 Implement search strategies (BFS, DFS) for tree exploration with pruning and early termination.
 
-- [ ] 3.3.4.1 Create `Jido.Runner.TreeOfThoughts` with strategy configuration
-- [ ] 3.3.4.2 Implement BFS exploring level-by-level with beam width pruning
-- [ ] 3.3.4.3 Add DFS with backtracking for memory-efficient deep exploration
-- [ ] 3.3.4.4 Support early termination when solution found or budget exhausted
+- [x] 3.3.4.1 Create `Jido.Runner.TreeOfThoughts` with strategy configuration
+- [x] 3.3.4.2 Implement BFS exploring level-by-level with beam width pruning
+- [x] 3.3.4.3 Add DFS with backtracking for memory-efficient deep exploration
+- [x] 3.3.4.4 Support early termination when solution found or budget exhausted
 
 ### Unit Tests - Section 3.3
-- [ ] **Unit Tests 3.3 Complete**
-- [ ] Test tree construction and traversal
-- [ ] Test thought generation diversity
-- [ ] Test evaluation strategy accuracy
-- [ ] Test search strategies with pruning
-- [ ] Validate solution finding on complex problems
-- [ ] Benchmark cost vs. accuracy trade-off
+- [x] **Unit Tests 3.3 Complete**
+- [x] Test tree construction and traversal
+- [x] Test thought generation diversity
+- [x] Test evaluation strategy accuracy
+- [x] Test search strategies with pruning
+- [x] Validate solution finding on complex problems
+- [x] Benchmark cost vs. accuracy trade-off
 
 ---
 
