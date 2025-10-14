@@ -182,8 +182,8 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     # Build ReqLLM options
     opts = build_reqllm_options(model, params)
 
-    # Make ReqLLM request
-    case ReqLLM.embed_many(model.reqllm_id, input_list, opts) do
+    # Make ReqLLM request - use embed/3 for batch processing
+    case ReqLLM.embed(model.reqllm_id, input_list, opts) do
       {:ok, response} ->
         # Convert ReqLLM response to expected format
         {:ok, convert_reqllm_response(response)}
