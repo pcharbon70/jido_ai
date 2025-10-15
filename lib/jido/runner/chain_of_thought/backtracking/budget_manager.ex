@@ -12,7 +12,8 @@ defmodule Jido.Runner.ChainOfThought.Backtracking.BudgetManager do
   require Logger
 
   @default_total_budget 10
-  @default_level_allocation 0.4  # 40% of remaining budget per level
+  # 40% of remaining budget per level
+  @default_level_allocation 0.4
 
   @type budget :: %{
           total: non_neg_integer(),
@@ -90,7 +91,9 @@ defmodule Jido.Runner.ChainOfThought.Backtracking.BudgetManager do
   def consume_budget(budget, amount \\ 1) do
     consumed = min(amount, budget.remaining)
 
-    Logger.debug("Consuming #{consumed} budget (#{budget.remaining} -> #{budget.remaining - consumed})")
+    Logger.debug(
+      "Consuming #{consumed} budget (#{budget.remaining} -> #{budget.remaining - consumed})"
+    )
 
     %{
       budget

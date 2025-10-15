@@ -389,7 +389,7 @@ defmodule Jido.Runner.ReAct.ToolRegistry do
     error -> {:error, {:function_execution_failed, error}}
   end
 
-  defp execute_function_tool(function, input) when is_function(function, 0) do
+  defp execute_function_tool(function, _input) when is_function(function, 0) do
     # Zero-arity function, ignore input
     case function.() do
       {:ok, result} -> {:ok, result}

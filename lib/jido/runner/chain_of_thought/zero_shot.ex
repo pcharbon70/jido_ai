@@ -223,6 +223,7 @@ defmodule Jido.Runner.ChainOfThought.ZeroShot do
         case Regex.run(pattern, text, return: :index) do
           [match | _] ->
             {pos, _len} = match
+
             captured_text =
               case Regex.run(pattern, text) do
                 [_, captured] -> String.trim(captured)
@@ -276,11 +277,15 @@ defmodule Jido.Runner.ChainOfThought.ZeroShot do
 
     # Definitive language
     definitive_bonus =
-      if String.match?(text, ~r/\b(clearly|obviously|certainly|definitely)\b/i), do: 0.05, else: 0.0
+      if String.match?(text, ~r/\b(clearly|obviously|certainly|definitely)\b/i),
+        do: 0.05,
+        else: 0.0
 
     # Logical flow indicators
     flow_bonus =
-      if String.match?(text, ~r/\b(because|since|consequently)\b|\bas a result\b/i), do: 0.05, else: 0.0
+      if String.match?(text, ~r/\b(because|since|consequently)\b|\bas a result\b/i),
+        do: 0.05,
+        else: 0.0
 
     confidence = base_confidence + step_bonus + answer_bonus + definitive_bonus + flow_bonus
     min(confidence, 1.0)

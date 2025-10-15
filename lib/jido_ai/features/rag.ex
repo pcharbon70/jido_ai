@@ -305,7 +305,7 @@ defmodule Jido.AI.Features.RAG do
 
   defp validate_documents(documents) when is_list(documents) do
     cond do
-      length(documents) == 0 ->
+      Enum.empty?(documents) ->
         {:error, "Documents list cannot be empty"}
 
       length(documents) > @max_documents ->
@@ -368,11 +368,13 @@ defmodule Jido.AI.Features.RAG do
   end
 
   defp parse_int(value, _default) when is_integer(value), do: value
+
   defp parse_int(value, default) when is_binary(value) do
     case Integer.parse(value) do
       {int, _} -> int
       :error -> default
     end
   end
+
   defp parse_int(_, default), do: default
 end

@@ -236,8 +236,6 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
   end
 
   defp call_llm(prompt, beam_width, temperature, model_str, _context) do
-    alias Jido.AI.Model
-
     system_message = """
     You are an expert reasoning assistant helping to explore multiple solution paths.
     Generate exactly #{beam_width} distinct thoughts or approaches to solve the given problem.
@@ -252,10 +250,13 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
     model = build_model(model_str || "openai:gpt-4")
 
     # Build ReqLLM model tuple with options
-    reqllm_model = {model.provider, model.model, [
-      temperature: temperature,
-      max_tokens: 2000
-    ] |> maybe_add_api_key(model)}
+    reqllm_model =
+      {model.provider, model.model,
+       [
+         temperature: temperature,
+         max_tokens: 2000
+       ]
+       |> maybe_add_api_key(model)}
 
     # Build messages using ReqLLM.Context
     messages = [
@@ -299,6 +300,7 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtGenerator do
     case String.split(model_str, ":", parts: 2) do
       [provider_str, model_name] ->
         provider = String.to_atom(provider_str)
+
         %Jido.AI.Model{provider: provider, model: model_name}
         |> Jido.AI.Model.ensure_reqllm_id()
 

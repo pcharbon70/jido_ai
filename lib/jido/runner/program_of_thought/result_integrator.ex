@@ -174,7 +174,7 @@ defmodule Jido.Runner.ProgramOfThought.ResultIntegrator do
 
   defp format_result(result), do: inspect(result)
 
-  defp validate_plausibility(execution_result, program, analysis) do
+  defp validate_plausibility(execution_result, _program, analysis) do
     result = execution_result.result
 
     checks = [

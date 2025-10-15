@@ -32,6 +32,7 @@ defmodule Integration.Stage1FoundationTest do
         has_reasoning: Map.has_key?(context, :reasoning_plan),
         timestamp: DateTime.utc_now()
       }
+
       {:ok, result}
     end
   end
@@ -56,15 +57,19 @@ defmodule Integration.Stage1FoundationTest do
       params: params,
       id: "instruction-#{:rand.uniform(10000)}"
     }
+
     queue = :queue.in(instruction, agent.pending_instructions)
     %{agent | pending_instructions: queue}
   end
 
   defp build_test_agent_with_instructions(instructions, opts \\ []) do
     agent = build_test_agent(opts)
-    queue = Enum.reduce(instructions, :queue.new(), fn instruction, q ->
-      :queue.in(instruction, q)
-    end)
+
+    queue =
+      Enum.reduce(instructions, :queue.new(), fn instruction, q ->
+        :queue.in(instruction, q)
+      end)
+
     %{agent | pending_instructions: queue}
   end
 
@@ -93,17 +98,18 @@ defmodule Integration.Stage1FoundationTest do
 
     test "1.5.1.1: agent creation with CoT runner configuration" do
       # Test that an agent can be created with CoT runner configuration
-      agent = build_test_agent(
-        name: "cot_test_agent",
-        runner: ChainOfThought,
-        state: %{
-          cot_config: %{
-            mode: :zero_shot,
-            max_iterations: 3,
-            temperature: 0.2
+      agent =
+        build_test_agent(
+          name: "cot_test_agent",
+          runner: ChainOfThought,
+          state: %{
+            cot_config: %{
+              mode: :zero_shot,
+              max_iterations: 3,
+              temperature: 0.2
+            }
           }
-        }
-      )
+        )
 
       assert agent.name == "cot_test_agent"
       assert agent.runner == ChainOfThought
@@ -113,17 +119,19 @@ defmodule Integration.Stage1FoundationTest do
 
     test "1.5.1.2: reasoning generation for multi-step action sequences" do
       # Test that the runner can handle multiple instructions
-      agent = build_test_agent(
-        state: %{
-          cot_config: %{
-            mode: :zero_shot,
-            temperature: 0.2
+      agent =
+        build_test_agent(
+          state: %{
+            cot_config: %{
+              mode: :zero_shot,
+              temperature: 0.2
+            }
           }
-        }
-      )
+        )
 
       # Add multiple instructions
-      agent = agent
+      agent =
+        agent
         |> enqueue_instruction(TestAction, %{step: 1})
         |> enqueue_instruction(TestAction, %{step: 2})
         |> enqueue_instruction(TestAction, %{step: 3})
@@ -133,21 +141,23 @@ defmodule Integration.Stage1FoundationTest do
       # Verify runner module exists and can be invoked
       assert Code.ensure_loaded?(ChainOfThought)
       # ChainOfThought.run/2 has default params, so it exports run/1
-      assert function_exported?(ChainOfThought, :run, 1) or function_exported?(ChainOfThought, :run, 2)
+      assert function_exported?(ChainOfThought, :run, 1) or
+               function_exported?(ChainOfThought, :run, 2)
     end
 
     test "1.5.1.3: execution with reasoning context propagation" do
       # Test that reasoning context structure is correct
       # Note: This test validates the configuration, not LLM execution
-      agent = build_test_agent(
-        state: %{
-          cot_config: %{
-            mode: :zero_shot,
-            fallback_on_error: true
+      agent =
+        build_test_agent(
+          state: %{
+            cot_config: %{
+              mode: :zero_shot,
+              fallback_on_error: true
+            }
           }
-        }
-      )
-      |> enqueue_instruction(TestAction, %{test: "context_propagation"})
+        )
+        |> enqueue_instruction(TestAction, %{test: "context_propagation"})
 
       # Verify configuration for context propagation
       assert agent.state.cot_config.mode == :zero_shot
@@ -157,22 +167,24 @@ defmodule Integration.Stage1FoundationTest do
       # Verify runner is callable (structure test)
       assert Code.ensure_loaded?(ChainOfThought)
       # ChainOfThought.run/2 has default params, so it exports run/1
-      assert function_exported?(ChainOfThought, :run, 1) or function_exported?(ChainOfThought, :run, 2)
+      assert function_exported?(ChainOfThought, :run, 1) or
+               function_exported?(ChainOfThought, :run, 2)
     end
 
     test "1.5.1.4: outcome validation and unexpected result handling" do
       # Test that outcome validation configuration is properly set
       # Note: This test validates configuration, not LLM-based validation
-      agent = build_test_agent(
-        state: %{
-          cot_config: %{
-            mode: :zero_shot,
-            enable_validation: true,
-            fallback_on_error: true
+      agent =
+        build_test_agent(
+          state: %{
+            cot_config: %{
+              mode: :zero_shot,
+              enable_validation: true,
+              fallback_on_error: true
+            }
           }
-        }
-      )
-      |> enqueue_instruction(TestAction, %{validate: true})
+        )
+        |> enqueue_instruction(TestAction, %{validate: true})
 
       # Verify validation configuration
       assert agent.state.cot_config.enable_validation == true
@@ -195,16 +207,17 @@ defmodule Integration.Stage1FoundationTest do
       # Test planning hook integration
       planning_hook_called = :atomics.new(1, [])
 
-      agent = build_test_agent(
-        state: %{enable_planning_cot: true},
-        hooks: %{
-          on_before_plan: fn _agent, _instructions, _context ->
-            :atomics.add(planning_hook_called, 1, 1)
-            {:ok, %{planning_reasoning: "Step-by-step planning"}}
-          end
-        }
-      )
-      |> enqueue_instruction(TestAction, %{task: "plan_me"})
+      agent =
+        build_test_agent(
+          state: %{enable_planning_cot: true},
+          hooks: %{
+            on_before_plan: fn _agent, _instructions, _context ->
+              :atomics.add(planning_hook_called, 1, 1)
+              {:ok, %{planning_reasoning: "Step-by-step planning"}}
+            end
+          }
+        )
+        |> enqueue_instruction(TestAction, %{task: "plan_me"})
 
       # Verify hook structure
       assert is_function(agent.hooks.on_before_plan, 3)
@@ -217,18 +230,20 @@ defmodule Integration.Stage1FoundationTest do
 
     test "1.5.2.2: execution hook plan creation and storage" do
       # Test execution hook integration
-      agent = build_test_agent(
-        hooks: %{
-          on_before_run: fn _agent ->
-            execution_plan = %{
-              steps: ["Analyze input", "Execute action", "Validate result"],
-              data_flow: %{input: :params, output: :result},
-              error_points: ["validation"]
-            }
-            {:ok, execution_plan}
-          end
-        }
-      )
+      agent =
+        build_test_agent(
+          hooks: %{
+            on_before_run: fn _agent ->
+              execution_plan = %{
+                steps: ["Analyze input", "Execute action", "Validate result"],
+                data_flow: %{input: :params, output: :result},
+                error_points: ["validation"]
+              }
+
+              {:ok, execution_plan}
+            end
+          }
+        )
 
       # Verify hook creates execution plan
       {:ok, plan} = agent.hooks.on_before_run.(agent)
@@ -242,19 +257,20 @@ defmodule Integration.Stage1FoundationTest do
       # Test validation hook integration
       retry_triggered = :atomics.new(1, [])
 
-      agent = build_test_agent(
-        hooks: %{
-          on_after_run: fn agent, _instruction, result ->
-            # Simulate validation logic
-            if result == :unexpected do
-              :atomics.add(retry_triggered, 1, 1)
-              {:retry, agent}
-            else
-              {:ok, agent}
+      agent =
+        build_test_agent(
+          hooks: %{
+            on_after_run: fn agent, _instruction, result ->
+              # Simulate validation logic
+              if result == :unexpected do
+                :atomics.add(retry_triggered, 1, 1)
+                {:retry, agent}
+              else
+                {:ok, agent}
+              end
             end
-          end
-        }
-      )
+          }
+        )
 
       # Test with expected result
       {:ok, _agent} = agent.hooks.on_after_run.(agent, nil, :expected)
@@ -267,15 +283,14 @@ defmodule Integration.Stage1FoundationTest do
 
     test "1.5.2.4: hook opt-in behavior and graceful degradation" do
       # Test that hooks are optional and system works without them
-      agent_no_hooks = build_test_agent(
-        hooks: %{}
-      )
+      agent_no_hooks = build_test_agent(hooks: %{})
 
-      agent_with_hooks = build_test_agent(
-        hooks: %{
-          on_before_plan: fn _, _, _ -> {:ok, %{}} end
-        }
-      )
+      agent_with_hooks =
+        build_test_agent(
+          hooks: %{
+            on_before_plan: fn _, _, _ -> {:ok, %{}} end
+          }
+        )
 
       # Both should be valid agent structures
       assert is_map(agent_no_hooks)
@@ -305,11 +320,14 @@ defmodule Integration.Stage1FoundationTest do
 
       # Mount with custom config
       agent2 = build_test_agent()
-      {:ok, agent_custom} = CoTSkill.mount(agent2, [
-        mode: :structured,
-        max_iterations: 5,
-        temperature: 0.8
-      ])
+
+      {:ok, agent_custom} =
+        CoTSkill.mount(agent2,
+          mode: :structured,
+          max_iterations: 5,
+          temperature: 0.8
+        )
+
       assert CoTSkill.mounted?(agent_custom)
       {:ok, config_custom} = CoTSkill.get_cot_config(agent_custom)
       assert config_custom.mode == :structured
@@ -335,24 +353,24 @@ defmodule Integration.Stage1FoundationTest do
 
       # Verify key routing patterns exist
       assert Enum.any?(routes, fn route ->
-        route.path == "agent.reasoning.generate"
-      end)
+               route.path == "agent.reasoning.generate"
+             end)
 
       assert Enum.any?(routes, fn route ->
-        route.path == "agent.reasoning.step"
-      end)
+               route.path == "agent.reasoning.step"
+             end)
 
       assert Enum.any?(routes, fn route ->
-        route.path == "agent.reasoning.validate"
-      end)
+               route.path == "agent.reasoning.validate"
+             end)
 
       # Test custom routes
       custom = [%{path: "custom.route", instruction: %{action: TestAction}}]
       routes_with_custom = CoTSkill.router(custom_routes: custom)
 
       assert Enum.any?(routes_with_custom, fn route ->
-        route.path == "custom.route"
-      end)
+               route.path == "custom.route"
+             end)
     end
 
     test "1.5.3.4: skill configuration updates and behavior changes" do
@@ -384,8 +402,9 @@ defmodule Integration.Stage1FoundationTest do
     test "1.5.4.1: zero-shot CoT latency overhead baseline structure" do
       # Test the structure for measuring latency overhead
       # Note: Actual latency measurement requires LLM integration
-      agent = build_test_agent()
-      |> enqueue_instruction(TestAction, %{test: "baseline"})
+      agent =
+        build_test_agent()
+        |> enqueue_instruction(TestAction, %{test: "baseline"})
 
       # Verify agent structure for performance testing
       assert :queue.len(agent.pending_instructions) == 1
@@ -394,7 +413,8 @@ defmodule Integration.Stage1FoundationTest do
 
       # Verify timing measurement capability
       start_time = System.monotonic_time(:millisecond)
-      :timer.sleep(1)  # Simulate work
+      # Simulate work
+      :timer.sleep(1)
       end_time = System.monotonic_time(:millisecond)
       duration_ms = end_time - start_time
 
@@ -431,13 +451,15 @@ defmodule Integration.Stage1FoundationTest do
     test "1.5.4.3: accuracy improvement tracking structure" do
       # Verify structure for tracking accuracy improvements
 
-      baseline_accuracy = 0.65  # 65% without CoT
-      cot_accuracy = 0.78       # 78% with CoT (8-15% improvement)
+      # 65% without CoT
+      baseline_accuracy = 0.65
+      # 78% with CoT (8-15% improvement)
+      cot_accuracy = 0.78
       improvement = cot_accuracy - baseline_accuracy
 
       # Verify improvement is in expected range (8-15%)
       assert improvement >= 0.08 and improvement <= 0.15,
-        "Improvement #{improvement} is within 8-15% range"
+             "Improvement #{improvement} is within 8-15% range"
 
       # Verify tracking structure
       metrics = %{
@@ -455,15 +477,17 @@ defmodule Integration.Stage1FoundationTest do
       # Verify that adding CoT doesn't break existing agent patterns
 
       # Agent without CoT should work
-      basic_agent = build_test_agent()
-      |> enqueue_instruction(TestAction, %{test: "basic"})
+      basic_agent =
+        build_test_agent()
+        |> enqueue_instruction(TestAction, %{test: "basic"})
 
       assert basic_agent.runner == nil
       assert :queue.len(basic_agent.pending_instructions) == 1
 
       # Agent with CoT should also work
-      cot_agent = build_test_agent(runner: ChainOfThought)
-      |> enqueue_instruction(TestAction, %{test: "cot"})
+      cot_agent =
+        build_test_agent(runner: ChainOfThought)
+        |> enqueue_instruction(TestAction, %{test: "cot"})
 
       assert cot_agent.runner == ChainOfThought
       assert :queue.len(cot_agent.pending_instructions) == 1
@@ -486,21 +510,23 @@ defmodule Integration.Stage1FoundationTest do
 
     test "complete integration: skill + runner + hooks" do
       # Create agent with all Stage 1 components
-      agent = build_test_agent(
-        runner: ChainOfThought,
-        hooks: %{
-          on_before_plan: fn _, _, _ -> {:ok, %{planned: true}} end,
-          on_before_run: fn _ -> {:ok, %{prepared: true}} end,
-          on_after_run: fn agent, _, _ -> {:ok, agent} end
-        }
-      )
+      agent =
+        build_test_agent(
+          runner: ChainOfThought,
+          hooks: %{
+            on_before_plan: fn _, _, _ -> {:ok, %{planned: true}} end,
+            on_before_run: fn _ -> {:ok, %{prepared: true}} end,
+            on_after_run: fn agent, _, _ -> {:ok, agent} end
+          }
+        )
 
       # Mount CoT skill
-      {:ok, agent} = CoTSkill.mount(agent, [
-        mode: :zero_shot,
-        max_iterations: 3,
-        enable_validation: true
-      ])
+      {:ok, agent} =
+        CoTSkill.mount(agent,
+          mode: :zero_shot,
+          max_iterations: 3,
+          enable_validation: true
+        )
 
       # Verify all components are integrated
       assert agent.runner == ChainOfThought
@@ -527,9 +553,7 @@ defmodule Integration.Stage1FoundationTest do
       assert CoTSkill.mounted?(agent_skill_only)
 
       # Agent with only hooks (no runner, no skill)
-      agent_hooks_only = build_test_agent(
-        hooks: %{on_before_run: fn _ -> {:ok, %{}} end}
-      )
+      agent_hooks_only = build_test_agent(hooks: %{on_before_run: fn _ -> {:ok, %{}} end})
       assert agent_hooks_only.runner == nil
       assert not CoTSkill.mounted?(agent_hooks_only)
 

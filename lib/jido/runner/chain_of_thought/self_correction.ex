@@ -54,7 +54,8 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
   @default_quality_threshold 0.7
 
   @type divergence_level :: :match | :minor | :moderate | :critical
-  @type correction_strategy :: :retry_adjusted | :backtrack_alternative | :clarify_requirements | :accept_partial
+  @type correction_strategy ::
+          :retry_adjusted | :backtrack_alternative | :clarify_requirements | :accept_partial
   @type validation_result :: {:ok, term()} | {:error, term(), divergence_level()}
   @type quality_score :: float()
 
@@ -140,7 +141,7 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
     if max_val == 0 do
       1.0
     else
-      max(0.0, 1.0 - (diff / max_val))
+      max(0.0, 1.0 - diff / max_val)
     end
   end
 
@@ -177,7 +178,8 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
       select_correction_strategy(:critical, 2, [...])
       # => :backtrack_alternative
   """
-  @spec select_correction_strategy(divergence_level(), non_neg_integer(), list()) :: correction_strategy()
+  @spec select_correction_strategy(divergence_level(), non_neg_integer(), list()) ::
+          correction_strategy()
   def select_correction_strategy(:match, _iteration, _history), do: :accept_partial
 
   def select_correction_strategy(:minor, iteration, _history) when iteration <= 2 do
@@ -228,7 +230,8 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
         max_iterations: 5
       )
   """
-  @spec iterative_execute(fun(), keyword()) :: {:ok, term()} | {:ok, term(), :partial} | {:error, term()}
+  @spec iterative_execute(fun(), keyword()) ::
+          {:ok, term()} | {:ok, term(), :partial} | {:error, term()}
   def iterative_execute(reasoning_fn, opts) do
     max_iterations = Keyword.get(opts, :max_iterations, @default_max_iterations)
     validator = Keyword.get(opts, :validator)
@@ -239,7 +242,15 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
       raise ArgumentError, "validator function is required"
     end
 
-    do_iterative_execute(reasoning_fn, validator, max_iterations, quality_threshold, on_correction, 1, [])
+    do_iterative_execute(
+      reasoning_fn,
+      validator,
+      max_iterations,
+      quality_threshold,
+      on_correction,
+      1,
+      []
+    )
   end
 
   @doc """
@@ -358,11 +369,19 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
   end
 
   defp do_iterative_execute(_fn, _validator, max_iter, _threshold, _callback, iteration, _history)
-      when iteration > max_iter do
+       when iteration > max_iter do
     {:error, :max_iterations_exceeded}
   end
 
-  defp do_iterative_execute(reasoning_fn, validator, max_iter, threshold, callback, iteration, history) do
+  defp do_iterative_execute(
+         reasoning_fn,
+         validator,
+         max_iter,
+         threshold,
+         callback,
+         iteration,
+         history
+       ) do
     Logger.debug("Self-correction iteration #{iteration}/#{max_iter}")
 
     # Execute reasoning
@@ -379,20 +398,62 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
           {:ok, validated_result}
         else
           # Quality not met, try correction
-          handle_quality_failure(reasoning_fn, validator, max_iter, threshold, callback, iteration, history, result, score)
+          handle_quality_failure(
+            reasoning_fn,
+            validator,
+            max_iter,
+            threshold,
+            callback,
+            iteration,
+            history,
+            result,
+            score
+          )
         end
 
       {:error, reason, divergence} ->
         # Validation failed
-        handle_validation_failure(reasoning_fn, validator, max_iter, threshold, callback, iteration, history, result, reason, divergence)
+        handle_validation_failure(
+          reasoning_fn,
+          validator,
+          max_iter,
+          threshold,
+          callback,
+          iteration,
+          history,
+          result,
+          reason,
+          divergence
+        )
 
       {:error, reason} ->
         # Validation error without divergence classification
-        handle_validation_failure(reasoning_fn, validator, max_iter, threshold, callback, iteration, history, result, reason, :critical)
+        handle_validation_failure(
+          reasoning_fn,
+          validator,
+          max_iter,
+          threshold,
+          callback,
+          iteration,
+          history,
+          result,
+          reason,
+          :critical
+        )
     end
   end
 
-  defp handle_quality_failure(reasoning_fn, validator, max_iter, threshold, callback, iteration, history, result, score) do
+  defp handle_quality_failure(
+         reasoning_fn,
+         validator,
+         max_iter,
+         threshold,
+         callback,
+         iteration,
+         history,
+         result,
+         score
+       ) do
     Logger.warning("Quality threshold not met: #{score} < #{threshold}")
 
     if iteration >= max_iter do
@@ -405,11 +466,30 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
 
       if callback, do: callback.({:correction, iteration, strategy, score})
 
-      do_iterative_execute(reasoning_fn, validator, max_iter, threshold, callback, iteration + 1, new_history)
+      do_iterative_execute(
+        reasoning_fn,
+        validator,
+        max_iter,
+        threshold,
+        callback,
+        iteration + 1,
+        new_history
+      )
     end
   end
 
-  defp handle_validation_failure(reasoning_fn, validator, max_iter, threshold, callback, iteration, history, result, reason, divergence) do
+  defp handle_validation_failure(
+         reasoning_fn,
+         validator,
+         max_iter,
+         threshold,
+         callback,
+         iteration,
+         history,
+         result,
+         reason,
+         divergence
+       ) do
     Logger.warning("Validation failed: #{inspect(reason)}, divergence: #{divergence}")
 
     if iteration >= max_iter do
@@ -420,17 +500,26 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
 
       if callback, do: callback.({:correction, iteration, strategy, divergence})
 
-      do_iterative_execute(reasoning_fn, validator, max_iter, threshold, callback, iteration + 1, new_history)
+      do_iterative_execute(
+        reasoning_fn,
+        validator,
+        max_iter,
+        threshold,
+        callback,
+        iteration + 1,
+        new_history
+      )
     end
   end
 
   defp repeated_failure?(history) do
     # Check if same error appears multiple times
-    failures = Enum.map(history, fn
-      {_iter, _result, reason, _div, _strat} -> reason
-      _ -> nil
-    end)
-    |> Enum.filter(&(&1 != nil))
+    failures =
+      Enum.map(history, fn
+        {_iter, _result, reason, _div, _strat} -> reason
+        _ -> nil
+      end)
+      |> Enum.filter(&(&1 != nil))
 
     length(Enum.uniq(failures)) < length(failures)
   end
@@ -440,7 +529,9 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrection do
     Enum.any?(history, fn
       {_iter, _result, reason, _div, _strat} when is_binary(reason) ->
         String.contains?(reason, ["unclear", "ambiguous", "undefined", "missing"])
-      _ -> false
+
+      _ ->
+        false
     end)
   end
 

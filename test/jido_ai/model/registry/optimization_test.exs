@@ -232,7 +232,8 @@ defmodule Jido.AI.Model.Registry.OptimizationTest do
       assert {:ok, _} = Cache.get(:test_provider)
 
       # Wait for expiration and cleanup cycle
-      Process.sleep(2000)  # Wait for cleanup (runs every minute, but we trigger it via TTL)
+      # Wait for cleanup (runs every minute, but we trigger it via TTL)
+      Process.sleep(2000)
 
       # Should be removed by cleanup
       assert :cache_miss = Cache.get(:test_provider)

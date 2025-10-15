@@ -54,12 +54,12 @@ defmodule Jido.Runner.ChainOfThought.PlanningHook do
     @moduledoc """
     Structured planning reasoning result.
     """
-    field :goal, String.t(), enforce: true
-    field :analysis, String.t(), enforce: true
-    field :dependencies, list(String.t()), default: []
-    field :potential_issues, list(String.t()), default: []
-    field :recommendations, list(String.t()), default: []
-    field :timestamp, DateTime.t(), enforce: true
+    field(:goal, String.t(), enforce: true)
+    field(:analysis, String.t(), enforce: true)
+    field(:dependencies, list(String.t()), default: [])
+    field(:potential_issues, list(String.t()), default: [])
+    field(:recommendations, list(String.t()), default: [])
+    field(:timestamp, DateTime.t(), enforce: true)
   end
 
   @doc """

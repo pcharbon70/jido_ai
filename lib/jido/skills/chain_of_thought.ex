@@ -302,7 +302,8 @@ defmodule Jido.Skills.ChainOfThought do
         custom_routes
       )
   """
-  @spec register_custom_routes(Agent.t(), list(map())) :: {:ok, list(map())} | {:error, :not_mounted}
+  @spec register_custom_routes(Agent.t(), list(map())) ::
+          {:ok, list(map())} | {:error, :not_mounted}
   def register_custom_routes(agent, custom_routes) when is_list(custom_routes) do
     case mounted?(agent) do
       true ->

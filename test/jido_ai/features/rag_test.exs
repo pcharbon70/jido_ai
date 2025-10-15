@@ -50,7 +50,10 @@ defmodule Jido.AI.Features.RAGTest do
       {:ok, formatted} = RAG.prepare_documents(documents, :google)
 
       assert length(formatted) == 2
-      assert get_in(formatted, [Access.at(0), "inline_data", "content"]) == "First document content"
+
+      assert get_in(formatted, [Access.at(0), "inline_data", "content"]) ==
+               "First document content"
+
       assert get_in(formatted, [Access.at(0), "inline_data", "mime_type"]) == "text/plain"
     end
 

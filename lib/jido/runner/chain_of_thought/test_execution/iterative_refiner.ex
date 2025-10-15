@@ -18,8 +18,10 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
   }
 
   @default_max_iterations 5
-  @default_pass_threshold 1.0  # 100% pass rate required
-  @convergence_threshold 0.95  # 95% pass rate for partial success
+  # 100% pass rate required
+  @default_pass_threshold 1.0
+  # 95% pass rate for partial success
+  @convergence_threshold 0.95
 
   @type refinement_result :: %{
           code: String.t(),
@@ -69,7 +71,16 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
 
     Logger.info("Starting iterative refinement (max #{max_iterations} iterations)")
 
-    do_refine(initial_code, test_suite, max_iterations, pass_threshold, refinement_fn, on_iteration, 1, [])
+    do_refine(
+      initial_code,
+      test_suite,
+      max_iterations,
+      pass_threshold,
+      refinement_fn,
+      on_iteration,
+      1,
+      []
+    )
   end
 
   @doc """
@@ -94,7 +105,6 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
          {:ok, code_file} <- TestSuiteManager.store_code(code),
          {:ok, exec_result} <- ExecutionSandbox.execute(code_file, test_file),
          {:ok, analysis} <- ResultAnalyzer.analyze(exec_result) do
-
       # Clean up temp files
       TestSuiteManager.cleanup([test_file, code_file])
 
@@ -132,7 +142,7 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
     min_rate = Enum.min(pass_rates)
 
     # Convergence if variance is very small
-    (max_rate - min_rate) < 0.05
+    max_rate - min_rate < 0.05
   end
 
   @doc """
@@ -157,18 +167,21 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
 
     # Pass rate improvement
     rate_delta = current_result.pass_rate - previous_result.pass_rate
-    improvements = if rate_delta > 0 do
-      ["Pass rate improved by #{trunc(rate_delta * 100)}%"] ++ improvements
-    else
-      improvements
-    end
+
+    improvements =
+      if rate_delta > 0 do
+        ["Pass rate improved by #{trunc(rate_delta * 100)}%"] ++ improvements
+      else
+        improvements
+      end
 
     # Failure category improvements
-    improvements = if length(current_result.improvements) > 0 do
-      current_result.improvements ++ improvements
-    else
-      improvements
-    end
+    improvements =
+      if length(current_result.improvements) > 0 do
+        current_result.improvements ++ improvements
+      else
+        improvements
+      end
 
     if Enum.empty?(improvements) do
       ["No improvement in this iteration"]
@@ -179,7 +192,16 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
 
   # Private functions
 
-  defp do_refine(_code, _test_suite, max_iter, _threshold, _refine_fn, _callback, iteration, _history)
+  defp do_refine(
+         _code,
+         _test_suite,
+         max_iter,
+         _threshold,
+         _refine_fn,
+         _callback,
+         iteration,
+         _history
+       )
        when iteration > max_iter do
     Logger.warning("Max iterations (#{max_iter}) reached without achieving pass threshold")
     {:error, :max_iterations_exceeded}
@@ -195,11 +217,12 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
         pass_rate = analysis.pass_rate
 
         # Build iteration result
-        improvements = if Enum.empty?(history) do
-          []
-        else
-          compare_analyses(analysis, List.first(history).analysis)
-        end
+        improvements =
+          if Enum.empty?(history) do
+            []
+          else
+            compare_analyses(analysis, List.first(history).analysis)
+          end
 
         iteration_result = %{
           code: refined_code,
@@ -217,24 +240,40 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
         cond do
           # Success: all tests passing
           pass_rate >= threshold ->
-            Logger.info("Refinement succeeded at iteration #{iteration}: #{trunc(pass_rate * 100)}% tests passing")
+            Logger.info(
+              "Refinement succeeded at iteration #{iteration}: #{trunc(pass_rate * 100)}% tests passing"
+            )
+
             {:ok, refined_code}
 
           # Partial success: high pass rate at convergence
           pass_rate >= @convergence_threshold and detect_convergence(new_history) ->
-            Logger.info("Refinement converged at iteration #{iteration}: #{trunc(pass_rate * 100)}% tests passing")
+            Logger.info(
+              "Refinement converged at iteration #{iteration}: #{trunc(pass_rate * 100)}% tests passing"
+            )
+
             {:ok, refined_code, :partial}
 
           # Continue refining
           true ->
             # Apply custom refinement if provided
-            next_code = if refine_fn do
-              refine_fn.(refined_code, analysis)
-            else
-              refined_code
-            end
+            next_code =
+              if refine_fn do
+                refine_fn.(refined_code, analysis)
+              else
+                refined_code
+              end
 
-            do_refine(next_code, test_suite, max_iter, threshold, refine_fn, callback, iteration + 1, new_history)
+            do_refine(
+              next_code,
+              test_suite,
+              max_iter,
+              threshold,
+              refine_fn,
+              callback,
+              iteration + 1,
+              new_history
+            )
         end
 
       {:error, reason} ->

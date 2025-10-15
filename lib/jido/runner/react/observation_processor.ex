@@ -224,7 +224,7 @@ defmodule Jido.Runner.ReAct.ObservationProcessor do
     |> Enum.join("\n")
   end
 
-  defp list_to_observation(list, _format) when length(list) == 0 do
+  defp list_to_observation([], _format) do
     "No results found"
   end
 

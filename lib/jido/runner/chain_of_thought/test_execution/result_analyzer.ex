@@ -11,7 +11,8 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ResultAnalyzer do
 
   require Logger
 
-  @type failure_category :: :syntax | :type | :logic | :edge_case | :runtime | :timeout | :compilation
+  @type failure_category ::
+          :syntax | :type | :logic | :edge_case | :runtime | :timeout | :compilation
   @type failure_analysis :: %{
           category: failure_category(),
           message: String.t(),
@@ -96,6 +97,7 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ResultAnalyzer do
             message: String.trim(line),
             line_number: extract_line_number(line)
           }
+
           {[failure | failures], current_test}
 
         true ->
@@ -296,12 +298,13 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ResultAnalyzer do
           message: "Test execution exceeded timeout",
           location: nil,
           root_cause: "Execution exceeded timeout. Code may have infinite loop or be too slow.",
-          correction_prompt: generate_correction_prompt(%{
-            category: :timeout,
-            message: "Execution timeout",
-            location: nil,
-            root_cause: "Code execution exceeded time limit"
-          })
+          correction_prompt:
+            generate_correction_prompt(%{
+              category: :timeout,
+              message: "Execution timeout",
+              location: nil,
+              root_cause: "Code execution exceeded time limit"
+            })
         }
       ],
       suggestions: [
@@ -317,20 +320,23 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ResultAnalyzer do
 
   defp analyze_compilation_error(execution_result) do
     errors = execution_result.errors
-    analyzed_errors = Enum.map(errors, fn error ->
-      %{
-        category: :compilation,
-        message: error.message,
-        location: nil,
-        root_cause: "Code failed to compile",
-        correction_prompt: generate_correction_prompt(%{
+
+    analyzed_errors =
+      Enum.map(errors, fn error ->
+        %{
           category: :compilation,
           message: error.message,
           location: nil,
-          root_cause: "Compilation error prevents execution"
-        })
-      }
-    end)
+          root_cause: "Code failed to compile",
+          correction_prompt:
+            generate_correction_prompt(%{
+              category: :compilation,
+              message: error.message,
+              location: nil,
+              root_cause: "Compilation error prevents execution"
+            })
+        }
+      end)
 
     analysis = %{
       status: :error,

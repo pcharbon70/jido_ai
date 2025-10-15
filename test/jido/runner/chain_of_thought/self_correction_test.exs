@@ -126,12 +126,16 @@ defmodule Jido.Runner.ChainOfThought.SelfCorrectionTest do
 
     test "returns :clarify_requirements for :critical with ambiguous history" do
       history = [{1, %{}, "unclear requirements", :critical, :retry_adjusted}]
-      assert SelfCorrection.select_correction_strategy(:critical, 2, history) == :clarify_requirements
+
+      assert SelfCorrection.select_correction_strategy(:critical, 2, history) ==
+               :clarify_requirements
     end
 
     test "returns :backtrack_alternative for :critical without ambiguous history" do
       history = [{1, %{}, "wrong answer", :critical, :retry_adjusted}]
-      assert SelfCorrection.select_correction_strategy(:critical, 2, history) == :backtrack_alternative
+
+      assert SelfCorrection.select_correction_strategy(:critical, 2, history) ==
+               :backtrack_alternative
     end
   end
 

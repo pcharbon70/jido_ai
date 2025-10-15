@@ -204,6 +204,7 @@ defmodule Jido.Runner.ChainOfThought.TaskSpecificZeroShotTest do
       assert reasoning.task_type == :debugging
       assert length(reasoning.steps) >= 3
       assert is_map(reasoning.task_specific)
+
       assert is_binary(reasoning.task_specific.error_analysis) or
                is_nil(reasoning.task_specific.error_analysis)
     end

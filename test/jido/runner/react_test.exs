@@ -149,12 +149,13 @@ defmodule Jido.Runner.ReActTest do
     end
 
     test "summarizes long observations when enabled" do
-      long_text = """
-      First sentence with important information.
-      Second sentence. Third sentence.
-      Fourth sentence. Fifth sentence.
-      Last sentence with a conclusion.
-      """ <> String.duplicate("Filler sentence. ", 50)
+      long_text =
+        """
+        First sentence with important information.
+        Second sentence. Third sentence.
+        Fourth sentence. Fifth sentence.
+        Last sentence with a conclusion.
+        """ <> String.duplicate("Filler sentence. ", 50)
 
       {:ok, observation} =
         ObservationProcessor.process(long_text, summarize: true, max_length: 200)
@@ -271,7 +272,9 @@ defmodule Jido.Runner.ReActTest do
         name: "add",
         description: "Add two numbers",
         function: fn input ->
-          [a, b] = String.split(input, "+") |> Enum.map(&String.trim/1) |> Enum.map(&String.to_integer/1)
+          [a, b] =
+            String.split(input, "+") |> Enum.map(&String.trim/1) |> Enum.map(&String.to_integer/1)
+
           {:ok, a + b}
         end
       }
@@ -508,9 +511,10 @@ defmodule Jido.Runner.ReActTest do
       # Should still complete despite errors
       assert result.steps >= 2
       # Check that error observations were recorded
-      error_steps = Enum.filter(result.trajectory, fn step ->
-        step.observation && step.observation =~ "Error"
-      end)
+      error_steps =
+        Enum.filter(result.trajectory, fn step ->
+          step.observation && step.observation =~ "Error"
+        end)
 
       assert length(error_steps) > 0
     end

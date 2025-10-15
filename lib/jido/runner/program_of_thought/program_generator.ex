@@ -273,7 +273,7 @@ defmodule Jido.Runner.ProgramOfThought.ProgramGenerator do
   end
 
   defp validate_has_module(code) do
-    if Regex.match?(~r/defmodule\s+Solution\s+do/,code) do
+    if Regex.match?(~r/defmodule\s+Solution\s+do/, code) do
       :ok
     else
       {:error, :missing_solution_module}

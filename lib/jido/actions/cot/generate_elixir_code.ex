@@ -80,7 +80,8 @@ defmodule Jido.Actions.CoT.GenerateElixirCode do
 
     with {:ok, analysis} <- ProgramAnalyzer.analyze(requirements),
          {:ok, template} <- get_reasoning_template(analysis, template_type),
-         {:ok, reasoning} <- generate_structured_reasoning(requirements, template, model, context),
+         {:ok, reasoning} <-
+           generate_structured_reasoning(requirements, template, model, context),
          {:ok, code} <-
            translate_to_code(reasoning, analysis, params, generate_specs, generate_docs) do
       result = %{
@@ -137,7 +138,14 @@ defmodule Jido.Actions.CoT.GenerateElixirCode do
     module_name = Map.get(params, :module_name)
 
     # Build prompt for code generation
-    prompt = build_code_generation_prompt(reasoning, analysis, function_name, generate_specs, generate_docs)
+    prompt =
+      build_code_generation_prompt(
+        reasoning,
+        analysis,
+        function_name,
+        generate_specs,
+        generate_docs
+      )
 
     # Call LLM for code generation
     model_name = Map.get(params, :model)
@@ -193,7 +201,13 @@ defmodule Jido.Actions.CoT.GenerateElixirCode do
     end
   end
 
-  defp build_code_generation_prompt(reasoning, analysis, function_name, generate_specs, generate_docs) do
+  defp build_code_generation_prompt(
+         reasoning,
+         analysis,
+         function_name,
+         generate_specs,
+         generate_docs
+       ) do
     """
     Based on the following structured reasoning, generate idiomatic Elixir code.
 

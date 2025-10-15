@@ -100,15 +100,30 @@ defmodule Jido.Runner.ChainOfThought.ErrorHandlerTest do
     end
 
     test "selects skip_continue for execution errors" do
-      error = %Error{category: :execution_error, reason: :action_error, timestamp: DateTime.utc_now()}
+      error = %Error{
+        category: :execution_error,
+        reason: :action_error,
+        timestamp: DateTime.utc_now()
+      }
+
       assert ErrorHandler.select_recovery_strategy(error) == :skip_continue
 
-      error = %Error{category: :execution_error, reason: :unexpected_outcome, timestamp: DateTime.utc_now()}
+      error = %Error{
+        category: :execution_error,
+        reason: :unexpected_outcome,
+        timestamp: DateTime.utc_now()
+      }
+
       assert ErrorHandler.select_recovery_strategy(error) == :skip_continue
     end
 
     test "selects fail_fast for config errors" do
-      error = %Error{category: :config_error, reason: :invalid_mode, timestamp: DateTime.utc_now()}
+      error = %Error{
+        category: :config_error,
+        reason: :invalid_mode,
+        timestamp: DateTime.utc_now()
+      }
+
       assert ErrorHandler.select_recovery_strategy(error) == :fail_fast
     end
   end
@@ -134,7 +149,8 @@ defmodule Jido.Runner.ChainOfThought.ErrorHandlerTest do
         end
       end
 
-      assert {:ok, :success} = ErrorHandler.with_retry(operation, max_retries: 3, initial_delay_ms: 10)
+      assert {:ok, :success} =
+               ErrorHandler.with_retry(operation, max_retries: 3, initial_delay_ms: 10)
 
       Agent.stop(agent)
     end
@@ -170,7 +186,11 @@ defmodule Jido.Runner.ChainOfThought.ErrorHandlerTest do
       retry_fn = fn -> {:ok, :recovered} end
 
       result =
-        ErrorHandler.handle_error(error, %{}, strategy: :retry, retry_fn: retry_fn, max_retries: 1)
+        ErrorHandler.handle_error(error, %{},
+          strategy: :retry,
+          retry_fn: retry_fn,
+          max_retries: 1
+        )
 
       assert {:ok, :recovered} = result
     end

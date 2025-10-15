@@ -540,6 +540,7 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
 
     test "executes best-first search successfully" do
       thought_fn = fn _opts -> ["High value thought", "Low value thought"] end
+
       evaluation_fn = fn opts ->
         if String.contains?(opts[:thought], "High"), do: 0.9, else: 0.3
       end
@@ -695,7 +696,8 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
         # +60% solve rate
       }
 
-      improvement = (metrics.game_of_24_tot - metrics.game_of_24_baseline) / metrics.game_of_24_baseline
+      improvement =
+        (metrics.game_of_24_tot - metrics.game_of_24_baseline) / metrics.game_of_24_baseline
 
       # Should be ~1750% relative improvement
       assert improvement > 10.0

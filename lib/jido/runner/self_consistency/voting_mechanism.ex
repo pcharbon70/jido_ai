@@ -339,7 +339,9 @@ defmodule Jido.Runner.SelfConsistency.VotingMechanism do
   defp break_tie_by_confidence(candidates) do
     {answer, _score, paths} =
       Enum.max_by(candidates, fn {_answer, _score, paths} ->
-        avg_confidence = Enum.reduce(paths, 0.0, fn p, acc -> acc + p.confidence end) / length(paths)
+        avg_confidence =
+          Enum.reduce(paths, 0.0, fn p, acc -> acc + p.confidence end) / length(paths)
+
         avg_confidence
       end)
 

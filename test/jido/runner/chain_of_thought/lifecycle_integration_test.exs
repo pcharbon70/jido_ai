@@ -360,7 +360,8 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
 
       # Execution runs
       {:ok, after_execution} = ExecutionHook.generate_execution_plan(agent)
-      assert after_execution == agent  # No instructions, returns unchanged
+      # No instructions, returns unchanged
+      assert after_execution == agent
 
       # Validation skipped
       result = %{success: true}
@@ -376,7 +377,8 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
         id: "test",
         state: %{
           validation_config: %{
-            tolerance: 0.99,  # Very high to force failure
+            # Very high to force failure
+            tolerance: 0.99,
             retry_on_failure: true,
             max_retries: 2
           }
@@ -431,7 +433,8 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
             retry_on_failure: true,
             max_retries: 1
           },
-          validation_retry_count: 1  # Already at max
+          # Already at max
+          validation_retry_count: 1
         }
       }
 
@@ -510,7 +513,8 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
             retry_on_failure: true,
             max_retries: 3
           },
-          validation_retry_count: 2  # Already retried twice
+          # Already retried twice
+          validation_retry_count: 2
         }
       }
 
@@ -620,6 +624,7 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
         analysis: "Test analysis",
         timestamp: DateTime.utc_now()
       }
+
       agent = PlanningHook.enrich_agent_with_planning(agent, planning)
 
       # Add execution with proper struct
@@ -627,6 +632,7 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
         execution_strategy: "Test",
         timestamp: DateTime.utc_now()
       }
+
       agent = ExecutionHook.enrich_agent_with_execution_plan(agent, execution)
 
       # Add validation with proper struct
@@ -634,6 +640,7 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
         status: :success,
         timestamp: DateTime.utc_now()
       }
+
       agent = ValidationHook.enrich_agent_with_validation(agent, validation)
 
       # Custom state should be untouched

@@ -46,25 +46,25 @@ defmodule Jido.Runner.ChainOfThought.ErrorHandler do
     @moduledoc """
     Structured error with category, reason, context, and recovery information.
     """
-    field :category, atom(), enforce: true
-    field :reason, term(), enforce: true
-    field :context, map(), default: %{}
-    field :timestamp, DateTime.t(), enforce: true
-    field :recoverable?, boolean(), default: true
-    field :recovery_attempted?, boolean(), default: false
-    field :recovery_strategy, atom() | nil, default: nil
-    field :original_error, term() | nil, default: nil
+    field(:category, atom(), enforce: true)
+    field(:reason, term(), enforce: true)
+    field(:context, map(), default: %{})
+    field(:timestamp, DateTime.t(), enforce: true)
+    field(:recoverable?, boolean(), default: true)
+    field(:recovery_attempted?, boolean(), default: false)
+    field(:recovery_strategy, atom() | nil, default: nil)
+    field(:original_error, term() | nil, default: nil)
   end
 
   typedstruct module: RetryConfig do
     @moduledoc """
     Configuration for retry behavior with exponential backoff.
     """
-    field :max_retries, non_neg_integer(), default: 3
-    field :initial_delay_ms, pos_integer(), default: 1000
-    field :max_delay_ms, pos_integer(), default: 30_000
-    field :backoff_factor, float(), default: 2.0
-    field :jitter?, boolean(), default: true
+    field(:max_retries, non_neg_integer(), default: 3)
+    field(:initial_delay_ms, pos_integer(), default: 1000)
+    field(:max_delay_ms, pos_integer(), default: 30_000)
+    field(:backoff_factor, float(), default: 2.0)
+    field(:jitter?, boolean(), default: true)
   end
 
   # Error Categories

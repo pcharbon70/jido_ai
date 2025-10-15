@@ -96,21 +96,23 @@ defmodule Jido.Runner.ChainOfThoughtTest do
 
   describe "agent state configuration" do
     test "uses configuration from agent state" do
-      agent = build_test_agent_with_config(%{
-        mode: :structured,
-        max_iterations: 3,
-        temperature: 0.5
-      })
+      agent =
+        build_test_agent_with_config(%{
+          mode: :structured,
+          max_iterations: 3,
+          temperature: 0.5
+        })
 
       # Should succeed with state config
       assert {:ok, _agent, _directives} = ChainOfThought.run(agent)
     end
 
     test "runtime opts override agent state config" do
-      agent = build_test_agent_with_config(%{
-        mode: :structured,
-        max_iterations: 3
-      })
+      agent =
+        build_test_agent_with_config(%{
+          mode: :structured,
+          max_iterations: 3
+        })
 
       # Runtime opts should take precedence
       assert {:ok, _agent, _directives} = ChainOfThought.run(agent, mode: :zero_shot)
@@ -150,9 +152,10 @@ defmodule Jido.Runner.ChainOfThoughtTest do
     test "falls back to simple runner when fallback_on_error is true" do
       # Skip until Task 1.1.2 implements actual reasoning
       # This test requires proper instruction format integration with Jido.Runner.Simple
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestAction, %{value: 42})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestAction, %{value: 42})
+        ])
 
       # Should succeed by falling back to simple runner
       assert {:ok, _agent, _directives} = ChainOfThought.run(agent, fallback_on_error: true)
@@ -162,9 +165,10 @@ defmodule Jido.Runner.ChainOfThoughtTest do
     test "returns error when fallback_on_error is false" do
       # Skip until we have LLM mocking or integration test environment
       # This test requires a valid OpenAI API key to test reasoning generation
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestAction, %{value: 42})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestAction, %{value: 42})
+        ])
 
       # Should fail without fallback - either reasoning fails or LLM call fails
       result = ChainOfThought.run(agent, fallback_on_error: false)
@@ -175,11 +179,12 @@ defmodule Jido.Runner.ChainOfThoughtTest do
   describe "configuration merging" do
     test "merges all configuration sources correctly" do
       # Agent state config
-      agent = build_test_agent_with_config(%{
-        mode: :structured,
-        max_iterations: 5,
-        temperature: 0.3
-      })
+      agent =
+        build_test_agent_with_config(%{
+          mode: :structured,
+          max_iterations: 5,
+          temperature: 0.3
+        })
 
       # Runtime opts (should override)
       opts = [
@@ -207,9 +212,12 @@ defmodule Jido.Runner.ChainOfThoughtTest do
 
   defp build_test_agent_with_instructions(instructions) do
     agent = build_test_agent()
-    queue = Enum.reduce(instructions, :queue.new(), fn instruction, q ->
-      :queue.in(instruction, q)
-    end)
+
+    queue =
+      Enum.reduce(instructions, :queue.new(), fn instruction, q ->
+        :queue.in(instruction, q)
+      end)
+
     %{agent | pending_instructions: queue}
   end
 

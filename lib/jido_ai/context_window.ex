@@ -104,8 +104,7 @@ defmodule Jido.AI.ContextWindow do
       limit = Keyword.fetch!(opts, :limit)
 
       %__MODULE__{
-        message:
-          "Prompt exceeds context window: #{tokens} tokens > #{limit} limit",
+        message: "Prompt exceeds context window: #{tokens} tokens > #{limit} limit",
         tokens: tokens,
         limit: limit
       }
@@ -280,7 +279,8 @@ defmodule Jido.AI.ContextWindow do
         strategy = Keyword.get(opts, :strategy, :keep_recent)
 
         with {:ok, truncated} <- truncate(prompt, model, limit, strategy, opts),
-             {:ok, %{fits: fits, tokens: tokens, limit: limit}} <- check_fit(truncated, model, opts) do
+             {:ok, %{fits: fits, tokens: tokens, limit: limit}} <-
+               check_fit(truncated, model, opts) do
           if fits do
             {:ok, truncated}
           else

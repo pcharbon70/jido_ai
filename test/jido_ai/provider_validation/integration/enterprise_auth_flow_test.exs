@@ -57,7 +57,7 @@ defmodule Jido.AI.ProviderValidation.Integration.EnterpriseAuthFlowTest do
         end
       end)
 
-    if length(available_providers) == 0 do
+    if Enum.empty?(available_providers) do
       ExUnit.skip("No enterprise provider credentials available")
     else
       {:ok, available_providers: available_providers}

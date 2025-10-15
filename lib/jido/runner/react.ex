@@ -295,7 +295,7 @@ defmodule Jido.Runner.ReAct do
 
   defp generate_thought_with_llm(state) do
     # Format prompt
-    prompt = format_thought_prompt(state)
+    _prompt = format_thought_prompt(state)
 
     # This would call LLM in production
     # For now, return a placeholder

@@ -271,9 +271,9 @@ defmodule Jido.Runner.SelfConsistency.PathQualityAnalyzer do
 
     # Count logical connectors
     connector_count =
-      (if has_therefore, do: 1, else: 0) +
-        (if has_because, do: 1, else: 0) +
-        (if has_steps, do: 1, else: 0)
+      if(has_therefore, do: 1, else: 0) +
+        if(has_because, do: 1, else: 0) +
+        if has_steps, do: 1, else: 0
 
     # Check for contradictions (simple heuristic)
     has_contradiction =
@@ -301,9 +301,9 @@ defmodule Jido.Runner.SelfConsistency.PathQualityAnalyzer do
     excessive_questions = length(Regex.scan(~r/\?/, reasoning)) > 2
 
     score =
-      (if has_answer, do: 0.4, else: 0.0) +
-        (if has_conclusion, do: 0.3, else: 0.0) +
-        (if has_reasoning_steps, do: 0.3, else: 0.0)
+      if(has_answer, do: 0.4, else: 0.0) +
+        if(has_conclusion, do: 0.3, else: 0.0) +
+        if has_reasoning_steps, do: 0.3, else: 0.0
 
     if excessive_questions do
       score * 0.8
@@ -344,9 +344,9 @@ defmodule Jido.Runner.SelfConsistency.PathQualityAnalyzer do
     has_sections = String.contains?(reasoning, ["Step", "Given", "Solution"])
 
     structure_score =
-      (if has_paragraphs, do: 0.3, else: 0.0) +
-        (if has_numbered_steps, do: 0.4, else: 0.0) +
-        (if has_sections, do: 0.3, else: 0.0)
+      if(has_paragraphs, do: 0.3, else: 0.0) +
+        if(has_numbered_steps, do: 0.4, else: 0.0) +
+        if has_sections, do: 0.3, else: 0.0
 
     max(0.3, structure_score)
 
@@ -383,7 +383,9 @@ defmodule Jido.Runner.SelfConsistency.PathQualityAnalyzer do
 
     # Low confidence outlier (significantly below average)
     if path_confidence < avg_confidence * 0.5 do
-      reason = "Very low confidence (#{Float.round(path_confidence, 2)} vs avg #{Float.round(avg_confidence, 2)})"
+      reason =
+        "Very low confidence (#{Float.round(path_confidence, 2)} vs avg #{Float.round(avg_confidence, 2)})"
+
       {true, [reason | reasons]}
     else
       {current_outlier, reasons}

@@ -69,11 +69,20 @@ defmodule Jido.AI.Features.FineTuning do
   @spec fine_tuned?(Model.t() | String.t()) :: boolean()
   def fine_tuned?(%Model{model: model_id, provider: provider}) do
     case provider do
-      :openai -> String.starts_with?(model_id, "ft:")
-      :google -> String.contains?(model_id, "/models/") and String.contains?(model_id, "projects/")
-      :cohere -> String.starts_with?(model_id, "custom-")
-      :together -> String.contains?(model_id, "/")
-      _ -> false
+      :openai ->
+        String.starts_with?(model_id, "ft:")
+
+      :google ->
+        String.contains?(model_id, "/models/") and String.contains?(model_id, "projects/")
+
+      :cohere ->
+        String.starts_with?(model_id, "custom-")
+
+      :together ->
+        String.contains?(model_id, "/")
+
+      _ ->
+        false
     end
   end
 
@@ -307,7 +316,8 @@ defmodule Jido.AI.Features.FineTuning do
         {:error, :empty_model_id}
 
       String.length(model_id) > @max_model_id_length ->
-        {:error, "Model ID too long: maximum is #{@max_model_id_length} characters, got #{String.length(model_id)}"}
+        {:error,
+         "Model ID too long: maximum is #{@max_model_id_length} characters, got #{String.length(model_id)}"}
 
       not String.match?(model_id, ~r/^[a-zA-Z0-9:_\-\/\.]+$/) ->
         {:error, "Model ID contains invalid characters"}

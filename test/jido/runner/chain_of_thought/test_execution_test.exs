@@ -2,6 +2,7 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
   use ExUnit.Case, async: true
 
   alias Jido.Runner.ChainOfThought.TestExecution
+
   alias Jido.Runner.ChainOfThought.TestExecution.{
     TestSuiteManager,
     ExecutionSandbox,
@@ -94,10 +95,11 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
 
     test "returns error for invalid write" do
       # Try to write to invalid path
-      invalid_content = test_content = """
-      defmodule Test do
-      end
-      """
+      invalid_content =
+        test_content = """
+        defmodule Test do
+        end
+        """
 
       # This should succeed with temp dir
       assert {:ok, _path} = TestSuiteManager.store_tests(invalid_content)
@@ -190,7 +192,9 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
     test "enforces timeout" do
       # Infinite loop
       assert {:error, {:timeout, _}} =
-               ExecutionSandbox.execute_code("Stream.cycle([1]) |> Enum.take(1000000000)", timeout: 100)
+               ExecutionSandbox.execute_code("Stream.cycle([1]) |> Enum.take(1000000000)",
+                 timeout: 100
+               )
     end
 
     test "handles syntax errors" do
@@ -198,17 +202,19 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
     end
 
     test "supports variable bindings" do
-      assert {:ok, 3} = ExecutionSandbox.execute_code("a + b", bindings: [a: 1, b: 2], timeout: 1000)
+      assert {:ok, 3} =
+               ExecutionSandbox.execute_code("a + b", bindings: [a: 1, b: 2], timeout: 1000)
     end
   end
 
   describe "ExecutionSandbox.compile_code/2" do
     test "compiles valid code" do
-      {:ok, code_file} = TestSuiteManager.store_code("""
-      defmodule ValidModule do
-        def test, do: :ok
-      end
-      """)
+      {:ok, code_file} =
+        TestSuiteManager.store_code("""
+        defmodule ValidModule do
+          def test, do: :ok
+        end
+        """)
 
       assert {:ok, _output} = ExecutionSandbox.compile_code(code_file, 5000)
 
@@ -216,11 +222,12 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
     end
 
     test "returns error for invalid code" do
-      {:ok, code_file} = TestSuiteManager.store_code("""
-      defmodule Invalid do
-        def test do
-      end
-      """)
+      {:ok, code_file} =
+        TestSuiteManager.store_code("""
+        defmodule Invalid do
+          def test do
+        end
+        """)
 
       assert {:error, _errors} = ExecutionSandbox.compile_code(code_file, 5000)
 
@@ -230,13 +237,19 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
 
   describe "ExecutionSandbox.enforce_timeout/2" do
     test "returns result within timeout" do
-      test_fn = fn -> :timer.sleep(10); :ok end
+      test_fn = fn ->
+        :timer.sleep(10)
+        :ok
+      end
 
       assert {:ok, :ok} = ExecutionSandbox.enforce_timeout(test_fn, 1000)
     end
 
     test "returns error when timeout exceeded" do
-      test_fn = fn -> :timer.sleep(1000); :ok end
+      test_fn = fn ->
+        :timer.sleep(1000)
+        :ok
+      end
 
       assert {:error, :timeout} = ExecutionSandbox.enforce_timeout(test_fn, 100)
     end
@@ -412,7 +425,7 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
       assert analysis.passed_tests == 5
       assert analysis.failed_tests == 0
       assert analysis.pass_rate == 1.0
-      assert length(analysis.failures) == 0
+      assert Enum.empty?(analysis.failures)
     end
 
     test "analyzes failed execution" do

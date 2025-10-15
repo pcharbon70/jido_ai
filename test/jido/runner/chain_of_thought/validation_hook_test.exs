@@ -317,7 +317,8 @@ defmodule Jido.Runner.ChainOfThought.ValidationHookTest do
         id: "test",
         state: %{
           validation_config: %ValidationConfig{
-            tolerance: 0.99,  # Very high tolerance to force failure
+            # Very high tolerance to force failure
+            tolerance: 0.99,
             retry_on_failure: true,
             max_retries: 2
           }
@@ -332,7 +333,9 @@ defmodule Jido.Runner.ChainOfThought.ValidationHookTest do
 
       # Should either continue or retry depending on validation logic
       case response do
-        {:ok, _agent} -> assert true
+        {:ok, _agent} ->
+          assert true
+
         {:retry, agent, params} ->
           assert is_map(params)
           assert params.retry_attempt == 1
@@ -370,7 +373,8 @@ defmodule Jido.Runner.ChainOfThought.ValidationHookTest do
             retry_on_failure: true,
             max_retries: 1
           },
-          validation_retry_count: 1  # Already at max
+          # Already at max
+          validation_retry_count: 1
         }
       }
 

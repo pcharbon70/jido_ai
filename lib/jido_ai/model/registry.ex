@@ -92,36 +92,38 @@ defmodule Jido.AI.Model.Registry do
 
   defp fetch_and_cache_models(provider_id) do
     # Primary path: ReqLLM registry
-    result = case get_models_from_registry(provider_id) do
-      {:ok, [_ | _] = registry_models} ->
-        # Enhance registry models with legacy adapter data if available
-        enhanced_models = enhance_with_legacy_data(registry_models, provider_id)
-        {:ok, enhanced_models}
+    result =
+      case get_models_from_registry(provider_id) do
+        {:ok, [_ | _] = registry_models} ->
+          # Enhance registry models with legacy adapter data if available
+          enhanced_models = enhance_with_legacy_data(registry_models, provider_id)
+          {:ok, enhanced_models}
 
-      {:ok, []} when not is_nil(provider_id) ->
-        # Fallback to legacy adapter for specific provider
-        get_models_from_legacy_adapter(provider_id)
-
-      {:ok, []} ->
-        # Fallback to all legacy adapters
-        get_models_from_all_legacy_adapters()
-
-      {:error, reason} ->
-        Logger.warning(
-          "ReqLLM registry unavailable: #{inspect(reason)}, falling back to legacy adapters"
-        )
-
-        if provider_id do
+        {:ok, []} when not is_nil(provider_id) ->
+          # Fallback to legacy adapter for specific provider
           get_models_from_legacy_adapter(provider_id)
-        else
+
+        {:ok, []} ->
+          # Fallback to all legacy adapters
           get_models_from_all_legacy_adapters()
-        end
-    end
+
+        {:error, reason} ->
+          Logger.warning(
+            "ReqLLM registry unavailable: #{inspect(reason)}, falling back to legacy adapters"
+          )
+
+          if provider_id do
+            get_models_from_legacy_adapter(provider_id)
+          else
+            get_models_from_all_legacy_adapters()
+          end
+      end
 
     # Cache successful results for specific providers
     case {result, provider_id} do
       {{:ok, models}, pid} when is_atom(pid) and not is_nil(pid) ->
         Jido.AI.Model.Registry.Cache.put(pid, models)
+
       _ ->
         :ok
     end
@@ -154,7 +156,8 @@ defmodule Jido.AI.Model.Registry do
       {:ok, results} = batch_get_models([:openai, :anthropic], max_concurrency: 5)
 
   """
-  @spec batch_get_models(list(provider_id()), keyword()) :: {:ok, list({provider_id(), {:ok, list()} | {:error, term()}})}
+  @spec batch_get_models(list(provider_id()), keyword()) ::
+          {:ok, list({provider_id(), {:ok, list()} | {:error, term()}})}
   def batch_get_models(provider_ids, opts \\ []) when is_list(provider_ids) do
     max_concurrency = Keyword.get(opts, :max_concurrency, 10)
     timeout = Keyword.get(opts, :timeout, 30_000)

@@ -100,7 +100,8 @@ defmodule Jido.Runner.SelfConsistency do
     with {:ok, paths} <-
            generate_reasoning_paths(problem, sample_count, temperature, reasoning_fn, parallel),
          {:ok, paths_with_answers} <- extract_answers(paths),
-         {:ok, quality_paths} <- analyze_and_filter_quality(paths_with_answers, quality_threshold),
+         {:ok, quality_paths} <-
+           analyze_and_filter_quality(paths_with_answers, quality_threshold),
          {:ok, diverse_paths} <- ensure_diversity(quality_paths, diversity_threshold),
          {:ok, result} <- vote_and_select(diverse_paths, voting_strategy, min_consensus) do
       {:ok, result}

@@ -2,7 +2,13 @@ defmodule Jido.Runner.ChainOfThought.ExecutionHookTest do
   use ExUnit.Case, async: true
 
   alias Jido.Runner.ChainOfThought.ExecutionHook
-  alias Jido.Runner.ChainOfThought.ExecutionHook.{ExecutionPlan, ExecutionStep, DataFlowDependency, ErrorPoint}
+
+  alias Jido.Runner.ChainOfThought.ExecutionHook.{
+    ExecutionPlan,
+    ExecutionStep,
+    DataFlowDependency,
+    ErrorPoint
+  }
 
   describe "should_generate_execution_plan?/1" do
     test "returns true when enable_execution_cot is not set" do

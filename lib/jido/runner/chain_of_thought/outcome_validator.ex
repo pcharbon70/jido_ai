@@ -20,11 +20,11 @@ defmodule Jido.Runner.ChainOfThought.OutcomeValidator do
     along with details about any discrepancies.
     """
 
-    field :matches_expectation, boolean(), default: true
-    field :expected_outcome, String.t()
-    field :actual_outcome, String.t()
-    field :confidence, float(), default: 1.0
-    field :notes, list(String.t()), default: []
+    field(:matches_expectation, boolean(), default: true)
+    field(:expected_outcome, String.t())
+    field(:actual_outcome, String.t())
+    field(:confidence, float(), default: 1.0)
+    field(:notes, list(String.t()), default: [])
   end
 
   @doc """
@@ -101,7 +101,8 @@ defmodule Jido.Runner.ChainOfThought.OutcomeValidator do
   def is_successful?(:error), do: false
   def is_successful?(true), do: true
   def is_successful?(false), do: false
-  def is_successful?(_), do: true  # Assume success if not explicitly error
+  # Assume success if not explicitly error
+  def is_successful?(_), do: true
 
   @doc """
   Checks if a validation result indicates an unexpected outcome.
@@ -146,8 +147,10 @@ defmodule Jido.Runner.ChainOfThought.OutcomeValidator do
 
   defp calculate_confidence({:ok, _}, _expected), do: 1.0
   defp calculate_confidence({:error, _}, _expected), do: 0.0
-  defp calculate_confidence(_, ""), do: 0.8  # No expectation to compare against
-  defp calculate_confidence(_, _), do: 0.9   # Has expectation, non-error result
+  # No expectation to compare against
+  defp calculate_confidence(_, ""), do: 0.8
+  # Has expectation, non-error result
+  defp calculate_confidence(_, _), do: 0.9
 
   defp build_notes(result, expected, matches) do
     notes = []

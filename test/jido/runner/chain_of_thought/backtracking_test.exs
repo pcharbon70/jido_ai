@@ -2,6 +2,7 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
   use ExUnit.Case, async: true
 
   alias Jido.Runner.ChainOfThought.Backtracking
+
   alias Jido.Runner.ChainOfThought.Backtracking.{
     StateManager,
     DeadEndDetector,
@@ -82,7 +83,8 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
 
       {:ok, peeked} = StateManager.peek(stack)
       assert peeked.data.value == 99
-      assert StateManager.stack_size(stack) == 1  # Stack unchanged
+      # Stack unchanged
+      assert StateManager.stack_size(stack) == 1
     end
 
     test "returns error when peeking empty stack" do
@@ -155,7 +157,8 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
     end
 
     test "returns error for non-existent key" do
-      assert {:error, :not_found} = StateManager.load_stack("nonexistent_key_#{:rand.uniform(10000)}")
+      assert {:error, :not_found} =
+               StateManager.load_stack("nonexistent_key_#{:rand.uniform(10000)}")
     end
 
     test "deletes persisted stack" do
@@ -178,7 +181,12 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
 
     test "detects circular reasoning" do
       result = %{reasoning: "pattern_a", value: 1}
-      history = [%{reasoning: "pattern_b", value: 2}, %{reasoning: "pattern_c", value: 3}, %{reasoning: "pattern_a", value: 1}]
+
+      history = [
+        %{reasoning: "pattern_b", value: 2},
+        %{reasoning: "pattern_c", value: 3},
+        %{reasoning: "pattern_a", value: 1}
+      ]
 
       assert DeadEndDetector.detect(result, history)
     end
@@ -235,7 +243,12 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
 
     test "returns multiple reasons" do
       result = %{error: "same", confidence: 0.2}
-      history = [%{error: "same", confidence: 0.2}, %{error: "same", confidence: 0.2}, %{error: "same", confidence: 0.2}]
+
+      history = [
+        %{error: "same", confidence: 0.2},
+        %{error: "same", confidence: 0.2},
+        %{error: "same", confidence: 0.2}
+      ]
 
       detection = DeadEndDetector.detect_with_reasons(result, history, repetition_threshold: 3)
 
@@ -417,7 +430,8 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
       assert budget.total == 10
       assert budget.remaining == 10
       assert budget.used == 0
-      assert budget.priority_reserve == 2  # 20% of 10
+      # 20% of 10
+      assert budget.priority_reserve == 2
     end
 
     test "accepts custom priority reserve" do
@@ -473,7 +487,8 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
 
       {:ok, level_budget, new_budget} = BudgetManager.allocate_for_level(budget, 1)
 
-      assert level_budget == 4  # 40% of 10
+      # 40% of 10
+      assert level_budget == 4
       assert new_budget.level_allocations[1] == 4
     end
 
@@ -488,7 +503,8 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
 
       {:ok, level_budget, _} = BudgetManager.allocate_for_level(budget, 1, allocation_factor: 0.6)
 
-      assert level_budget == 6  # 60% of 10
+      # 60% of 10
+      assert level_budget == 6
     end
   end
 
@@ -513,14 +529,17 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
 
       {:ok, new_budget} = BudgetManager.allocate_priority(budget, 1)
 
-      assert new_budget.priority_reserve == 1  # 2 - 1
-      assert new_budget.remaining == 11  # 10 + 1
+      # 2 - 1
+      assert new_budget.priority_reserve == 1
+      # 10 + 1
+      assert new_budget.remaining == 11
     end
 
     test "returns error for insufficient reserve" do
       budget = BudgetManager.init_budget(10)
 
-      assert {:error, :insufficient_priority_reserve} = BudgetManager.allocate_priority(budget, 10)
+      assert {:error, :insufficient_priority_reserve} =
+               BudgetManager.allocate_priority(budget, 10)
     end
   end
 
@@ -549,7 +568,8 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
     test "returns false when priority reserve available" do
       budget = %{BudgetManager.init_budget(10) | remaining: 0}
 
-      refute BudgetManager.exhausted?(budget)  # Still has priority reserve
+      # Still has priority reserve
+      refute BudgetManager.exhausted?(budget)
     end
 
     test "returns true when fully exhausted" do
@@ -590,10 +610,11 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
       reasoning_fn = fn -> %{error: "fail"} end
       validator = fn _result -> false end
 
-      {:error, reason} = Backtracking.execute_with_backtracking(reasoning_fn,
-        validator: validator,
-        max_backtracks: 2
-      )
+      {:error, reason} =
+        Backtracking.execute_with_backtracking(reasoning_fn,
+          validator: validator,
+          max_backtracks: 2
+        )
 
       assert reason == :max_backtracks_exceeded
     end
@@ -619,10 +640,11 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
         Map.get(result, :value) == "success"
       end
 
-      {:ok, result} = Backtracking.execute_with_backtracking(reasoning_fn,
-        validator: validator,
-        max_backtracks: 5
-      )
+      {:ok, result} =
+        Backtracking.execute_with_backtracking(reasoning_fn,
+          validator: validator,
+          max_backtracks: 5
+        )
 
       assert result.value == "success"
 

@@ -12,8 +12,10 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
   require Logger
 
   @default_timeout 30_000
-  @default_memory_limit 256 * 1024 * 1024  # 256 MB
-  @max_timeout 300_000  # 5 minutes
+  # 256 MB
+  @default_memory_limit 256 * 1024 * 1024
+  # 5 minutes
+  @max_timeout 300_000
 
   @type execution_result :: %{
           status: :success | :failure | :timeout | :compilation_error,
@@ -54,7 +56,9 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
     memory_limit = Keyword.get(opts, :memory_limit, @default_memory_limit)
     capture_output = Keyword.get(opts, :capture_output, true)
 
-    Logger.debug("Executing #{test_file} with timeout #{timeout}ms, memory limit #{memory_limit} bytes")
+    Logger.debug(
+      "Executing #{test_file} with timeout #{timeout}ms, memory limit #{memory_limit} bytes"
+    )
 
     start_time = System.monotonic_time(:millisecond)
 
@@ -107,16 +111,17 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
     timeout = min(Keyword.get(opts, :timeout, @default_timeout), @max_timeout)
     bindings = Keyword.get(opts, :bindings, [])
 
-    task = Task.async(fn ->
-      try do
-        {result, _bindings} = Code.eval_string(code, bindings)
-        {:ok, result}
-      rescue
-        error -> {:error, {:runtime_error, error, __STACKTRACE__}}
-      catch
-        kind, value -> {:error, {:caught, kind, value, __STACKTRACE__}}
-      end
-    end)
+    task =
+      Task.async(fn ->
+        try do
+          {result, _bindings} = Code.eval_string(code, bindings)
+          {:ok, result}
+        rescue
+          error -> {:error, {:runtime_error, error, __STACKTRACE__}}
+        catch
+          kind, value -> {:error, {:caught, kind, value, __STACKTRACE__}}
+        end
+      end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, {:ok, result}} ->
@@ -149,8 +154,18 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
   @spec compile_code(Path.t(), pos_integer()) :: {:ok, String.t()} | {:error, String.t()}
   def compile_code(code_file, _timeout) do
     # Use elixirc to compile the file
-    case System.cmd("elixirc", [code_file, "--ignore-module-conflict", "--no-docs", "--no-debug-info", "-o", System.tmp_dir!()],
-         stderr_to_stdout: true) do
+    case System.cmd(
+           "elixirc",
+           [
+             code_file,
+             "--ignore-module-conflict",
+             "--no-docs",
+             "--no-debug-info",
+             "-o",
+             System.tmp_dir!()
+           ],
+           stderr_to_stdout: true
+         ) do
       {output, 0} ->
         {:ok, output}
 
@@ -205,20 +220,22 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
       {:ok, result}
     rescue
       error ->
-        {:error, %{
-          type: :runtime_error,
-          error: error,
-          message: Exception.message(error),
-          stacktrace: __STACKTRACE__
-        }}
+        {:error,
+         %{
+           type: :runtime_error,
+           error: error,
+           message: Exception.message(error),
+           stacktrace: __STACKTRACE__
+         }}
     catch
       kind, value ->
-        {:error, %{
-          type: :caught,
-          kind: kind,
-          value: value,
-          stacktrace: __STACKTRACE__
-        }}
+        {:error,
+         %{
+           type: :caught,
+           kind: kind,
+           value: value,
+           stacktrace: __STACKTRACE__
+         }}
     end
   end
 
@@ -226,11 +243,12 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
 
   defp execute_tests(test_file, timeout, _memory_limit, capture_output, start_time) do
     # Run mix test on the test file
-    cmd_opts = if capture_output do
-      [stderr_to_stdout: true, timeout: timeout]
-    else
-      [timeout: timeout]
-    end
+    cmd_opts =
+      if capture_output do
+        [stderr_to_stdout: true, timeout: timeout]
+      else
+        [timeout: timeout]
+      end
 
     try do
       case System.cmd("mix", ["test", test_file, "--trace"], cmd_opts) do
@@ -308,7 +326,7 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
     |> String.split("\n")
     |> Enum.filter(fn line ->
       String.contains?(line, ["**", "Failure", "Error"]) or
-      String.match?(line, ~r/\d+\) test /)
+        String.match?(line, ~r/\d+\) test /)
     end)
     |> Enum.map(fn line ->
       %{

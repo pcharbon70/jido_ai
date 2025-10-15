@@ -52,43 +52,43 @@ defmodule Jido.Runner.ChainOfThought.ExecutionHook do
     @moduledoc """
     Structured representation of a single execution step.
     """
-    field :index, non_neg_integer(), enforce: true
-    field :action, String.t(), enforce: true
-    field :params_summary, String.t(), default: ""
-    field :expected_inputs, list(String.t()), default: []
-    field :expected_outputs, list(String.t()), default: []
-    field :depends_on, list(non_neg_integer()), default: []
+    field(:index, non_neg_integer(), enforce: true)
+    field(:action, String.t(), enforce: true)
+    field(:params_summary, String.t(), default: "")
+    field(:expected_inputs, list(String.t()), default: [])
+    field(:expected_outputs, list(String.t()), default: [])
+    field(:depends_on, list(non_neg_integer()), default: [])
   end
 
   typedstruct module: DataFlowDependency do
     @moduledoc """
     Represents a data flow dependency between execution steps.
     """
-    field :from_step, non_neg_integer(), enforce: true
-    field :to_step, non_neg_integer(), enforce: true
-    field :data_key, String.t(), enforce: true
-    field :dependency_type, atom(), default: :required
+    field(:from_step, non_neg_integer(), enforce: true)
+    field(:to_step, non_neg_integer(), enforce: true)
+    field(:data_key, String.t(), enforce: true)
+    field(:dependency_type, atom(), default: :required)
   end
 
   typedstruct module: ErrorPoint do
     @moduledoc """
     Represents a potential error point in execution.
     """
-    field :step, non_neg_integer(), enforce: true
-    field :type, atom(), enforce: true
-    field :description, String.t(), enforce: true
-    field :mitigation, String.t(), default: ""
+    field(:step, non_neg_integer(), enforce: true)
+    field(:type, atom(), enforce: true)
+    field(:description, String.t(), enforce: true)
+    field(:mitigation, String.t(), default: "")
   end
 
   typedstruct module: ExecutionPlan do
     @moduledoc """
     Structured execution plan result.
     """
-    field :steps, list(ExecutionStep.t()), default: []
-    field :data_flow, list(DataFlowDependency.t()), default: []
-    field :error_points, list(ErrorPoint.t()), default: []
-    field :execution_strategy, String.t(), default: ""
-    field :timestamp, DateTime.t(), enforce: true
+    field(:steps, list(ExecutionStep.t()), default: [])
+    field(:data_flow, list(DataFlowDependency.t()), default: [])
+    field(:error_points, list(ErrorPoint.t()), default: [])
+    field(:execution_strategy, String.t(), default: "")
+    field(:timestamp, DateTime.t(), enforce: true)
   end
 
   @doc """

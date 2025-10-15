@@ -786,7 +786,9 @@ defmodule Jido.Runner.SelfConsistencyTest do
 
       # Self-consistency should achieve ~85% accuracy (72% + 17.9%)
       assert expected_self_consistency_accuracy > improvement_metrics.baseline_accuracy
-      assert expected_self_consistency_accuracy >= 0.84 and expected_self_consistency_accuracy <= 0.86
+
+      assert expected_self_consistency_accuracy >= 0.84 and
+               expected_self_consistency_accuracy <= 0.86
     end
   end
 

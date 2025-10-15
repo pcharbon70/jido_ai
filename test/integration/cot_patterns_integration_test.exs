@@ -172,6 +172,7 @@ defmodule Integration.CoTPatternTest do
           answer = problem.correct
           # Maximum diversity in text
           unique = String.duplicate("Path #{i} methodology #{i}. ", i * 15)
+
           """
           #{unique}
           Calculation method #{i} (ID: #{i * 10000}):
@@ -258,12 +259,13 @@ defmodule Integration.CoTPatternTest do
         end
       end
 
-      {:ok, result} = ReAct.run(
-        question: "What is the capital of the country where the Eiffel Tower is located?",
-        tools: tools,
-        max_steps: 5,
-        thought_fn: thought_fn
-      )
+      {:ok, result} =
+        ReAct.run(
+          question: "What is the capital of the country where the Eiffel Tower is located?",
+          tools: tools,
+          max_steps: 5,
+          thought_fn: thought_fn
+        )
 
       # Verify loop executed multiple steps
       assert result.steps >= 2
@@ -307,15 +309,17 @@ defmodule Integration.CoTPatternTest do
         end
       end
 
-      {:ok, result} = ReAct.run(
-        question: "Test question",
-        tools: tools,
-        max_steps: 5,
-        thought_fn: thought_fn
-      )
+      {:ok, result} =
+        ReAct.run(
+          question: "Test question",
+          tools: tools,
+          max_steps: 5,
+          thought_fn: thought_fn
+        )
 
       # Verify multiple actions were attempted
-      actions_executed = result.trajectory
+      actions_executed =
+        result.trajectory
         |> Enum.filter(fn step -> step.action != nil end)
         |> length()
 
@@ -347,12 +351,13 @@ defmodule Integration.CoTPatternTest do
         end
       end
 
-      {:ok, result} = ReAct.run(
-        question: "Research question requiring multiple sources",
-        tools: tools,
-        max_steps: 10,
-        thought_fn: thought_fn
-      )
+      {:ok, result} =
+        ReAct.run(
+          question: "Research question requiring multiple sources",
+          tools: tools,
+          max_steps: 10,
+          thought_fn: thought_fn
+        )
 
       # Verify convergence occurred
       assert result.success == true
@@ -399,7 +404,8 @@ defmodule Integration.CoTPatternTest do
 
         # Score based on depth (prefer depth 2)
         case depth do
-          2 -> 0.9  # High score at target depth
+          # High score at target depth
+          2 -> 0.9
           1 -> 0.7
           _ -> 0.5
         end
@@ -410,16 +416,17 @@ defmodule Integration.CoTPatternTest do
         node.depth == 2 && (node.value || 0.0) > 0.8
       end
 
-      {:ok, result} = TreeOfThoughts.run(
-        problem: "Test BFS exploration",
-        search_strategy: :bfs,
-        beam_width: 3,
-        max_depth: 3,
-        budget: 50,
-        thought_fn: thought_fn,
-        evaluation_fn: evaluation_fn,
-        solution_check: solution_check
-      )
+      {:ok, result} =
+        TreeOfThoughts.run(
+          problem: "Test BFS exploration",
+          search_strategy: :bfs,
+          beam_width: 3,
+          max_depth: 3,
+          budget: 50,
+          thought_fn: thought_fn,
+          evaluation_fn: evaluation_fn,
+          solution_check: solution_check
+        )
 
       # Verify BFS behavior - may find solution, exhaust budget, or exhaust frontier
       assert result.reason in [:solution_found, :budget_exhausted, :frontier_exhausted]
@@ -460,11 +467,16 @@ defmodule Integration.CoTPatternTest do
 
         cond do
           String.contains?(thought, "Path 2") && String.contains?(thought, "level 3") ->
-            0.95  # High score for target path
+            # High score for target path
+            0.95
+
           String.contains?(thought, "Path 2") ->
-            0.8   # Good score for right branch
+            # Good score for right branch
+            0.8
+
           true ->
-            0.6   # Lower score for other paths
+            # Lower score for other paths
+            0.6
         end
       end
 
@@ -472,16 +484,17 @@ defmodule Integration.CoTPatternTest do
         String.contains?(node.thought, "Path 2") && node.depth == 3
       end
 
-      {:ok, result} = TreeOfThoughts.run(
-        problem: "Test DFS with backtracking",
-        search_strategy: :dfs,
-        beam_width: 2,
-        max_depth: 4,
-        budget: 30,
-        thought_fn: thought_fn,
-        evaluation_fn: evaluation_fn,
-        solution_check: solution_check
-      )
+      {:ok, result} =
+        TreeOfThoughts.run(
+          problem: "Test DFS with backtracking",
+          search_strategy: :dfs,
+          beam_width: 2,
+          max_depth: 4,
+          budget: 30,
+          thought_fn: thought_fn,
+          evaluation_fn: evaluation_fn,
+          solution_check: solution_check
+        )
 
       # Verify DFS found solution or exhausted budget
       assert result.success == true || result.reason == :budget_exhausted
@@ -505,9 +518,10 @@ defmodule Integration.CoTPatternTest do
       thought_fn = fn opts ->
         beam_width = Keyword.get(opts, :beam_width, 3)
 
-        thoughts = Enum.map(1..beam_width, fn i ->
-          "Thought option #{i}"
-        end)
+        thoughts =
+          Enum.map(1..beam_width, fn i ->
+            "Thought option #{i}"
+          end)
 
         Agent.update(generated_thoughts, fn list -> list ++ thoughts end)
         thoughts
@@ -518,9 +532,12 @@ defmodule Integration.CoTPatternTest do
         thought = Keyword.fetch!(opts, :thought)
 
         cond do
-          String.contains?(thought, "option 1") -> 0.9  # High quality
-          String.contains?(thought, "option 2") -> 0.7  # Medium quality
-          String.contains?(thought, "option 3") -> 0.3  # Low quality (should be pruned)
+          # High quality
+          String.contains?(thought, "option 1") -> 0.9
+          # Medium quality
+          String.contains?(thought, "option 2") -> 0.7
+          # Low quality (should be pruned)
+          String.contains?(thought, "option 3") -> 0.3
         end
       end
 
@@ -529,16 +546,18 @@ defmodule Integration.CoTPatternTest do
         node.depth >= 2 && (node.value || 0.0) > 0.8
       end
 
-      {:ok, result} = TreeOfThoughts.run(
-        problem: "Test evaluation and pruning",
-        search_strategy: :best_first,  # Best-first will prioritize high-value nodes
-        beam_width: 3,
-        max_depth: 3,
-        budget: 20,
-        thought_fn: thought_fn,
-        evaluation_fn: evaluation_fn,
-        solution_check: solution_check
-      )
+      {:ok, result} =
+        TreeOfThoughts.run(
+          problem: "Test evaluation and pruning",
+          # Best-first will prioritize high-value nodes
+          search_strategy: :best_first,
+          beam_width: 3,
+          max_depth: 3,
+          budget: 20,
+          thought_fn: thought_fn,
+          evaluation_fn: evaluation_fn,
+          solution_check: solution_check
+        )
 
       # Verify search completed
       assert result.search_steps > 0
@@ -614,8 +633,7 @@ defmodule Integration.CoTPatternTest do
       dangerous_programs = [
         {"File I/O", "defmodule Solution do\n  def solve, do: File.read(\"secret.txt\")\nend"},
         {"System call", "defmodule Solution do\n  def solve, do: System.cmd(\"ls\", [])\nend"},
-        {"Process spawn",
-         "defmodule Solution do\n  def solve, do: spawn(fn -> :ok end)\nend"}
+        {"Process spawn", "defmodule Solution do\n  def solve, do: spawn(fn -> :ok end)\nend"}
       ]
 
       Enum.each(dangerous_programs, fn {name, program} ->
@@ -760,7 +778,14 @@ defmodule Integration.CoTPatternTest do
 
       Enum.each(routing_cases, fn routing_case ->
         pattern = select_pattern(routing_case)
-        assert pattern in [:zero_shot, :self_consistency, :react, :tree_of_thoughts, :program_of_thought]
+
+        assert pattern in [
+                 :zero_shot,
+                 :self_consistency,
+                 :react,
+                 :tree_of_thoughts,
+                 :program_of_thought
+               ]
       end)
     end
 

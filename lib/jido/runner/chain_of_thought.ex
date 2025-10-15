@@ -128,12 +128,12 @@ defmodule Jido.Runner.ChainOfThought do
     This struct defines all configurable parameters for CoT reasoning behavior.
     """
 
-    field :mode, atom(), default: :zero_shot
-    field :max_iterations, pos_integer(), default: 1
-    field :model, String.t() | nil, default: nil
-    field :temperature, float(), default: 0.2
-    field :enable_validation, boolean(), default: true
-    field :fallback_on_error, boolean(), default: true
+    field(:mode, atom(), default: :zero_shot)
+    field(:max_iterations, pos_integer(), default: 1)
+    field(:model, String.t() | nil, default: nil)
+    field(:temperature, float(), default: 0.2)
+    field(:enable_validation, boolean(), default: true)
+    field(:fallback_on_error, boolean(), default: true)
   end
 
   @type config :: Config.t()
@@ -221,6 +221,7 @@ defmodule Jido.Runner.ChainOfThought do
   @spec get_state_config(agent()) :: keyword()
   defp get_state_config(agent) when is_map(agent) do
     state = Map.get(agent, :state, %{})
+
     case Map.get(state, :cot_config) do
       nil -> []
       config when is_map(config) -> Map.to_list(config)
@@ -289,7 +290,8 @@ defmodule Jido.Runner.ChainOfThought do
   end
 
   @doc false
-  @spec build_reasoning_prompt(list(), agent(), config()) :: {:ok, Jido.AI.Prompt.t()} | {:error, term()}
+  @spec build_reasoning_prompt(list(), agent(), config()) ::
+          {:ok, Jido.AI.Prompt.t()} | {:error, term()}
   defp build_reasoning_prompt(instructions, agent, %Config{mode: :zero_shot}) do
     prompt = ReasoningPrompt.zero_shot(instructions, agent.state || %{})
     {:ok, prompt}
@@ -437,7 +439,12 @@ defmodule Jido.Runner.ChainOfThought do
   end
 
   @doc false
-  @spec execute_instructions_with_reasoning(agent(), list(), ReasoningParser.ReasoningPlan.t(), config()) ::
+  @spec execute_instructions_with_reasoning(
+          agent(),
+          list(),
+          ReasoningParser.ReasoningPlan.t(),
+          config()
+        ) ::
           {:ok, agent(), directives()} | {:error, term()}
   defp execute_instructions_with_reasoning(agent, instructions, reasoning_plan, config) do
     Logger.info("Starting reasoning-guided execution of #{length(instructions)} instructions")
@@ -445,7 +452,8 @@ defmodule Jido.Runner.ChainOfThought do
     # Execute each instruction with reasoning context
     instructions
     |> Enum.with_index()
-    |> Enum.reduce_while({:ok, agent, []}, fn {instruction, index}, {:ok, current_agent, acc_directives} ->
+    |> Enum.reduce_while({:ok, agent, []}, fn {instruction, index},
+                                              {:ok, current_agent, acc_directives} ->
       case execute_single_instruction(current_agent, instruction, reasoning_plan, index, config) do
         {:ok, updated_agent, new_directives, validation} ->
           log_step_completion(index + 1, validation)
@@ -495,7 +503,13 @@ defmodule Jido.Runner.ChainOfThought do
   end
 
   @doc false
-  @spec execute_single_instruction(agent(), term(), ReasoningParser.ReasoningPlan.t(), integer(), config()) ::
+  @spec execute_single_instruction(
+          agent(),
+          term(),
+          ReasoningParser.ReasoningPlan.t(),
+          integer(),
+          config()
+        ) ::
           {:ok, agent(), directives(), OutcomeValidator.ValidationResult.t()} | {:error, term()}
   defp execute_single_instruction(agent, instruction, reasoning_plan, step_index, config) do
     # Enrich context with reasoning information

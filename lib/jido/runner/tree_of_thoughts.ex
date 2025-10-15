@@ -119,7 +119,9 @@ defmodule Jido.Runner.TreeOfThoughts do
     thought_fn = Keyword.get(opts, :thought_fn)
     evaluation_fn = Keyword.get(opts, :evaluation_fn)
 
-    Logger.info("Starting ToT search: #{search_strategy}, beam_width: #{beam_width}, max_depth: #{max_depth}")
+    Logger.info(
+      "Starting ToT search: #{search_strategy}, beam_width: #{beam_width}, max_depth: #{max_depth}"
+    )
 
     # Initialize tree with root
     tree = Tree.new("Problem: #{problem}", initial_state)
@@ -185,7 +187,9 @@ defmodule Jido.Runner.TreeOfThoughts do
     # Check if any node is solution
     case find_solution_in_frontier(state, frontier) do
       {:found, solution_node} ->
-        updated_result = Map.merge(result, %{found: true, solution: solution_node, reason: :solution_found})
+        updated_result =
+          Map.merge(result, %{found: true, solution: solution_node, reason: :solution_found})
+
         {state, updated_result}
 
       :not_found ->
@@ -364,6 +368,7 @@ defmodule Jido.Runner.TreeOfThoughts do
 
         # Limit thoughts to remaining budget
         remaining_budget = state.budget - state.nodes_evaluated
+
         limited_thoughts_scores =
           thoughts
           |> Enum.zip(scores)
@@ -394,7 +399,7 @@ defmodule Jido.Runner.TreeOfThoughts do
   end
 
   defp find_best_node(frontier) do
-    Enum.max_by(frontier, & &1.value || 0.0, fn -> List.first(frontier) end)
+    Enum.max_by(frontier, &(&1.value || 0.0), fn -> List.first(frontier) end)
   end
 
   defp build_result(state, search_result) do

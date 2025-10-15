@@ -169,11 +169,12 @@ defmodule Jido.Ai.MixProject do
         {"guides/troubleshooting.md", title: "Troubleshooting"}
       ],
       groups_for_extras: [
-        "Getting Started": ~r/guides\/(getting-started|keyring|prompt|providers|agent-skill|actions)\.md/,
-        "Providers": ~r/guides\/providers\/.*/,
-        "Migration": ~r/guides\/migration\/.*/,
-        "Features": ~r/guides\/features\/.*/,
-        "Troubleshooting": ~r/guides\/troubleshooting.*/
+        "Getting Started":
+          ~r/guides\/(getting-started|keyring|prompt|providers|agent-skill|actions)\.md/,
+        Providers: ~r/guides\/providers\/.*/,
+        Migration: ~r/guides\/migration\/.*/,
+        Features: ~r/guides\/features\/.*/,
+        Troubleshooting: ~r/guides\/troubleshooting.*/
       ]
     ]
   end

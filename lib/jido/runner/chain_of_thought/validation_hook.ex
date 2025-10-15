@@ -65,25 +65,25 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
     @moduledoc """
     Result of validation comparing execution results against expectations.
     """
-    field :status, atom(), enforce: true
-    field :match_score, float(), default: 0.0
-    field :expected_vs_actual, map(), default: %{}
-    field :unexpected_results, list(String.t()), default: []
-    field :anticipated_errors_occurred, list(String.t()), default: []
-    field :reflection, String.t(), default: ""
-    field :recommendation, atom(), default: :continue
-    field :timestamp, DateTime.t(), enforce: true
+    field(:status, atom(), enforce: true)
+    field(:match_score, float(), default: 0.0)
+    field(:expected_vs_actual, map(), default: %{})
+    field(:unexpected_results, list(String.t()), default: [])
+    field(:anticipated_errors_occurred, list(String.t()), default: [])
+    field(:reflection, String.t(), default: "")
+    field(:recommendation, atom(), default: :continue)
+    field(:timestamp, DateTime.t(), enforce: true)
   end
 
   typedstruct module: ValidationConfig do
     @moduledoc """
     Configuration for validation behavior.
     """
-    field :tolerance, float(), default: 0.8
-    field :retry_on_failure, boolean(), default: false
-    field :max_retries, non_neg_integer(), default: 2
-    field :adjust_temperature, float(), default: 0.1
-    field :generate_reflection, boolean(), default: true
+    field(:tolerance, float(), default: 0.8)
+    field(:retry_on_failure, boolean(), default: false)
+    field(:max_retries, non_neg_integer(), default: 2)
+    field(:adjust_temperature, float(), default: 0.1)
+    field(:generate_reflection, boolean(), default: true)
   end
 
   @doc """
@@ -114,7 +114,8 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
   - `{:retry, agent, adjusted_params}` - Validation failed, should retry
   - `{:error, reason}` - Fatal validation error
   """
-  @spec validate_execution(map(), map(), list()) :: {:ok, map()} | {:retry, map(), map()} | {:error, term()}
+  @spec validate_execution(map(), map(), list()) ::
+          {:ok, map()} | {:retry, map(), map()} | {:error, term()}
   def validate_execution(agent, result, unapplied_directives) do
     if should_validate_execution?(agent) do
       do_validate_execution(agent, result, unapplied_directives)
@@ -194,7 +195,8 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
 
   # Private Functions
 
-  @spec do_validate_execution(map(), map(), list()) :: {:ok, map()} | {:retry, map(), map()} | {:error, term()}
+  @spec do_validate_execution(map(), map(), list()) ::
+          {:ok, map()} | {:retry, map(), map()} | {:error, term()}
   defp do_validate_execution(agent, result, _unapplied_directives) do
     config = get_validation_config(agent)
 
@@ -240,12 +242,14 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
     end
   end
 
-  @spec perform_validation(map(), map(), ValidationConfig.t()) :: {:ok, ValidationResult.t()} | {:error, term()}
+  @spec perform_validation(map(), map(), ValidationConfig.t()) ::
+          {:ok, ValidationResult.t()} | {:error, term()}
   defp perform_validation(agent, result, config) do
     planning_context = get_planning_context(agent)
     execution_context = get_execution_context(agent)
 
-    with {:ok, validation_result} <- analyze_validation(result, planning_context, execution_context, config) do
+    with {:ok, validation_result} <-
+           analyze_validation(result, planning_context, execution_context, config) do
       if config.generate_reflection and validation_result.status != :success do
         case generate_reflection(agent, result, validation_result) do
           {:ok, reflection} ->
@@ -261,7 +265,8 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
     end
   end
 
-  @spec analyze_validation(map(), map(), map(), ValidationConfig.t()) :: {:ok, ValidationResult.t()}
+  @spec analyze_validation(map(), map(), map(), ValidationConfig.t()) ::
+          {:ok, ValidationResult.t()}
   defp analyze_validation(result, planning_context, execution_context, config) do
     # Basic validation logic
     status = determine_status(result, planning_context, execution_context, config)
@@ -304,7 +309,8 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
   end
 
   @spec calculate_match_score(map(), map(), ValidationConfig.t()) :: float()
-  defp calculate_match_score(_result, %{execution_plan: %{steps: steps}}, _config) when length(steps) > 0 do
+  defp calculate_match_score(_result, %{execution_plan: %{steps: steps}}, _config)
+       when length(steps) > 0 do
     # Simple scoring based on steps completed
     # In real implementation, would compare actual vs expected outputs
     0.85
@@ -328,7 +334,10 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
   defp identify_unexpected_results(_result, _execution_context), do: []
 
   @spec check_anticipated_errors(map(), map(), map()) :: list(String.t())
-  defp check_anticipated_errors(_result, %{planning: %{potential_issues: issues}}, %{execution_plan: %{error_points: _}}) when length(issues) > 0 do
+  defp check_anticipated_errors(_result, %{planning: %{potential_issues: issues}}, %{
+         execution_plan: %{error_points: _}
+       })
+       when length(issues) > 0 do
     # Would check if any anticipated issues actually occurred
     []
   end
@@ -336,7 +345,11 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
   defp check_anticipated_errors(_result, _planning, _execution), do: []
 
   @spec has_anticipated_errors?(map(), map(), map()) :: boolean()
-  defp has_anticipated_errors?(_planning, %{execution_plan: %{error_points: error_points}}, _result) do
+  defp has_anticipated_errors?(
+         _planning,
+         %{execution_plan: %{error_points: error_points}},
+         _result
+       ) do
     length(error_points) > 0
   end
 
@@ -352,7 +365,10 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
 
   @spec determine_recommendation(atom(), float(), ValidationConfig.t()) :: atom()
   defp determine_recommendation(:success, _score, _config), do: :continue
-  defp determine_recommendation(:partial_success, score, config) when score >= config.tolerance, do: :continue
+
+  defp determine_recommendation(:partial_success, score, config) when score >= config.tolerance,
+    do: :continue
+
   defp determine_recommendation(:partial_success, _score, _config), do: :investigate
 
   defp determine_recommendation(:unexpected, score, config) when score >= config.tolerance do
@@ -364,7 +380,8 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
   defp determine_recommendation(:error, _score, %{retry_on_failure: true}), do: :retry
   defp determine_recommendation(:error, _score, _config), do: :investigate
 
-  @spec generate_reflection(map(), map(), ValidationResult.t()) :: {:ok, String.t()} | {:error, term()}
+  @spec generate_reflection(map(), map(), ValidationResult.t()) ::
+          {:ok, String.t()} | {:error, term()}
   defp generate_reflection(agent, result, validation_result) do
     with {:ok, prompt} <- build_reflection_prompt(agent, result, validation_result),
          {:ok, model} <- get_validation_model(agent),
@@ -414,7 +431,8 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
     Model.from({:openai, model: model_name})
   end
 
-  @spec call_llm_for_reflection(Jido.AI.Prompt.t(), Model.t(), map()) :: {:ok, String.t()} | {:error, term()}
+  @spec call_llm_for_reflection(Jido.AI.Prompt.t(), Model.t(), map()) ::
+          {:ok, String.t()} | {:error, term()}
   defp call_llm_for_reflection(prompt, model, agent) do
     temperature =
       get_in(agent, [:state, :validation_temperature]) ||
@@ -519,7 +537,7 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
   @spec build_retry_params(map(), ValidationConfig.t(), non_neg_integer()) :: map()
   defp build_retry_params(agent, config, retry_count) do
     current_temp = get_in(agent, [:state, :cot_config, :temperature]) || 0.7
-    adjusted_temp = min(current_temp + (config.adjust_temperature * (retry_count + 1)), 1.0)
+    adjusted_temp = min(current_temp + config.adjust_temperature * (retry_count + 1), 1.0)
 
     %{
       temperature: adjusted_temp,

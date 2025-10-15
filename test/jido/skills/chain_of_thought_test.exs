@@ -575,9 +575,10 @@ defmodule Jido.Skills.ChainOfThoughtTest do
       routes = ChainOfThought.router()
 
       # At least some routes should have descriptions
-      routes_with_desc = Enum.filter(routes, fn r ->
-        Map.has_key?(r.instruction, :description)
-      end)
+      routes_with_desc =
+        Enum.filter(routes, fn r ->
+          Map.has_key?(r.instruction, :description)
+        end)
 
       assert length(routes_with_desc) > 0
     end

@@ -155,9 +155,12 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     results =
       Enum.map(thoughts, fn thought ->
         case evaluate(Keyword.put(opts, :thought, thought)) do
-          {:ok, score} -> score
-          {:error, _} -> 0.5
-          # Default to neutral on error
+          {:ok, score} ->
+            score
+
+          {:error, _} ->
+            0.5
+            # Default to neutral on error
         end
       end)
 
@@ -266,8 +269,6 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
   end
 
   defp call_llm_for_value(prompt, model_str, _context) do
-    alias Jido.AI.Model
-
     system_message = """
     You are an expert reasoning evaluator.
     Your task is to evaluate the quality and promise of reasoning steps.
@@ -280,10 +281,13 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     model = build_model(model_str || "openai:gpt-4")
 
     # Build ReqLLM model tuple with options
-    reqllm_model = {model.provider, model.model, [
-      temperature: 0.3,
-      max_tokens: 10
-    ] |> maybe_add_api_key(model)}
+    reqllm_model =
+      {model.provider, model.model,
+       [
+         temperature: 0.3,
+         max_tokens: 10
+       ]
+       |> maybe_add_api_key(model)}
 
     # Build messages using ReqLLM.Context
     messages = [
@@ -319,6 +323,7 @@ defmodule Jido.Runner.TreeOfThoughts.ThoughtEvaluator do
     case String.split(model_str, ":", parts: 2) do
       [provider_str, model_name] ->
         provider = String.to_atom(provider_str)
+
         %Jido.AI.Model{provider: provider, model: model_name}
         |> Jido.AI.Model.ensure_reqllm_id()
 

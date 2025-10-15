@@ -19,10 +19,10 @@ defmodule Jido.Runner.ChainOfThought.ExecutionContext do
     providing access to the overall reasoning plan and current step information.
     """
 
-    field :reasoning_plan, ReasoningPlan.t()
-    field :current_step, ReasoningStep.t() | nil
-    field :step_index, integer(), default: 0
-    field :original_context, map(), default: %{}
+    field(:reasoning_plan, ReasoningPlan.t())
+    field(:current_step, ReasoningStep.t() | nil)
+    field(:step_index, integer(), default: 0)
+    field(:original_context, map(), default: %{})
   end
 
   @doc """

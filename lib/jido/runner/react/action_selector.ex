@@ -143,14 +143,15 @@ defmodule Jido.Runner.ReAct.ActionSelector do
   """
   @spec validate_action(String.t(), list()) :: :ok | {:error, :invalid_action}
   def validate_action(action_name, tools) do
-    tool_names = Enum.map(tools, fn tool ->
-      cond do
-        is_map(tool) and Map.has_key?(tool, :name) -> tool.name
-        is_map(tool) and Map.has_key?(tool, "name") -> tool["name"]
-        is_binary(tool) -> tool
-        true -> nil
-      end
-    end)
+    tool_names =
+      Enum.map(tools, fn tool ->
+        cond do
+          is_map(tool) and Map.has_key?(tool, :name) -> tool.name
+          is_map(tool) and Map.has_key?(tool, "name") -> tool["name"]
+          is_binary(tool) -> tool
+          true -> nil
+        end
+      end)
 
     if action_name in tool_names do
       :ok

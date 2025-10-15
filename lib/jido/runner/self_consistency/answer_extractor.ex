@@ -260,11 +260,15 @@ defmodule Jido.Runner.SelfConsistency.AnswerExtractor do
 
     # Try number conversion first
     case normalize_to_number(trimmed) do
-      {:ok, num} -> {:ok, num}
+      {:ok, num} ->
+        {:ok, num}
+
       {:error, _} ->
         # Try boolean conversion
         case normalize_to_boolean(trimmed) do
-          {:ok, bool} -> {:ok, bool}
+          {:ok, bool} ->
+            {:ok, bool}
+
           {:error, _} ->
             # Fall back to string normalization
             {:ok, String.downcase(trimmed)}
@@ -328,18 +332,28 @@ defmodule Jido.Runner.SelfConsistency.AnswerExtractor do
         else
           # Try float
           case Float.parse(answer) do
-            {num, ""} -> {:ok, num}
-            {num, rest} -> if String.trim(rest) == "", do: {:ok, num}, else: try_word_to_number(answer)
-            :error -> try_word_to_number(answer)
+            {num, ""} ->
+              {:ok, num}
+
+            {num, rest} ->
+              if String.trim(rest) == "", do: {:ok, num}, else: try_word_to_number(answer)
+
+            :error ->
+              try_word_to_number(answer)
           end
         end
 
       :error ->
         # Try float directly
         case Float.parse(answer) do
-          {num, ""} -> {:ok, num}
-          {num, rest} -> if String.trim(rest) == "", do: {:ok, num}, else: try_word_to_number(answer)
-          :error -> try_word_to_number(answer)
+          {num, ""} ->
+            {:ok, num}
+
+          {num, rest} ->
+            if String.trim(rest) == "", do: {:ok, num}, else: try_word_to_number(answer)
+
+          :error ->
+            try_word_to_number(answer)
         end
     end
   end

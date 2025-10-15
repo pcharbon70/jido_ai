@@ -460,7 +460,10 @@ defmodule Jido.Actions.CoT do
 
     @spec determine_recommendation(atom(), float(), float()) :: atom()
     defp determine_recommendation(:success, _score, _tolerance), do: :continue
-    defp determine_recommendation(:partial_success, score, tolerance) when score >= tolerance, do: :continue
+
+    defp determine_recommendation(:partial_success, score, tolerance) when score >= tolerance,
+      do: :continue
+
     defp determine_recommendation(:partial_success, _score, _tolerance), do: :investigate
     defp determine_recommendation(:unexpected, _score, _tolerance), do: :retry
     defp determine_recommendation(:error, _score, _tolerance), do: :retry
@@ -616,7 +619,8 @@ defmodule Jido.Actions.CoT do
     end
 
     @spec determine_strategy(atom(), map()) :: atom()
-    defp determine_strategy(_error_type, %{attempt: attempt, max_attempts: max}) when attempt >= max do
+    defp determine_strategy(_error_type, %{attempt: attempt, max_attempts: max})
+         when attempt >= max do
       :abandon
     end
 
@@ -650,6 +654,7 @@ defmodule Jido.Actions.CoT do
       }
     end
 
-    defp calculate_adjustments(_, _attempt, _adjust_temp), do: %{temperature: 0.7, max_tokens: 2000}
+    defp calculate_adjustments(_, _attempt, _adjust_temp),
+      do: %{temperature: 0.7, max_tokens: 2000}
   end
 end

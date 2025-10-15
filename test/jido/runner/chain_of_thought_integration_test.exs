@@ -112,9 +112,10 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     test "enriches context with reasoning information" do
       # Requires LLM API key to test with actual reasoning
       # Or Simple runner compatibility for fallback
-      agent = build_test_agent_with_instructions([
-        build_instruction(ContextAwareAction, %{value: 42})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(ContextAwareAction, %{value: 42})
+        ])
 
       result = ChainOfThought.run(agent, fallback_on_error: true)
 
@@ -125,9 +126,10 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "executes actions with step information" do
       # Requires LLM API key for full test
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 10, y: 5})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 10, y: 5})
+        ])
 
       result = ChainOfThought.run(agent, fallback_on_error: true)
 
@@ -139,9 +141,12 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     test "maintains agent state through execution" do
       # Requires LLM API key for full test
       initial_state = %{counter: 0, data: "test"}
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 1, y: 1})
-      ])
+
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 1, y: 1})
+        ])
+
       agent = %{agent | state: initial_state}
 
       result = ChainOfThought.run(agent, fallback_on_error: true)
@@ -154,10 +159,11 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "accumulates directives from multiple instructions" do
       # Requires LLM API key for full test
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 1, y: 1}),
-        build_instruction(TestCalculateAction, %{x: 2, y: 2})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 1, y: 1}),
+          build_instruction(TestCalculateAction, %{x: 2, y: 2})
+        ])
 
       result = ChainOfThought.run(agent, fallback_on_error: true)
 
@@ -171,28 +177,33 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "falls back to simple runner on reasoning generation failure" do
       # Requires Simple runner compatibility
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 5, y: 3})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 5, y: 3})
+        ])
 
-      result = ChainOfThought.run(agent,
-        fallback_on_error: true,
-        model: "invalid-model"
-      )
+      result =
+        ChainOfThought.run(agent,
+          fallback_on_error: true,
+          model: "invalid-model"
+        )
 
       assert {:ok, _, _} = result
     end
 
     test "returns error when fallback disabled and reasoning fails" do
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 5, y: 3})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 5, y: 3})
+        ])
 
       # With fallback disabled, should return error
-      result = ChainOfThought.run(agent,
-        fallback_on_error: false,
-        model: "invalid-model"  # Force reasoning failure
-      )
+      result =
+        ChainOfThought.run(agent,
+          fallback_on_error: false,
+          # Force reasoning failure
+          model: "invalid-model"
+        )
 
       assert {:error, _error} = result
     end
@@ -201,9 +212,10 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "handles action execution errors with fallback" do
       # Requires Simple runner compatibility
-      agent = build_test_agent_with_instructions([
-        build_instruction(FailingAction, %{should_fail: true})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(FailingAction, %{should_fail: true})
+        ])
 
       result = ChainOfThought.run(agent, fallback_on_error: true)
 
@@ -214,9 +226,10 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "handles missing action module gracefully" do
       # Requires Simple runner compatibility
-      agent = build_test_agent_with_instructions([
-        %{action: NonExistentAction, params: %{}, id: "test"}
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          %{action: NonExistentAction, params: %{}, id: "test"}
+        ])
 
       result = ChainOfThought.run(agent, fallback_on_error: true)
 
@@ -227,9 +240,10 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "recovers from LLM timeout with retry" do
       # Requires LLM API key for full test
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 1, y: 1})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 1, y: 1})
+        ])
 
       result = ChainOfThought.run(agent, fallback_on_error: true)
 
@@ -242,14 +256,16 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "validates successful outcomes match expectations" do
       # Requires LLM API key for full test
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 5, y: 3})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 5, y: 3})
+        ])
 
-      result = ChainOfThought.run(agent,
-        enable_validation: true,
-        fallback_on_error: true
-      )
+      result =
+        ChainOfThought.run(agent,
+          enable_validation: true,
+          fallback_on_error: true
+        )
 
       assert {:ok, _, _} = result
     end
@@ -258,14 +274,16 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "detects unexpected outcomes" do
       # Requires LLM API key for full test
-      agent = build_test_agent_with_instructions([
-        build_instruction(RandomOutcomeAction, %{seed: 123})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(RandomOutcomeAction, %{seed: 123})
+        ])
 
-      result = ChainOfThought.run(agent,
-        enable_validation: true,
-        fallback_on_error: true
-      )
+      result =
+        ChainOfThought.run(agent,
+          enable_validation: true,
+          fallback_on_error: true
+        )
 
       assert {:ok, _, _} = result
     end
@@ -274,14 +292,16 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "can disable outcome validation" do
       # Requires LLM API key for full test
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 1, y: 1})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 1, y: 1})
+        ])
 
-      result = ChainOfThought.run(agent,
-        enable_validation: false,
-        fallback_on_error: true
-      )
+      result =
+        ChainOfThought.run(agent,
+          enable_validation: false,
+          fallback_on_error: true
+        )
 
       assert {:ok, _, _} = result
     end
@@ -291,14 +311,16 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     test "handles validation with matching results" do
       # Detailed validation testing is in outcome_validator_test.exs
       # This tests integration with runner
-      agent = build_test_agent_with_instructions([
-        build_instruction(PredictableAction, %{value: 42})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(PredictableAction, %{value: 42})
+        ])
 
-      result = ChainOfThought.run(agent,
-        enable_validation: true,
-        fallback_on_error: true
-      )
+      result =
+        ChainOfThought.run(agent,
+          enable_validation: true,
+          fallback_on_error: true
+        )
 
       assert {:ok, _, _} = result
     end
@@ -380,9 +402,11 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
 
     test "detects incomplete reasoning plans" do
       incomplete_plan = %ReasoningParser.ReasoningPlan{
-        goal: "",  # Empty goal
+        # Empty goal
+        goal: "",
         analysis: "Analysis",
-        steps: [],  # No steps
+        # No steps
+        steps: [],
         expected_results: "",
         potential_issues: [],
         raw_text: ""
@@ -417,16 +441,18 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "completes full pipeline with reasoning" do
       # Requires LLM API key for full test
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestCalculateAction, %{x: 10, y: 5}),
-        build_instruction(TestMultiplyAction, %{value: 2})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestCalculateAction, %{x: 10, y: 5}),
+          build_instruction(TestMultiplyAction, %{value: 2})
+        ])
 
-      result = ChainOfThought.run(agent,
-        mode: :zero_shot,
-        enable_validation: true,
-        fallback_on_error: true
-      )
+      result =
+        ChainOfThought.run(agent,
+          mode: :zero_shot,
+          enable_validation: true,
+          fallback_on_error: true
+        )
 
       assert {:ok, updated_agent, directives} = result
       assert updated_agent.id == agent.id
@@ -437,19 +463,21 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
     @tag :requires_llm
     test "handles complex multi-step workflow" do
       # Requires LLM API key for full test
-      agent = build_test_agent_with_instructions([
-        build_instruction(TestValidateAction, %{data: "input"}),
-        build_instruction(TestProcessAction, %{operation: :transform}),
-        build_instruction(TestCalculateAction, %{x: 5, y: 5}),
-        build_instruction(TestSaveAction, %{destination: "output"})
-      ])
+      agent =
+        build_test_agent_with_instructions([
+          build_instruction(TestValidateAction, %{data: "input"}),
+          build_instruction(TestProcessAction, %{operation: :transform}),
+          build_instruction(TestCalculateAction, %{x: 5, y: 5}),
+          build_instruction(TestSaveAction, %{destination: "output"})
+        ])
 
-      result = ChainOfThought.run(agent,
-        mode: :structured,
-        enable_validation: true,
-        fallback_on_error: true,
-        max_iterations: 1
-      )
+      result =
+        ChainOfThought.run(agent,
+          mode: :structured,
+          enable_validation: true,
+          fallback_on_error: true,
+          max_iterations: 1
+        )
 
       assert {:ok, _, _} = result
     end
@@ -471,9 +499,12 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
 
   defp build_test_agent_with_instructions(instructions) do
     agent = build_test_agent()
-    queue = Enum.reduce(instructions, :queue.new(), fn instruction, q ->
-      :queue.in(instruction, q)
-    end)
+
+    queue =
+      Enum.reduce(instructions, :queue.new(), fn instruction, q ->
+        :queue.in(instruction, q)
+      end)
+
     %{agent | pending_instructions: queue}
   end
 
@@ -558,6 +589,7 @@ defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
         case ExecutionContext.get_current_step(context) do
           {:ok, step} ->
             {:ok, Map.put(result, :step_description, step.description)}
+
           _ ->
             {:ok, result}
         end

@@ -162,8 +162,11 @@ defmodule Jido.AI.Actions.InstructorAdvancedParamsTest do
       ]
 
       params = %{
-        model: Model.from({:openai, model: "llama3-groq-70b-8192-tool-use-preview", api_key: "test-key"})
-        |> elem(1),
+        model:
+          Model.from(
+            {:openai, model: "llama3-groq-70b-8192-tool-use-preview", api_key: "test-key"}
+          )
+          |> elem(1),
         prompt: Prompt.new(:user, "test"),
         response_model: TestResponse,
         provider_options: groq_options
@@ -176,8 +179,9 @@ defmodule Jido.AI.Actions.InstructorAdvancedParamsTest do
       anthropic_options = [anthropic_top_k: 40]
 
       params = %{
-        model: Model.from({:anthropic, model: "claude-3-sonnet-20240229", api_key: "test-key"})
-        |> elem(1),
+        model:
+          Model.from({:anthropic, model: "claude-3-sonnet-20240229", api_key: "test-key"})
+          |> elem(1),
         prompt: Prompt.new(:user, "test"),
         response_model: TestResponse,
         provider_options: anthropic_options
@@ -196,7 +200,8 @@ defmodule Jido.AI.Actions.InstructorAdvancedParamsTest do
         model:
           Model.from(
             {:openrouter,
-             model: "anthropic/claude-3-opus", api_key: "test-key",
+             model: "anthropic/claude-3-opus",
+             api_key: "test-key",
              base_url: "https://openrouter.ai/api/v1"}
           )
           |> elem(1),
@@ -252,7 +257,11 @@ defmodule Jido.AI.Actions.InstructorAdvancedParamsTest do
   describe "parameter priority and defaults" do
     test "explicit params override prompt options" do
       prompt =
-        Prompt.new(:user, "test", temperature: 0.3, max_tokens: 500, response_format: %{type: "text"})
+        Prompt.new(:user, "test",
+          temperature: 0.3,
+          max_tokens: 500,
+          response_format: %{type: "text"}
+        )
 
       params = %{
         model: Model.from({:openai, model: "gpt-4", api_key: "test-key"}) |> elem(1),

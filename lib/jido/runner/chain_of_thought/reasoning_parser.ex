@@ -16,12 +16,12 @@ defmodule Jido.Runner.ChainOfThought.ReasoningParser do
     organized for easy consumption by the execution engine.
     """
 
-    field :goal, String.t()
-    field :analysis, String.t()
-    field :steps, list(ReasoningStep.t()), default: []
-    field :expected_results, String.t()
-    field :potential_issues, list(String.t()), default: []
-    field :raw_text, String.t()
+    field(:goal, String.t())
+    field(:analysis, String.t())
+    field(:steps, list(ReasoningStep.t()), default: [])
+    field(:expected_results, String.t())
+    field(:potential_issues, list(String.t()), default: [])
+    field(:raw_text, String.t())
   end
 
   typedstruct module: ReasoningStep do
@@ -32,9 +32,9 @@ defmodule Jido.Runner.ChainOfThought.ReasoningParser do
     allowing for validation during execution.
     """
 
-    field :number, integer()
-    field :description, String.t()
-    field :expected_outcome, String.t()
+    field(:number, integer())
+    field(:description, String.t())
+    field(:expected_outcome, String.t())
   end
 
   @doc """
@@ -221,6 +221,8 @@ defmodule Jido.Runner.ChainOfThought.ReasoningParser do
     end
   end
 
-  defp valid_step?(%ReasoningStep{description: desc}) when desc != "" and not is_nil(desc), do: true
+  defp valid_step?(%ReasoningStep{description: desc}) when desc != "" and not is_nil(desc),
+    do: true
+
   defp valid_step?(_), do: false
 end

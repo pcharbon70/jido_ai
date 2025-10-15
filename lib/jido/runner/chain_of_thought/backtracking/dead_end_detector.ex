@@ -76,8 +76,13 @@ defmodule Jido.Runner.ChainOfThought.Backtracking.DeadEndDetector do
       }
     else
       reasons = []
-      confidence_threshold = Keyword.get(opts, :confidence_threshold, @default_confidence_threshold)
-      repetition_threshold = Keyword.get(opts, :repetition_threshold, @default_repetition_threshold)
+
+      confidence_threshold =
+        Keyword.get(opts, :confidence_threshold, @default_confidence_threshold)
+
+      repetition_threshold =
+        Keyword.get(opts, :repetition_threshold, @default_repetition_threshold)
+
       stall_threshold = Keyword.get(opts, :stall_threshold, @default_stall_threshold)
 
       # Check various heuristics
@@ -283,7 +288,8 @@ defmodule Jido.Runner.ChainOfThought.Backtracking.DeadEndDetector do
 
     # Boost confidence for certain critical reasons
     critical_boost =
-      if Enum.member?(reasons, :constraint_violation) or Enum.member?(reasons, :circular_reasoning) do
+      if Enum.member?(reasons, :constraint_violation) or
+           Enum.member?(reasons, :circular_reasoning) do
         0.2
       else
         0.0

@@ -356,7 +356,7 @@ defmodule Jido.Runner.TreeOfThoughts.Tree do
       |> Enum.flat_map(fn {_depth, nodes} ->
         # Sort by value (descending), take bottom nodes to remove
         nodes
-        |> Enum.sort_by(& &1.value || 0.0, :desc)
+        |> Enum.sort_by(&(&1.value || 0.0), :desc)
         |> Enum.drop(beam_width)
         |> Enum.map(& &1.id)
       end)

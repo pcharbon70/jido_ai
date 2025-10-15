@@ -16,6 +16,7 @@ defmodule Jido.Runner.ChainOfThought.Stage2IntegrationTest do
   """
 
   alias Jido.Runner.ChainOfThought.Backtracking
+
   alias Jido.Runner.ChainOfThought.Backtracking.{
     StateManager,
     DeadEndDetector,
@@ -136,6 +137,7 @@ defmodule Jido.Runner.ChainOfThought.Stage2IntegrationTest do
     test "dead-end detection triggers backtracking" do
       # Simulate reasoning result that is a dead-end
       result = %{error: "repeated_failure", confidence: 0.1}
+
       history = [
         %{error: "repeated_failure", confidence: 0.1},
         %{error: "repeated_failure", confidence: 0.1},
@@ -276,7 +278,8 @@ defmodule Jido.Runner.ChainOfThought.Stage2IntegrationTest do
 
       # Calculate expected structured accuracy
       expected_structured_accuracy =
-        improvement_metrics.baseline_accuracy * (1 + improvement_metrics.target_improvement_percent / 100)
+        improvement_metrics.baseline_accuracy *
+          (1 + improvement_metrics.target_improvement_percent / 100)
 
       # Structured accuracy should be approximately 0.82 (72% + 13.79%)
       assert expected_structured_accuracy > improvement_metrics.baseline_accuracy

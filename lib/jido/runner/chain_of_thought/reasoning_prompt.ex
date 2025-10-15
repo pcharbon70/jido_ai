@@ -188,7 +188,9 @@ defmodule Jido.Runner.ChainOfThought.ReasoningPrompt do
     " (#{params_str})"
   end
 
-  defp format_params(%{"params" => params}) when is_map(params), do: format_params(%{params: params})
+  defp format_params(%{"params" => params}) when is_map(params),
+    do: format_params(%{params: params})
+
   defp format_params(_), do: ""
 
   defp format_state(state) when is_map(state) and map_size(state) > 0 do

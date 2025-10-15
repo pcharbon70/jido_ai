@@ -11,7 +11,6 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.TestSuiteManager do
 
   require Logger
 
-  @test_frameworks [:ex_unit, :doc_test, :property_test]
   @default_framework :ex_unit
 
   @doc """
@@ -125,10 +124,17 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.TestSuiteManager do
   @spec detect_framework(String.t()) :: atom()
   def detect_framework(test_content) do
     cond do
-      String.contains?(test_content, "use ExUnit.Case") -> :ex_unit
-      String.contains?(test_content, "@doc ") and String.contains?(test_content, "iex>") -> :doc_test
-      String.contains?(test_content, "use ExUnitProperties") -> :property_test
-      true -> @default_framework
+      String.contains?(test_content, "use ExUnit.Case") ->
+        :ex_unit
+
+      String.contains?(test_content, "@doc ") and String.contains?(test_content, "iex>") ->
+        :doc_test
+
+      String.contains?(test_content, "use ExUnitProperties") ->
+        :property_test
+
+      true ->
+        @default_framework
     end
   end
 
@@ -145,7 +151,8 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.TestSuiteManager do
   `:ok`
   """
   @spec register_template(atom(), fun()) :: :ok
-  def register_template(template_name, template_fn) when is_atom(template_name) and is_function(template_fn) do
+  def register_template(template_name, template_fn)
+      when is_atom(template_name) and is_function(template_fn) do
     # Store in persistent term for fast access
     :persistent_term.put({__MODULE__, :template, template_name}, template_fn)
     Logger.info("Registered custom test template: #{template_name}")
@@ -201,11 +208,12 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.TestSuiteManager do
     # Extract function definitions
     functions = extract_functions(code)
 
-    test_cases = case coverage do
-      :basic -> generate_basic_tests(functions, module_name)
-      :comprehensive -> generate_comprehensive_tests(functions, module_name)
-      :exhaustive -> generate_exhaustive_tests(functions, module_name)
-    end
+    test_cases =
+      case coverage do
+        :basic -> generate_basic_tests(functions, module_name)
+        :comprehensive -> generate_comprehensive_tests(functions, module_name)
+        :exhaustive -> generate_exhaustive_tests(functions, module_name)
+      end
 
     test_module = """
     defmodule #{module_name}Test do
@@ -235,10 +243,11 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.TestSuiteManager do
   defp generate_property_tests(code, module_name, coverage) do
     functions = extract_functions(code)
 
-    property_tests = case coverage do
-      :basic -> generate_basic_properties(functions, module_name)
-      _ -> generate_comprehensive_properties(functions, module_name)
-    end
+    property_tests =
+      case coverage do
+        :basic -> generate_basic_properties(functions, module_name)
+        _ -> generate_comprehensive_properties(functions, module_name)
+      end
 
     test_module = """
     defmodule #{module_name}PropertyTest do
@@ -255,7 +264,7 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.TestSuiteManager do
   end
 
   defp extract_module_name(code) do
-    case Regex.run(~r/defmodule\s+([A-Z][A-Za-z0-9._]*)/,  code) do
+    case Regex.run(~r/defmodule\s+([A-Z][A-Za-z0-9._]*)/, code) do
       [_, module_name] -> module_name
       _ -> "TestModule"
     end
@@ -263,7 +272,7 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.TestSuiteManager do
 
   defp extract_functions(code) do
     # Simple function extraction using regex
-    Regex.scan(~r/def\s+([a-z_][a-z0-9_?!]*)\s*\(/,  code)
+    Regex.scan(~r/def\s+([a-z_][a-z0-9_?!]*)\s*\(/, code)
     |> Enum.map(fn [_, func_name] -> func_name end)
     |> Enum.uniq()
   end

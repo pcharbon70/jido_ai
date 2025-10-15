@@ -184,15 +184,17 @@ defmodule Jido.Runner.ProgramOfThought.ProblemClassifier do
     # Count complexity indicators
     complexity_indicators = %{
       # Multiple steps needed
-      multi_step: Enum.count(["and then", "after that", "next"], fn phrase ->
-        String.contains?(problem_lower, phrase)
-      end),
+      multi_step:
+        Enum.count(["and then", "after that", "next"], fn phrase ->
+          String.contains?(problem_lower, phrase)
+        end),
       # Number of numbers
       numbers: length(Regex.scan(~r/\d+/, problem)),
       # Complex operations
-      complex_ops: Enum.count(["compound", "exponential", "logarithm", "derivative", "integral"], fn term ->
-        String.contains?(problem_lower, term)
-      end),
+      complex_ops:
+        Enum.count(["compound", "exponential", "logarithm", "derivative", "integral"], fn term ->
+          String.contains?(problem_lower, term)
+        end),
       # Word count
       length: String.split(problem) |> length()
     }

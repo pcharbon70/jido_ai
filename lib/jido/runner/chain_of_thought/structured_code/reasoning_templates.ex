@@ -668,12 +668,10 @@ defmodule Jido.Runner.ChainOfThought.StructuredCode.ReasoningTemplates do
       """
       ## Examples
 
-      #{Enum.map_join(examples, "\n\n", fn {name, code} ->
-        """
+      #{Enum.map_join(examples, "\n\n", fn {name, code} -> """
         ### #{String.capitalize(to_string(name))}
         #{code}
-        """
-      end)}
+        """ end)}
       """
     end
   end

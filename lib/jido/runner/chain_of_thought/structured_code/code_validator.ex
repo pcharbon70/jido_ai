@@ -206,7 +206,7 @@ defmodule Jido.Runner.ChainOfThought.StructuredCode.CodeValidator do
   Validation result with structural checks
   """
   @spec validate_structure(String.t(), map(), map()) :: {:ok, map()} | {:error, term()}
-  def validate_structure(code, reasoning, analysis) do
+  def validate_structure(code, _reasoning, analysis) do
     errors = []
     warnings = []
     suggestions = []
@@ -247,7 +247,7 @@ defmodule Jido.Runner.ChainOfThought.StructuredCode.CodeValidator do
   """
   @spec generate_refinement_suggestions(validation_result(), String.t(), map()) ::
           list(String.t())
-  def generate_refinement_suggestions(validation, code, reasoning) do
+  def generate_refinement_suggestions(validation, _code, reasoning) do
     suggestions = validation.suggestions
 
     # Add suggestions based on errors
@@ -415,8 +415,7 @@ defmodule Jido.Runner.ChainOfThought.StructuredCode.CodeValidator do
   end
 
   defp check_required_patterns(code, patterns, errors, warnings, suggestions) do
-    Enum.reduce(patterns, {errors, warnings, suggestions}, fn pattern,
-                                                               {errs, warns, suggs} ->
+    Enum.reduce(patterns, {errors, warnings, suggestions}, fn pattern, {errs, warns, suggs} ->
       case pattern do
         :pipeline ->
           if not String.contains?(code, "|>") do
@@ -502,7 +501,7 @@ defmodule Jido.Runner.ChainOfThought.StructuredCode.CodeValidator do
   defp check_data_flow(code, data_flow, warnings, suggestions) do
     # Check if expected transformations are present
     Enum.reduce(data_flow.transformations, {warnings, suggestions}, fn transform,
-                                                                         {warns, suggs} ->
+                                                                       {warns, suggs} ->
       present =
         case transform do
           :map -> Regex.match?(~r/Enum\.map|Stream\.map/, code)

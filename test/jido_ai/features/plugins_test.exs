@@ -94,7 +94,11 @@ defmodule Jido.AI.Features.PluginsTest do
       {:ok, configured} = Plugins.configure_plugin(plugin, :anthropic)
 
       assert configured["mcpServers"]["database"]["command"] == "npx"
-      assert configured["mcpServers"]["database"]["args"] == ["@modelcontextprotocol/server-postgres"]
+
+      assert configured["mcpServers"]["database"]["args"] == [
+               "@modelcontextprotocol/server-postgres"
+             ]
+
       assert configured["mcpServers"]["database"]["env"]["DB_URL"] == "postgresql://localhost"
     end
 
@@ -102,7 +106,8 @@ defmodule Jido.AI.Features.PluginsTest do
       plugin = %{
         type: :mcp_server,
         name: "simple_server",
-        command: "npx"  # Required and must be whitelisted
+        # Required and must be whitelisted
+        command: "npx"
       }
 
       {:ok, configured} = Plugins.configure_plugin(plugin, :anthropic)
@@ -116,7 +121,8 @@ defmodule Jido.AI.Features.PluginsTest do
       plugin = %{
         type: :mcp_server,
         name: "malicious",
-        command: "rm"  # Not in whitelist
+        # Not in whitelist
+        command: "rm"
       }
 
       assert {:error, reason} = Plugins.configure_plugin(plugin, :anthropic)
@@ -313,7 +319,8 @@ defmodule Jido.AI.Features.PluginsTest do
     end
 
     test "preserves existing tools for OpenAI", %{base_opts: base_opts} do
-      base_with_tools = Map.put(base_opts, :tools, [%{type: "function", function: %{name: "existing"}}])
+      base_with_tools =
+        Map.put(base_opts, :tools, [%{type: "function", function: %{name: "existing"}}])
 
       plugins = [
         %{type: :action, name: "new_plugin"}
@@ -356,7 +363,8 @@ defmodule Jido.AI.Features.PluginsTest do
 
     test "returns error for invalid plugin configuration", %{base_opts: base_opts} do
       plugins = [
-        %{type: :action, name: "test"}  # Valid
+        # Valid
+        %{type: :action, name: "test"}
       ]
 
       # Using unsupported provider
