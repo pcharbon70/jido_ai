@@ -222,50 +222,145 @@ defmodule Integration.CoTPatternTest do
   describe "ReAct Integration (3.5.2)" do
     @describetag :integration
     @describetag :react
-    @describetag :skip
 
-    test "3.5.2.1: ReAct runner initialization and configuration" do
-      # Test that ReAct runner can be configured
-      opts = [
-        problem: "What is the capital of France?",
-        max_steps: 5,
-        tools: []
+    test "3.5.2.1: thought-action-observation loop with multiple steps" do
+      # Test ReAct loop with custom thought generation
+      # Simulate a multi-step investigation process
+
+      # Define mock tools
+      tools = [
+        %{name: "search", description: "Search for information"},
+        %{name: "calculate", description: "Perform calculations"}
       ]
 
-      # ReAct.run expects specific format - test configuration works
-      assert is_list(opts)
-      assert Keyword.has_key?(opts, :problem)
-      assert Keyword.has_key?(opts, :max_steps)
+      # Custom thought function that simulates reasoning
+      thought_fn = fn state, _opts ->
+        case state.step_number do
+          0 ->
+            """
+            Thought: I need to search for information about the Eiffel Tower location.
+            Action: search
+            Action Input: Eiffel Tower location
+            """
+
+          1 ->
+            """
+            Thought: The Eiffel Tower is in France. Now I need to find the capital of France.
+            Action: search
+            Action Input: capital of France
+            """
+
+          _ ->
+            """
+            Thought: I have gathered enough information. The Eiffel Tower is in France, and the capital is Paris.
+            Final Answer: Paris
+            """
+        end
+      end
+
+      {:ok, result} = ReAct.run(
+        question: "What is the capital of the country where the Eiffel Tower is located?",
+        tools: tools,
+        max_steps: 5,
+        thought_fn: thought_fn
+      )
+
+      # Verify loop executed multiple steps
+      assert result.steps >= 2
+      assert length(result.trajectory) >= 2
+
+      # Verify trajectory contains thought-action-observation structure
+      first_step = Enum.at(result.trajectory, 0)
+      assert Map.has_key?(first_step, :thought)
+      assert Map.has_key?(first_step, :action)
+      assert Map.has_key?(first_step, :observation)
+
+      # Verify final answer was found
+      assert result.success == true
+      assert result.reason == :answer_found
+      assert is_binary(result.answer)
     end
 
-    test "3.5.2.2: tool registry and action integration" do
-      # Test tool registry functionality
-      tools = %{
-        "search" => {:action, "search_action", []},
-        "calculate" => {:function, fn x -> x * 2 end}
-      }
+    test "3.5.2.2: tool integration with action interleaving" do
+      # Test that actions are properly interleaved with reasoning
+      tools = [
+        %{name: "search", description: "Search database"},
+        %{name: "calculate", description: "Calculate values"}
+      ]
 
-      assert Map.has_key?(tools, "search")
-      assert Map.has_key?(tools, "calculate")
+      action_count = :atomics.new(1, [])
 
-      # Verify tool types
-      assert match?({:action, _, _}, tools["search"])
-      assert match?({:function, _}, tools["calculate"])
+      thought_fn = fn state, _opts ->
+        if state.step_number < 2 do
+          :atomics.add(action_count, 1, 1)
+
+          """
+          Thought: Performing step #{state.step_number + 1}
+          Action: search
+          Action Input: query #{state.step_number + 1}
+          """
+        else
+          """
+          Thought: Completed investigation.
+          Final Answer: Investigation complete after #{state.step_number} steps
+          """
+        end
+      end
+
+      {:ok, result} = ReAct.run(
+        question: "Test question",
+        tools: tools,
+        max_steps: 5,
+        thought_fn: thought_fn
+      )
+
+      # Verify multiple actions were attempted
+      actions_executed = result.trajectory
+        |> Enum.filter(fn step -> step.action != nil end)
+        |> length()
+
+      assert actions_executed >= 2
+
+      # Verify metadata tracks tools used
+      assert Map.has_key?(result.metadata, :tools_used)
     end
 
-    test "3.5.2.3: thought-action-observation structure" do
-      # Test the expected data structure for ReAct steps
-      step = %{
-        step_number: 1,
-        thought: "I need to search for information",
-        action: {:tool, "search", %{query: "test"}},
-        observation: "Found relevant information"
-      }
+    test "3.5.2.3: multi-step investigation with convergence" do
+      # Test that ReAct can investigate and converge on an answer
+      tools = [%{name: "investigate", description: "Gather information"}]
 
-      assert Map.has_key?(step, :thought)
-      assert Map.has_key?(step, :action)
-      assert Map.has_key?(step, :observation)
-      assert step.step_number == 1
+      # Simulate investigation that converges after gathering enough info
+      thought_fn = fn state, _opts ->
+        info_gathered = length(state.trajectory)
+
+        if info_gathered < 3 do
+          """
+          Thought: Still gathering information (step #{info_gathered + 1} of 3).
+          Action: investigate
+          Action Input: gather more data
+          """
+        else
+          """
+          Thought: I have gathered sufficient information across #{info_gathered} steps.
+          Final Answer: Investigation complete with sufficient data
+          """
+        end
+      end
+
+      {:ok, result} = ReAct.run(
+        question: "Research question requiring multiple sources",
+        tools: tools,
+        max_steps: 10,
+        thought_fn: thought_fn
+      )
+
+      # Verify convergence occurred
+      assert result.success == true
+      assert result.steps >= 3
+      assert result.steps < result.metadata.max_steps
+
+      # Verify answer contains evidence of investigation
+      assert String.contains?(result.answer, "Investigation complete")
     end
   end
 
@@ -276,55 +371,192 @@ defmodule Integration.CoTPatternTest do
   describe "Tree-of-Thoughts Integration (3.5.3)" do
     @describetag :integration
     @describetag :tree_of_thoughts
-    @describetag :skip
 
-    test "3.5.3.1: tree structure and node management" do
-      # Test tree node structure
-      node = %{
-        id: "node_1",
-        thought: "Consider approach A",
-        state: %{},
-        value: 0.8,
-        children: [],
-        parent: nil,
-        depth: 0
-      }
+    test "3.5.3.1: BFS strategy expands tree breadth-first" do
+      # Test BFS search with custom thought generation and evaluation
 
-      assert Map.has_key?(node, :thought)
-      assert Map.has_key?(node, :value)
-      assert Map.has_key?(node, :children)
-      assert is_number(node.value)
+      # Custom thought generation function
+      thought_fn = fn opts ->
+        # Generate simple thoughts based on depth
+        depth = Keyword.get(opts, :depth, 0)
+        beam_width = Keyword.get(opts, :beam_width, 3)
+
+        Enum.map(1..beam_width, fn i ->
+          "Approach #{i} at depth #{depth}"
+        end)
+      end
+
+      # Custom evaluation function - higher scores at certain depths
+      evaluation_fn = fn opts ->
+        thought = Keyword.fetch!(opts, :thought)
+
+        # Parse depth from thought
+        depth =
+          case Regex.run(~r/depth (\d+)/, thought) do
+            [_, depth_str] -> String.to_integer(depth_str)
+            _ -> 0
+          end
+
+        # Score based on depth (prefer depth 2)
+        case depth do
+          2 -> 0.9  # High score at target depth
+          1 -> 0.7
+          _ -> 0.5
+        end
+      end
+
+      # Solution check - find nodes at depth 2 with high scores
+      solution_check = fn node ->
+        node.depth == 2 && (node.value || 0.0) > 0.8
+      end
+
+      {:ok, result} = TreeOfThoughts.run(
+        problem: "Test BFS exploration",
+        search_strategy: :bfs,
+        beam_width: 3,
+        max_depth: 3,
+        budget: 50,
+        thought_fn: thought_fn,
+        evaluation_fn: evaluation_fn,
+        solution_check: solution_check
+      )
+
+      # Verify BFS behavior - may find solution, exhaust budget, or exhaust frontier
+      assert result.reason in [:solution_found, :budget_exhausted, :frontier_exhausted]
+
+      # Verify tree was built and explored
+      assert result.tree.size > 1
+      assert result.nodes_evaluated > 0
+      assert result.search_steps > 0
+
+      # Verify search structure is valid
+      assert is_map(result)
+      assert Map.has_key?(result, :tree)
+      assert Map.has_key?(result, :solution_path)
+
+      # If solution found, verify it's at correct depth
+      if result.success && result.solution_path != [] do
+        solution_node = List.last(result.solution_path)
+        assert solution_node.depth >= 1
+      end
     end
 
-    test "3.5.3.2: BFS vs DFS search strategies" do
-      # Test that both strategies are supported
-      strategies = [:bfs, :dfs]
+    test "3.5.3.2: DFS strategy explores depth-first with backtracking" do
+      # Test DFS search explores deeply before backtracking
 
-      Enum.each(strategies, fn strategy ->
-        opts = %{
-          strategy: strategy,
-          beam_width: 3,
-          max_depth: 3
-        }
+      thought_fn = fn opts ->
+        depth = Keyword.get(opts, :depth, 0)
+        beam_width = Keyword.get(opts, :beam_width, 2)
 
-        assert opts.strategy in [:bfs, :dfs]
-        assert is_integer(opts.beam_width)
-        assert is_integer(opts.max_depth)
-      end)
+        # Generate fewer thoughts to make DFS behavior clearer
+        Enum.map(1..beam_width, fn i ->
+          "Path #{i} at level #{depth}"
+        end)
+      end
+
+      # Evaluation that prefers the second branch at depth 3
+      evaluation_fn = fn opts ->
+        thought = Keyword.fetch!(opts, :thought)
+
+        cond do
+          String.contains?(thought, "Path 2") && String.contains?(thought, "level 3") ->
+            0.95  # High score for target path
+          String.contains?(thought, "Path 2") ->
+            0.8   # Good score for right branch
+          true ->
+            0.6   # Lower score for other paths
+        end
+      end
+
+      solution_check = fn node ->
+        String.contains?(node.thought, "Path 2") && node.depth == 3
+      end
+
+      {:ok, result} = TreeOfThoughts.run(
+        problem: "Test DFS with backtracking",
+        search_strategy: :dfs,
+        beam_width: 2,
+        max_depth: 4,
+        budget: 30,
+        thought_fn: thought_fn,
+        evaluation_fn: evaluation_fn,
+        solution_check: solution_check
+      )
+
+      # Verify DFS found solution or exhausted budget
+      assert result.success == true || result.reason == :budget_exhausted
+
+      # Verify tree exploration occurred
+      assert result.search_steps > 0
+      assert result.nodes_evaluated > 0
+
+      # If solution found, verify it's in the right branch
+      if result.success do
+        assert String.contains?(result.answer, "Path 2")
+      end
     end
 
-    test "3.5.3.3: thought evaluation mechanisms" do
-      # Test evaluation function structure
-      evaluators = [
-        {:value, fn thought -> calculate_value(thought) end},
-        {:vote, fn thought -> get_majority_vote(thought) end},
-        {:heuristic, fn thought -> domain_heuristic(thought) end}
-      ]
+    test "3.5.3.3: thought evaluation and pruning of low-quality branches" do
+      # Test that low-quality branches are properly evaluated and can be pruned
 
-      Enum.each(evaluators, fn {type, func} ->
-        assert type in [:value, :vote, :heuristic]
-        assert is_function(func, 1)
-      end)
+      # Track which thoughts were generated
+      {:ok, generated_thoughts} = Agent.start_link(fn -> [] end)
+
+      thought_fn = fn opts ->
+        beam_width = Keyword.get(opts, :beam_width, 3)
+
+        thoughts = Enum.map(1..beam_width, fn i ->
+          "Thought option #{i}"
+        end)
+
+        Agent.update(generated_thoughts, fn list -> list ++ thoughts end)
+        thoughts
+      end
+
+      # Evaluation with clear quality differences
+      evaluation_fn = fn opts ->
+        thought = Keyword.fetch!(opts, :thought)
+
+        cond do
+          String.contains?(thought, "option 1") -> 0.9  # High quality
+          String.contains?(thought, "option 2") -> 0.7  # Medium quality
+          String.contains?(thought, "option 3") -> 0.3  # Low quality (should be pruned)
+        end
+      end
+
+      # Find high-quality path
+      solution_check = fn node ->
+        node.depth >= 2 && (node.value || 0.0) > 0.8
+      end
+
+      {:ok, result} = TreeOfThoughts.run(
+        problem: "Test evaluation and pruning",
+        search_strategy: :best_first,  # Best-first will prioritize high-value nodes
+        beam_width: 3,
+        max_depth: 3,
+        budget: 20,
+        thought_fn: thought_fn,
+        evaluation_fn: evaluation_fn,
+        solution_check: solution_check
+      )
+
+      # Verify search completed
+      assert result.search_steps > 0
+
+      # Verify evaluations were performed
+      assert result.nodes_evaluated > 0
+
+      # If solution found, it should be high quality
+      if result.success do
+        solution_node = List.last(result.solution_path)
+        assert solution_node.value >= 0.7
+      end
+
+      # Verify thoughts were generated
+      all_thoughts = Agent.get(generated_thoughts, & &1)
+      assert length(all_thoughts) > 0
+
+      Agent.stop(generated_thoughts)
     end
   end
 
