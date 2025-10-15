@@ -54,14 +54,14 @@ Implement population data structures and management operations for maintaining p
 - [x] 1.1.2.4 Support population persistence for resuming interrupted optimizations
 
 ### 1.1.3 Task Distribution & Scheduling
-- [ ] **Task 1.1.3 Complete**
+- [x] **Task 1.1.3 Complete**
 
 Implement task distribution mechanisms scheduling prompt evaluations across available resources with concurrency control.
 
-- [ ] 1.1.3.1 Create evaluation task scheduler with configurable parallelism limits
-- [ ] 1.1.3.2 Implement work queue managing pending evaluations with priority
-- [ ] 1.1.3.3 Add resource allocation balancing evaluation load across nodes
-- [ ] 1.1.3.4 Support dynamic scheduling adjusting to available capacity
+- [x] 1.1.3.1 Create evaluation task scheduler with configurable parallelism limits
+- [x] 1.1.3.2 Implement work queue managing pending evaluations with priority
+- [x] 1.1.3.3 Add resource allocation balancing evaluation load across nodes
+- [x] 1.1.3.4 Support dynamic scheduling adjusting to available capacity
 
 ### 1.1.4 Evolution Cycle Coordination
 - [ ] **Task 1.1.4 Complete**
