@@ -75,6 +75,8 @@ defmodule Jido.Runner.GEPA.Optimizer do
   use TypedStruct
   require Logger
 
+  alias Jido.Runner.GEPA.Population
+
   # Type definitions
 
   typedstruct module: Config do
@@ -101,7 +103,7 @@ defmodule Jido.Runner.GEPA.Optimizer do
     """
 
     field(:config, Config.t(), enforce: true)
-    field(:population, list(map()), default: [])
+    field(:population, Population.t() | nil, default: nil)
     field(:generation, non_neg_integer(), default: 0)
     field(:evaluations_used, non_neg_integer(), default: 0)
     field(:history, list(map()), default: [])
@@ -233,7 +235,7 @@ defmodule Jido.Runner.GEPA.Optimizer do
 
     state = %State{
       config: config,
-      population: [],
+      population: nil,
       generation: 0,
       evaluations_used: 0,
       history: [],
@@ -252,12 +254,13 @@ defmodule Jido.Runner.GEPA.Optimizer do
       seed_count: length(state.config.seed_prompts)
     )
 
-    population = initialize_population(state.config)
+    {:ok, population} = initialize_population(state.config)
+    stats = Population.statistics(population)
 
     new_state = %{state | population: population, status: :ready}
 
     Logger.info("GEPA Optimizer initialized and ready",
-      population_size: length(population),
+      population_size: stats.size,
       status: new_state.status
     )
 
@@ -284,24 +287,43 @@ defmodule Jido.Runner.GEPA.Optimizer do
 
   @impl true
   def handle_call({:get_best_prompts, limit}, _from, %State{} = state) do
+    best_candidates =
+      if state.population do
+        Population.get_best(state.population, limit: limit)
+      else
+        []
+      end
+
+    # Convert Population.Candidate structs to simple maps for API compatibility
     best_prompts =
-      state.population
-      |> Enum.filter(&(&1.fitness != nil))
-      |> Enum.sort_by(& &1.fitness, :desc)
-      |> Enum.take(limit)
+      Enum.map(best_candidates, fn candidate ->
+        %{
+          prompt: candidate.prompt,
+          fitness: candidate.fitness,
+          generation: candidate.generation,
+          metadata: candidate.metadata
+        }
+      end)
 
     {:reply, {:ok, best_prompts}, state}
   end
 
   @impl true
   def handle_call(:status, _from, %State{} = state) do
+    population_stats =
+      if state.population do
+        Population.statistics(state.population)
+      else
+        %{size: 0, best_fitness: 0.0}
+      end
+
     status_info = %{
       status: state.status,
       generation: state.generation,
       evaluations_used: state.evaluations_used,
       evaluations_remaining: state.config.evaluation_budget - state.evaluations_used,
-      best_fitness: state.best_fitness,
-      population_size: length(state.population),
+      best_fitness: population_stats.best_fitness,
+      population_size: population_stats.size,
       uptime_ms: System.monotonic_time(:millisecond) - state.started_at
     }
 
@@ -329,55 +351,63 @@ defmodule Jido.Runner.GEPA.Optimizer do
   end
 
   @doc false
-  @spec initialize_population(Config.t()) :: list(prompt_candidate())
+  @spec initialize_population(Config.t()) :: {:ok, Population.t()} | {:error, term()}
   defp initialize_population(%Config{} = config) do
-    # Generate initial population from seed prompts
-    seed_candidates =
-      config.seed_prompts
-      |> Enum.with_index()
-      |> Enum.map(fn {prompt, index} ->
-        %{
-          prompt: prompt,
-          fitness: nil,
-          generation: 0,
-          metadata: %{
-            source: :seed,
-            seed_index: index,
-            created_at: System.monotonic_time(:millisecond)
-          }
-        }
+    # Create new empty population
+    {:ok, population} = Population.new(size: config.population_size, generation: 0)
+
+    # Generate initial candidates
+    candidates =
+      if length(config.seed_prompts) > 0 do
+        # Use seed prompts as initial population
+        seed_candidates =
+          config.seed_prompts
+          |> Enum.with_index()
+          |> Enum.map(fn {prompt, index} ->
+            %{
+              prompt: prompt,
+              fitness: nil,
+              generation: 0,
+              metadata: %{
+                source: :seed,
+                seed_index: index
+              }
+            }
+          end)
+
+        # If we need more candidates, generate variations
+        needed = config.population_size - length(seed_candidates)
+
+        if needed > 0 do
+          variations = generate_initial_variations(seed_candidates, needed)
+          seed_candidates ++ variations
+        else
+          seed_candidates
+        end
+      else
+        # Generate default baseline prompts
+        generate_default_prompts(config.population_size)
+      end
+
+    # Add all candidates to population
+    population =
+      Enum.reduce(candidates, population, fn candidate, pop ->
+        case Population.add_candidate(pop, candidate) do
+          {:ok, updated_pop} -> updated_pop
+          {:error, _reason} -> pop
+        end
       end)
 
-    # If we have fewer seed prompts than population size, generate variations
-    needed = config.population_size - length(seed_candidates)
-
-    additional_candidates =
-      if needed > 0 and length(seed_candidates) > 0 do
-        generate_initial_variations(seed_candidates, needed)
-      else
-        []
-      end
-
-    # If no seed prompts provided, generate default baseline prompts
-    final_population =
-      if length(seed_candidates) == 0 do
-        generate_default_prompts(config.population_size)
-      else
-        seed_candidates ++ additional_candidates
-      end
-
     Logger.debug("Population initialized",
-      total: length(final_population),
-      from_seeds: length(seed_candidates),
-      generated: length(additional_candidates)
+      total: population.size,
+      candidates: length(Population.get_all(population))
     )
 
-    final_population
+    {:ok, population}
   end
 
   @doc false
-  @spec generate_initial_variations(list(prompt_candidate()), pos_integer()) ::
-          list(prompt_candidate())
+  @spec generate_initial_variations(list(map()), pos_integer()) :: list(map())
   defp generate_initial_variations(seed_candidates, count) do
     # Simple variation strategy: duplicate seeds with minor variations
     # More sophisticated variation will be implemented in mutation tasks
@@ -393,15 +423,14 @@ defmodule Jido.Runner.GEPA.Optimizer do
         metadata: %{
           source: :variation,
           parent_seed: candidate.metadata.seed_index,
-          variation_index: index,
-          created_at: System.monotonic_time(:millisecond)
+          variation_index: index
         }
       }
     end)
   end
 
   @doc false
-  @spec generate_default_prompts(pos_integer()) :: list(prompt_candidate())
+  @spec generate_default_prompts(pos_integer()) :: list(map())
   defp generate_default_prompts(count) do
     # Generate simple baseline prompts when no seeds provided
     default_prompt = "Let's approach this problem step by step."
@@ -413,8 +442,7 @@ defmodule Jido.Runner.GEPA.Optimizer do
         generation: 0,
         metadata: %{
           source: :default,
-          index: i,
-          created_at: System.monotonic_time(:millisecond)
+          index: i
         }
       }
     end
@@ -424,13 +452,31 @@ defmodule Jido.Runner.GEPA.Optimizer do
   @spec execute_optimization_loop(State.t()) :: optimization_result()
   defp execute_optimization_loop(%State{} = state) do
     # Placeholder for optimization loop
-    # This will be implemented in subsequent tasks (1.1.2, 1.1.3, 1.1.4)
-    Logger.info("Optimization loop placeholder - to be implemented in Tasks 1.1.2-1.1.4")
+    # This will be implemented in subsequent tasks (1.1.3, 1.1.4)
+    Logger.info("Optimization loop placeholder - to be implemented in Tasks 1.1.3-1.1.4")
 
     duration_ms = System.monotonic_time(:millisecond) - state.started_at
 
+    best_candidates =
+      if state.population do
+        Population.get_best(state.population, limit: 5)
+      else
+        []
+      end
+
+    # Convert to simple maps for API compatibility
+    best_prompts =
+      Enum.map(best_candidates, fn candidate ->
+        %{
+          prompt: candidate.prompt,
+          fitness: candidate.fitness,
+          generation: candidate.generation,
+          metadata: candidate.metadata
+        }
+      end)
+
     %{
-      best_prompts: Enum.take(state.population, 5),
+      best_prompts: best_prompts,
       final_generation: state.generation,
       total_evaluations: state.evaluations_used,
       history: state.history,

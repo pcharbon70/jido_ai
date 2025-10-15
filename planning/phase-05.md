@@ -44,14 +44,14 @@ Create the foundational GEPA optimizer agent structure implementing GenServer be
 - [x] 1.1.1.4 Create initialization logic with seed prompt population generation
 
 ### 1.1.2 Population Management
-- [ ] **Task 1.1.2 Complete**
+- [x] **Task 1.1.2 Complete**
 
 Implement population data structures and management operations for maintaining prompt candidates throughout evolution.
 
-- [ ] 1.1.2.1 Create population struct with prompt candidates, fitness scores, and metadata
-- [ ] 1.1.2.2 Implement population initialization from seed prompts or random generation
-- [ ] 1.1.2.3 Add population update operations (add, remove, replace candidates)
-- [ ] 1.1.2.4 Support population persistence for resuming interrupted optimizations
+- [x] 1.1.2.1 Create population struct with prompt candidates, fitness scores, and metadata
+- [x] 1.1.2.2 Implement population initialization from seed prompts or random generation
+- [x] 1.1.2.3 Add population update operations (add, remove, replace candidates)
+- [x] 1.1.2.4 Support population persistence for resuming interrupted optimizations
 
 ### 1.1.3 Task Distribution & Scheduling
 - [ ] **Task 1.1.3 Complete**
