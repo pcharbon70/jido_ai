@@ -2,7 +2,31 @@ import Config
 
 config :logger, :console,
   format: {Jido.AI.Keyring.Filter, :format},
-  metadata: [:module]
+  metadata: [
+    :module,
+    # Model Registry Cache
+    :table,
+    :ttl,
+    :cleanup_interval,
+    :deleted,
+    :remaining,
+    # ReqLLM Bridge
+    :functions,
+    :tool_choice,
+    # Enterprise Authentication
+    :reason,
+    :provider,
+    # Tool Builder
+    :successes,
+    :failures,
+    :action_module,
+    :error,
+    # Tool Executor
+    :duration_ms,
+    :exception,
+    # Tool Response Handler
+    :conversation_id
+  ]
 
 # ReqLLM configuration
 config :req_llm,
