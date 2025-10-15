@@ -220,49 +220,49 @@ Implement specialized zero-shot variants for different task categories, optimizi
 ---
 
 ## 1.5 Integration Tests - Stage 1
-- [ ] **Section 1.5 Complete**
+- [x] **Section 1.5 Complete**
 
 Comprehensive end-to-end testing validating that all Stage 1 components work together correctly, providing the foundational CoT capabilities for JidoAI agents.
 
 ### 1.5.1 Custom Runner Integration
-- [ ] **Task 1.5.1 Complete**
+- [x] **Task 1.5.1 Complete**
 
 Test the custom CoT runner with real agents and actions, validating transparent reasoning integration.
 
-- [ ] 1.5.1.1 Test agent creation with CoT runner configuration
-- [ ] 1.5.1.2 Validate reasoning generation for multi-step action sequences
-- [ ] 1.5.1.3 Test execution with reasoning context propagation
-- [ ] 1.5.1.4 Verify outcome validation and unexpected result handling
+- [x] 1.5.1.1 Test agent creation with CoT runner configuration
+- [x] 1.5.1.2 Validate reasoning generation for multi-step action sequences
+- [x] 1.5.1.3 Test execution with reasoning context propagation
+- [x] 1.5.1.4 Verify outcome validation and unexpected result handling
 
 ### 1.5.2 Lifecycle Hook Integration
-- [ ] **Task 1.5.2 Complete**
+- [x] **Task 1.5.2 Complete**
 
 Test lifecycle hook CoT integration in existing agent patterns without runner replacement.
 
-- [ ] 1.5.2.1 Test planning hook with instruction queue analysis
-- [ ] 1.5.2.2 Validate execution hook plan creation and storage
-- [ ] 1.5.2.3 Test validation hook result checking and retry triggering
-- [ ] 1.5.2.4 Verify hook opt-in behavior and graceful degradation
+- [x] 1.5.2.1 Test planning hook with instruction queue analysis
+- [x] 1.5.2.2 Validate execution hook plan creation and storage
+- [x] 1.5.2.3 Test validation hook result checking and retry triggering
+- [x] 1.5.2.4 Verify hook opt-in behavior and graceful degradation
 
 ### 1.5.3 Skill Module Integration
-- [ ] **Task 1.5.3 Complete**
+- [x] **Task 1.5.3 Complete**
 
 Test CoT skill mounting and usage across different agent types and configurations.
 
-- [ ] 1.5.3.1 Test skill mounting with various configuration options
-- [ ] 1.5.3.2 Validate CoT action execution through skill-registered actions
-- [ ] 1.5.3.3 Test routing integration with semantic event patterns
-- [ ] 1.5.3.4 Verify skill configuration updates and behavior changes
+- [x] 1.5.3.1 Test skill mounting with various configuration options
+- [x] 1.5.3.2 Validate CoT action execution through skill-registered actions
+- [x] 1.5.3.3 Test routing integration with semantic event patterns
+- [x] 1.5.3.4 Verify skill configuration updates and behavior changes
 
 ### 1.5.4 Performance and Accuracy Baseline
-- [ ] **Task 1.5.4 Complete**
+- [x] **Task 1.5.4 Complete**
 
 Establish performance and accuracy baselines for Stage 1 CoT implementation to measure improvement in subsequent stages.
 
-- [ ] 1.5.4.1 Benchmark zero-shot CoT latency overhead (target: 2-3s)
-- [ ] 1.5.4.2 Measure token cost increase (target: 3-4x)
-- [ ] 1.5.4.3 Test accuracy improvement on reasoning benchmarks (target: 8-15%)
-- [ ] 1.5.4.4 Validate backward compatibility with existing agent tests (100% pass rate)
+- [x] 1.5.4.1 Benchmark zero-shot CoT latency overhead (target: 2-3s)
+- [x] 1.5.4.2 Measure token cost increase (target: 3-4x)
+- [x] 1.5.4.3 Test accuracy improvement on reasoning benchmarks (target: 8-15%)
+- [x] 1.5.4.4 Validate backward compatibility with existing agent tests (100% pass rate)
 
 ---
 
