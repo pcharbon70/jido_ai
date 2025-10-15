@@ -174,7 +174,7 @@ Implement the router function providing semantic routing for CoT-related command
 ---
 
 ## 1.4 Zero-Shot CoT Implementation
-- [ ] **Section 1.4 Complete**
+- [x] **Section 1.4 Complete**
 
 This section implements comprehensive zero-shot CoT patterns using the "Let's think step by step" prompting technique. Zero-shot CoT provides immediate value with minimal configuration, offering 8-15% accuracy improvement with 3-4x token overhead. We implement both basic zero-shot and structured zero-shot reasoning tailored to different task types (general reasoning, code generation, mathematical problems).
 
@@ -209,13 +209,13 @@ Implement specialized zero-shot variants for different task categories, optimizi
 - [x] 1.4.3.4 Support custom task type registration with domain-specific prompts
 
 ### Unit Tests - Section 1.4
-- [ ] **Unit Tests 1.4 Complete**
-- [ ] Test basic zero-shot reasoning on general tasks
-- [ ] Test structured reasoning for code generation
-- [ ] Test task-specific variants with appropriate prompts
-- [ ] Validate reasoning step extraction and parsing
-- [ ] Test model backend compatibility across providers
-- [ ] Benchmark accuracy improvement over direct prompting
+- [x] **Unit Tests 1.4 Complete**
+- [x] Test basic zero-shot reasoning on general tasks
+- [x] Test structured reasoning for code generation
+- [x] Test task-specific variants with appropriate prompts
+- [x] Validate reasoning step extraction and parsing
+- [x] Test model backend compatibility across providers
+- [x] Benchmark accuracy improvement over direct prompting (requires LLM, marked @tag :skip)
 
 ---
 
