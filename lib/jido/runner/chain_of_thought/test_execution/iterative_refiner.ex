@@ -12,9 +12,9 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.IterativeRefiner do
   require Logger
 
   alias Jido.Runner.ChainOfThought.TestExecution.{
-    TestSuiteManager,
     ExecutionSandbox,
-    ResultAnalyzer
+    ResultAnalyzer,
+    TestSuiteManager
   }
 
   @default_max_iterations 5

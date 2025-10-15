@@ -147,7 +147,7 @@ defmodule Jido.Runner.ChainOfThought.ErrorHandler do
       reason: reason,
       context: Map.new(context_opts),
       timestamp: DateTime.utc_now(),
-      recoverable?: is_recoverable?(category, reason),
+      recoverable?: recoverable?(category, reason),
       original_error: Keyword.get(context_opts, :original_error)
     }
   end
@@ -244,19 +244,19 @@ defmodule Jido.Runner.ChainOfThought.ErrorHandler do
 
   ## Examples
 
-      is_recoverable?(:llm_error, :timeout)
+      recoverable?(:llm_error, :timeout)
       #=> true
 
-      is_recoverable?(:config_error, :invalid_mode)
+      recoverable?(:config_error, :invalid_mode)
       #=> false
   """
-  @spec is_recoverable?(error_category(), term()) :: boolean()
-  def is_recoverable?(:llm_error, reason) when reason in [:timeout, :rate_limit], do: true
-  def is_recoverable?(:llm_error, :api_error), do: true
-  def is_recoverable?(:execution_error, :unexpected_outcome), do: true
-  def is_recoverable?(:execution_error, :action_error), do: true
-  def is_recoverable?(:config_error, _), do: false
-  def is_recoverable?(_, _), do: true
+  @spec recoverable?(error_category(), term()) :: boolean()
+  def recoverable?(:llm_error, reason) when reason in [:timeout, :rate_limit], do: true
+  def recoverable?(:llm_error, :api_error), do: true
+  def recoverable?(:execution_error, :unexpected_outcome), do: true
+  def recoverable?(:execution_error, :action_error), do: true
+  def recoverable?(:config_error, _), do: false
+  def recoverable?(_, _), do: true
 
   @doc """
   Selects appropriate recovery strategy based on error type and context.

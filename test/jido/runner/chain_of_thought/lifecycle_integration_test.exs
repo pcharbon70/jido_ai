@@ -17,7 +17,7 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
 
   use ExUnit.Case, async: true
 
-  alias Jido.Runner.ChainOfThought.{PlanningHook, ExecutionHook, ValidationHook}
+  alias Jido.Runner.ChainOfThought.{ExecutionHook, PlanningHook, ValidationHook}
 
   describe "full lifecycle integration with all hooks active" do
     test "planning context flows to execution hook" do
@@ -125,8 +125,8 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
     end
 
     test "context enrichment preserves all state through lifecycle" do
-      alias Jido.Runner.ChainOfThought.PlanningHook.PlanningReasoning
       alias Jido.Runner.ChainOfThought.ExecutionHook.ExecutionPlan
+      alias Jido.Runner.ChainOfThought.PlanningHook.PlanningReasoning
       alias Jido.Runner.ChainOfThought.ValidationHook.ValidationResult
 
       initial_state = %{
@@ -606,8 +606,8 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
     end
 
     test "custom state preserved through all hooks" do
-      alias Jido.Runner.ChainOfThought.PlanningHook.PlanningReasoning
       alias Jido.Runner.ChainOfThought.ExecutionHook.ExecutionPlan
+      alias Jido.Runner.ChainOfThought.PlanningHook.PlanningReasoning
       alias Jido.Runner.ChainOfThought.ValidationHook.ValidationResult
 
       custom_state = %{
@@ -651,8 +651,8 @@ defmodule Jido.Runner.ChainOfThought.LifecycleIntegrationTest do
 
     test "hooks don't interfere with each other's context" do
       # Add all contexts with proper struct types
-      alias Jido.Runner.ChainOfThought.PlanningHook.PlanningReasoning
       alias Jido.Runner.ChainOfThought.ExecutionHook.ExecutionPlan
+      alias Jido.Runner.ChainOfThought.PlanningHook.PlanningReasoning
       alias Jido.Runner.ChainOfThought.ValidationHook.ValidationResult
 
       planning = %PlanningReasoning{

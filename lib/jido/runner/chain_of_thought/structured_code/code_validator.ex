@@ -141,30 +141,28 @@ defmodule Jido.Runner.ChainOfThought.StructuredCode.CodeValidator do
   """
   @spec validate_syntax(String.t()) :: {:ok, list()} | {:error, list()}
   def validate_syntax(code) do
-    try do
-      Code.string_to_quoted(code)
-      {:ok, []}
-    rescue
-      e in SyntaxError ->
-        error = %{
-          type: :syntax_error,
-          message: Exception.message(e),
-          line: e.line,
-          severity: :error
-        }
+    Code.string_to_quoted(code)
+    {:ok, []}
+  rescue
+    e in SyntaxError ->
+      error = %{
+        type: :syntax_error,
+        message: Exception.message(e),
+        line: e.line,
+        severity: :error
+      }
 
-        {:error, [error]}
+      {:error, [error]}
 
-      e ->
-        error = %{
-          type: :parse_error,
-          message: Exception.message(e),
-          line: nil,
-          severity: :error
-        }
+    e ->
+      error = %{
+        type: :parse_error,
+        message: Exception.message(e),
+        line: nil,
+        severity: :error
+      }
 
-        {:error, [error]}
-    end
+      {:error, [error]}
   end
 
   @doc """

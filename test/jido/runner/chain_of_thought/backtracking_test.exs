@@ -4,10 +4,10 @@ defmodule Jido.Runner.ChainOfThought.BacktrackingTest do
   alias Jido.Runner.ChainOfThought.Backtracking
 
   alias Jido.Runner.ChainOfThought.Backtracking.{
-    StateManager,
+    BudgetManager,
     DeadEndDetector,
     PathExplorer,
-    BudgetManager
+    StateManager
   }
 
   describe "StateManager.capture_snapshot/2" do

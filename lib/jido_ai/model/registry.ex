@@ -34,9 +34,9 @@ defmodule Jido.AI.Model.Registry do
   """
 
   require Logger
+  alias Jido.AI.Model.CapabilityIndex
   alias Jido.AI.Model.Registry.Adapter
   alias Jido.AI.Model.Registry.MetadataBridge
-  alias Jido.AI.Model.CapabilityIndex
   alias Jido.AI.Provider
 
   @type provider_id :: atom()

@@ -1,7 +1,7 @@
 defmodule Jido.Actions.CoTTest do
   use ExUnit.Case, async: true
 
-  alias Jido.Actions.CoT.{GenerateReasoning, ReasoningStep, ValidateReasoning, SelfCorrect}
+  alias Jido.Actions.CoT.{GenerateReasoning, ReasoningStep, SelfCorrect, ValidateReasoning}
 
   describe "GenerateReasoning action" do
     @tag :skip

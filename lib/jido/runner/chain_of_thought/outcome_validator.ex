@@ -94,15 +94,15 @@ defmodule Jido.Runner.ChainOfThought.OutcomeValidator do
 
   Boolean indicating if the result represents success.
   """
-  @spec is_successful?(term()) :: boolean()
-  def is_successful?({:ok, _}), do: true
-  def is_successful?(:ok), do: true
-  def is_successful?({:error, _}), do: false
-  def is_successful?(:error), do: false
-  def is_successful?(true), do: true
-  def is_successful?(false), do: false
+  @spec successful?(term()) :: boolean()
+  def successful?({:ok, _}), do: true
+  def successful?(:ok), do: true
+  def successful?({:error, _}), do: false
+  def successful?(:error), do: false
+  def successful?(true), do: true
+  def successful?(false), do: false
   # Assume success if not explicitly error
-  def is_successful?(_), do: true
+  def successful?(_), do: true
 
   @doc """
   Checks if a validation result indicates an unexpected outcome.
@@ -141,7 +141,7 @@ defmodule Jido.Runner.ChainOfThought.OutcomeValidator do
       String.contains?(String.downcase(result_str), String.downcase(expected))
     else
       # Non-strict: just check for success
-      is_successful?(result)
+      successful?(result)
     end
   end
 

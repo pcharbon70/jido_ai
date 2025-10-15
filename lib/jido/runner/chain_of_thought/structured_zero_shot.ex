@@ -55,8 +55,8 @@ defmodule Jido.Runner.ChainOfThought.StructuredZeroShot do
   """
 
   require Logger
-  alias Jido.AI.{Model, Prompt}
   alias Jido.AI.Actions.TextCompletion
+  alias Jido.AI.{Model, Prompt}
 
   @default_temperature 0.2
   @default_max_tokens 3000
@@ -492,7 +492,7 @@ defmodule Jido.Runner.ChainOfThought.StructuredZeroShot do
         content
         |> String.split("\n")
         |> Enum.map(&String.trim/1)
-        |> Enum.filter(&is_bullet_point?/1)
+        |> Enum.filter(&bullet_point?/1)
         |> Enum.map(&clean_bullet_point/1)
         |> Enum.reject(&(&1 == ""))
 
@@ -519,14 +519,14 @@ defmodule Jido.Runner.ChainOfThought.StructuredZeroShot do
   @spec filter_bullet_points(list(String.t())) :: list(String.t())
   defp filter_bullet_points(lines) do
     lines
-    |> Enum.filter(&is_bullet_point?/1)
+    |> Enum.filter(&bullet_point?/1)
     |> Enum.map(&clean_bullet_point/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.reject(&(String.length(&1) < 5))
   end
 
-  @spec is_bullet_point?(String.t()) :: boolean()
-  defp is_bullet_point?(line) do
+  @spec bullet_point?(String.t()) :: boolean()
+  defp bullet_point?(line) do
     trimmed = String.trim(line)
     String.match?(trimmed, ~r/^[\-\*\•]\s+|^\d+\.\s+/)
   end

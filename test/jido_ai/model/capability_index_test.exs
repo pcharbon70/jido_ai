@@ -1,8 +1,8 @@
 defmodule Jido.AI.Model.CapabilityIndexTest do
   use ExUnit.Case, async: false
 
-  alias Jido.AI.Model.CapabilityIndex
   alias Jido.AI.Model
+  alias Jido.AI.Model.CapabilityIndex
 
   setup do
     # Clear index before each test

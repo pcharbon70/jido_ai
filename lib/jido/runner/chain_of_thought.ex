@@ -111,13 +111,13 @@ defmodule Jido.Runner.ChainOfThought do
 
   require Logger
 
-  alias Jido.Runner.ChainOfThought.ReasoningPrompt
-  alias Jido.Runner.ChainOfThought.ReasoningParser
-  alias Jido.Runner.ChainOfThought.ExecutionContext
-  alias Jido.Runner.ChainOfThought.OutcomeValidator
-  alias Jido.Runner.ChainOfThought.ErrorHandler
   alias Jido.AI.Actions.TextCompletion
   alias Jido.AI.Model
+  alias Jido.Runner.ChainOfThought.ErrorHandler
+  alias Jido.Runner.ChainOfThought.ExecutionContext
+  alias Jido.Runner.ChainOfThought.OutcomeValidator
+  alias Jido.Runner.ChainOfThought.ReasoningParser
+  alias Jido.Runner.ChainOfThought.ReasoningPrompt
 
   # Type definitions
 

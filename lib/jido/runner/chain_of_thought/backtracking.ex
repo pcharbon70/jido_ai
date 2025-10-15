@@ -27,10 +27,10 @@ defmodule Jido.Runner.ChainOfThought.Backtracking do
   """
 
   alias Jido.Runner.ChainOfThought.Backtracking.{
-    StateManager,
+    BudgetManager,
     DeadEndDetector,
     PathExplorer,
-    BudgetManager
+    StateManager
   }
 
   @doc """

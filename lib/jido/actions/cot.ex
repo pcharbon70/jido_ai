@@ -71,8 +71,8 @@ defmodule Jido.Actions.CoT do
       ]
 
     require Logger
-    alias Jido.AI.{Model, Prompt}
     alias Jido.AI.Actions.TextCompletion
+    alias Jido.AI.{Model, Prompt}
 
     @impl true
     def run(params, _context) do
@@ -303,21 +303,22 @@ defmodule Jido.Actions.CoT do
       Action: #{inspect(params.action)}
       """)
 
-      with {:ok, result} <- execute_action(params.action, params.params, context) do
-        step = %{
-          index: params.step_index,
-          thought: params.thought,
-          action: params.action,
-          params: params.params,
-          result: result,
-          timestamp: step_start,
-          duration_ms: DateTime.diff(DateTime.utc_now(), step_start, :millisecond)
-        }
+      case execute_action(params.action, params.params, context) do
+        {:ok, result} ->
+          step = %{
+            index: params.step_index,
+            thought: params.thought,
+            action: params.action,
+            params: params.params,
+            result: result,
+            timestamp: step_start,
+            duration_ms: DateTime.diff(DateTime.utc_now(), step_start, :millisecond)
+          }
 
-        Logger.debug("[CoT Step #{params.step_index}] Completed: #{inspect(result)}")
+          Logger.debug("[CoT Step #{params.step_index}] Completed: #{inspect(result)}")
 
-        {:ok, %{step: step}}
-      else
+          {:ok, %{step: step}}
+
         {:error, reason} ->
           Logger.error("[CoT Step #{params.step_index}] Failed: #{inspect(reason)}")
 
@@ -400,16 +401,17 @@ defmodule Jido.Actions.CoT do
 
     @impl true
     def run(params, _context) do
-      with {:ok, validation} <- perform_validation(params) do
-        Logger.info("""
-        [CoT Validation]
-        Status: #{validation.status}
-        Match Score: #{Float.round(validation.match_score, 2)}
-        Recommendation: #{validation.recommendation}
-        """)
+      case perform_validation(params) do
+        {:ok, validation} ->
+          Logger.info("""
+          [CoT Validation]
+          Status: #{validation.status}
+          Match Score: #{Float.round(validation.match_score, 2)}
+          Recommendation: #{validation.recommendation}
+          """)
 
-        {:ok, %{validation: validation}}
-      else
+          {:ok, %{validation: validation}}
+
         {:error, reason} = error ->
           Logger.error("Validation failed: #{inspect(reason)}")
           error
@@ -548,16 +550,17 @@ defmodule Jido.Actions.CoT do
            }
          }}
       else
-        with {:ok, correction} <- analyze_error(params) do
-          Logger.info("""
-          [CoT Self-Correction]
-          Attempt: #{params.attempt + 1}/#{params.max_attempts}
-          Analysis: #{correction.analysis}
-          Strategy: #{correction.strategy}
-          """)
+        case analyze_error(params) do
+          {:ok, correction} ->
+            Logger.info("""
+            [CoT Self-Correction]
+            Attempt: #{params.attempt + 1}/#{params.max_attempts}
+            Analysis: #{correction.analysis}
+            Strategy: #{correction.strategy}
+            """)
 
-          {:ok, %{correction: correction}}
-        else
+            {:ok, %{correction: correction}}
+
           {:error, reason} = error ->
             Logger.error("Self-correction failed: #{inspect(reason)}")
             error

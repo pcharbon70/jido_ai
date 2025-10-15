@@ -82,7 +82,7 @@ defmodule Mix.Tasks.Jido.Validate.Capabilities do
                 }
 
               # Check for invalid format
-              not is_valid_capabilities_format?(model) ->
+              not valid_capabilities_format?(model) ->
                 if verbose do
                   Mix.shell().info("  ❌ #{model_id}: Invalid capabilities format")
                 end
@@ -109,7 +109,7 @@ defmodule Mix.Tasks.Jido.Validate.Capabilities do
     print_summary(results, total)
   end
 
-  defp is_valid_capabilities_format?(model) do
+  defp valid_capabilities_format?(model) do
     caps = Map.get(model, :capabilities) || Map.get(model, "capabilities")
 
     is_map(caps) and

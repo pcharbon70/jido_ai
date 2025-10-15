@@ -82,8 +82,8 @@ defmodule Jido.Actions.CoT.ProgramOfThought do
 
   alias Jido.Runner.ProgramOfThought.{
     ProblemClassifier,
-    ProgramGenerator,
     ProgramExecutor,
+    ProgramGenerator,
     ResultIntegrator
   }
 

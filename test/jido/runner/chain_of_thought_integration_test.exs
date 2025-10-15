@@ -1,9 +1,9 @@
 defmodule Jido.Runner.ChainOfThoughtIntegrationTest do
   use ExUnit.Case, async: false
 
+  alias Jido.AI.Prompt
   alias Jido.Runner.ChainOfThought
   alias Jido.Runner.ChainOfThought.{ReasoningParser, ReasoningPrompt}
-  alias Jido.AI.Prompt
 
   @moduletag :integration
 

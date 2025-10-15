@@ -4,10 +4,10 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
   alias Jido.Runner.ChainOfThought.TestExecution
 
   alias Jido.Runner.ChainOfThought.TestExecution.{
-    TestSuiteManager,
     ExecutionSandbox,
+    IterativeRefiner,
     ResultAnalyzer,
-    IterativeRefiner
+    TestSuiteManager
   }
 
   describe "TestSuiteManager.generate_tests/2" do
@@ -459,7 +459,7 @@ defmodule Jido.Runner.ChainOfThought.TestExecutionTest do
         status: :timeout,
         output: "",
         errors: [%{type: :timeout, message: "timeout"}],
-        duration_ms: 30000,
+        duration_ms: 30_000,
         exit_code: nil
       }
 

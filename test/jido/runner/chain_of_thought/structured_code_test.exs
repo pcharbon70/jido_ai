@@ -2,9 +2,9 @@ defmodule Jido.Runner.ChainOfThought.StructuredCodeTest do
   use ExUnit.Case, async: true
 
   alias Jido.Runner.ChainOfThought.StructuredCode.{
+    CodeValidator,
     ProgramAnalyzer,
-    ReasoningTemplates,
-    CodeValidator
+    ReasoningTemplates
   }
 
   describe "ProgramAnalyzer" do

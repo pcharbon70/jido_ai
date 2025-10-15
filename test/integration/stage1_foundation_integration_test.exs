@@ -14,9 +14,9 @@ defmodule Integration.Stage1FoundationTest do
 
   use ExUnit.Case, async: false
 
+  alias Jido.Agent
   alias Jido.Runner.ChainOfThought
   alias Jido.Skills.ChainOfThought, as: CoTSkill
-  alias Jido.Agent
 
   # ============================================================================
   # Test Setup and Helpers

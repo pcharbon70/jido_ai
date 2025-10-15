@@ -3,8 +3,8 @@ defmodule Jido.Runner.ProgramOfThoughtTest do
 
   alias Jido.Runner.ProgramOfThought.{
     ProblemClassifier,
-    ProgramGenerator,
     ProgramExecutor,
+    ProgramGenerator,
     ResultIntegrator
   }
 

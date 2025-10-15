@@ -2,7 +2,7 @@ defmodule Jido.Runner.TreeOfThoughtsTest do
   use ExUnit.Case, async: true
 
   alias Jido.Runner.TreeOfThoughts
-  alias Jido.Runner.TreeOfThoughts.{Tree, TreeNode, ThoughtGenerator, ThoughtEvaluator}
+  alias Jido.Runner.TreeOfThoughts.{ThoughtEvaluator, ThoughtGenerator, Tree, TreeNode}
 
   # =============================================================================
   # TreeNode Tests

@@ -83,27 +83,27 @@ defmodule Jido.Runner.ChainOfThought.OutcomeValidatorTest do
     end
   end
 
-  describe "is_successful?/1" do
+  describe "successful?/1" do
     test "recognizes ok tuples as successful" do
-      assert OutcomeValidator.is_successful?({:ok, %{}}) == true
-      assert OutcomeValidator.is_successful?({:ok, "result"}) == true
-      assert OutcomeValidator.is_successful?(:ok) == true
+      assert OutcomeValidator.successful?({:ok, %{}}) == true
+      assert OutcomeValidator.successful?({:ok, "result"}) == true
+      assert OutcomeValidator.successful?(:ok) == true
     end
 
     test "recognizes error tuples as not successful" do
-      assert OutcomeValidator.is_successful?({:error, "reason"}) == false
-      assert OutcomeValidator.is_successful?(:error) == false
+      assert OutcomeValidator.successful?({:error, "reason"}) == false
+      assert OutcomeValidator.successful?(:error) == false
     end
 
     test "recognizes boolean results" do
-      assert OutcomeValidator.is_successful?(true) == true
-      assert OutcomeValidator.is_successful?(false) == false
+      assert OutcomeValidator.successful?(true) == true
+      assert OutcomeValidator.successful?(false) == false
     end
 
     test "treats unknown results as successful" do
-      assert OutcomeValidator.is_successful?("some value") == true
-      assert OutcomeValidator.is_successful?(%{}) == true
-      assert OutcomeValidator.is_successful?(123) == true
+      assert OutcomeValidator.successful?("some value") == true
+      assert OutcomeValidator.successful?(%{}) == true
+      assert OutcomeValidator.successful?(123) == true
     end
   end
 

@@ -18,16 +18,16 @@ defmodule Jido.Runner.ChainOfThought.Stage2IntegrationTest do
   alias Jido.Runner.ChainOfThought.Backtracking
 
   alias Jido.Runner.ChainOfThought.Backtracking.{
-    StateManager,
+    BudgetManager,
     DeadEndDetector,
     PathExplorer,
-    BudgetManager
+    StateManager
   }
 
   alias Jido.Runner.ChainOfThought.StructuredCode.{
+    CodeValidator,
     ProgramAnalyzer,
-    ReasoningTemplates,
-    CodeValidator
+    ReasoningTemplates
   }
 
   # =============================================================================

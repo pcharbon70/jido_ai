@@ -213,13 +213,11 @@ defmodule Jido.Runner.ChainOfThought.Backtracking.StateManager do
   """
   @spec persist_stack(state_stack(), String.t()) :: :ok | {:error, term()}
   def persist_stack(stack, key) do
-    try do
-      :persistent_term.put({__MODULE__, :stack, key}, stack)
-      Logger.debug("Persisted state stack with key: #{key}")
-      :ok
-    rescue
-      error -> {:error, error}
-    end
+    :persistent_term.put({__MODULE__, :stack, key}, stack)
+    Logger.debug("Persisted state stack with key: #{key}")
+    :ok
+  rescue
+    error -> {:error, error}
   end
 
   @doc """

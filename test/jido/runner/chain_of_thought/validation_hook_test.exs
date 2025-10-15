@@ -2,7 +2,7 @@ defmodule Jido.Runner.ChainOfThought.ValidationHookTest do
   use ExUnit.Case, async: true
 
   alias Jido.Runner.ChainOfThought.ValidationHook
-  alias Jido.Runner.ChainOfThought.ValidationHook.{ValidationResult, ValidationConfig}
+  alias Jido.Runner.ChainOfThought.ValidationHook.{ValidationConfig, ValidationResult}
 
   describe "should_validate_execution?/1" do
     test "returns true when enable_validation_cot is not set" do

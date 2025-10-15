@@ -69,21 +69,19 @@ defmodule Jido.Runner.ChainOfThought.ReasoningParser do
   """
   @spec parse(String.t()) :: {:ok, ReasoningPlan.t()} | {:error, term()}
   def parse(text) when is_binary(text) do
-    try do
-      plan = %ReasoningPlan{
-        goal: extract_section(text, "GOAL"),
-        analysis: extract_section(text, "ANALYSIS"),
-        steps: extract_steps(text),
-        expected_results: extract_section(text, "EXPECTED_RESULTS"),
-        potential_issues: extract_issues(text),
-        raw_text: text
-      }
+    plan = %ReasoningPlan{
+      goal: extract_section(text, "GOAL"),
+      analysis: extract_section(text, "ANALYSIS"),
+      steps: extract_steps(text),
+      expected_results: extract_section(text, "EXPECTED_RESULTS"),
+      potential_issues: extract_issues(text),
+      raw_text: text
+    }
 
-      {:ok, plan}
-    rescue
-      error ->
-        {:error, "Failed to parse reasoning: #{inspect(error)}"}
-    end
+    {:ok, plan}
+  rescue
+    error ->
+      {:error, "Failed to parse reasoning: #{inspect(error)}"}
   end
 
   def parse(_), do: {:error, "Invalid reasoning text: must be a string"}

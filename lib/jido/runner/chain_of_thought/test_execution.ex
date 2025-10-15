@@ -26,10 +26,10 @@ defmodule Jido.Runner.ChainOfThought.TestExecution do
   """
 
   alias Jido.Runner.ChainOfThought.TestExecution.{
-    TestSuiteManager,
     ExecutionSandbox,
+    IterativeRefiner,
     ResultAnalyzer,
-    IterativeRefiner
+    TestSuiteManager
   }
 
   @doc """

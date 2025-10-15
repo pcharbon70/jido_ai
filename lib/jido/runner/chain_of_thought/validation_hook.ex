@@ -57,9 +57,9 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
   require Logger
   use TypedStruct
 
-  alias Jido.Runner.ChainOfThought.{PlanningHook, ExecutionHook, ErrorHandler}
   alias Jido.AI.Actions.TextCompletion
   alias Jido.AI.Model
+  alias Jido.Runner.ChainOfThought.{ErrorHandler, ExecutionHook, PlanningHook}
 
   typedstruct module: ValidationResult do
     @moduledoc """
@@ -202,39 +202,40 @@ defmodule Jido.Runner.ChainOfThought.ValidationHook do
 
     Logger.info("Validating execution results")
 
-    with {:ok, validation_result} <- perform_validation(agent, result, config) do
-      enriched_agent = enrich_agent_with_validation(agent, validation_result)
+    case perform_validation(agent, result, config) do
+      {:ok, validation_result} ->
+        enriched_agent = enrich_agent_with_validation(agent, validation_result)
 
-      case validation_result.recommendation do
-        :continue ->
-          Logger.info("Validation passed: #{validation_result.status}")
-          {:ok, enriched_agent}
+        case validation_result.recommendation do
+          :continue ->
+            Logger.info("Validation passed: #{validation_result.status}")
+            {:ok, enriched_agent}
 
-        :retry ->
-          if config.retry_on_failure do
-            Logger.warning("Validation failed, recommending retry")
-            retry_count = get_retry_count(agent)
+          :retry ->
+            if config.retry_on_failure do
+              Logger.warning("Validation failed, recommending retry")
+              retry_count = get_retry_count(agent)
 
-            if retry_count < config.max_retries do
-              adjusted_params = build_retry_params(agent, config, retry_count)
-              {:retry, increment_retry_count(enriched_agent), adjusted_params}
+              if retry_count < config.max_retries do
+                adjusted_params = build_retry_params(agent, config, retry_count)
+                {:retry, increment_retry_count(enriched_agent), adjusted_params}
+              else
+                Logger.warning("Max retries (#{config.max_retries}) exceeded, continuing anyway")
+                {:ok, enriched_agent}
+              end
             else
-              Logger.warning("Max retries (#{config.max_retries}) exceeded, continuing anyway")
+              Logger.info("Validation failed but retry disabled, continuing")
               {:ok, enriched_agent}
             end
-          else
-            Logger.info("Validation failed but retry disabled, continuing")
+
+          :investigate ->
+            Logger.warning("Validation suggests investigation: #{validation_result.reflection}")
             {:ok, enriched_agent}
-          end
 
-        :investigate ->
-          Logger.warning("Validation suggests investigation: #{validation_result.reflection}")
-          {:ok, enriched_agent}
+          _ ->
+            {:ok, enriched_agent}
+        end
 
-        _ ->
-          {:ok, enriched_agent}
-      end
-    else
       {:error, reason} ->
         Logger.warning("Validation failed with error: #{inspect(reason)}")
         # Graceful degradation - return agent unchanged

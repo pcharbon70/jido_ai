@@ -67,21 +67,21 @@ defmodule Jido.Runner.ChainOfThought.ErrorHandlerTest do
     end
   end
 
-  describe "is_recoverable?/2" do
+  describe "recoverable?/2" do
     test "LLM errors are generally recoverable" do
-      assert ErrorHandler.is_recoverable?(:llm_error, :timeout) == true
-      assert ErrorHandler.is_recoverable?(:llm_error, :rate_limit) == true
-      assert ErrorHandler.is_recoverable?(:llm_error, :api_error) == true
+      assert ErrorHandler.recoverable?(:llm_error, :timeout) == true
+      assert ErrorHandler.recoverable?(:llm_error, :rate_limit) == true
+      assert ErrorHandler.recoverable?(:llm_error, :api_error) == true
     end
 
     test "execution errors are recoverable" do
-      assert ErrorHandler.is_recoverable?(:execution_error, :action_error) == true
-      assert ErrorHandler.is_recoverable?(:execution_error, :unexpected_outcome) == true
+      assert ErrorHandler.recoverable?(:execution_error, :action_error) == true
+      assert ErrorHandler.recoverable?(:execution_error, :unexpected_outcome) == true
     end
 
     test "config errors are not recoverable" do
-      assert ErrorHandler.is_recoverable?(:config_error, :invalid_mode) == false
-      assert ErrorHandler.is_recoverable?(:config_error, :missing_parameter) == false
+      assert ErrorHandler.recoverable?(:config_error, :invalid_mode) == false
+      assert ErrorHandler.recoverable?(:config_error, :missing_parameter) == false
     end
   end
 

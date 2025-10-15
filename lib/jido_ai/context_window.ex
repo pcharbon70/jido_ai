@@ -71,8 +71,8 @@ defmodule Jido.AI.ContextWindow do
       )
   """
 
-  alias Jido.AI.{Model, Prompt, Tokenizer}
   alias Jido.AI.ContextWindow.Strategy
+  alias Jido.AI.{Model, Prompt, Tokenizer}
 
   defmodule Limits do
     @moduledoc """

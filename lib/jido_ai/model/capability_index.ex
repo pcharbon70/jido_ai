@@ -56,21 +56,19 @@ defmodule Jido.AI.Model.CapabilityIndex do
   """
   @spec build([Jido.AI.Model.t()]) :: :ok | {:error, term()}
   def build(models) when is_list(models) do
-    try do
-      # Create or clear ETS tables
-      ensure_tables_exist()
-      clear_tables()
+    # Create or clear ETS tables
+    ensure_tables_exist()
+    clear_tables()
 
-      # Populate index
-      Enum.each(models, &index_model/1)
+    # Populate index
+    Enum.each(models, &index_model/1)
 
-      Logger.debug("Built capability index for #{length(models)} models")
-      :ok
-    rescue
-      error ->
-        Logger.error("Failed to build capability index: #{inspect(error)}")
-        {:error, error}
-    end
+    Logger.debug("Built capability index for #{length(models)} models")
+    :ok
+  rescue
+    error ->
+      Logger.error("Failed to build capability index: #{inspect(error)}")
+      {:error, error}
   end
 
   @doc """

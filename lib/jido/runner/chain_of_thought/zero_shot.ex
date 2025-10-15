@@ -47,8 +47,8 @@ defmodule Jido.Runner.ChainOfThought.ZeroShot do
   """
 
   require Logger
-  alias Jido.AI.{Model, Prompt}
   alias Jido.AI.Actions.TextCompletion
+  alias Jido.AI.{Model, Prompt}
 
   @default_temperature 0.3
   @default_max_tokens 2000
@@ -182,7 +182,7 @@ defmodule Jido.Runner.ChainOfThought.ZeroShot do
   def extract_steps(text) do
     text
     |> String.split("\n")
-    |> Enum.filter(&is_step?/1)
+    |> Enum.filter(&step?/1)
     |> Enum.map(&clean_step/1)
     |> Enum.reject(&(&1 == ""))
   end
@@ -381,8 +381,8 @@ defmodule Jido.Runner.ChainOfThought.ZeroShot do
     end
   end
 
-  @spec is_step?(String.t()) :: boolean()
-  defp is_step?(line) do
+  @spec step?(String.t()) :: boolean()
+  defp step?(line) do
     trimmed = String.trim(line)
 
     # Check various step patterns

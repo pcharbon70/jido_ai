@@ -61,10 +61,10 @@ defmodule Jido.Runner.TreeOfThoughts do
   require Logger
 
   alias Jido.Runner.TreeOfThoughts.{
-    Tree,
-    TreeNode,
+    ThoughtEvaluator,
     ThoughtGenerator,
-    ThoughtEvaluator
+    Tree,
+    TreeNode
   }
 
   @default_search_strategy :bfs
@@ -228,7 +228,7 @@ defmodule Jido.Runner.TreeOfThoughts do
 
   defp dfs_search(state, node, result) do
     # Check if current node is solution
-    if is_solution?(state, node) do
+    if solution?(state, node) do
       {state, Map.merge(result, %{found: true, solution: node, reason: :solution_found})}
     else
       # Generate and evaluate children
@@ -283,7 +283,7 @@ defmodule Jido.Runner.TreeOfThoughts do
     # Take highest-value node
     [{_value, node} | rest_frontier] = frontier
 
-    if is_solution?(state, node) do
+    if solution?(state, node) do
       {state, Map.merge(result, %{found: true, solution: node, reason: :solution_found})}
     else
       # Expand node
@@ -301,13 +301,13 @@ defmodule Jido.Runner.TreeOfThoughts do
   # Helper functions
 
   defp find_solution_in_frontier(state, frontier) do
-    case Enum.find(frontier, &is_solution?(state, &1)) do
+    case Enum.find(frontier, &solution?(state, &1)) do
       nil -> :not_found
       node -> {:found, node}
     end
   end
 
-  defp is_solution?(state, node) do
+  defp solution?(state, node) do
     if state.solution_check do
       state.solution_check.(node)
     else

@@ -215,28 +215,26 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
   """
   @spec capture_runtime_errors(fun()) :: {:ok, term()} | {:error, map()}
   def capture_runtime_errors(fun) when is_function(fun, 0) do
-    try do
-      result = fun.()
-      {:ok, result}
-    rescue
-      error ->
-        {:error,
-         %{
-           type: :runtime_error,
-           error: error,
-           message: Exception.message(error),
-           stacktrace: __STACKTRACE__
-         }}
-    catch
-      kind, value ->
-        {:error,
-         %{
-           type: :caught,
-           kind: kind,
-           value: value,
-           stacktrace: __STACKTRACE__
-         }}
-    end
+    result = fun.()
+    {:ok, result}
+  rescue
+    error ->
+      {:error,
+       %{
+         type: :runtime_error,
+         error: error,
+         message: Exception.message(error),
+         stacktrace: __STACKTRACE__
+       }}
+  catch
+    kind, value ->
+      {:error,
+       %{
+         type: :caught,
+         kind: kind,
+         value: value,
+         stacktrace: __STACKTRACE__
+       }}
   end
 
   # Private functions
@@ -250,61 +248,59 @@ defmodule Jido.Runner.ChainOfThought.TestExecution.ExecutionSandbox do
         [timeout: timeout]
       end
 
-    try do
-      case System.cmd("mix", ["test", test_file, "--trace"], cmd_opts) do
-        {output, 0} ->
-          duration = System.monotonic_time(:millisecond) - start_time
+    case System.cmd("mix", ["test", test_file, "--trace"], cmd_opts) do
+      {output, 0} ->
+        duration = System.monotonic_time(:millisecond) - start_time
 
-          result = %{
-            status: :success,
-            output: output,
-            errors: [],
-            duration_ms: duration,
-            exit_code: 0
-          }
+        result = %{
+          status: :success,
+          output: output,
+          errors: [],
+          duration_ms: duration,
+          exit_code: 0
+        }
 
-          {:ok, result}
+        {:ok, result}
 
-        {output, exit_code} ->
-          duration = System.monotonic_time(:millisecond) - start_time
-
-          result = %{
-            status: :failure,
-            output: output,
-            errors: parse_test_failures(output),
-            duration_ms: duration,
-            exit_code: exit_code
-          }
-
-          {:ok, result}
-      end
-    rescue
-      error ->
+      {output, exit_code} ->
         duration = System.monotonic_time(:millisecond) - start_time
 
         result = %{
           status: :failure,
-          output: "",
-          errors: [%{type: :execution_error, message: Exception.message(error)}],
+          output: output,
+          errors: parse_test_failures(output),
           duration_ms: duration,
-          exit_code: nil
-        }
-
-        {:ok, result}
-    catch
-      :exit, {:timeout, _} ->
-        duration = System.monotonic_time(:millisecond) - start_time
-
-        result = %{
-          status: :timeout,
-          output: "",
-          errors: [%{type: :timeout, message: "Test execution exceeded #{timeout}ms timeout"}],
-          duration_ms: duration,
-          exit_code: nil
+          exit_code: exit_code
         }
 
         {:ok, result}
     end
+  rescue
+    error ->
+      duration = System.monotonic_time(:millisecond) - start_time
+
+      result = %{
+        status: :failure,
+        output: "",
+        errors: [%{type: :execution_error, message: Exception.message(error)}],
+        duration_ms: duration,
+        exit_code: nil
+      }
+
+      {:ok, result}
+  catch
+    :exit, {:timeout, _} ->
+      duration = System.monotonic_time(:millisecond) - start_time
+
+      result = %{
+        status: :timeout,
+        output: "",
+        errors: [%{type: :timeout, message: "Test execution exceeded #{timeout}ms timeout"}],
+        duration_ms: duration,
+        exit_code: nil
+      }
+
+      {:ok, result}
   end
 
   defp parse_compilation_errors(error_output) do

@@ -88,7 +88,7 @@ defmodule Jido.Runner.ProgramOfThought.ProblemClassifier do
   def classify(problem) when is_binary(problem) do
     analysis = %{
       domain: detect_domain(problem),
-      computational: is_computational?(problem),
+      computational: computational?(problem),
       complexity: estimate_complexity(problem),
       confidence: calculate_confidence(problem),
       operations: detect_operations(problem),
@@ -114,7 +114,7 @@ defmodule Jido.Runner.ProgramOfThought.ProblemClassifier do
       when is_binary(problem) and is_atom(domain) do
     analysis = %{
       domain: domain,
-      computational: is_computational?(problem),
+      computational: computational?(problem),
       complexity: estimate_complexity(problem),
       confidence: 1.0,
       # User-specified domain
@@ -154,7 +154,7 @@ defmodule Jido.Runner.ProgramOfThought.ProblemClassifier do
     end)
   end
 
-  defp is_computational?(problem) do
+  defp computational?(problem) do
     problem_lower = String.downcase(problem)
 
     # Check for computational indicators

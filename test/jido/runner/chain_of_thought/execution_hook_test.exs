@@ -4,10 +4,10 @@ defmodule Jido.Runner.ChainOfThought.ExecutionHookTest do
   alias Jido.Runner.ChainOfThought.ExecutionHook
 
   alias Jido.Runner.ChainOfThought.ExecutionHook.{
-    ExecutionPlan,
-    ExecutionStep,
     DataFlowDependency,
-    ErrorPoint
+    ErrorPoint,
+    ExecutionPlan,
+    ExecutionStep
   }
 
   describe "should_generate_execution_plan?/1" do

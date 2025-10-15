@@ -16,8 +16,8 @@ defmodule Integration.CoTPatternTest do
   use ExUnit.Case, async: false
 
   alias Jido.Runner.{
-    SelfConsistency,
     ReAct,
+    SelfConsistency,
     TreeOfThoughts
   }
 

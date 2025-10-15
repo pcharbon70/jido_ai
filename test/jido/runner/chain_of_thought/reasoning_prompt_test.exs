@@ -1,8 +1,8 @@
 defmodule Jido.Runner.ChainOfThought.ReasoningPromptTest do
   use ExUnit.Case, async: true
 
-  alias Jido.Runner.ChainOfThought.ReasoningPrompt
   alias Jido.AI.Prompt
+  alias Jido.Runner.ChainOfThought.ReasoningPrompt
 
   doctest ReasoningPrompt
 

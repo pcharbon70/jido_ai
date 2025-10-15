@@ -46,9 +46,9 @@ defmodule Jido.Runner.ChainOfThought.PlanningHook do
   require Logger
   use TypedStruct
 
-  alias Jido.Runner.ChainOfThought.ErrorHandler
   alias Jido.AI.Actions.TextCompletion
   alias Jido.AI.Model
+  alias Jido.Runner.ChainOfThought.ErrorHandler
 
   typedstruct module: PlanningReasoning do
     @moduledoc """

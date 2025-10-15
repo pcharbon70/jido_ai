@@ -73,8 +73,8 @@ defmodule Jido.Runner.ChainOfThought.TaskSpecificZeroShot do
   """
 
   require Logger
-  alias Jido.AI.{Model, Prompt}
   alias Jido.AI.Actions.TextCompletion
+  alias Jido.AI.{Model, Prompt}
 
   @default_temperature 0.3
   @default_max_tokens 2000
@@ -300,7 +300,7 @@ defmodule Jido.Runner.ChainOfThought.TaskSpecificZeroShot do
         {:error, "Task type is required"}
 
       task_type when is_atom(task_type) ->
-        if is_valid_task_type?(task_type) do
+        if valid_task_type?(task_type) do
           {:ok, task_type}
         else
           {:error, "Invalid task type: #{task_type}"}
@@ -311,8 +311,8 @@ defmodule Jido.Runner.ChainOfThought.TaskSpecificZeroShot do
     end
   end
 
-  @spec is_valid_task_type?(atom()) :: boolean()
-  defp is_valid_task_type?(task_type) do
+  @spec valid_task_type?(atom()) :: boolean()
+  defp valid_task_type?(task_type) do
     task_type in [:mathematical, :debugging, :workflow] or
       match?({:ok, _}, get_task_type_config(task_type))
   end
@@ -455,13 +455,13 @@ defmodule Jido.Runner.ChainOfThought.TaskSpecificZeroShot do
   defp extract_steps(text) do
     text
     |> String.split("\n")
-    |> Enum.filter(&is_step?/1)
+    |> Enum.filter(&step?/1)
     |> Enum.map(&clean_step/1)
     |> Enum.reject(&(&1 == ""))
   end
 
-  @spec is_step?(String.t()) :: boolean()
-  defp is_step?(line) do
+  @spec step?(String.t()) :: boolean()
+  defp step?(line) do
     trimmed = String.trim(line)
 
     (String.match?(trimmed, ~r/^\d+[\.\)]\s+/) or

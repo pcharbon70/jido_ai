@@ -39,8 +39,8 @@ defmodule Jido.Runner.SelfConsistency do
 
   alias Jido.Runner.SelfConsistency.{
     AnswerExtractor,
-    VotingMechanism,
-    PathQualityAnalyzer
+    PathQualityAnalyzer,
+    VotingMechanism
   }
 
   @default_sample_count 5

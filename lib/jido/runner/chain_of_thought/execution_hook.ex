@@ -44,9 +44,9 @@ defmodule Jido.Runner.ChainOfThought.ExecutionHook do
   require Logger
   use TypedStruct
 
-  alias Jido.Runner.ChainOfThought.{ErrorHandler}
   alias Jido.AI.Actions.TextCompletion
   alias Jido.AI.Model
+  alias Jido.Runner.ChainOfThought.ErrorHandler
 
   typedstruct module: ExecutionStep do
     @moduledoc """

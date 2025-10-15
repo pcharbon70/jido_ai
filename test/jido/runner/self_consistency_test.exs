@@ -2,7 +2,7 @@ defmodule Jido.Runner.SelfConsistencyTest do
   use ExUnit.Case, async: true
 
   alias Jido.Runner.SelfConsistency
-  alias Jido.Runner.SelfConsistency.{AnswerExtractor, VotingMechanism, PathQualityAnalyzer}
+  alias Jido.Runner.SelfConsistency.{AnswerExtractor, PathQualityAnalyzer, VotingMechanism}
 
   # =============================================================================
   # Answer Extraction Tests
