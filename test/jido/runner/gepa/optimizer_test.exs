@@ -389,4 +389,543 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
       Optimizer.stop(pid)
     end
   end
+
+  describe "evolution cycle coordination" do
+    test "executes complete evolution cycle through all phases" do
+      opts = [
+        population_size: 5,
+        max_generations: 3,
+        seed_prompts: ["Test prompt 1", "Test prompt 2"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Verify result structure
+      assert Map.has_key?(result, :best_prompts)
+      assert Map.has_key?(result, :final_generation)
+      assert Map.has_key?(result, :total_evaluations)
+      assert Map.has_key?(result, :history)
+      assert Map.has_key?(result, :duration_ms)
+      assert Map.has_key?(result, :stop_reason)
+
+      # Verify evolution ran
+      assert result.final_generation > 0
+      assert result.total_evaluations > 0
+      assert length(result.history) > 0
+
+      Optimizer.stop(pid)
+    end
+
+    test "generation coordinator executes multiple generations" do
+      opts = [
+        population_size: 4,
+        max_generations: 5,
+        evaluation_budget: 1000,  # High budget to avoid budget stop
+        seed_prompts: ["Prompt A", "Prompt B"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Should run multiple generations (may converge early due to random fitness)
+      assert result.final_generation >= 3
+      assert result.final_generation <= 5
+      assert length(result.history) == result.final_generation
+
+      Optimizer.stop(pid)
+    end
+
+    test "phase transitions maintain state synchronization" do
+      opts = [
+        population_size: 3,
+        max_generations: 2,
+        seed_prompts: ["Initial prompt"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Verify state flowed through phases correctly
+      # Each generation should have metrics
+      assert Enum.all?(result.history, fn metrics ->
+               Map.has_key?(metrics, :generation) and
+                 Map.has_key?(metrics, :best_fitness) and
+                 Map.has_key?(metrics, :avg_fitness) and
+                 Map.has_key?(metrics, :diversity) and
+                 Map.has_key?(metrics, :evaluations_used) and
+                 Map.has_key?(metrics, :timestamp)
+             end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "evaluates unevaluated candidates in population" do
+      opts = [
+        population_size: 5,
+        max_generations: 1,
+        seed_prompts: ["Test prompt"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Should have evaluated the population
+      assert result.total_evaluations > 0
+      assert length(result.best_prompts) > 0
+
+      # Best prompts should have fitness scores
+      assert Enum.all?(result.best_prompts, fn prompt ->
+               Map.has_key?(prompt, :fitness) and is_float(prompt.fitness)
+             end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "selection phase creates next generation with elitism" do
+      opts = [
+        population_size: 10,
+        max_generations: 3,
+        seed_prompts: ["Elite prompt", "Good prompt", "Average prompt"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Verify best prompts are preserved (elitism)
+      # Best fitness should not decrease across generations
+      fitnesses = Enum.map(result.history, & &1.best_fitness)
+
+      # Each generation's best should be >= previous (or very close due to float precision)
+      pairs = Enum.zip(fitnesses, Enum.drop(fitnesses, 1))
+      assert Enum.all?(pairs, fn {prev, curr} -> curr >= prev - 0.001 end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "mutation phase generates offspring from parents" do
+      opts = [
+        population_size: 6,
+        max_generations: 2,
+        seed_prompts: ["Parent prompt"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Offspring should be created (population maintained across generations)
+      assert result.final_generation == 2
+      assert length(result.history) == 2
+
+      Optimizer.stop(pid)
+    end
+  end
+
+  describe "progress tracking" do
+    test "records generation metrics in history" do
+      opts = [
+        population_size: 5,
+        max_generations: 4,
+        seed_prompts: ["Track me"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Should have 4 generation metrics
+      assert length(result.history) == 4
+
+      # Each metric should have required fields
+      Enum.each(result.history, fn metrics ->
+        assert is_integer(metrics.generation)
+        assert is_float(metrics.best_fitness)
+        assert is_float(metrics.avg_fitness)
+        assert is_float(metrics.diversity)
+        assert is_integer(metrics.evaluations_used)
+        assert is_integer(metrics.timestamp)
+      end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "history is returned in chronological order" do
+      opts = [
+        population_size: 3,
+        max_generations: 3,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Generations should be in order 1, 2, 3
+      generations = Enum.map(result.history, & &1.generation)
+      assert generations == [1, 2, 3]
+
+      # Timestamps should be increasing
+      timestamps = Enum.map(result.history, & &1.timestamp)
+      assert timestamps == Enum.sort(timestamps)
+
+      Optimizer.stop(pid)
+    end
+
+    test "tracks best fitness across generations" do
+      opts = [
+        population_size: 5,
+        max_generations: 3,
+        seed_prompts: ["Fitness tracker"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Each generation should have best_fitness tracked
+      best_fitnesses = Enum.map(result.history, & &1.best_fitness)
+      assert length(best_fitnesses) == 3
+      assert Enum.all?(best_fitnesses, fn f -> f >= 0.0 and f <= 1.0 end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "tracks diversity metrics across generations" do
+      opts = [
+        population_size: 8,
+        max_generations: 2,
+        seed_prompts: ["Diverse prompt 1", "Diverse prompt 2"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Each generation should have diversity tracked
+      diversities = Enum.map(result.history, & &1.diversity)
+      assert length(diversities) == 2
+      assert Enum.all?(diversities, fn d -> is_float(d) and d >= 0.0 end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "tracks cumulative evaluations used" do
+      opts = [
+        population_size: 4,
+        max_generations: 3,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Evaluations should increase across generations
+      evaluations = Enum.map(result.history, & &1.evaluations_used)
+      assert evaluations == Enum.sort(evaluations)
+
+      # Total should match final count
+      assert result.total_evaluations == List.last(evaluations)
+
+      Optimizer.stop(pid)
+    end
+
+    test "reports duration in milliseconds" do
+      opts = [
+        population_size: 3,
+        max_generations: 2,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      assert is_integer(result.duration_ms)
+      assert result.duration_ms > 0
+
+      Optimizer.stop(pid)
+    end
+  end
+
+  describe "early stopping" do
+    test "stops at max_generations limit" do
+      opts = [
+        population_size: 5,
+        max_generations: 3,
+        evaluation_budget: 1000,
+        seed_prompts: ["Test"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Should stop at exactly max_generations
+      assert result.final_generation == 3
+      assert result.stop_reason == :max_generations_reached
+
+      Optimizer.stop(pid)
+    end
+
+    test "stops when evaluation budget exhausted" do
+      opts = [
+        population_size: 10,
+        max_generations: 100,
+        evaluation_budget: 15,
+        seed_prompts: ["Budget test"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Should stop before max_generations due to budget
+      assert result.final_generation < 100
+      assert result.stop_reason == :budget_exhausted
+      # Budget check happens before generation start, so we may slightly exceed
+      # by the evaluations in the final generation
+      assert result.total_evaluations <= 20
+
+      Optimizer.stop(pid)
+    end
+
+    test "stops when optimization converges" do
+      # Note: This test may be flaky due to randomness in mock evaluation
+      # In real implementation, convergence would be more deterministic
+      opts = [
+        population_size: 3,
+        max_generations: 100,
+        evaluation_budget: 1000,
+        seed_prompts: ["Converge test"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # If converged, should stop before limits
+      if result.stop_reason == :converged do
+        assert result.final_generation < 100
+        assert result.total_evaluations < 1000
+      end
+
+      # Should always have a valid stop reason
+      assert result.stop_reason in [:max_generations_reached, :budget_exhausted, :converged]
+
+      Optimizer.stop(pid)
+    end
+
+    test "returns correct stop reason in result" do
+      opts = [
+        population_size: 4,
+        max_generations: 2,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      assert Map.has_key?(result, :stop_reason)
+      assert result.stop_reason in [:max_generations_reached, :budget_exhausted, :converged]
+
+      Optimizer.stop(pid)
+    end
+  end
+
+  describe "convergence detection" do
+    test "detects convergence through fitness variance" do
+      # This test verifies the convergence detection logic
+      # Convergence is detected when fitness variance < 0.001 over last 3 generations
+      opts = [
+        population_size: 3,
+        max_generations: 50,
+        evaluation_budget: 500,
+        seed_prompts: ["Stable fitness"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      if result.stop_reason == :converged do
+        # If converged, last 3 generations should have similar fitness
+        last_three = Enum.take(result.history, -3)
+        fitnesses = Enum.map(last_three, & &1.best_fitness)
+
+        mean = Enum.sum(fitnesses) / length(fitnesses)
+        variance =
+          Enum.reduce(fitnesses, 0.0, fn f, acc ->
+            acc + :math.pow(f - mean, 2)
+          end) / length(fitnesses)
+
+        assert variance < 0.001
+      end
+
+      Optimizer.stop(pid)
+    end
+
+    test "requires at least 3 generations for convergence check" do
+      opts = [
+        population_size: 3,
+        max_generations: 2,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # With only 2 generations, cannot converge (requires 3 for variance check)
+      assert result.stop_reason != :converged
+
+      Optimizer.stop(pid)
+    end
+  end
+
+  describe "result preparation" do
+    test "includes best prompts in result" do
+      opts = [
+        population_size: 5,
+        max_generations: 2,
+        seed_prompts: ["Result test"],
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      assert is_list(result.best_prompts)
+      assert length(result.best_prompts) <= 5
+
+      # Each prompt should have required fields
+      Enum.each(result.best_prompts, fn prompt ->
+        assert Map.has_key?(prompt, :prompt)
+        assert Map.has_key?(prompt, :fitness)
+        assert Map.has_key?(prompt, :generation)
+        assert Map.has_key?(prompt, :metadata)
+      end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "limits best prompts to top 5 by default" do
+      opts = [
+        population_size: 20,
+        max_generations: 1,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # Should return at most 5 best prompts
+      assert length(result.best_prompts) <= 5
+
+      Optimizer.stop(pid)
+    end
+
+    test "includes complete history in chronological order" do
+      opts = [
+        population_size: 3,
+        max_generations: 4,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      assert length(result.history) == 4
+
+      # History should be in chronological order (generation 1, 2, 3, 4)
+      generations = Enum.map(result.history, & &1.generation)
+      assert generations == [1, 2, 3, 4]
+
+      Optimizer.stop(pid)
+    end
+
+    test "reports final generation count" do
+      opts = [
+        population_size: 3,
+        max_generations: 5,
+        evaluation_budget: 1000,  # High budget to avoid budget stop
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      # May stop early due to convergence with random fitness values
+      assert result.final_generation > 0
+      assert result.final_generation <= 5
+      # Verify stop reason is valid
+      assert result.stop_reason in [:max_generations_reached, :converged]
+
+      Optimizer.stop(pid)
+    end
+
+    test "reports total evaluations performed" do
+      opts = [
+        population_size: 4,
+        max_generations: 3,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      {:ok, result} = Optimizer.optimize(pid)
+
+      assert is_integer(result.total_evaluations)
+      assert result.total_evaluations > 0
+
+      Optimizer.stop(pid)
+    end
+  end
 end

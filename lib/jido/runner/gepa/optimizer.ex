@@ -451,10 +451,315 @@ defmodule Jido.Runner.GEPA.Optimizer do
   @doc false
   @spec execute_optimization_loop(State.t()) :: optimization_result()
   defp execute_optimization_loop(%State{} = state) do
-    # Placeholder for optimization loop
-    # This will be implemented in subsequent tasks (1.1.3, 1.1.4)
-    Logger.info("Optimization loop placeholder - to be implemented in Tasks 1.1.3-1.1.4")
+    Logger.info("Starting evolution cycle coordination",
+      max_generations: state.config.max_generations,
+      evaluation_budget: state.config.evaluation_budget
+    )
 
+    updated_state = %{state | status: :running}
+
+    # Run evolution cycles until termination condition met
+    final_state = run_evolution_cycles(updated_state)
+
+    # Prepare final result
+    prepare_optimization_result(final_state)
+  end
+
+  @doc false
+  @spec run_evolution_cycles(State.t()) :: State.t()
+  defp run_evolution_cycles(%State{} = state) do
+    cond do
+      # Check if we should stop
+      should_stop?(state) ->
+        Logger.info("Evolution cycle terminated", reason: get_stop_reason(state))
+        state
+
+      # Continue to next generation
+      true ->
+        Logger.info("Starting generation #{state.generation + 1}")
+
+        # Execute one complete generation cycle
+        case execute_generation(state) do
+          {:ok, new_state} ->
+            # Recursively continue to next generation
+            run_evolution_cycles(new_state)
+
+          {:error, reason} ->
+            Logger.error("Generation failed", reason: reason, generation: state.generation)
+            %{state | status: :failed}
+        end
+    end
+  end
+
+  @doc false
+  @spec execute_generation(State.t()) :: {:ok, State.t()} | {:error, term()}
+  defp execute_generation(%State{} = state) do
+    try do
+      # Phase 1: Evaluation - evaluate all candidates in population
+      Logger.debug("Phase 1: Evaluating population", generation: state.generation + 1)
+      {evaluation_results, evals_used} = evaluate_population(state)
+
+      # Update state with evaluation results
+      state_after_eval = update_population_fitness(state, evaluation_results, evals_used)
+
+      # Phase 2: Reflection - analyze results (placeholder for Section 1.3)
+      Logger.debug("Phase 2: Reflection (placeholder)", generation: state.generation + 1)
+      reflection_insights = perform_reflection(state_after_eval)
+
+      # Phase 3: Mutation - generate new candidates (placeholder for Section 1.4)
+      Logger.debug("Phase 3: Mutation (placeholder)", generation: state.generation + 1)
+      offspring = generate_offspring(state_after_eval, reflection_insights)
+
+      # Phase 4: Selection - select next generation
+      Logger.debug("Phase 4: Selection", generation: state.generation + 1)
+      next_population = perform_selection(state_after_eval, offspring)
+
+      # Phase 5: Progress tracking - record generation metrics
+      Logger.debug("Phase 5: Recording generation metrics", generation: state.generation + 1)
+      final_state = record_generation_metrics(state_after_eval, next_population)
+
+      Logger.info("Generation #{final_state.generation} complete",
+        best_fitness: final_state.best_fitness,
+        evaluations_used: final_state.evaluations_used
+      )
+
+      {:ok, final_state}
+    rescue
+      e ->
+        Logger.error("Error in generation execution",
+          error: Exception.message(e),
+          stacktrace: Exception.format_stacktrace(__STACKTRACE__)
+        )
+        {:error, e}
+    end
+  end
+
+  # Phase 1: Evaluation
+  @doc false
+  @spec evaluate_population(State.t()) :: {list(map()), non_neg_integer()}
+  defp evaluate_population(%State{} = state) do
+    candidates = Population.get_all(state.population)
+    unevaluated = Enum.filter(candidates, fn c -> is_nil(c.fitness) end)
+
+    # For now, use simple mock evaluation
+    # Real evaluation will use Scheduler (Task 1.1.3) and evaluation system (Section 1.2)
+    results =
+      Enum.map(unevaluated, fn candidate ->
+        # Mock fitness: random score with some correlation to prompt length
+        fitness = mock_evaluate_prompt(candidate.prompt)
+        %{id: candidate.id, fitness: fitness}
+      end)
+
+    evaluations_count = length(results)
+    Logger.debug("Evaluated #{evaluations_count} candidates")
+
+    {results, evaluations_count}
+  end
+
+  @doc false
+  @spec mock_evaluate_prompt(String.t()) :: float()
+  defp mock_evaluate_prompt(prompt) do
+    # Simple mock: score based on prompt characteristics
+    # Real implementation will use actual task evaluation
+    base_score = 0.5
+    length_factor = min(String.length(prompt) / 200.0, 0.3)
+    randomness = :rand.uniform() * 0.2
+
+    min(base_score + length_factor + randomness, 1.0)
+  end
+
+  @doc false
+  @spec update_population_fitness(State.t(), list(map()), non_neg_integer()) :: State.t()
+  defp update_population_fitness(%State{} = state, results, evals_used) do
+    # Update fitness for each evaluated candidate
+    population =
+      Enum.reduce(results, state.population, fn result, pop ->
+        case Population.update_fitness(pop, result.id, result.fitness) do
+          {:ok, updated_pop} -> updated_pop
+          {:error, _} -> pop
+        end
+      end)
+
+    stats = Population.statistics(population)
+
+    %{state |
+      population: population,
+      evaluations_used: state.evaluations_used + evals_used,
+      best_fitness: stats.best_fitness
+    }
+  end
+
+  # Phase 2: Reflection (placeholder)
+  @doc false
+  @spec perform_reflection(State.t()) :: map()
+  defp perform_reflection(%State{} = _state) do
+    # Placeholder for LLM-guided reflection (Section 1.3)
+    # Returns mock insights for now
+    %{
+      insights: [],
+      suggestions: [],
+      failure_patterns: []
+    }
+  end
+
+  # Phase 3: Mutation (placeholder)
+  @doc false
+  @spec generate_offspring(State.t(), map()) :: list(map())
+  defp generate_offspring(%State{} = state, _insights) do
+    # Placeholder for mutation operators (Section 1.4)
+    # Generate simple variations of best candidates for now
+    best_candidates = Population.get_best(state.population, limit: 3)
+
+    offspring =
+      Enum.flat_map(best_candidates, fn parent ->
+        [
+          %{
+            prompt: "#{parent.prompt} (variation)",
+            fitness: nil,
+            generation: state.generation + 1,
+            parent_ids: [parent.id],
+            metadata: %{source: :mutation, parent: parent.id}
+          }
+        ]
+      end)
+
+    Logger.debug("Generated #{length(offspring)} offspring")
+    offspring
+  end
+
+  # Phase 4: Selection
+  @doc false
+  @spec perform_selection(State.t(), list(map())) :: Population.t()
+  defp perform_selection(%State{} = state, offspring) do
+    # Simple fitness-based selection (elitism + offspring)
+    # More sophisticated selection (Pareto, tournament) in Stage 2
+
+    # Get all evaluated candidates
+    all_candidates = Population.get_all(state.population)
+    evaluated = Enum.filter(all_candidates, fn c -> not is_nil(c.fitness) end)
+
+    # Sort by fitness and take top performers (elitism)
+    elite_count = div(state.config.population_size, 2)
+    elites = Enum.take(Enum.sort_by(evaluated, & &1.fitness, :desc), elite_count)
+
+    Logger.debug("Selected #{length(elites)} elites for next generation")
+
+    # Create new population
+    {:ok, next_population} = Population.new(
+      size: state.config.population_size,
+      generation: state.generation + 1
+    )
+
+    # Add elites
+    next_population =
+      Enum.reduce(elites, next_population, fn candidate, pop ->
+        case Population.add_candidate(pop, Map.from_struct(candidate)) do
+          {:ok, updated_pop} -> updated_pop
+          {:error, _} -> pop
+        end
+      end)
+
+    # Add offspring to fill population
+    next_population =
+      Enum.reduce(offspring, next_population, fn candidate, pop ->
+        case Population.add_candidate(pop, candidate) do
+          {:ok, updated_pop} -> updated_pop
+          {:error, _} -> pop
+        end
+      end)
+
+    next_population
+  end
+
+  # Phase 5: Progress Tracking
+  @doc false
+  @spec record_generation_metrics(State.t(), Population.t()) :: State.t()
+  defp record_generation_metrics(%State{} = state, next_population) do
+    stats = Population.statistics(next_population)
+
+    generation_metrics = %{
+      generation: state.generation + 1,
+      best_fitness: stats.best_fitness,
+      avg_fitness: stats.avg_fitness,
+      diversity: stats.diversity,
+      evaluations_used: state.evaluations_used,
+      timestamp: System.monotonic_time(:millisecond)
+    }
+
+    %{state |
+      population: next_population,
+      generation: state.generation + 1,
+      history: [generation_metrics | state.history],
+      best_fitness: stats.best_fitness
+    }
+  end
+
+  # Early Stopping / Convergence Detection
+  @doc false
+  @spec should_stop?(State.t()) :: boolean()
+  defp should_stop?(%State{} = state) do
+    cond do
+      # Check generation limit
+      state.generation >= state.config.max_generations ->
+        true
+
+      # Check evaluation budget
+      state.evaluations_used >= state.config.evaluation_budget ->
+        true
+
+      # Check convergence (fitness plateau)
+      converged?(state) ->
+        true
+
+      # Continue
+      true ->
+        false
+    end
+  end
+
+  @doc false
+  @spec converged?(State.t()) :: boolean()
+  defp converged?(%State{} = state) do
+    # Need at least 3 generations to detect plateau
+    if length(state.history) < 3 do
+      false
+    else
+      # Check if best fitness hasn't improved in last 3 generations
+      recent_history = Enum.take(state.history, 3)
+      fitnesses = Enum.map(recent_history, & &1.best_fitness)
+
+      # Calculate fitness variance
+      mean = Enum.sum(fitnesses) / length(fitnesses)
+      variance = Enum.reduce(fitnesses, 0.0, fn f, acc ->
+        acc + :math.pow(f - mean, 2)
+      end) / length(fitnesses)
+
+      # Converged if variance is very small (< 0.001)
+      variance < 0.001
+    end
+  end
+
+  @doc false
+  @spec get_stop_reason(State.t()) :: atom()
+  defp get_stop_reason(%State{} = state) do
+    cond do
+      state.generation >= state.config.max_generations ->
+        :max_generations_reached
+
+      state.evaluations_used >= state.config.evaluation_budget ->
+        :budget_exhausted
+
+      converged?(state) ->
+        :converged
+
+      true ->
+        :unknown
+    end
+  end
+
+  @doc false
+  @spec prepare_optimization_result(State.t()) :: optimization_result()
+  defp prepare_optimization_result(%State{} = state) do
     duration_ms = System.monotonic_time(:millisecond) - state.started_at
 
     best_candidates =
@@ -479,8 +784,9 @@ defmodule Jido.Runner.GEPA.Optimizer do
       best_prompts: best_prompts,
       final_generation: state.generation,
       total_evaluations: state.evaluations_used,
-      history: state.history,
-      duration_ms: duration_ms
+      history: Enum.reverse(state.history),
+      duration_ms: duration_ms,
+      stop_reason: get_stop_reason(state)
     }
   end
 end
