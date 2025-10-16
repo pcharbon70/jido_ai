@@ -88,6 +88,7 @@ defmodule Jido.Runner.GEPA.Evaluator do
 
   alias Jido.AI.Agent
   alias Jido.Agent.Server
+  alias Jido.Runner.GEPA.Metrics
   alias Jido.Runner.GEPA.Trajectory
   alias Jido.Signal
 
@@ -459,21 +460,29 @@ defmodule Jido.Runner.GEPA.Evaluator do
   @doc false
   @spec parse_evaluation_response(prompt(), Signal.t(), EvaluationConfig.t(), Trajectory.t()) ::
           EvaluationResult.t()
-  defp parse_evaluation_response(prompt, response, %EvaluationConfig{} = _config, trajectory) do
-    # Parse agent response and calculate fitness
-    # For now, use mock fitness calculation
-    # Section 1.2.3 will implement real metrics aggregation
-    fitness = calculate_mock_fitness(prompt, response)
+  defp parse_evaluation_response(prompt, response, %EvaluationConfig{} = config, trajectory) do
+    # Complete trajectory to calculate final duration
+    trajectory = Trajectory.complete(trajectory, outcome: :success)
+
+    # Collect metrics from trajectory and response
+    metrics_collection = collect_metrics_from_evaluation(trajectory, response, config)
+
+    # Calculate fitness from aggregated metrics
+    fitness = Metrics.calculate_fitness(metrics_collection)
+
+    # Get aggregated statistics
+    aggregated_metrics = Metrics.aggregate(metrics_collection)
 
     # Record fitness calculation
     trajectory =
       Trajectory.add_step(trajectory,
         type: :reasoning,
-        content: "Calculated fitness score",
+        content: "Calculated fitness score from metrics",
         importance: :high,
         metadata: %{
           fitness: fitness,
-          calculation_method: :mock
+          calculation_method: :metrics_aggregation,
+          metrics_summary: aggregated_metrics
         }
       )
 
@@ -482,6 +491,7 @@ defmodule Jido.Runner.GEPA.Evaluator do
       Trajectory.add_snapshot(trajectory,
         state: %{
           fitness: fitness,
+          metrics: aggregated_metrics,
           response: response.data,
           response_type: response.type
         },
@@ -501,9 +511,6 @@ defmodule Jido.Runner.GEPA.Evaluator do
         }
       )
 
-    # Complete trajectory
-    trajectory = Trajectory.complete(trajectory, outcome: :success)
-
     %EvaluationResult{
       prompt: prompt,
       fitness: fitness,
@@ -511,7 +518,8 @@ defmodule Jido.Runner.GEPA.Evaluator do
         success: true,
         response_type: response.type,
         trajectory_steps: length(trajectory.steps),
-        trajectory_snapshots: length(trajectory.state_snapshots)
+        trajectory_snapshots: length(trajectory.state_snapshots),
+        aggregated: aggregated_metrics
       },
       trajectory: trajectory,
       error: nil
@@ -519,15 +527,129 @@ defmodule Jido.Runner.GEPA.Evaluator do
   end
 
   @doc false
-  @spec calculate_mock_fitness(prompt(), Signal.t()) :: float()
-  defp calculate_mock_fitness(prompt, _response) do
-    # Mock fitness calculation until Section 1.2.3 implements real metrics
-    # Score based on prompt characteristics
-    base_score = 0.5
-    length_factor = min(String.length(prompt) / 200.0, 0.3)
-    randomness = :rand.uniform() * 0.2
+  @spec collect_metrics_from_evaluation(Trajectory.t(), Signal.t(), EvaluationConfig.t()) ::
+          Metrics.t()
+  defp collect_metrics_from_evaluation(
+         %Trajectory{} = trajectory,
+         %Signal{} = response,
+         %EvaluationConfig{} = config
+       ) do
+    task_id = config.task[:id] || "default_task"
 
-    min(base_score + length_factor + randomness, 1.0)
+    metrics =
+      Metrics.new(
+        metadata: %{
+          prompt: trajectory.metadata[:prompt],
+          task_type: config.task[:type],
+          trajectory_id: trajectory.id
+        }
+      )
+
+    # Success rate: 1.0 for successful completion, 0.0 for failure
+    success_rate = if trajectory.outcome == :success, do: 1.0, else: 0.0
+
+    metrics =
+      Metrics.add_metric(metrics, :success_rate, success_rate,
+        task_id: task_id,
+        metadata: %{outcome: trajectory.outcome}
+      )
+
+    # Latency: execution duration in milliseconds
+    metrics =
+      if trajectory.duration_ms do
+        Metrics.add_metric(metrics, :latency, trajectory.duration_ms,
+          task_id: task_id,
+          metadata: %{started_at: trajectory.started_at, completed_at: trajectory.completed_at}
+        )
+      else
+        metrics
+      end
+
+    # Quality score: based on trajectory characteristics
+    quality_score = calculate_quality_score(trajectory, response)
+
+    metrics =
+      Metrics.add_metric(metrics, :quality_score, quality_score,
+        task_id: task_id,
+        metadata: %{
+          step_count: length(trajectory.steps),
+          snapshot_count: length(trajectory.state_snapshots),
+          response_type: response.type
+        }
+      )
+
+    # Accuracy: placeholder for task-specific accuracy measurement
+    # In a real implementation, this would be based on comparing output to expected result
+    accuracy = calculate_accuracy_score(trajectory, response, config)
+
+    metrics =
+      Metrics.add_metric(metrics, :accuracy, accuracy,
+        task_id: task_id,
+        metadata: %{
+          has_response_data: response.data != nil,
+          critical_steps: count_critical_steps(trajectory)
+        }
+      )
+
+    Logger.debug("Collected evaluation metrics",
+      trajectory_id: trajectory.id,
+      success_rate: success_rate,
+      quality_score: quality_score,
+      accuracy: accuracy,
+      duration_ms: trajectory.duration_ms
+    )
+
+    metrics
+  end
+
+  @doc false
+  @spec calculate_quality_score(Trajectory.t(), Signal.t()) :: float()
+  defp calculate_quality_score(%Trajectory{} = trajectory, %Signal{} = _response) do
+    # Quality score based on trajectory characteristics
+    base_score = 0.5
+
+    # Bonus for having reasonable step count (not too few, not too many)
+    step_count = length(trajectory.steps)
+
+    step_score =
+      cond do
+        step_count >= 5 and step_count <= 20 -> 0.3
+        step_count > 20 -> 0.2
+        true -> 0.1
+      end
+
+    # Bonus for having state snapshots
+    snapshot_score = if length(trajectory.state_snapshots) > 0, do: 0.1, else: 0.0
+
+    # Bonus for completing without errors
+    completion_score = if trajectory.outcome == :success, do: 0.1, else: -0.2
+
+    (base_score + step_score + snapshot_score + completion_score)
+    |> max(0.0)
+    |> min(1.0)
+  end
+
+  @doc false
+  @spec calculate_accuracy_score(Trajectory.t(), Signal.t(), EvaluationConfig.t()) :: float()
+  defp calculate_accuracy_score(%Trajectory{} = trajectory, %Signal{} = response, %EvaluationConfig{} = _config) do
+    # Placeholder accuracy calculation
+    # In a real implementation, this would compare the agent's output to expected results
+    # For now, base it on response presence and trajectory completion
+    base_accuracy = 0.5
+
+    response_bonus = if response.data != nil, do: 0.3, else: 0.0
+    completion_bonus = if trajectory.outcome == :success, do: 0.2, else: 0.0
+
+    (base_accuracy + response_bonus + completion_bonus)
+    |> max(0.0)
+    |> min(1.0)
+  end
+
+  @doc false
+  @spec count_critical_steps(Trajectory.t()) :: non_neg_integer()
+  defp count_critical_steps(%Trajectory{} = trajectory) do
+    trajectory.steps
+    |> Enum.count(fn step -> step.importance == :critical or step.importance == :high end)
   end
 
   @doc false
