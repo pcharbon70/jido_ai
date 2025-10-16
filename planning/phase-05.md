@@ -130,13 +130,13 @@ Implement result synchronization collecting evaluation outcomes from concurrent 
 - [x] 1.2.4.4 Support partial result collection when evaluations timeout
 
 ### Unit Tests - Section 1.2
-- [ ] **Unit Tests 1.2 Complete**
-- [ ] Test agent spawning with various configurations
-- [ ] Test trajectory collection completeness
-- [ ] Test metrics aggregation accuracy
-- [ ] Test concurrent evaluation handling
-- [ ] Validate timeout enforcement
-- [ ] Test result synchronization under failures
+- [x] **Unit Tests 1.2 Complete**
+- [x] Test agent spawning with various configurations
+- [x] Test trajectory collection completeness
+- [x] Test metrics aggregation accuracy
+- [x] Test concurrent evaluation handling
+- [x] Validate timeout enforcement
+- [x] Test result synchronization under failures
 
 ---
 
