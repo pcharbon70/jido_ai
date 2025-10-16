@@ -883,4 +883,189 @@ defmodule Jido.Runner.GEPA.SchedulerTest do
       Scheduler.stop(pid)
     end
   end
+
+  describe "fault tolerance" do
+    test "handles scheduler process termination gracefully" do
+      # Trap exits so we can observe the process dying without crashing the test
+      Process.flag(:trap_exit, true)
+
+      {:ok, pid} = Scheduler.start_link(max_concurrent: 3)
+
+      # Verify scheduler is running
+      assert Process.alive?(pid)
+      {:ok, status} = Scheduler.status(pid)
+      assert status.running == 0
+
+      # Terminate the process
+      Process.exit(pid, :kill)
+      Process.sleep(50)
+
+      # Process should be terminated
+      refute Process.alive?(pid)
+
+      # Reset trap_exit to default
+      Process.flag(:trap_exit, false)
+    end
+
+    test "rejects operations after scheduler termination" do
+      {:ok, pid} = Scheduler.start_link([])
+
+      # Terminate the scheduler
+      Scheduler.stop(pid)
+      Process.sleep(100)
+
+      task_spec = %{
+        candidate_id: "test",
+        evaluator: fn -> {:ok, 1} end
+      }
+
+      # Operations should fail gracefully
+      catch_exit(Scheduler.submit_task(pid, task_spec))
+      catch_exit(Scheduler.status(pid))
+      catch_exit(Scheduler.get_result(pid, "task_123"))
+    end
+
+    test "maintains queue integrity under rapid submissions" do
+      {:ok, pid} = Scheduler.start_link(max_concurrent: 2, max_queue_size: 50)
+
+      # Rapidly submit many tasks
+      task_ids =
+        for i <- 1..30 do
+          task = %{
+            candidate_id: "cand_#{i}",
+            evaluator: fn ->
+              Process.sleep(10)
+              {:ok, i}
+            end
+          }
+
+          {:ok, task_id} = Scheduler.submit_task(pid, task)
+          task_id
+        end
+
+      # All tasks should be submitted successfully
+      assert length(task_ids) == 30
+
+      # Wait for processing
+      Process.sleep(200)
+
+      {:ok, status} = Scheduler.status(pid)
+      # Most or all tasks should have started processing
+      assert status.completed > 0
+
+      Scheduler.stop(pid)
+    end
+
+    test "handles linked process crash without affecting scheduler" do
+      {:ok, pid} = Scheduler.start_link([])
+
+      # Submit a task that will crash
+      crashing_task = %{
+        candidate_id: "crash",
+        evaluator: fn ->
+          raise "intentional crash"
+        end
+      }
+
+      {:ok, task_id} = Scheduler.submit_task(pid, crashing_task)
+
+      # Wait for task to crash
+      Process.sleep(100)
+
+      # Scheduler should still be alive
+      assert Process.alive?(pid)
+
+      # Can still get task result (error)
+      {:ok, result} = Scheduler.get_result(pid, task_id)
+      assert match?({:error, _}, result)
+
+      # Can still submit new tasks
+      success_task = %{
+        candidate_id: "success",
+        evaluator: fn -> {:ok, 42} end
+      }
+
+      {:ok, _new_task_id} = Scheduler.submit_task(pid, success_task)
+
+      Scheduler.stop(pid)
+    end
+
+    test "maintains state consistency under task failures" do
+      {:ok, pid} = Scheduler.start_link(max_concurrent: 3)
+
+      # Mix of successful and failing tasks
+      _task_ids =
+        for i <- 1..10 do
+          task = %{
+            candidate_id: "task_#{i}",
+            evaluator: fn ->
+              if rem(i, 3) == 0 do
+                raise "error #{i}"
+              else
+                {:ok, i}
+              end
+            end
+          }
+
+          {:ok, task_id} = Scheduler.submit_task(pid, task)
+          task_id
+        end
+
+      # Wait for all tasks to complete
+      Process.sleep(300)
+
+      {:ok, status} = Scheduler.status(pid)
+
+      # All tasks should be accounted for
+      total_processed = status.stats.completed + status.stats.failed
+      assert total_processed == 10
+
+      # Should have some failures and some successes
+      assert status.stats.failed > 0
+      assert status.stats.completed > 0
+
+      Scheduler.stop(pid)
+    end
+
+    test "handles monitor down messages correctly" do
+      {:ok, pid} = Scheduler.start_link([])
+
+      # Create a monitor
+      ref = Process.monitor(pid)
+
+      # Stop the scheduler
+      Scheduler.stop(pid)
+
+      # Should receive DOWN message
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 1000
+    end
+
+    test "recovers capacity after task completion" do
+      {:ok, pid} = Scheduler.start_link(max_concurrent: 2)
+
+      # Submit tasks that will consume all capacity
+      slow_task = %{
+        candidate_id: "slow",
+        evaluator: fn -> Process.sleep(100) end
+      }
+
+      {:ok, _} = Scheduler.submit_task(pid, slow_task)
+      {:ok, _} = Scheduler.submit_task(pid, slow_task)
+
+      Process.sleep(50)
+
+      # Capacity should be full
+      {:ok, status1} = Scheduler.status(pid)
+      assert status1.capacity == 1.0
+
+      # Wait for tasks to complete
+      Process.sleep(100)
+
+      # Capacity should be freed
+      {:ok, status2} = Scheduler.status(pid)
+      assert status2.capacity == 0.0
+
+      Scheduler.stop(pid)
+    end
+  end
 end

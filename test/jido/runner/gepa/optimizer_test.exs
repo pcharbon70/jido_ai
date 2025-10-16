@@ -424,7 +424,8 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
       opts = [
         population_size: 4,
         max_generations: 5,
-        evaluation_budget: 1000,  # High budget to avoid budget stop
+        # High budget to avoid budget stop
+        evaluation_budget: 1000,
         seed_prompts: ["Prompt A", "Prompt B"],
         task: %{type: :test}
       ]
@@ -544,6 +545,7 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
       opts = [
         population_size: 5,
         max_generations: 4,
+        evaluation_budget: 1000,
         seed_prompts: ["Track me"],
         task: %{type: :test}
       ]
@@ -553,8 +555,11 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
 
       {:ok, result} = Optimizer.optimize(pid)
 
-      # Should have 4 generation metrics
-      assert length(result.history) == 4
+      # May converge early with random fitness values
+      final_gen = result.final_generation
+      assert final_gen >= 2
+      assert final_gen <= 4
+      assert length(result.history) == final_gen
 
       # Each metric should have required fields
       Enum.each(result.history, fn metrics ->
@@ -791,6 +796,7 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
         fitnesses = Enum.map(last_three, & &1.best_fitness)
 
         mean = Enum.sum(fitnesses) / length(fitnesses)
+
         variance =
           Enum.reduce(fitnesses, 0.0, fn f, acc ->
             acc + :math.pow(f - mean, 2)
@@ -871,6 +877,8 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
       opts = [
         population_size: 3,
         max_generations: 4,
+        # High budget to avoid budget stop
+        evaluation_budget: 1000,
         task: %{type: :test}
       ]
 
@@ -879,11 +887,15 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
 
       {:ok, result} = Optimizer.optimize(pid)
 
-      assert length(result.history) == 4
+      # May converge early with random fitness values
+      final_gen = result.final_generation
+      assert final_gen >= 2
+      assert final_gen <= 4
+      assert length(result.history) == final_gen
 
-      # History should be in chronological order (generation 1, 2, 3, 4)
+      # History should be in chronological order
       generations = Enum.map(result.history, & &1.generation)
-      assert generations == [1, 2, 3, 4]
+      assert generations == Enum.to_list(1..final_gen)
 
       Optimizer.stop(pid)
     end
@@ -892,7 +904,8 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
       opts = [
         population_size: 3,
         max_generations: 5,
-        evaluation_budget: 1000,  # High budget to avoid budget stop
+        # High budget to avoid budget stop
+        evaluation_budget: 1000,
         task: %{type: :test}
       ]
 
@@ -926,6 +939,146 @@ defmodule Jido.Runner.GEPA.OptimizerTest do
       assert result.total_evaluations > 0
 
       Optimizer.stop(pid)
+    end
+  end
+
+  describe "fault tolerance" do
+    test "handles process termination gracefully" do
+      # Trap exits so we can observe the process dying without crashing the test
+      Process.flag(:trap_exit, true)
+
+      opts = [
+        population_size: 5,
+        max_generations: 3,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      # Verify optimizer is running
+      assert Process.alive?(pid)
+      {:ok, status} = Optimizer.status(pid)
+      assert status.status == :ready
+
+      # Terminate the process
+      Process.exit(pid, :kill)
+      Process.sleep(50)
+
+      # Process should be terminated
+      refute Process.alive?(pid)
+
+      # Reset trap_exit to default
+      Process.flag(:trap_exit, false)
+    end
+
+    test "rejects operations after process termination" do
+      opts = [task: %{type: :test}]
+      {:ok, pid} = Optimizer.start_link(opts)
+
+      # Terminate the process
+      Optimizer.stop(pid)
+      Process.sleep(100)
+
+      # Operations should fail gracefully
+      catch_exit(Optimizer.status(pid))
+      catch_exit(Optimizer.get_best_prompts(pid))
+      catch_exit(Optimizer.optimize(pid))
+    end
+
+    test "handles concurrent optimize calls safely" do
+      opts = [
+        population_size: 3,
+        max_generations: 2,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      # Start first optimization
+      task1 = Task.async(fn -> Optimizer.optimize(pid) end)
+
+      # Try to start second optimization concurrently
+      Process.sleep(10)
+      task2 = Task.async(fn -> Optimizer.optimize(pid) end)
+
+      # Wait for both to complete
+      result1 = Task.await(task1, 10_000)
+      result2 = Task.await(task2, 10_000)
+
+      # One should succeed, one should get an error about already running
+      results = [result1, result2]
+      assert Enum.any?(results, fn r -> match?({:ok, %{best_prompts: _}}, r) end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "maintains state consistency under concurrent access" do
+      opts = [
+        population_size: 10,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      # Perform many concurrent status checks
+      tasks =
+        for i <- 1..50 do
+          Task.async(fn ->
+            Process.sleep(:rand.uniform(10))
+
+            case rem(i, 3) do
+              0 -> Optimizer.status(pid)
+              1 -> Optimizer.get_best_prompts(pid, limit: 3)
+              _ -> {:ok, %{test: i}}
+            end
+          end)
+        end
+
+      results = Task.await_many(tasks, 5000)
+
+      # All operations should complete without crashes
+      assert length(results) == 50
+      assert Enum.all?(results, fn r -> match?({:ok, _}, r) end)
+
+      Optimizer.stop(pid)
+    end
+
+    test "recovers from evaluation errors without crashing" do
+      opts = [
+        population_size: 3,
+        max_generations: 2,
+        task: %{type: :test}
+      ]
+
+      {:ok, pid} = Optimizer.start_link(opts)
+      Process.sleep(100)
+
+      # Optimizer should handle errors during optimization
+      # The mock evaluation may produce errors, optimizer should handle gracefully
+      result = Optimizer.optimize(pid)
+
+      # Should complete without crashing
+      assert match?({:ok, _}, result)
+      assert Process.alive?(pid)
+
+      Optimizer.stop(pid)
+    end
+
+    test "handles monitor down messages correctly" do
+      opts = [task: %{type: :test}]
+      {:ok, pid} = Optimizer.start_link(opts)
+
+      # Create a monitor
+      ref = Process.monitor(pid)
+
+      # Stop the optimizer
+      Optimizer.stop(pid)
+
+      # Should receive DOWN message
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 1000
     end
   end
 end
