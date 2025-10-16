@@ -100,14 +100,14 @@ Implement spawning of evaluation agents executing tasks with candidate prompts i
 - [x] 1.2.1.4 Support concurrent agent execution with configurable parallelism
 
 ### 1.2.2 Trajectory Collection
-- [ ] **Task 1.2.2 Complete**
+- [x] **Task 1.2.2 Complete**
 
 Implement comprehensive trajectory collection capturing full execution paths for reflection analysis.
 
-- [ ] 1.2.2.1 Create trajectory collector capturing CoT steps, actions, and observations
-- [ ] 1.2.2.2 Implement structured logging with timestamps and context preservation
-- [ ] 1.2.2.3 Add intermediate state snapshots enabling detailed failure analysis
-- [ ] 1.2.2.4 Support trajectory filtering removing irrelevant details while preserving critical information
+- [x] 1.2.2.1 Create trajectory collector capturing CoT steps, actions, and observations
+- [x] 1.2.2.2 Implement structured logging with timestamps and context preservation
+- [x] 1.2.2.3 Add intermediate state snapshots enabling detailed failure analysis
+- [x] 1.2.2.4 Support trajectory filtering removing irrelevant details while preserving critical information
 
 ### 1.2.3 Metrics Aggregation
 - [ ] **Task 1.2.3 Complete**

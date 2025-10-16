@@ -88,6 +88,7 @@ defmodule Jido.Runner.GEPA.Evaluator do
 
   alias Jido.AI.Agent
   alias Jido.Agent.Server
+  alias Jido.Runner.GEPA.Trajectory
   alias Jido.Signal
 
   # Type definitions
@@ -109,7 +110,7 @@ defmodule Jido.Runner.GEPA.Evaluator do
     field(:prompt, String.t(), enforce: true)
     field(:fitness, float() | nil, default: nil)
     field(:metrics, map(), default: %{})
-    field(:trajectory, map(), default: %{})
+    field(:trajectory, Trajectory.t() | nil)
     field(:error, term() | nil, default: nil)
   end
 
@@ -341,32 +342,100 @@ defmodule Jido.Runner.GEPA.Evaluator do
   defp execute_evaluation(agent_pid, prompt, %EvaluationConfig{} = config) do
     Logger.debug("Executing evaluation", agent: agent_pid, timeout: config.timeout)
 
+    # Start trajectory collection
+    trajectory =
+      Trajectory.new(
+        metadata: %{
+          prompt: prompt,
+          task_type: config.task[:type],
+          agent_pid: inspect(agent_pid),
+          timeout: config.timeout
+        }
+      )
+
+    # Record evaluation start
+    trajectory =
+      Trajectory.add_step(trajectory,
+        type: :state_change,
+        content: "Evaluation started",
+        importance: :high,
+        metadata: %{phase: :start}
+      )
+
     # Build task signal
     signal = build_task_signal(config.task)
+
+    # Record signal preparation
+    trajectory =
+      Trajectory.add_step(trajectory,
+        type: :action,
+        content: "Sending task signal to agent",
+        importance: :medium,
+        metadata: %{
+          signal_type: signal.type,
+          task: config.task
+        }
+      )
 
     # Execute with timeout
     case Server.call(agent_pid, signal, config.timeout) do
       {:ok, response} ->
+        # Record successful response
+        trajectory =
+          Trajectory.add_step(trajectory,
+            type: :observation,
+            content: "Received agent response",
+            importance: :high,
+            metadata: %{
+              response_type: response.type,
+              has_data: response.data != nil
+            }
+          )
+
         # Parse response and calculate fitness
-        parse_evaluation_response(prompt, response, config)
+        parse_evaluation_response(prompt, response, config, trajectory)
 
       {:error, :timeout} ->
         Logger.warning("Evaluation timeout", agent: agent_pid)
+
+        # Record timeout
+        trajectory =
+          Trajectory.add_step(trajectory,
+            type: :observation,
+            content: "Evaluation timeout",
+            importance: :critical,
+            metadata: %{error: :timeout}
+          )
+
+        trajectory = Trajectory.complete(trajectory, outcome: :timeout, error: :timeout)
 
         %EvaluationResult{
           prompt: prompt,
           fitness: nil,
           metrics: %{success: false, timeout: true},
+          trajectory: trajectory,
           error: :timeout
         }
 
       {:error, reason} ->
         Logger.warning("Evaluation failed", agent: agent_pid, reason: reason)
 
+        # Record failure
+        trajectory =
+          Trajectory.add_step(trajectory,
+            type: :observation,
+            content: "Evaluation failed",
+            importance: :critical,
+            metadata: %{error: reason}
+          )
+
+        trajectory = Trajectory.complete(trajectory, outcome: :error, error: reason)
+
         %EvaluationResult{
           prompt: prompt,
           fitness: nil,
           metrics: %{success: false},
+          trajectory: trajectory,
           error: reason
         }
     end
@@ -388,26 +457,63 @@ defmodule Jido.Runner.GEPA.Evaluator do
   end
 
   @doc false
-  @spec parse_evaluation_response(prompt(), Signal.t(), EvaluationConfig.t()) ::
+  @spec parse_evaluation_response(prompt(), Signal.t(), EvaluationConfig.t(), Trajectory.t()) ::
           EvaluationResult.t()
-  defp parse_evaluation_response(prompt, response, %EvaluationConfig{} = _config) do
+  defp parse_evaluation_response(prompt, response, %EvaluationConfig{} = _config, trajectory) do
     # Parse agent response and calculate fitness
     # For now, use mock fitness calculation
     # Section 1.2.3 will implement real metrics aggregation
     fitness = calculate_mock_fitness(prompt, response)
+
+    # Record fitness calculation
+    trajectory =
+      Trajectory.add_step(trajectory,
+        type: :reasoning,
+        content: "Calculated fitness score",
+        importance: :high,
+        metadata: %{
+          fitness: fitness,
+          calculation_method: :mock
+        }
+      )
+
+    # Add snapshot of final state
+    trajectory =
+      Trajectory.add_snapshot(trajectory,
+        state: %{
+          fitness: fitness,
+          response: response.data,
+          response_type: response.type
+        },
+        reason: :evaluation_complete,
+        metadata: %{final: true}
+      )
+
+    # Record completion
+    trajectory =
+      Trajectory.add_step(trajectory,
+        type: :state_change,
+        content: "Evaluation completed successfully",
+        importance: :high,
+        metadata: %{
+          fitness: fitness,
+          phase: :complete
+        }
+      )
+
+    # Complete trajectory
+    trajectory = Trajectory.complete(trajectory, outcome: :success)
 
     %EvaluationResult{
       prompt: prompt,
       fitness: fitness,
       metrics: %{
         success: true,
-        response_type: response.type
+        response_type: response.type,
+        trajectory_steps: length(trajectory.steps),
+        trajectory_snapshots: length(trajectory.state_snapshots)
       },
-      trajectory: %{
-        # Placeholder for Section 1.2.2 trajectory collection
-        steps: [],
-        final_response: response.data
-      },
+      trajectory: trajectory,
       error: nil
     }
   end
@@ -445,11 +551,22 @@ defmodule Jido.Runner.GEPA.Evaluator do
   @doc false
   @spec build_error_result(prompt(), term()) :: EvaluationResult.t()
   defp build_error_result(prompt, error) do
+    # Create a minimal trajectory for error case
+    trajectory =
+      Trajectory.new(metadata: %{prompt: prompt, error: error})
+      |> Trajectory.add_step(
+        type: :observation,
+        content: "Evaluation failed",
+        importance: :critical,
+        metadata: %{error: error}
+      )
+      |> Trajectory.complete(outcome: :error, error: error)
+
     %EvaluationResult{
       prompt: prompt,
       fitness: nil,
       metrics: %{success: false},
-      trajectory: %{},
+      trajectory: trajectory,
       error: error
     }
   end
