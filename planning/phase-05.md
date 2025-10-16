@@ -90,14 +90,14 @@ Implement coordination of the complete evolution cycle: evaluate, reflect, mutat
 This section implements the parallel prompt evaluation system that executes candidate prompts using spawned Jido agents and collects comprehensive execution trajectories. The evaluation system is critical for GEPA's sample efficiency, enabling concurrent testing of multiple prompt variants while capturing all information needed for reflective analysis. We implement trajectory collection capturing chain-of-thought steps, tool calls, intermediate results, and final outcomes.
 
 ### 1.2.1 Evaluation Agent Spawning
-- [ ] **Task 1.2.1 Complete**
+- [x] **Task 1.2.1 Complete**
 
 Implement spawning of evaluation agents executing tasks with candidate prompts in isolated processes.
 
-- [ ] 1.2.1.1 Create evaluation agent spawner using Jido's agent factory with prompt injection
-- [ ] 1.2.1.2 Implement agent configuration merging prompt candidates with base configuration
-- [ ] 1.2.1.3 Add timeout enforcement preventing runaway evaluations
-- [ ] 1.2.1.4 Support concurrent agent execution with configurable parallelism
+- [x] 1.2.1.1 Create evaluation agent spawner using Jido's agent factory with prompt injection
+- [x] 1.2.1.2 Implement agent configuration merging prompt candidates with base configuration
+- [x] 1.2.1.3 Add timeout enforcement preventing runaway evaluations
+- [x] 1.2.1.4 Support concurrent agent execution with configurable parallelism
 
 ### 1.2.2 Trajectory Collection
 - [ ] **Task 1.2.2 Complete**
