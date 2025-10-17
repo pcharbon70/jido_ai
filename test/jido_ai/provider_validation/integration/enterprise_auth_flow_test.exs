@@ -423,7 +423,7 @@ defmodule Jido.AI.ProviderValidation.Integration.EnterpriseAuthFlowTest do
                 # Expected when credentials are not configured
                 assert true
 
-              {:error, reason} ->
+              {:error, _reason} ->
                 end_time = :os.system_time(:millisecond)
                 duration = end_time - start_time
 
@@ -452,11 +452,11 @@ defmodule Jido.AI.ProviderValidation.Integration.EnterpriseAuthFlowTest do
           config when is_map(config) ->
             # 1. Authentication
             case EnterpriseAuthentication.authenticate_provider(provider, config, []) do
-              {:ok, headers} ->
+              {:ok, _headers} ->
                 # 2. Model listing
                 case ReqLLMBridge.list_models(provider, config) do
                   {:ok, models} ->
-                    assert length(models) > 0, "#{provider} should return available models"
+                    assert models != [], "#{provider} should return available models"
 
                     # 3. Chat completion
                     selected_model = select_test_model(provider, models)

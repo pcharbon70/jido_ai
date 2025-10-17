@@ -567,7 +567,7 @@ defmodule JidoTest.AI.SecurityValidationTest do
       model = %{model | reqllm_id: "openai" <> ":" <> "text-embedding-ada-002"}
 
       # Test with very large input
-      large_input = Enum.map(1..1000, fn i -> String.duplicate("A", 1000) end)
+      large_input = Enum.map(1..1000, fn _i -> String.duplicate("A", 1000) end)
       params = %{model: model, input: large_input}
 
       expect(ValidProviders, :list, fn -> [:openai] end)

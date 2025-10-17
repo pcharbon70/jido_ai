@@ -96,7 +96,7 @@ defmodule Jido.AI.ProviderValidation.Functional.GroqValidationTest do
           assert is_list(models), "Should return a list of models"
           # Groq typically has models like llama2-70b-4096, mixtral-8x7b-32768, etc.
           # We don't assert specific models as they may change, but verify structure
-          if length(models) > 0 do
+          if models != [] do
             model = hd(models)
 
             assert Map.has_key?(model, :id) or Map.has_key?(model, :name),

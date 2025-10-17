@@ -278,7 +278,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
   end
 
   describe "performance and reliability" do
-    test "handles high-frequency operations efficiently", %{keyring: keyring} do
+    test "handles high-frequency operations efficiently", %{keyring: _keyring} do
       # Mock JidoKeys for consistent responses
       expect(JidoKeys, :get, 100, fn _key, nil ->
         "performance_value"
@@ -300,7 +300,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
       assert Enum.all?(results, &(&1 == "performance_value"))
     end
 
-    test "maintains reliability under concurrent access", %{keyring: keyring} do
+    test "maintains reliability under concurrent access", %{keyring: _keyring} do
       expect(JidoKeys, :get, 500, fn _key, nil ->
         "concurrent_value"
       end)

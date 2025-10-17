@@ -59,7 +59,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       assert required_headers["X-Auth-Email"] == "test@example.com"
     end
 
-    test "session precedence maintained across all components", %{keyring: keyring} do
+    test "session precedence maintained across all components", %{keyring: _keyring} do
       # Set session value
       SessionAuthentication.set_for_provider(:openai, "session-priority-key")
 
@@ -90,7 +90,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       assert params.openai_api_key == "session-priority-key"
     end
 
-    test "component interaction under concurrent access", %{keyring: keyring} do
+    test "component interaction under concurrent access", %{keyring: _keyring} do
       # Set up multiple providers with different session values
       providers_and_keys = [
         {:openai, "concurrent-openai"},
@@ -110,7 +110,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
             session_result = SessionAuthentication.get_for_request(provider, %{})
 
             # Authentication bridge
-            {:ok, auth_headers, auth_key} =
+            {:ok, _auth_headers, auth_key} =
               Authentication.authenticate_for_provider(provider, %{})
 
             # Provider requirements
@@ -142,7 +142,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
   end
 
   describe "cross-process session synchronization" do
-    test "session transfer affects all components in target process", %{keyring: keyring} do
+    test "session transfer affects all components in target process", %{keyring: _keyring} do
       # Set up authentication in parent process
       SessionAuthentication.set_for_provider(:openai, "transfer-sync-key")
       current_pid = self()
@@ -173,7 +173,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
           {:session_auth, session_opts} = SessionAuthentication.get_for_request(:openai, %{})
           assert session_opts[:api_key] == "transfer-sync-key"
 
-          {:ok, auth_headers, auth_key} = Authentication.authenticate_for_provider(:openai, %{})
+          {:ok, _auth_headers, auth_key} = Authentication.authenticate_for_provider(:openai, %{})
           assert auth_key == "transfer-sync-key"
 
           params = ProviderAuthRequirements.resolve_all_params(:openai)
@@ -185,12 +185,12 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       assert Task.await(task) == :ok
     end
 
-    test "session isolation prevents cross-contamination", %{keyring: keyring} do
+    test "session isolation prevents cross-contamination", %{keyring: _keyring} do
       # Set up different authentication in parent
       SessionAuthentication.set_for_provider(:openai, "parent-isolated-key")
       SessionAuthentication.set_for_provider(:anthropic, "parent-anthropic-key")
 
-      parent_pid = self()
+      _parent_pid = self()
 
       task =
         Task.async(fn ->
@@ -209,7 +209,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
           assert {:no_session_auth} == SessionAuthentication.get_for_request(:anthropic, %{})
 
           # Test authentication isolation
-          {:ok, child_headers, child_key} = Authentication.authenticate_for_provider(:openai, %{})
+          {:ok, _child_headers, child_key} = Authentication.authenticate_for_provider(:openai, %{})
           assert child_key == "child-isolated-key"
 
           # Return child's view for verification
@@ -239,7 +239,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       assert :google not in parent_providers
     end
 
-    test "complex session inheritance with multiple providers", %{keyring: keyring} do
+    test "complex session inheritance with multiple providers", %{keyring: _keyring} do
       # Set up complex authentication state in parent
       providers_and_keys = [
         {:openai, "parent-openai-complex"},
@@ -273,7 +273,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
               session_key = session_opts[:api_key]
 
               # Authentication bridge
-              {:ok, auth_headers, auth_key} =
+              {:ok, _auth_headers, auth_key} =
                 Authentication.authenticate_for_provider(provider, %{})
 
               # Provider requirements
@@ -298,7 +298,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
   end
 
   describe "error propagation across components" do
-    test "component errors properly cascade through system", %{keyring: keyring} do
+    test "component errors properly cascade through system", %{keyring: _keyring} do
       # Clear all session values
       SessionAuthentication.clear_all()
 
@@ -332,7 +332,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       end
     end
 
-    test "partial system failure with graceful degradation", %{keyring: keyring} do
+    test "partial system failure with graceful degradation", %{keyring: _keyring} do
       # Set session for some providers
       SessionAuthentication.set_for_provider(:openai, "working-openai-key")
 
@@ -370,7 +370,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
   end
 
   describe "resource cleanup and lifecycle management" do
-    test "session cleanup propagates through all components", %{keyring: keyring} do
+    test "session cleanup propagates through all components", %{keyring: _keyring} do
       # Set up authentication across multiple providers
       providers = [:openai, :anthropic, :google, :cloudflare]
 
@@ -408,7 +408,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.SessionCrossComponentTest do
       end
     end
 
-    test "component state consistency during concurrent cleanup", %{keyring: keyring} do
+    test "component state consistency during concurrent cleanup", %{keyring: _keyring} do
       # Set up initial state
       providers = [:openai, :anthropic, :google]
 

@@ -90,7 +90,7 @@ defmodule Jido.AI.ProviderValidation.Functional.CohereValidationTest do
           assert is_list(models), "Should return a list of models"
 
           # Cohere models include command-r-plus, command-r, command, etc.
-          if length(models) > 0 do
+          if models != [] do
             model = hd(models)
 
             assert Map.has_key?(model, :id) or Map.has_key?(model, :name),

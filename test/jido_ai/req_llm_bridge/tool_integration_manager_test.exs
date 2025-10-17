@@ -356,7 +356,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolIntegrationManagerTest do
         {{:function, "get_weather"}, %{type: "function", function: %{name: "get_weather"}}}
       ]
 
-      Enum.each(test_cases, fn {input_choice, expected_output} ->
+      Enum.each(test_cases, fn {input_choice, _expected_output} ->
         expect(ReqLLM, :generate_text, fn _model, _message, options ->
           # Now it should be the input directly
           assert options.tool_choice == input_choice

@@ -97,7 +97,7 @@ defmodule Jido.AI.ProviderValidation.Functional.PerplexityValidationTest do
           assert is_list(models), "Should return a list of models"
 
           # Perplexity has models like pplx-7b-online, pplx-70b-online, etc.
-          if length(models) > 0 do
+          if models != [] do
             model = hd(models)
 
             assert Map.has_key?(model, :id) or Map.has_key?(model, :name),

@@ -21,12 +21,9 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
 
   alias Jido.AI.Model
   alias Jido.AI.Model.Registry
-  alias Jido.AI.Provider
 
   # Performance testing configuration
   @latency_samples 10
-  # 30 seconds
-  @throughput_duration 30_000
   @concurrent_requests 5
   @small_prompt "Hello, how are you today?"
   @medium_prompt String.duplicate("The quick brown fox jumps over the lazy dog. ", 20)
@@ -391,8 +388,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
             end)
 
           if length(large_context_models) > 0 do
-            model = hd(large_context_models)
-            model_name = get_model_name(model)
+            model_name = get_model_name(hd(large_context_models))
 
             # Test with very large context (simulate 100K tokens)
             very_large_prompt = String.duplicate(@large_prompt, 10)
@@ -402,7 +398,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
             end_time = :os.system_time(:millisecond)
 
             case result do
-              {:ok, latency} ->
+              {:ok, _latency} ->
                 total_latency = end_time - start_time
                 IO.puts("\\nCohere Large Context Results:")
                 IO.puts("Model: #{model_name}")
@@ -464,7 +460,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
     @tag :multimodal_benchmarks
     test "Replicate multimodal model performance estimation" do
       case find_replicate_models() do
-        {provider, [_ | _] = models} ->
+        {_provider, [_ | _] = models} ->
           # Look for multimodal models (image, audio, etc.)
           multimodal_indicators = ["stable-diffusion", "whisper", "blip", "dalle"]
 
@@ -814,7 +810,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
          ]}
 
       case Model.from(openai_config) do
-        {:ok, model} ->
+        {:ok, _model} ->
           IO.puts("\n=== LM Studio Desktop Performance Test ===")
 
           # Test connection latency to local LM Studio server
@@ -833,7 +829,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
           ]
 
           Enum.with_index(test_prompts, 1)
-          |> Enum.each(fn {prompt, index} ->
+          |> Enum.each(fn {_prompt, index} ->
             start_time = :os.system_time(:millisecond)
 
             # Simulate request (would be actual request if LM Studio running)
@@ -859,7 +855,6 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
       IO.puts("\n=== Local Provider Resource Efficiency ===")
 
       local_providers = [:ollama]
-      resource_results = %{}
 
       Enum.each(local_providers, fn provider_id ->
         case find_models_for_provider(provider_id) do
@@ -882,16 +877,6 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
             successful_requests = Enum.count(results, &match?({:ok, _}, &1))
             total_time = end_time - start_time
             memory_delta = final_memory - initial_memory
-
-            resource_data = %{
-              provider: provider_id,
-              model: model_name,
-              successful_requests: successful_requests,
-              total_time: total_time,
-              memory_delta: memory_delta,
-              avg_latency:
-                if(successful_requests > 0, do: total_time / successful_requests, else: 0)
-            }
 
             IO.puts(
               "#{provider_id}: #{successful_requests}/3 requests, #{total_time}ms total, #{memory_delta} bytes"

@@ -7,7 +7,6 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
 
   alias Jido.AI.Actions.OpenaiEx
   alias Jido.AI.Actions.OpenaiEx.Embeddings
-  alias Jido.AI.Agent
   alias Jido.AI.Model
   alias Jido.AI.Prompt
   alias Jido.AI.ReqLlmBridge
@@ -108,7 +107,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
       expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-api-key" -> :ok end)
       expect(ReqLlmBridge.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
 
-      expect(ReqLLM, :generate_text, fn messages, reqllm_id, opts ->
+      expect(ReqLLM, :generate_text, fn _messages, _reqllm_id, opts ->
         # Verify tool integration
         opts_map = Enum.into(opts, %{})
         assert Map.has_key?(opts_map, :tools)
@@ -495,7 +494,7 @@ defmodule JidoTest.AI.ReqLLMIntegrationTest do
   describe "cross-module integration" do
     test "Agent integration with ReqLLM models" do
       # Test that AI Agents can use ReqLLM models seamlessly
-      agent_config = [
+      _agent_config = [
         ai: [
           model: {:openai, [model: "gpt-4", api_key: "test-key"]},
           prompt: "You are a helpful assistant powered by ReqLLM integration."

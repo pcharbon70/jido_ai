@@ -152,7 +152,7 @@ defmodule Jido.AI.ProviderValidation.Functional.OllamaValidationTest do
           assert is_list(models), "Should return a list of models"
 
           # Ollama models typically include llama2, codellama, mistral, etc.
-          if length(models) > 0 do
+          if models != [] do
             model = hd(models)
 
             assert Map.has_key?(model, :id) or Map.has_key?(model, :name),

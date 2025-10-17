@@ -629,7 +629,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AzureOpenAIValidationTest do
 
     test "enterprise authentication with session management" do
       # Test Azure OpenAI authentication with session management
-      session_config = %{
+      _session_config = %{
         endpoint: "https://session-resource.openai.azure.com/",
         tenant_id: "session-tenant",
         client_id: "session-client",

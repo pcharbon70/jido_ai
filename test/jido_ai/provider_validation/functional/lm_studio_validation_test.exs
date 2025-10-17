@@ -552,7 +552,7 @@ defmodule Jido.AI.ProviderValidation.Functional.LmStudioValidationTest do
 
       Enum.each(resource_configs, fn config ->
         case Model.from(config) do
-          {:ok, model} ->
+          {:ok, _model} ->
             {:openai, opts} = config
             model_name = Keyword.get(opts, :model)
             IO.puts("Resource-constrained config validated: #{model_name}")

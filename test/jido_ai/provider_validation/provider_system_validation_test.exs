@@ -52,7 +52,7 @@ defmodule Jido.AI.ProviderValidation.ProviderSystemValidationTest do
                      "Provider #{provider_id} in category #{category} should return model list"
 
               # Verify model structure if models exist
-              if length(models) > 0 do
+              if models != [] do
                 model = hd(models)
 
                 assert Map.has_key?(model, :id) or Map.has_key?(model, :name),

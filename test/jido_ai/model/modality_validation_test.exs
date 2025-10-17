@@ -9,7 +9,7 @@ defmodule Jido.AI.Model.ModalityValidationTest do
     test "detects vision-capable models" do
       {:ok, models} = Registry.discover_models(modality: :image)
 
-      assert length(models) > 0, "Should find vision-capable models"
+      assert models != [], "Should find vision-capable models"
 
       # Verify models have image in input modalities
       Enum.each(models, fn model ->
@@ -25,7 +25,7 @@ defmodule Jido.AI.Model.ModalityValidationTest do
       {:ok, models} = Registry.discover_models(modality: :audio)
 
       # Audio models may or may not exist depending on providers
-      if length(models) > 0 do
+      if models != [] do
         # Verify models have audio in input modalities
         Enum.each(models, fn model ->
           modalities = Map.get(model, :modalities, %{})

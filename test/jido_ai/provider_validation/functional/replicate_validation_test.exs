@@ -94,7 +94,7 @@ defmodule Jido.AI.ProviderValidation.Functional.ReplicateValidationTest do
           assert is_list(models), "Should return a list of models"
 
           # Replicate has thousands of community models
-          if length(models) > 0 do
+          if models != [] do
             model = hd(models)
 
             assert Map.has_key?(model, :id) or Map.has_key?(model, :name),

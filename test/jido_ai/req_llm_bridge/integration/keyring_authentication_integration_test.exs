@@ -15,26 +15,6 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
     SessionAuthentication.set_for_provider(provider, key, self(), keyring)
   end
 
-  defp clear_provider(provider, keyring) do
-    SessionAuthentication.clear_for_provider(provider, self(), keyring)
-  end
-
-  defp has_auth?(provider, keyring) do
-    SessionAuthentication.has_session_auth?(provider, self(), keyring)
-  end
-
-  defp clear_all_auth(keyring) do
-    SessionAuthentication.clear_all(self(), keyring)
-  end
-
-  defp list_providers(keyring) do
-    SessionAuthentication.list_providers_with_auth(self(), keyring)
-  end
-
-  defp inherit_auth(parent_pid, keyring) do
-    SessionAuthentication.inherit_from(parent_pid, self(), keyring)
-  end
-
   setup do
     # Start a unique Keyring for testing
     test_keyring_name = :"test_keyring_integration_#{:erlang.unique_integer([:positive])}"
@@ -63,7 +43,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       assert headers["authorization"] == "Bearer session-openai-key"
     end
 
-    test "authentication precedence respects keyring session values", %{keyring: keyring} do
+    test "authentication precedence respects keyring session values", %{keyring: _keyring} do
       # Set session value
       SessionAuthentication.set_for_provider(:anthropic, "session-anthropic-key")
 
@@ -77,7 +57,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       assert headers["anthropic-version"] == "2023-06-01"
     end
 
-    test "per-request overrides work when no keyring session values", %{keyring: keyring} do
+    test "per-request overrides work when no keyring session values", %{keyring: _keyring} do
       # Clear any existing session values
       SessionAuthentication.clear_for_provider(:openai)
 
@@ -93,7 +73,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       assert headers["authorization"] == "Bearer request-override-key"
     end
 
-    test "provider key mapping works between systems", %{keyring: keyring} do
+    test "provider key mapping works between systems", %{keyring: _keyring} do
       # Test different provider mappings
       providers_to_test = [
         {:openai, "sk-openai-test", "authorization", "Bearer sk-openai-test"},
@@ -118,7 +98,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       end
     end
 
-    test "authentication fallback to environment when session empty", %{keyring: keyring} do
+    test "authentication fallback to environment when session empty", %{keyring: _keyring} do
       # Clear session values
       SessionAuthentication.clear_for_provider(:openai)
 
@@ -138,7 +118,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       assert headers["authorization"] == "Bearer env-openai-key"
     end
 
-    test "authentication error handling with proper jido error format", %{keyring: keyring} do
+    test "authentication error handling with proper jido error format", %{keyring: _keyring} do
       # Clear session values
       SessionAuthentication.clear_for_provider(:openai)
 
@@ -159,7 +139,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
   end
 
   describe "cross-component session management" do
-    test "keyring session values accessible by authentication", %{keyring: keyring} do
+    test "keyring session values accessible by authentication", %{keyring: _keyring} do
       # Set values directly through session authentication
       SessionAuthentication.set_for_provider(:openai, "cross-component-key")
 
@@ -174,7 +154,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       assert headers["authorization"] == "Bearer cross-component-key"
     end
 
-    test "session isolation maintained across components", %{keyring: keyring} do
+    test "session isolation maintained across components", %{keyring: _keyring} do
       # Set different values for different providers
       SessionAuthentication.set_for_provider(:openai, "openai-isolated")
       SessionAuthentication.set_for_provider(:anthropic, "anthropic-isolated")
@@ -191,7 +171,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       assert anthropic_headers["x-api-key"] == "anthropic-isolated"
     end
 
-    test "session cleanup affects all components", %{keyring: keyring} do
+    test "session cleanup affects all components", %{keyring: _keyring} do
       # Set session values
       SessionAuthentication.set_for_provider(:openai, "before-cleanup")
       SessionAuthentication.set_for_provider(:anthropic, "before-cleanup")
@@ -220,12 +200,12 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       {:error, _} = Authentication.authenticate_for_provider(:anthropic, %{})
     end
 
-    test "cross-process session transfer integration", %{keyring: keyring} do
+    test "cross-process session transfer integration", %{keyring: _keyring} do
       # Set authentication in current process
       SessionAuthentication.set_for_provider(:openai, "transfer-key")
 
       # Verify authentication works in current process
-      {:ok, headers, key} = Authentication.authenticate_for_provider(:openai, %{})
+      {:ok, _headers, key} = Authentication.authenticate_for_provider(:openai, %{})
       assert key == "transfer-key"
 
       # Create target process and test transfer
@@ -255,7 +235,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
   end
 
   describe "end-to-end provider authentication" do
-    test "complete OpenAI authentication flow with keyring", %{keyring: keyring} do
+    test "complete OpenAI authentication flow with keyring", %{keyring: _keyring} do
       # Test complete flow from session -> headers -> validation
       SessionAuthentication.set_for_provider(:openai, "sk-complete-openai-flow")
 
@@ -272,7 +252,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       :ok = Authentication.validate_authentication(:openai, %{})
     end
 
-    test "complete Anthropic authentication with session values", %{keyring: keyring} do
+    test "complete Anthropic authentication with session values", %{keyring: _keyring} do
       # Test Anthropic's specific header requirements
       SessionAuthentication.set_for_provider(:anthropic, "sk-ant-complete-flow")
 
@@ -289,7 +269,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       :ok = Authentication.validate_authentication(:anthropic, %{})
     end
 
-    test "complete multi-provider authentication scenarios", %{keyring: keyring} do
+    test "complete multi-provider authentication scenarios", %{keyring: _keyring} do
       # Set up multiple providers
       providers = [
         {:openai, "sk-multi-openai"},
@@ -304,7 +284,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
 
       # Test each provider works correctly
       for {provider, expected_key} <- providers do
-        {:ok, headers, key} = Authentication.authenticate_for_provider(provider, %{})
+        {:ok, _headers, key} = Authentication.authenticate_for_provider(provider, %{})
         assert key == expected_key
 
         retrieved_headers = Authentication.get_authentication_headers(provider, %{})
@@ -332,7 +312,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       {:ok, _, "google-multi-key"} = Authentication.authenticate_for_provider(:google, %{})
     end
 
-    test "authentication failure recovery with keyring fallbacks", %{keyring: keyring} do
+    test "authentication failure recovery with keyring fallbacks", %{keyring: _keyring} do
       # Clear session values
       SessionAuthentication.clear_for_provider(:openai)
 
@@ -355,7 +335,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       :ok = Authentication.validate_authentication(:openai, %{})
     end
 
-    test "graceful degradation when all sources fail", %{keyring: keyring} do
+    test "graceful degradation when all sources fail", %{keyring: _keyring} do
       # Clear session values
       SessionAuthentication.clear_for_provider(:openai)
 

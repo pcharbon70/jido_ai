@@ -788,7 +788,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AmazonBedrockValidationTest do
 
     test "enterprise authentication with session management" do
       # Test Bedrock authentication with session management
-      session_config = %{
+      _session_config = %{
         region: "us-east-1",
         role_arn: "arn:aws:iam::123456789012:role/BedrockSessionRole",
         session_name: "BedrockSession",

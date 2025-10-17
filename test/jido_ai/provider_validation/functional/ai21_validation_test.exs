@@ -134,7 +134,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
       ai21_models_found =
         Enum.find_value(ai21_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> {variant, models}
+            {:ok, models} when models != [] -> {variant, models}
             _ -> nil
           end
         end)
@@ -144,7 +144,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
           assert is_list(models), "Should return a list of models"
 
           # AI21 models include jurassic-2-ultra, jurassic-2-mid, j2-light, etc.
-          if length(models) > 0 do
+          if models != [] do
             model = hd(models)
 
             assert Map.has_key?(model, :id) or Map.has_key?(model, :name),
@@ -174,7 +174,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
       ai21_models_found =
         Enum.find_value(ai21_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> {variant, models}
+            {:ok, models} when models != [] -> {variant, models}
             _ -> nil
           end
         end)
@@ -237,7 +237,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
       ai21_models_found =
         Enum.find_value(ai21_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> {variant, models}
+            {:ok, models} when models != [] -> {variant, models}
             _ -> nil
           end
         end)
@@ -405,7 +405,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
       ai21_models_found =
         Enum.find_value(ai21_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> {variant, models}
+            {:ok, models} when models != [] -> {variant, models}
             _ -> nil
           end
         end)
@@ -463,7 +463,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
       ai21_models_found =
         Enum.find_value(ai21_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> {variant, models}
+            {:ok, models} when models != [] -> {variant, models}
             _ -> nil
           end
         end)
@@ -527,7 +527,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
       ai21_models_found =
         Enum.find_value(ai21_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> {variant, models}
+            {:ok, models} when models != [] -> {variant, models}
             _ -> nil
           end
         end)
@@ -604,7 +604,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
       ai21_models_found =
         Enum.find_value(ai21_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> {variant, models}
+            {:ok, models} when models != [] -> {variant, models}
             _ -> nil
           end
         end)
@@ -814,7 +814,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
     test "model selection helper for use cases", %{ai21_provider: ai21_provider} do
       if ai21_provider do
         case Registry.list_models(ai21_provider) do
-          {:ok, models} when length(models) > 0 ->
+          {:ok, models} when models != [] ->
             # Provide recommendations for different use cases
             use_cases = %{
               "high_quality" => fn model ->

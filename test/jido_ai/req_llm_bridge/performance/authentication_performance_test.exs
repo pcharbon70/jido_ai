@@ -76,8 +76,6 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
         {:openrouter, "sk-or-test123456"}
       ]
 
-      total_validations = 0
-
       {elapsed_microseconds, validation_results} =
         :timer.tc(fn ->
           for {provider, key} <- test_cases do
@@ -237,7 +235,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
                 {key, headers, retrieved_headers, validation_result}
               end
 
-            {provider, _expected_source, results}
+            {provider, results}
           end
         end)
 
@@ -246,7 +244,7 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       average_ms_per_flow = elapsed_ms / total_flows
 
       # Verify all flows completed successfully
-      for {provider, _expected_source, results} <- e2e_results do
+      for {provider, results} <- e2e_results do
         for {key, headers, retrieved_headers, validation_result} <- results do
           assert is_binary(key) and key != "", "No key for #{provider}"
           assert is_map(headers) and map_size(headers) > 0, "No headers for #{provider}"
@@ -393,13 +391,13 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
       # Perform many authentication operations
       num_operations = 1000
 
-      for _i <- 1..num_operations do
+      for i <- 1..num_operations do
         {:ok, _headers, _key} = Authentication.authenticate_for_provider(:openai, %{})
         _retrieved_headers = Authentication.get_authentication_headers(:openai, %{})
         :ok = Authentication.validate_authentication(:openai, %{})
 
         # Periodically force garbage collection
-        if rem(_i, 100) == 0 do
+        if rem(i, 100) == 0 do
           :erlang.garbage_collect()
         end
       end
@@ -458,8 +456,6 @@ defmodule Jido.AI.ReqLlmBridge.Performance.AuthenticationPerformanceTest do
 
       # Memory should be released (allowing some overhead)
       memory_released = memory_after_setup - memory_after_cleanup
-      # Avoid division by zero
-      cleanup_ratio = memory_released / (memory_after_setup - memory_after_cleanup + 1)
 
       # Should release most of the allocated memory (at least 50%)
       assert memory_released >= 0,

@@ -42,44 +42,6 @@ defmodule Jido.AI.ProviderValidation.Functional.AlibabaCloudValidationTest do
     "cn-shanghai"
   ]
 
-  # Supported Alibaba Cloud models
-  @alibaba_models [
-    "qwen2.5-72b-instruct",
-    "qwen2.5-14b-instruct",
-    "qwen2.5-7b-instruct",
-    "qwen2.5-3b-instruct",
-    "qwen2.5-1.5b-instruct",
-    "qwen2.5-0.5b-instruct",
-    "qwen-max",
-    "qwen-plus",
-    "qwen-turbo",
-    "chatglm3-6b",
-    "baichuan2-13b-chat",
-    "yi-34b-chat"
-  ]
-
-  # Cultural localization support
-  @supported_languages [
-    # Simplified Chinese
-    "zh-CN",
-    # Traditional Chinese
-    "zh-TW",
-    # English
-    "en-US",
-    # Japanese
-    "ja-JP",
-    # Korean
-    "ko-KR",
-    # Thai
-    "th-TH",
-    # Vietnamese
-    "vi-VN",
-    # Indonesian
-    "id-ID",
-    # Malay
-    "ms-MY"
-  ]
-
   setup_all do
     skip_unless_alibaba_credentials()
     :ok
@@ -767,7 +729,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AlibabaCloudValidationTest do
 
       # 2. List models
       assert {:ok, models} = ReqLLMBridge.list_models(:alibaba_cloud, config)
-      assert length(models) > 0
+      assert models != []
 
       # 3. Select appropriate model
       selected_model =

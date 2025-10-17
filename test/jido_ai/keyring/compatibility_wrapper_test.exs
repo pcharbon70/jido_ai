@@ -163,7 +163,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert result == :ok
     end
 
-    test "validates session operation performance", %{keyring: keyring} do
+    test "validates session operation performance", %{keyring: _keyring} do
       result = CompatibilityWrapper.validate_performance_compatibility(:set_session, 50, 100)
 
       case result do
@@ -247,7 +247,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   end
 
   describe "comprehensive compatibility test suite" do
-    test "runs all compatibility tests successfully", %{keyring: keyring} do
+    test "runs all compatibility tests successfully", %{keyring: _keyring} do
       result = CompatibilityWrapper.run_compatibility_tests()
 
       case result do
@@ -266,7 +266,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   end
 
   describe "individual compatibility tests" do
-    test "get compatibility test passes", %{keyring: keyring} do
+    test "get compatibility test passes", %{keyring: _keyring} do
       # Mock JidoKeys for predictable testing
       expect(JidoKeys, :get, fn _key, nil -> nil end)
 
@@ -393,7 +393,7 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   end
 
   describe "integration with enhanced features" do
-    test "compatibility wrapper works with runtime configuration", %{keyring: keyring} do
+    test "compatibility wrapper works with runtime configuration", %{keyring: _keyring} do
       expect(JidoKeys, :put, fn :runtime_compat_key, "runtime_value" ->
         :ok
       end)

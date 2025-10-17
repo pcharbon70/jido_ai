@@ -87,7 +87,7 @@ defmodule Jido.AI.ProviderValidation.Functional.LocalModelDiscoveryTest do
           {:ok, models} ->
             assert is_list(models), "Should return model list for #{provider_id}"
 
-            if length(models) > 0 do
+            if models != [] do
               IO.puts("#{provider_id}: Found #{length(models)} models")
 
               # Analyze first model structure
@@ -164,7 +164,7 @@ defmodule Jido.AI.ProviderValidation.Functional.LocalModelDiscoveryTest do
 
       Enum.each(local_providers, fn provider_id ->
         case Registry.list_models(provider_id) do
-          {:ok, models} when length(models) > 0 ->
+          {:ok, models} when models != [] ->
             model = hd(models)
 
             # Essential fields for local models
@@ -385,7 +385,7 @@ defmodule Jido.AI.ProviderValidation.Functional.LocalModelDiscoveryTest do
       provider_id = :ollama
 
       case Registry.list_models(provider_id) do
-        {:ok, models} when length(models) > 0 ->
+        {:ok, models} when models != [] ->
           # Test filtering by common patterns
           chat_models =
             Enum.filter(models, fn model ->

@@ -149,7 +149,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
       case models_found do
         {provider, models} ->
           assert is_list(models), "Should return a list of models for #{provider}"
-          assert length(models) > 0, "Together AI should have multiple models available"
+          assert models != [], "Together AI should have multiple models available"
 
           # Together AI typically has many models, so we expect a substantial catalog
           if length(models) > 5 do
@@ -221,7 +221,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
       together_provider =
         Enum.find(together_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> true
+            {:ok, models} when models != [] -> true
             _ -> false
           end
         end)
@@ -296,7 +296,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
         end)
 
       case models_by_provider do
-        {provider, models} ->
+        {_provider, models} ->
           # Check consistency across multiple models
           sample_models = Enum.take(models, 5)
           field_consistency = %{}
@@ -436,7 +436,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
         end)
 
       case models_with_features do
-        {provider, models} ->
+        {_provider, models} ->
           sample_model = hd(models)
           capabilities = Map.get(sample_model, :capabilities, %{})
 
@@ -463,7 +463,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
       working_provider =
         Enum.find(together_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> true
+            {:ok, models} when models != [] -> true
             _ -> false
           end
         end)
@@ -552,7 +552,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
       working_provider =
         Enum.find(together_variants, fn variant ->
           case Registry.list_models(variant) do
-            {:ok, models} when length(models) > 0 -> true
+            {:ok, models} when models != [] -> true
             _ -> false
           end
         end)
