@@ -1,7 +1,7 @@
 defmodule Jido.AI.ContextWindowTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.{ContextWindow, Model, Prompt, Tokenizer}
+  alias Jido.AI.{ContextWindow, Model, Prompt}
   alias Jido.AI.ContextWindow.{ContextExceededError, Limits}
 
   describe "get_limits/1" do

@@ -4,7 +4,7 @@ defmodule Jido.AI.ReqLlmBridge.ToolBuilderTest do
 
   @moduletag :capture_log
 
-  alias Jido.AI.ReqLlmBridge.{SchemaValidator, ToolBuilder, ToolExecutor}
+  alias Jido.AI.ReqLlmBridge.ToolBuilder
 
   # Add global mock setup
   setup :set_mimic_global

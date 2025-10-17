@@ -17,7 +17,6 @@ defmodule Jido.AI.ProviderValidation.Functional.AlibabaCloudValidationTest do
 
   alias Jido.AI.ReqLLMBridge
   alias Jido.AI.ReqLLMBridge.EnterpriseAuthentication
-  alias Jido.AI.Test.EnterpriseHelpers
 
   import Jido.AI.Test.EnterpriseHelpers
 

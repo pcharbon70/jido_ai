@@ -18,7 +18,6 @@ defmodule Jido.AI.Actions.OpenaiExCompatibilityTest do
   alias Jido.AI.Actions.OpenaiEx.Embeddings
   alias Jido.AI.Actions.OpenaiEx.ImageGeneration
   alias Jido.AI.Actions.OpenaiEx.ToolHelper
-  alias Jido.AI.Model
 
   @moduletag :compatibility
   @moduletag :public_api

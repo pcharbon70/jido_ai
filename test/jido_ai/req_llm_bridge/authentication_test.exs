@@ -6,7 +6,6 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
   alias Jido.AI.Keyring
   alias Jido.AI.ReqLlmBridge.Authentication
-  alias Jido.AI.ReqLlmBridge.SessionAuthentication
 
   # Add global mock setup
   setup :set_mimic_global
