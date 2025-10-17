@@ -1,5 +1,5 @@
 defmodule Jido.AI.Model.RegistryTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   use Mimic
 
   alias Jido.AI.Model.Registry

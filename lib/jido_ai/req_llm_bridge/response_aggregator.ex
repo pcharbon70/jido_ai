@@ -142,16 +142,20 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
 
     try do
       {accumulated_content, tool_data, usage_data} =
-        Enum.reduce(stream_chunks, {"", [], %{}}, fn chunk, {content, tools, usage} ->
-          chunk_content = extract_chunk_content(chunk)
-          chunk_tools = extract_chunk_tools(chunk)
-          chunk_usage = extract_chunk_usage(chunk)
+        Enum.reduce(stream_chunks, {"", [], %{}}, fn
+          # Skip nil chunks
+          nil, acc -> acc
+          # Process valid chunks
+          chunk, {content, tools, usage} ->
+            chunk_content = extract_chunk_content(chunk)
+            chunk_tools = extract_chunk_tools(chunk)
+            chunk_usage = extract_chunk_usage(chunk)
 
-          {
-            content <> chunk_content,
-            tools ++ chunk_tools,
-            merge_usage_stats(usage, chunk_usage)
-          }
+            {
+              content <> chunk_content,
+              tools ++ chunk_tools,
+              merge_usage_stats(usage, chunk_usage)
+            }
         end)
 
       response_data = %{
@@ -281,8 +285,9 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
       {"", tool_results} ->
         format_tool_only_response(tool_results)
 
-      {content, tool_results} ->
-        enhance_content_with_tool_results(content, tool_results)
+      {content, _tool_results} ->
+        # Keep original content - tool results will be added in format_for_user if needed
+        content
     end
   end
 

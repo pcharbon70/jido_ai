@@ -39,8 +39,10 @@ defmodule Jido.AI.Model.Registry.Cache do
   require Logger
 
   @cache_table :jido_model_cache
-  @default_ttl 3_600_000  # 1 hour in milliseconds
-  @cleanup_interval 60_000  # 1 minute
+  # 1 hour in milliseconds
+  @default_ttl 3_600_000
+  # 1 minute
+  @cleanup_interval 60_000
 
   # Client API
 

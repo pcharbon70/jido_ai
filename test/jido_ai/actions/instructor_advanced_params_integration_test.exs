@@ -127,7 +127,7 @@ defmodule Jido.AI.Actions.InstructorAdvancedParamsIntegrationTest do
       prompt = Prompt.new(:user, "Test")
 
       expect(Instructor, :chat_completion, fn opts, _config ->
-        assert opts[:logit_bias] == %{50256 => -100}
+        assert opts[:logit_bias] == %{50_256 => -100}
         {:ok, %TestResponse{}}
       end)
 
@@ -135,7 +135,7 @@ defmodule Jido.AI.Actions.InstructorAdvancedParamsIntegrationTest do
         model: model,
         prompt: prompt,
         response_model: TestResponse,
-        logit_bias: %{50256 => -100}
+        logit_bias: %{50_256 => -100}
       }
 
       assert {:ok, _, %{}} = InstructorAction.run(params, %{})

@@ -334,7 +334,7 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidatorTest do
         result = SchemaValidator.convert_schema_to_reqllm(schema)
 
         assert result.properties["field"]["type"] == expected_json_type,
-               "Expected #{nimble_type} to map to #{expected_json_type}"
+               "Expected #{inspect(nimble_type)} to map to #{expected_json_type}"
       end)
     end
   end

@@ -119,7 +119,7 @@ defmodule Jido.AI.Tokenizer do
       |> Enum.sum()
 
     # Add overhead for multimodal structure
-    text_tokens + (@message_overhead * 2)
+    text_tokens + @message_overhead * 2
   end
 
   @doc """

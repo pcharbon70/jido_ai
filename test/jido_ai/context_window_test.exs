@@ -2,7 +2,7 @@ defmodule Jido.AI.ContextWindowTest do
   use ExUnit.Case, async: true
 
   alias Jido.AI.{ContextWindow, Model, Prompt, Tokenizer}
-  alias Jido.AI.ContextWindow.{Limits, ContextExceededError}
+  alias Jido.AI.ContextWindow.{ContextExceededError, Limits}
 
   describe "get_limits/1" do
     test "extracts limits from model with endpoint" do
@@ -161,7 +161,10 @@ defmodule Jido.AI.ContextWindowTest do
       # Create prompt with many messages that will exceed small context
       messages =
         for i <- 1..50 do
-          %Prompt.MessageItem{role: :user, content: "Message number #{i} with some additional content here"}
+          %Prompt.MessageItem{
+            role: :user,
+            content: "Message number #{i} with some additional content here"
+          }
         end
 
       prompt = %Prompt{messages: messages}
@@ -196,7 +199,9 @@ defmodule Jido.AI.ContextWindowTest do
       assert length(recent.messages) == 5
 
       # keep_bookends strategy preserves system message
-      {:ok, bookends} = ContextWindow.ensure_fit(prompt, model, strategy: :keep_bookends, count: 5)
+      {:ok, bookends} =
+        ContextWindow.ensure_fit(prompt, model, strategy: :keep_bookends, count: 5)
+
       assert Enum.at(bookends.messages, 0).role == :system
     end
   end

@@ -193,8 +193,8 @@ defmodule Jido.AI.Actions.Instructor do
       ]
     ]
 
-  alias Jido.AI.{Model, Prompt, ContextWindow}
   require Logger
+  alias Jido.AI.{ContextWindow, Model, Prompt}
 
   @impl true
   def on_before_validate_params(params) do

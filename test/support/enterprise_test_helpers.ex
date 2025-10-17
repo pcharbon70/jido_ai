@@ -34,7 +34,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
   """
   def skip_unless_azure_entra_id do
     unless azure_entra_id_available?() do
-      ExUnit.skip("Azure Microsoft Entra ID configuration not available")
+      throw({:skip, "Azure Microsoft Entra ID configuration not available"})
     end
   end
 
@@ -45,7 +45,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
   """
   def skip_unless_aws_credentials do
     unless aws_credentials_available?() do
-      ExUnit.skip("AWS credentials not available")
+      throw({:skip, "AWS credentials not available"})
     end
   end
 
@@ -54,7 +54,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
   """
   def skip_unless_aws_cross_region do
     unless aws_cross_region_available?() do
-      ExUnit.skip("AWS cross-region configuration not available")
+      throw({:skip, "AWS cross-region configuration not available"})
     end
   end
 
@@ -63,7 +63,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
   """
   def skip_unless_alibaba_credentials do
     unless alibaba_credentials_available?() do
-      ExUnit.skip("Alibaba Cloud credentials not available")
+      throw({:skip, "Alibaba Cloud credentials not available"})
     end
   end
 
@@ -72,7 +72,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
   """
   def skip_unless_regional_providers do
     unless regional_providers_available?() do
-      ExUnit.skip("Regional provider configuration not available")
+      throw({:skip, "Regional provider configuration not available"})
     end
   end
 
@@ -90,7 +90,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
         }
 
       {:error, reason} ->
-        ExUnit.skip("Azure API key not available: #{reason}")
+        throw({:skip, "Azure API key not available: #{reason}"})
     end
   end
 
@@ -106,7 +106,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
         })
 
       {:error, reason} ->
-        ExUnit.skip("Azure Entra ID configuration not available: #{reason}")
+        throw({:skip, "Azure Entra ID configuration not available: #{reason}"})
     end
   end
 
@@ -123,7 +123,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
         }
 
       {:error, reason} ->
-        ExUnit.skip("AWS IAM role not available: #{reason}")
+        throw({:skip, "AWS IAM role not available: #{reason}"})
     end
   end
 
@@ -139,7 +139,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
         })
 
       {:error, reason} ->
-        ExUnit.skip("AWS direct credentials not available: #{reason}")
+        throw({:skip, "AWS direct credentials not available: #{reason}"})
     end
   end
 
@@ -156,7 +156,7 @@ defmodule Jido.AI.Test.EnterpriseHelpers do
         })
 
       {:error, reason} ->
-        ExUnit.skip("Alibaba Cloud credentials not available: #{reason}")
+        throw({:skip, "Alibaba Cloud credentials not available: #{reason}"})
     end
   end
 

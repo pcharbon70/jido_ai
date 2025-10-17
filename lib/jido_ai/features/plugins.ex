@@ -305,10 +305,12 @@ defmodule Jido.AI.Features.Plugins do
             {:error, "Plugin name cannot be empty"}
 
           String.length(name) > @max_plugin_name_length ->
-            {:error, "Plugin name too long: maximum is #{@max_plugin_name_length} characters, got #{String.length(name)}"}
+            {:error,
+             "Plugin name too long: maximum is #{@max_plugin_name_length} characters, got #{String.length(name)}"}
 
           not Regex.match?(@valid_plugin_name, name) ->
-            {:error, "Invalid plugin name: '#{name}'. Must contain only alphanumeric characters, hyphens, and underscores"}
+            {:error,
+             "Invalid plugin name: '#{name}'. Must contain only alphanumeric characters, hyphens, and underscores"}
 
           true ->
             {:ok, name}
@@ -331,7 +333,9 @@ defmodule Jido.AI.Features.Plugins do
 
       command not in @allowed_mcp_commands ->
         Logger.warning("Blocked MCP command: #{command}")
-        {:error, "Command '#{command}' not allowed. Permitted commands: #{inspect(@allowed_mcp_commands)}"}
+
+        {:error,
+         "Command '#{command}' not allowed. Permitted commands: #{inspect(@allowed_mcp_commands)}"}
 
       true ->
         {:ok, command}
@@ -341,9 +345,7 @@ defmodule Jido.AI.Features.Plugins do
   defp validate_environment(plugin) do
     env = Map.get(plugin, :env, %{})
 
-    unless is_map(env) do
-      {:error, "Environment must be a map"}
-    else
+    if is_map(env) do
       # Check for forbidden environment variable names
       forbidden =
         Enum.find(env, fn {key, _value} ->
@@ -353,11 +355,15 @@ defmodule Jido.AI.Features.Plugins do
       case forbidden do
         {key, _} ->
           Logger.warning("Blocked forbidden environment variable: #{key}")
-          {:error, "Environment variable '#{key}' contains forbidden pattern (secrets/credentials not allowed)"}
+
+          {:error,
+           "Environment variable '#{key}' contains forbidden pattern (secrets/credentials not allowed)"}
 
         nil ->
           {:ok, env}
       end
+    else
+      {:error, "Environment must be a map"}
     end
   end
 

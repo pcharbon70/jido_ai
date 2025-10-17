@@ -19,6 +19,7 @@ defmodule Jido.AI.ProviderValidation.ProviderSystemValidationTest do
   @moduletag :unit_tests
   @moduletag :provider_validation
 
+  alias Jido.AI.Model
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
@@ -292,7 +293,7 @@ defmodule Jido.AI.ProviderValidation.ProviderSystemValidationTest do
       ]
 
       for config <- invalid_configs do
-        case Jido.AI.Model.from(config) do
+        case Model.from(config) do
           {:ok, _model} ->
             # Some configs might work with defaults
             assert true
@@ -415,7 +416,7 @@ defmodule Jido.AI.ProviderValidation.ProviderSystemValidationTest do
       tasks =
         for spec <- model_specs do
           Task.async(fn ->
-            Jido.AI.Model.from(spec)
+            Model.from(spec)
           end)
         end
 

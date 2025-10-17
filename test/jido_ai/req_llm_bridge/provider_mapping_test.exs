@@ -8,7 +8,7 @@ defmodule Jido.AI.ReqLlmBridge.ProviderMappingTest do
       assert ProviderMapping.get_reqllm_provider(:anthropic) == :anthropic
       assert ProviderMapping.get_reqllm_provider(:google) == :google
       assert ProviderMapping.get_reqllm_provider(:openrouter) == :openrouter
-      assert ProviderMapping.get_reqllm_provider(:cloudflare) == :cloudflare
+      assert ProviderMapping.get_reqllm_provider(:cloudflare_workers_ai) == :cloudflare_workers_ai
     end
 
     test "returns unknown providers as-is" do
@@ -148,7 +148,7 @@ defmodule Jido.AI.ReqLlmBridge.ProviderMappingTest do
       assert :anthropic in providers
       assert :google in providers
       assert :openrouter in providers
-      assert :cloudflare in providers
+      assert :cloudflare_workers_ai in providers
     end
 
     test "returned providers are unique" do

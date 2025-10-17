@@ -108,77 +108,70 @@ defmodule Jido.AI.Features.RAG do
   end
 
   defp do_prepare_documents(documents, :cohere) do
-    try do
-      formatted =
-        Enum.map(documents, fn doc ->
-          case Map.fetch(doc, :content) do
-            {:ok, content} ->
-              %{
-                "text" => content,
-                "title" => Map.get(doc, :title, "Document"),
-                "id" => Map.get(doc, :id, generate_doc_id())
-              }
-              |> maybe_add_url(doc)
+    formatted =
+      Enum.map(documents, fn doc ->
+        case Map.fetch(doc, :content) do
+          {:ok, content} ->
+            %{
+              "text" => content,
+              "title" => Map.get(doc, :title, "Document"),
+              "id" => Map.get(doc, :id, generate_doc_id())
+            }
+            |> maybe_add_url(doc)
 
-            :error ->
-              throw({:missing_content, "Document missing required :content field"})
-          end
-        end)
+          :error ->
+            throw({:missing_content, "Document missing required :content field"})
+        end
+      end)
 
-      {:ok, formatted}
-    catch
-      {:missing_content, reason} -> {:error, reason}
-    end
+    {:ok, formatted}
+  catch
+    {:missing_content, reason} -> {:error, reason}
   end
 
   defp do_prepare_documents(documents, :google) do
-    try do
-      formatted =
-        Enum.map(documents, fn doc ->
-          case Map.fetch(doc, :content) do
-            {:ok, content} ->
-              %{
-                "inline_data" => %{
-                  "content" => content,
-                  "mime_type" => "text/plain"
-                }
+    formatted =
+      Enum.map(documents, fn doc ->
+        case Map.fetch(doc, :content) do
+          {:ok, content} ->
+            %{
+              "inline_data" => %{
+                "content" => content,
+                "mime_type" => "text/plain"
               }
-              |> maybe_add_metadata(doc)
+            }
+            |> maybe_add_metadata(doc)
 
-            :error ->
-              throw({:missing_content, "Document missing required :content field"})
-          end
-        end)
+          :error ->
+            throw({:missing_content, "Document missing required :content field"})
+        end
+      end)
 
-      {:ok, formatted}
-    catch
-      {:missing_content, reason} -> {:error, reason}
-    end
+    {:ok, formatted}
+  catch
+    {:missing_content, reason} -> {:error, reason}
   end
 
   defp do_prepare_documents(documents, :anthropic) do
     # Anthropic doesn't have native RAG, but we can format documents
     # into the system prompt with citation markers
-    try do
-      formatted_text =
-        documents
-        |> Enum.with_index(1)
-        |> Enum.map(fn {doc, idx} ->
-          case Map.fetch(doc, :content) do
-            {:ok, content} ->
-              title = Map.get(doc, :title, "Document #{idx}")
-              "\n[#{idx}] #{title}\n#{content}\n"
+    formatted_text =
+      documents
+      |> Enum.with_index(1)
+      |> Enum.map_join("\n", fn {doc, idx} ->
+        case Map.fetch(doc, :content) do
+          {:ok, content} ->
+            title = Map.get(doc, :title, "Document #{idx}")
+            "\n[#{idx}] #{title}\n#{content}\n"
 
-            :error ->
-              throw({:missing_content, "Document missing required :content field"})
-          end
-        end)
-        |> Enum.join("\n")
+          :error ->
+            throw({:missing_content, "Document missing required :content field"})
+        end
+      end)
 
-      {:ok, formatted_text}
-    catch
-      {:missing_content, reason} -> {:error, reason}
-    end
+    {:ok, formatted_text}
+  catch
+    {:missing_content, reason} -> {:error, reason}
   end
 
   defp do_prepare_documents(_documents, provider) do
@@ -305,7 +298,7 @@ defmodule Jido.AI.Features.RAG do
 
   defp validate_documents(documents) when is_list(documents) do
     cond do
-      length(documents) == 0 ->
+      documents == [] ->
         {:error, "Documents list cannot be empty"}
 
       length(documents) > @max_documents ->
@@ -368,11 +361,13 @@ defmodule Jido.AI.Features.RAG do
   end
 
   defp parse_int(value, _default) when is_integer(value), do: value
+
   defp parse_int(value, default) when is_binary(value) do
     case Integer.parse(value) do
       {int, _} -> int
       :error -> default
     end
   end
+
   defp parse_int(_, default), do: default
 end

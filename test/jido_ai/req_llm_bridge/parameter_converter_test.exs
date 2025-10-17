@@ -352,8 +352,8 @@ defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
 
       params = %{"test" => "value"}
 
-      # Should handle the error gracefully
-      assert {:error, {:conversion_exception, _}} =
+      # Should handle the error gracefully - treats parameters as unknown since schema can't be retrieved
+      assert {:error, {:parameter_conversion_error, "test", _}} =
                ParameterConverter.convert_to_jido_format(params, BrokenAction)
     end
 

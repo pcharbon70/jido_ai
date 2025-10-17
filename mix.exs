@@ -30,6 +30,10 @@ defmodule Jido.Ai.MixProject do
       # Coverage
       test_coverage: [tool: ExCoveralls, export: "cov"],
       preferred_cli_env: [
+        "test.unit": :test,
+        "test.integration": :test,
+        "test.providers": :test,
+        "test.all": :test,
         coveralls: :test,
         "coveralls.github": :test,
         "coveralls.lcov": :test,
@@ -106,7 +110,13 @@ defmodule Jido.Ai.MixProject do
 
   defp aliases do
     [
-      # test: "test --trace",
+      # Memory-friendly test aliases
+      "test.unit": "test --exclude integration_testing --exclude provider_validation",
+      "test.integration": "test --only integration_testing --max-cases 1",
+      "test.providers": "test --only provider_validation --max-cases 1",
+      "test.all": ["test.unit", "test.integration", "test.providers"],
+
+      # Other aliases
       docs: "docs -f html --open",
       q: ["quality"],
       quality: [
@@ -169,11 +179,12 @@ defmodule Jido.Ai.MixProject do
         {"guides/troubleshooting.md", title: "Troubleshooting"}
       ],
       groups_for_extras: [
-        "Getting Started": ~r/guides\/(getting-started|keyring|prompt|providers|agent-skill|actions)\.md/,
-        "Providers": ~r/guides\/providers\/.*/,
-        "Migration": ~r/guides\/migration\/.*/,
-        "Features": ~r/guides\/features\/.*/,
-        "Troubleshooting": ~r/guides\/troubleshooting.*/
+        "Getting Started":
+          ~r/guides\/(getting-started|keyring|prompt|providers|agent-skill|actions)\.md/,
+        Providers: ~r/guides\/providers\/.*/,
+        Migration: ~r/guides\/migration\/.*/,
+        Features: ~r/guides\/features\/.*/,
+        Troubleshooting: ~r/guides\/troubleshooting.*/
       ]
     ]
   end

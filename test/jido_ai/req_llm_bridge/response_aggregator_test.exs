@@ -353,8 +353,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
 
       formatted = ResponseAggregator.format_for_user(response)
 
-      assert String.contains?(formatted, "Here are the results")
-      assert String.contains?(formatted, "calculator")
+      assert String.contains?(formatted, "tool result")
+      assert String.contains?(formatted, "42")
     end
 
     test "handles tool results with errors" do

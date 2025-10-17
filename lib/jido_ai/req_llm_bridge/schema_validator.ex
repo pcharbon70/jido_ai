@@ -67,11 +67,15 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
     properties =
       nimble_schema
       |> Enum.map(&convert_field_schema/1)
+      |> Enum.reject(&is_nil/1)
       |> Map.new()
 
     required_fields =
       nimble_schema
-      |> Enum.filter(fn {_name, opts} -> Keyword.get(opts, :required, false) end)
+      |> Enum.filter(fn
+        {_name, opts} when is_list(opts) -> Keyword.get(opts, :required, false)
+        _ -> false
+      end)
       |> Enum.map(fn {name, _opts} -> to_string(name) end)
 
     %{
@@ -118,14 +122,30 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
   """
   @spec validate_params(map(), module()) :: validation_result()
   def validate_params(params, action_module) when is_map(params) and is_atom(action_module) do
-    schema = get_action_schema(action_module)
+    case get_action_schema(action_module) do
+      {:error, reason} ->
+        {:error,
+         %{
+           type: "schema_validation_exception",
+           message: reason,
+           action_module: action_module
+         }}
 
-    case NimbleOptions.validate(params, schema) do
-      {:ok, validated_params} ->
-        {:ok, validated_params}
+      {:ok, []} ->
+        # Empty schema - no validation needed
+        {:ok, params}
 
-      {:error, %NimbleOptions.ValidationError{} = error} ->
-        {:error, format_nimble_error(error)}
+      {:ok, schema} ->
+        # NimbleOptions.validate/2 requires the schema to be created with new!/1
+        nimble_schema = NimbleOptions.new!(schema)
+
+        case NimbleOptions.validate(params, nimble_schema) do
+          {:ok, validated_params} ->
+            {:ok, validated_params}
+
+          {:error, %NimbleOptions.ValidationError{} = error} ->
+            {:error, format_nimble_error(error)}
+        end
     end
   rescue
     error ->
@@ -211,8 +231,8 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
     field_name_string = to_string(field_name)
 
     json_field = %{
-      type: convert_type_to_json_schema(Keyword.get(field_opts, :type)),
-      description: Keyword.get(field_opts, :doc, "")
+      "type" => convert_type_to_json_schema(Keyword.get(field_opts, :type)),
+      "description" => Keyword.get(field_opts, :doc, "")
     }
 
     # Add additional properties based on field options
@@ -220,8 +240,8 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
       field_opts
       |> Enum.reduce(json_field, fn {key, value}, acc ->
         case key do
-          :required -> Map.put(acc, :required, value)
-          :default -> Map.put(acc, :default, value)
+          :required -> Map.put(acc, "required", value)
+          :default -> Map.put(acc, "default", value)
           # Already handled above
           :doc -> acc
           # Already handled above
@@ -234,14 +254,20 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
     {field_name_string, json_field}
   end
 
+  # Fallback for malformed field definitions
+  def convert_field_schema(invalid_field) do
+    Logger.warning("Skipping malformed field definition: #{inspect(invalid_field)}")
+    nil
+  end
+
   # Private helper functions
 
   defp get_action_schema(action_module) do
-    action_module.schema()
+    {:ok, action_module.schema()}
   rescue
-    _ ->
+    error ->
       Logger.warning("Could not retrieve schema from #{action_module}")
-      []
+      {:error, "Could not retrieve schema: #{Exception.message(error)}"}
   end
 
   defp convert_type_to_json_schema(type) do
@@ -373,18 +399,18 @@ defmodule Jido.AI.ReqLlmBridge.SchemaValidator do
   defp enhance_property_definition(property, field_opts) do
     field_opts
     |> Enum.reduce(property, fn {key, value}, acc ->
-      case key do
-        {:in, choices} ->
+      case {key, value} do
+        {:type, {:in, choices}} ->
           # Add enum constraint for choice types
           acc
-          |> Map.put(:enum, Enum.map(choices, &to_string/1))
-          |> Map.put(:type, "string")
+          |> Map.put("enum", Enum.map(choices, &to_string/1))
+          |> Map.put("type", "string")
 
-        :min ->
-          Map.put(acc, :minimum, value)
+        {:min, min_value} ->
+          Map.put(acc, "minimum", min_value)
 
-        :max ->
-          Map.put(acc, :maximum, value)
+        {:max, max_value} ->
+          Map.put(acc, "maximum", max_value)
 
         _ ->
           acc

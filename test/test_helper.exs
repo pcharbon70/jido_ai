@@ -1,4 +1,8 @@
-ExUnit.start()
+# Configure ExUnit with conservative memory settings
+ExUnit.start(
+  max_cases: System.schedulers_online() |> min(4),
+  timeout: 60_000
+)
 
 # Ensure our application is started for tests
 Application.ensure_all_started(:jido_ai)
