@@ -1,5 +1,5 @@
 defmodule JidoTest.AI.Actions.OpenaiExTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   use Mimic
   require Logger
   alias Jido.Actions.Arithmetic.Add

@@ -402,18 +402,6 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
     end
   end
 
-  defp enhance_content_with_tool_results(content, tool_results) do
-    successful_results =
-      Enum.filter(tool_results, fn result ->
-        not Map.get(result, :error, false)
-      end)
-
-    case successful_results do
-      [] -> content
-      results -> content <> "\n\n" <> format_tool_results_summary(results)
-    end
-  end
-
   defp format_single_tool_result(result) do
     tool_name = Map.get(result, :name, "Tool")
     content = Map.get(result, :content, "")
@@ -436,21 +424,6 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
       |> Enum.map_join("\n", fn {key, value} -> "  #{key}: #{inspect(value)}" end)
 
     "#{tool_name} results:\n#{formatted_fields}"
-  end
-
-  defp format_tool_results_summary(results) do
-    case length(results) do
-      1 -> "Tool result: " <> format_single_tool_result(hd(results))
-      n -> "Results from #{n} tools:\n\n" <> format_multiple_tool_results(results)
-    end
-  end
-
-  defp format_multiple_tool_results(results) do
-    results
-    |> Enum.with_index(1)
-    |> Enum.map_join("\n\n", fn {result, index} ->
-      "#{index}. #{format_single_tool_result(result)}"
-    end)
   end
 
   defp integrate_tool_results_into_content(content, tool_results) do
