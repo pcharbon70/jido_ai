@@ -13,6 +13,7 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
   - Together AI: < 1000ms latency, high concurrent throughput
   """
   use ExUnit.Case, async: false
+  use Mimic
 
   @moduletag :performance_benchmarks
   @moduletag :provider_validation
@@ -21,6 +22,16 @@ defmodule Jido.AI.ProviderValidation.Performance.BenchmarksTest do
 
   alias Jido.AI.Model
   alias Jido.AI.Model.Registry
+  alias Jido.AI.Test.RegistryHelpers
+
+  setup :set_mimic_global
+
+  setup do
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+    RegistryHelpers.setup_comprehensive_registry_mock()
+    :ok
+  end
 
   # Performance testing configuration
   @latency_samples 10

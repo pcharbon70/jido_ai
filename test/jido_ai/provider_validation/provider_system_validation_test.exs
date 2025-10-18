@@ -23,6 +23,7 @@ defmodule Jido.AI.ProviderValidation.ProviderSystemValidationTest do
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
+  alias Jido.AI.Test.RegistryHelpers
 
   @provider_categories %{
     high_performance: [:groq],
@@ -30,6 +31,20 @@ defmodule Jido.AI.ProviderValidation.ProviderSystemValidationTest do
     local: [],
     enterprise: [:azure_openai, :amazon_bedrock, :alibaba_cloud]
   }
+
+  setup :set_mimic_global
+
+  setup do
+    # Copy modules for mocking
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+
+    # Use comprehensive mock - provider validation tests need broader provider coverage
+    # Comprehensive mock has 50 models across 10 providers
+    RegistryHelpers.setup_comprehensive_registry_mock()
+
+    :ok
+  end
 
   describe "Section 2.1.1: All providers model listing through registry" do
     test "all providers are accessible through the registry" do

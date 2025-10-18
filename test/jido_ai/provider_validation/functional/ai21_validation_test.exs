@@ -28,6 +28,20 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
   alias Jido.AI.ReqLlmBridge.SessionAuthentication
+  alias Jido.AI.Test.RegistryHelpers
+
+  setup :set_mimic_global
+
+  setup do
+    # Copy modules for mocking
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+
+    # Use comprehensive mock - includes AI21 models
+    RegistryHelpers.setup_comprehensive_registry_mock()
+
+    :ok
+  end
 
   describe "AI21 Labs provider availability" do
     test "AI21 is listed in available providers" do

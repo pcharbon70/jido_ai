@@ -24,6 +24,16 @@ defmodule Jido.AI.ProviderValidation.Functional.GroqValidationTest do
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
   alias Jido.AI.ReqLlmBridge.SessionAuthentication
+  alias Jido.AI.Test.RegistryHelpers
+
+  setup :set_mimic_global
+
+  setup do
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+    RegistryHelpers.setup_comprehensive_registry_mock()
+    :ok
+  end
 
   describe "Groq provider availability" do
     test "Groq is listed in available providers" do

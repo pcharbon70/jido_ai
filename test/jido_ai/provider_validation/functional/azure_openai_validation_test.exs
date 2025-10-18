@@ -28,8 +28,18 @@ defmodule Jido.AI.ProviderValidation.Functional.AzureOpenAIValidationTest do
   alias Jido.AI.ReqLlmBridge.EnterpriseAuthentication
   alias Jido.AI.ReqLlmBridge.ProviderMapping
   alias Jido.AI.ReqLlmBridge.SessionAuthentication
+  alias Jido.AI.Test.RegistryHelpers
 
   import Jido.AI.Test.EnterpriseHelpers
+
+  setup :set_mimic_global
+
+  setup do
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+    RegistryHelpers.setup_comprehensive_registry_mock()
+    :ok
+  end
 
   describe "Azure OpenAI provider availability" do
     test "Azure OpenAI is accessible through reqllm_backed interface" do

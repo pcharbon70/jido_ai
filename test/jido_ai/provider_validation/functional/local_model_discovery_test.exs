@@ -24,6 +24,17 @@ defmodule Jido.AI.ProviderValidation.Functional.LocalModelDiscoveryTest do
   alias Jido.AI.Model.Registry
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
+  alias Jido.AI.Test.RegistryHelpers
+
+  setup :set_mimic_global
+
+  setup do
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+    # Local providers not in comprehensive mock, but setup prevents real registry loads
+    RegistryHelpers.setup_comprehensive_registry_mock()
+    :ok
+  end
 
   describe "local provider enumeration through registry" do
     test "registry can enumerate all local providers" do

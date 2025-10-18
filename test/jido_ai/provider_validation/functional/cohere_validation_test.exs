@@ -26,6 +26,16 @@ defmodule Jido.AI.ProviderValidation.Functional.CohereValidationTest do
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
   alias Jido.AI.ReqLlmBridge.SessionAuthentication
+  alias Jido.AI.Test.RegistryHelpers
+
+  setup :set_mimic_global
+
+  setup do
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+    RegistryHelpers.setup_comprehensive_registry_mock()
+    :ok
+  end
 
   describe "Cohere provider availability" do
     test "Cohere is listed in available providers" do

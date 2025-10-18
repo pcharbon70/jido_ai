@@ -29,8 +29,18 @@ defmodule Jido.AI.ProviderValidation.Functional.AmazonBedrockValidationTest do
   alias Jido.AI.ReqLlmBridge.EnterpriseAuthentication
   alias Jido.AI.ReqLlmBridge.ProviderMapping
   alias Jido.AI.ReqLlmBridge.SessionAuthentication
+  alias Jido.AI.Test.RegistryHelpers
 
   import Jido.AI.Test.EnterpriseHelpers
+
+  setup :set_mimic_global
+
+  setup do
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+    RegistryHelpers.setup_comprehensive_registry_mock()
+    :ok
+  end
 
   # AWS regions where Bedrock is available
   @bedrock_regions [

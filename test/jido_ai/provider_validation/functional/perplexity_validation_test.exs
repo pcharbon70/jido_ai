@@ -28,6 +28,20 @@ defmodule Jido.AI.ProviderValidation.Functional.PerplexityValidationTest do
   alias Jido.AI.Provider
   alias Jido.AI.ReqLlmBridge.ProviderMapping
   alias Jido.AI.ReqLlmBridge.SessionAuthentication
+  alias Jido.AI.Test.RegistryHelpers
+
+  setup :set_mimic_global
+
+  setup do
+    # Copy modules for mocking
+    copy(Jido.AI.Model.Registry.Adapter)
+    copy(Jido.AI.Model.Registry.MetadataBridge)
+
+    # Use comprehensive mock - includes Perplexity models
+    RegistryHelpers.setup_comprehensive_registry_mock()
+
+    :ok
+  end
 
   describe "Perplexity provider availability" do
     test "Perplexity is listed in available providers" do
