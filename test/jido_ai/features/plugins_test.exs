@@ -1,5 +1,5 @@
 defmodule Jido.AI.Features.PluginsTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.AI.Features.Plugins
   alias Jido.AI.Model

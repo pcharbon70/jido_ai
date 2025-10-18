@@ -1,5 +1,5 @@
 defmodule Jido.AI.Features.FineTuningTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.AI.Features.FineTuning
   alias Jido.AI.Model

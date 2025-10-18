@@ -1,5 +1,5 @@
 defmodule Jido.AI.ReqLlmBridge.StreamingAdapterTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   doctest Jido.AI.ReqLlmBridge.StreamingAdapter
 
   alias Jido.AI.ReqLlmBridge

@@ -22,6 +22,23 @@ defmodule JidoTest.AI.KeyringTest do
     :ok
   end
 
+  # Helper function to start a keyring with automatic cleanup
+  defp start_test_keyring do
+    name = :"keyring_#{System.unique_integer()}"
+    registry = :"registry_#{System.unique_integer()}"
+    {:ok, pid} = Keyring.start_link(name: name, registry: registry)
+
+    on_exit(fn ->
+      try do
+        GenServer.stop(name, :normal, 1000)
+      catch
+        :exit, _ -> :ok
+      end
+    end)
+
+    {name, registry, pid}
+  end
+
   describe "initialization" do
     test "loads values from environment variables" do
       # Mock Dotenvy.source! to return our test environment variables
@@ -33,10 +50,8 @@ defmodule JidoTest.AI.KeyringTest do
         }
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       assert Keyring.get(name, :anthropic_api_key, nil) == "test_anthropic_key"
       assert Keyring.get(name, :openai_api_key, nil) == "test_openai_key"
@@ -44,10 +59,8 @@ defmodule JidoTest.AI.KeyringTest do
     end
 
     test "returns default value when environment variables are not set" do
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Should return the default value
       assert Keyring.get(name, :test_environment_variable, "default_value") == "default_value"
@@ -61,10 +74,8 @@ defmodule JidoTest.AI.KeyringTest do
         test_environment_variable: "app_test_value"
       })
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       assert Keyring.get(name, :test_environment_variable, nil) == "app_test_value"
     end
@@ -80,10 +91,8 @@ defmodule JidoTest.AI.KeyringTest do
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Environment variable should win
       assert Keyring.get(name, :test_environment_variable, nil) == "env_test_value"
@@ -92,10 +101,8 @@ defmodule JidoTest.AI.KeyringTest do
 
   describe "session values" do
     test "can set and get session values" do
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Set session value
       Keyring.set_session_value(name, :test_key, "session_test_value")
@@ -108,10 +115,8 @@ defmodule JidoTest.AI.KeyringTest do
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Set session value
       Keyring.set_session_value(name, :test_environment_variable, "session_test_value")
@@ -126,10 +131,8 @@ defmodule JidoTest.AI.KeyringTest do
         test_key: "app_test_value"
       })
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Set session value
       Keyring.set_session_value(name, :test_key, "session_test_value")
@@ -144,10 +147,8 @@ defmodule JidoTest.AI.KeyringTest do
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Set session value in this process
       Keyring.set_session_value(name, :test_environment_variable, "session_test_value")
@@ -173,10 +174,8 @@ defmodule JidoTest.AI.KeyringTest do
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Set and verify session value
       Keyring.set_session_value(name, :test_environment_variable, "session_test_value")
@@ -198,10 +197,8 @@ defmodule JidoTest.AI.KeyringTest do
         }
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Set session values
       Keyring.set_session_value(name, :test_environment_variable, "session_test_value")
@@ -222,10 +219,8 @@ defmodule JidoTest.AI.KeyringTest do
 
   describe "session values with explicit PID" do
     test "can set and get session values for another process" do
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Create another process
       {pid, ref} = spawn_monitor(fn -> Process.sleep(5000) end)
@@ -255,10 +250,8 @@ defmodule JidoTest.AI.KeyringTest do
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Create another process
       {pid, ref} = spawn_monitor(fn -> Process.sleep(5000) end)
@@ -280,10 +273,8 @@ defmodule JidoTest.AI.KeyringTest do
     end
 
     test "can clear all session values for specific process" do
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Create another process
       {pid, ref} = spawn_monitor(fn -> Process.sleep(5000) end)
@@ -314,10 +305,8 @@ defmodule JidoTest.AI.KeyringTest do
         %{"TEST_KEY" => "env_test_value"}
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Create another process
       {pid, ref} = spawn_monitor(fn -> Process.sleep(5000) end)
@@ -354,10 +343,8 @@ defmodule JidoTest.AI.KeyringTest do
         }
       end)
 
-      # Start a fresh keyring instance with unique name and registry
-      name = :"keyring_#{System.unique_integer()}"
-      registry = :"registry_#{System.unique_integer()}"
-      {:ok, _} = Keyring.start_link(name: name, registry: registry)
+      # Start a fresh keyring instance with automatic cleanup
+      {name, _registry, _pid} = start_test_keyring()
 
       # Check that the environment variables were converted to atoms correctly
       assert Keyring.get(name, :simple_var, nil) == "simple_value"

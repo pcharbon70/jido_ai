@@ -1,5 +1,5 @@
 defmodule Jido.AI.Features.CodeExecutionTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.AI.Features.CodeExecution
   alias Jido.AI.Model

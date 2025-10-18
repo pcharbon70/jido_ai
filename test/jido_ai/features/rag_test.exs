@@ -1,5 +1,5 @@
 defmodule Jido.AI.Features.RAGTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.AI.Features.RAG
   alias Jido.AI.Model

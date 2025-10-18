@@ -1,5 +1,5 @@
 defmodule Jido.AI.ContextWindow.StrategyTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.AI.ContextWindow.Strategy
   alias Jido.AI.{Model, Prompt}

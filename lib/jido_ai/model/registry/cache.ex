@@ -39,10 +39,10 @@ defmodule Jido.AI.Model.Registry.Cache do
   require Logger
 
   @cache_table :jido_model_cache
-  # 1 hour in milliseconds
-  @default_ttl 3_600_000
-  # 1 minute
-  @cleanup_interval 60_000
+  # 1 hour in production, 1 second in test (prevents memory accumulation)
+  @default_ttl if Mix.env() == :test, do: 1_000, else: 3_600_000
+  # 1 minute in production, 1 second in test (aggressive cleanup in tests)
+  @cleanup_interval if Mix.env() == :test, do: 1_000, else: 60_000
 
   # Client API
 

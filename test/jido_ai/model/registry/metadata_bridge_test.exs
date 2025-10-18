@@ -1,5 +1,5 @@
 defmodule Jido.AI.Model.Registry.MetadataBridgeTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.AI.Model
   alias Jido.AI.Model.Registry.MetadataBridge

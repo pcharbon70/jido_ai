@@ -1,5 +1,5 @@
 defmodule Jido.AI.ReqLlmBridge.ProviderMappingTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   alias Jido.AI.ReqLlmBridge.ProviderMapping
 
   describe "get_reqllm_provider/1" do

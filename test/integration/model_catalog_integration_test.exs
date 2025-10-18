@@ -1,5 +1,5 @@
 defmodule Jido.AI.ModelCatalogIntegrationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.AI.{Model, Provider}
   alias Jido.AI.Model.Registry

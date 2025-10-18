@@ -233,7 +233,7 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
 
       mapping ->
         # Known provider - use unified resolution with session precedence
-        case Keyring.get_session_value(:default, mapping.jido_key, session_pid) do
+        case Keyring.get_session_value(Jido.AI.Keyring, mapping.jido_key, session_pid) do
           nil ->
             # No session value - delegate to ReqLLM
             case resolve_reqllm_authentication(mapping.reqllm_provider, req_options) do
@@ -275,7 +275,7 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
     jido_key = :"#{provider}_api_key"
     env_var = String.upcase("#{provider}_api_key")
 
-    case Keyring.get_session_value(:default, jido_key, session_pid) do
+    case Keyring.get_session_value(Jido.AI.Keyring, jido_key, session_pid) do
       nil ->
         # No session value - try ReqLLM
         case resolve_reqllm_authentication(provider, req_options) do

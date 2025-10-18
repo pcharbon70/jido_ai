@@ -1,5 +1,5 @@
 defmodule Jido.AI.Model.ReqLLMTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   alias Jido.AI.Model
 
   describe "compute_reqllm_id/2" do

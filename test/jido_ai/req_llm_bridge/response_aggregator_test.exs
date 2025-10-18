@@ -1,5 +1,5 @@
 defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   @moduletag :capture_log
 

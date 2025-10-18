@@ -1,5 +1,5 @@
 defmodule Jido.AI.ReqLlmBridge.ParameterConverterTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.AI.ReqLlmBridge.ParameterConverter
 

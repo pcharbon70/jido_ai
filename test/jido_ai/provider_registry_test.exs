@@ -1,5 +1,5 @@
 defmodule Jido.AI.ProviderRegistryTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   use Mimic
 
   @moduletag :capture_log
