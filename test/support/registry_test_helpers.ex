@@ -4,30 +4,98 @@ defmodule Jido.AI.Test.RegistryHelpers do
 
   This module provides mock data and helper functions to prevent the 60GB memory leak
   caused by loading 2000+ real models in tests. Instead, tests use minimal mock data
-  (5-15 models) that validates behavior without excessive memory consumption.
+  (5-50 models) that validates behavior without excessive memory consumption.
 
   ## Memory Impact
   - Real registry: 2000+ models, ~60GB memory usage in test suite
-  - Mock registry: 5-15 models, <500MB memory usage in test suite
+  - Mock registry: 5-50 models, <500MB memory usage in test suite
   - Memory reduction: 120x improvement
 
-  ## Usage
+  ## Usage Patterns
 
-  ### Minimal Mock (5 models - fastest)
-      use Jido.AI.Test.RegistryHelpers, :minimal
+  ### Pattern 1: Full Manual Setup (Recommended for most tests)
 
-  ### Standard Mock (15 models - balanced)
-      use Jido.AI.Test.RegistryHelpers, :standard
+      defmodule MyTest do
+        use ExUnit.Case, async: false
+        use Mimic
 
-  ### Manual Setup
-      setup do
-        setup_minimal_registry_mock()
+        alias Jido.AI.Test.RegistryHelpers
+
+        setup :set_mimic_global
+
+        setup do
+          # Copy modules that will be mocked
+          copy(Jido.AI.Model.Registry.Adapter)
+          copy(Jido.AI.Model.Registry.MetadataBridge)
+
+          # Setup mock (choose tier based on test needs)
+          RegistryHelpers.setup_minimal_registry_mock()
+          # or: RegistryHelpers.setup_standard_registry_mock()
+          # or: RegistryHelpers.setup_comprehensive_registry_mock()
+
+          :ok
+        end
+
+        test "my test" do
+          # Your test code using Registry.list_models(), etc.
+        end
+      end
+
+  ### Pattern 2: Using the __using__ Macro (Simpler)
+
+      defmodule MyTest do
+        use ExUnit.Case, async: false
+        use Mimic
+        use Jido.AI.Test.RegistryHelpers, tier: :minimal
+
+        setup :set_mimic_global
+
+        test "my test" do
+          # Mock is automatically set up
+        end
       end
 
   ## Mock Data Tiers
-  - **Minimal**: 5 models (anthropic, openai, google) - for unit tests
-  - **Standard**: 15 models (5 providers) - for integration tests
-  - **Comprehensive**: 50 models (10 providers) - for edge case testing
+
+  Choose the appropriate tier based on your test needs:
+
+  - **Minimal** (5 models, 3 providers): For unit tests testing basic logic
+    - Providers: anthropic, openai, google
+    - Memory: ~25KB mock data
+    - Best for: Registry tests, simple model lookups
+
+  - **Standard** (15 models, 5 providers): For integration tests needing variety
+    - Adds: groq, perplexity
+    - Memory: ~75KB mock data
+    - Best for: Multi-provider tests, capability filtering
+
+  - **Comprehensive** (50 models, 10 providers): For edge cases and validation
+    - Adds: cohere, togetherai, mistral, ai21, openrouter
+    - Memory: ~500KB mock data
+    - Best for: Provider validation tests, extensive filtering
+
+  ## How It Works
+
+  The helpers use Adapter-level stubbing to intercept registry calls BEFORE
+  the real 2000+ models are loaded:
+
+  1. Stubs `Jido.AI.Model.Registry.Adapter` functions to return mock ReqLLM models
+  2. Stubs `Jido.AI.Model.Registry.MetadataBridge` to convert to Jido models
+  3. Tests use normal Registry API calls but get mock data instead
+  4. No changes needed to production code
+
+  ## Examples
+
+      # List all models (returns 5, 15, or 50 depending on tier)
+      {:ok, models} = Registry.list_models()
+
+      # List models for specific provider
+      {:ok, models} = Registry.list_models(:anthropic)
+
+      # Discover models with capabilities
+      {:ok, models} = Registry.discover_models(capability: :tool_call)
+
+  All Registry functions work normally with mock data!
   """
 
   import Mimic
@@ -458,124 +526,6 @@ defmodule Jido.AI.Test.RegistryHelpers do
       modalities: Keyword.get(opts, :modalities, %{input: [:text], output: [:text]}),
       reqllm_id: "#{provider}:#{model_name}"
     }
-  end
-
-  # Registry Stats Generators
-
-  defp minimal_registry_stats do
-    %{
-      total_models: 5,
-      total_providers: 3,
-      registry_models: 5,
-      legacy_models: 0,
-      provider_coverage: %{
-        anthropic: 2,
-        openai: 2,
-        google: 1
-      },
-      capabilities_distribution: %{
-        tool_call: 4,
-        reasoning: 3
-      },
-      note: "Mock statistics (minimal tier)"
-    }
-  end
-
-  defp standard_registry_stats do
-    %{
-      total_models: 15,
-      total_providers: 5,
-      registry_models: 15,
-      legacy_models: 0,
-      provider_coverage: %{
-        anthropic: 3,
-        openai: 4,
-        google: 1,
-        groq: 3,
-        perplexity: 3
-      },
-      capabilities_distribution: %{
-        tool_call: 9,
-        reasoning: 5
-      },
-      note: "Mock statistics (standard tier)"
-    }
-  end
-
-  defp comprehensive_registry_stats do
-    %{
-      total_models: 50,
-      total_providers: 10,
-      registry_models: 50,
-      legacy_models: 0,
-      provider_coverage: %{
-        anthropic: 3,
-        openai: 4,
-        google: 6,
-        groq: 3,
-        perplexity: 3,
-        cohere: 5,
-        togetherai: 5,
-        mistral: 5,
-        ai21: 5,
-        openrouter: 5
-      },
-      capabilities_distribution: %{
-        tool_call: 25,
-        reasoning: 8
-      },
-      note: "Mock statistics (comprehensive tier)"
-    }
-  end
-
-  # Filter Application (mimics real registry filtering logic)
-
-  defp apply_mock_filters(models, []), do: models
-
-  defp apply_mock_filters(models, filters) do
-    Enum.filter(models, fn model ->
-      Enum.all?(filters, fn {filter_type, filter_value} ->
-        apply_single_filter(model, filter_type, filter_value)
-      end)
-    end)
-  end
-
-  defp apply_single_filter(model, :capability, required_capability) do
-    case model.capabilities do
-      nil -> false
-      capabilities -> Map.get(capabilities, required_capability, false)
-    end
-  end
-
-  defp apply_single_filter(model, :max_cost_per_token, max_cost) do
-    case model.cost do
-      nil -> true
-      %{input: input_cost} when is_number(input_cost) -> input_cost <= max_cost
-      _ -> true
-    end
-  end
-
-  defp apply_single_filter(model, :min_context_length, min_length) do
-    case model.endpoints do
-      [] -> false
-      [endpoint | _] ->
-        context = Map.get(endpoint, :context_length, 0)
-        context >= min_length
-      _ -> false
-    end
-  end
-
-  defp apply_single_filter(model, :modality, required_modality) do
-    case model.modalities do
-      nil -> required_modality == :text
-      %{input: input_modalities} -> required_modality in input_modalities
-      _ -> required_modality == :text
-    end
-  end
-
-  defp apply_single_filter(_model, _filter_type, _filter_value) do
-    # Unknown filter type, allow through
-    true
   end
 
   # Macro for easy inclusion in tests
