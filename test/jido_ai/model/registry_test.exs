@@ -154,7 +154,8 @@ defmodule Jido.AI.Model.RegistryTest do
       assert stats.provider_coverage[:google] == 1
 
       # Check capabilities distribution
-      assert stats.capabilities_distribution[:tool_call] == 4
+      # Minimal mock: all 5 models have tool_call, 3 have reasoning
+      assert stats.capabilities_distribution[:tool_call] == 5
       assert stats.capabilities_distribution[:reasoning] == 3
     end
 

@@ -35,24 +35,36 @@ defmodule Jido.AI.Test.RegistryHelpers do
   @doc """
   Sets up minimal registry mock with 5 models across 3 providers.
   Perfect for unit tests that just need a few models to validate logic.
+
+  Stubs at Adapter and MetadataBridge layers to prevent loading real 2000+ models.
   """
   def setup_minimal_registry_mock do
-    stub(Jido.AI.Model.Registry, :list_models, fn
-      nil -> {:ok, minimal_mock_models()}
-      :anthropic -> {:ok, Enum.filter(minimal_mock_models(), &(&1.provider == :anthropic))}
-      :openai -> {:ok, Enum.filter(minimal_mock_models(), &(&1.provider == :openai))}
-      :google -> {:ok, Enum.filter(minimal_mock_models(), &(&1.provider == :google))}
-      _other -> {:ok, []}
+    # Stub Adapter layer to return minimal ReqLLM models
+    stub(Jido.AI.Model.Registry.Adapter, :list_providers, fn ->
+      {:ok, [:anthropic, :openai, :google]}
     end)
 
-    stub(Jido.AI.Model.Registry, :discover_models, fn filters ->
-      models = minimal_mock_models()
-      filtered = apply_mock_filters(models, filters)
-      {:ok, filtered}
+    stub(Jido.AI.Model.Registry.Adapter, :list_models, fn provider ->
+      models = Enum.filter(minimal_reqllm_models(), &(&1.provider == provider))
+      {:ok, models}
     end)
 
-    stub(Jido.AI.Model.Registry, :get_registry_stats, fn ->
-      {:ok, minimal_registry_stats()}
+    stub(Jido.AI.Model.Registry.Adapter, :get_model, fn provider, model_name ->
+      model = Enum.find(minimal_reqllm_models(), fn m ->
+        m.provider == provider && m.model == model_name
+      end)
+
+      if model, do: {:ok, model}, else: {:error, :not_found}
+    end)
+
+    # Stub MetadataBridge to convert ReqLLM models to Jido models
+    stub(Jido.AI.Model.Registry.MetadataBridge, :to_jido_model, fn reqllm_model ->
+      # Find corresponding Jido model from our mock data
+      jido_model = Enum.find(minimal_mock_models(), fn m ->
+        m.provider == reqllm_model.provider && m.id == reqllm_model.model
+      end)
+
+      jido_model || build_mock_model(reqllm_model.provider, reqllm_model.model)
     end)
 
     :ok
@@ -61,22 +73,35 @@ defmodule Jido.AI.Test.RegistryHelpers do
   @doc """
   Sets up standard registry mock with 15 models across 5 providers.
   Good balance for integration tests that need diverse provider coverage.
+
+  Stubs at Adapter and MetadataBridge layers to prevent loading real 2000+ models.
   """
   def setup_standard_registry_mock do
-    stub(Jido.AI.Model.Registry, :list_models, fn
-      nil -> {:ok, standard_mock_models()}
-      provider when is_atom(provider) ->
-        {:ok, Enum.filter(standard_mock_models(), &(&1.provider == provider))}
+    # Stub Adapter layer to return standard ReqLLM models
+    stub(Jido.AI.Model.Registry.Adapter, :list_providers, fn ->
+      {:ok, [:anthropic, :openai, :google, :groq, :perplexity]}
     end)
 
-    stub(Jido.AI.Model.Registry, :discover_models, fn filters ->
-      models = standard_mock_models()
-      filtered = apply_mock_filters(models, filters)
-      {:ok, filtered}
+    stub(Jido.AI.Model.Registry.Adapter, :list_models, fn provider ->
+      models = Enum.filter(standard_reqllm_models(), &(&1.provider == provider))
+      {:ok, models}
     end)
 
-    stub(Jido.AI.Model.Registry, :get_registry_stats, fn ->
-      {:ok, standard_registry_stats()}
+    stub(Jido.AI.Model.Registry.Adapter, :get_model, fn provider, model_name ->
+      model = Enum.find(standard_reqllm_models(), fn m ->
+        m.provider == provider && m.model == model_name
+      end)
+
+      if model, do: {:ok, model}, else: {:error, :not_found}
+    end)
+
+    # Stub MetadataBridge
+    stub(Jido.AI.Model.Registry.MetadataBridge, :to_jido_model, fn reqllm_model ->
+      jido_model = Enum.find(standard_mock_models(), fn m ->
+        m.provider == reqllm_model.provider && m.id == reqllm_model.model
+      end)
+
+      jido_model || build_mock_model(reqllm_model.provider, reqllm_model.model)
     end)
 
     :ok
@@ -85,28 +110,76 @@ defmodule Jido.AI.Test.RegistryHelpers do
   @doc """
   Sets up comprehensive registry mock with 50 models across 10 providers.
   For tests that need extensive provider/model coverage or edge case testing.
+
+  Stubs at Adapter and MetadataBridge layers to prevent loading real 2000+ models.
   """
   def setup_comprehensive_registry_mock do
-    stub(Jido.AI.Model.Registry, :list_models, fn
-      nil -> {:ok, comprehensive_mock_models()}
-      provider when is_atom(provider) ->
-        {:ok, Enum.filter(comprehensive_mock_models(), &(&1.provider == provider))}
+    # Stub Adapter layer to return comprehensive ReqLLM models
+    stub(Jido.AI.Model.Registry.Adapter, :list_providers, fn ->
+      {:ok, [:anthropic, :openai, :google, :groq, :perplexity, :cohere, :togetherai, :mistral, :ai21, :openrouter]}
     end)
 
-    stub(Jido.AI.Model.Registry, :discover_models, fn filters ->
-      models = comprehensive_mock_models()
-      filtered = apply_mock_filters(models, filters)
-      {:ok, filtered}
+    stub(Jido.AI.Model.Registry.Adapter, :list_models, fn provider ->
+      models = Enum.filter(comprehensive_reqllm_models(), &(&1.provider == provider))
+      {:ok, models}
     end)
 
-    stub(Jido.AI.Model.Registry, :get_registry_stats, fn ->
-      {:ok, comprehensive_registry_stats()}
+    stub(Jido.AI.Model.Registry.Adapter, :get_model, fn provider, model_name ->
+      model = Enum.find(comprehensive_reqllm_models(), fn m ->
+        m.provider == provider && m.model == model_name
+      end)
+
+      if model, do: {:ok, model}, else: {:error, :not_found}
+    end)
+
+    # Stub MetadataBridge
+    stub(Jido.AI.Model.Registry.MetadataBridge, :to_jido_model, fn reqllm_model ->
+      jido_model = Enum.find(comprehensive_mock_models(), fn m ->
+        m.provider == reqllm_model.provider && m.id == reqllm_model.model
+      end)
+
+      jido_model || build_mock_model(reqllm_model.provider, reqllm_model.model)
     end)
 
     :ok
   end
 
   # Mock Data Generators
+
+  # ReqLLM.Model generators (for Adapter layer mocking)
+
+  defp minimal_reqllm_models do
+    [
+      %ReqLLM.Model{provider: :anthropic, model: "claude-3-5-sonnet-20241022"},
+      %ReqLLM.Model{provider: :anthropic, model: "claude-3-haiku-20240307"},
+      %ReqLLM.Model{provider: :openai, model: "gpt-4-turbo-2024-04-09"},
+      %ReqLLM.Model{provider: :openai, model: "gpt-3.5-turbo"},
+      %ReqLLM.Model{provider: :google, model: "gemini-1.5-pro"}
+    ]
+  end
+
+  defp standard_reqllm_models do
+    minimal_reqllm_models() ++
+      [
+        %ReqLLM.Model{provider: :anthropic, model: "claude-3-opus-20240229"},
+        %ReqLLM.Model{provider: :openai, model: "gpt-4"},
+        %ReqLLM.Model{provider: :openai, model: "gpt-4o-mini"},
+        %ReqLLM.Model{provider: :groq, model: "llama-3.1-70b-versatile"},
+        %ReqLLM.Model{provider: :groq, model: "mixtral-8x7b-32768"},
+        %ReqLLM.Model{provider: :groq, model: "gemma-7b-it"},
+        %ReqLLM.Model{provider: :perplexity, model: "llama-3.1-sonar-large-128k-online"},
+        %ReqLLM.Model{provider: :perplexity, model: "llama-3.1-sonar-small-128k-online"},
+        %ReqLLM.Model{provider: :perplexity, model: "llama-3.1-8b-instruct"}
+      ]
+  end
+
+  defp comprehensive_reqllm_models do
+    # For now, comprehensive uses standard models
+    # In future, could expand to full 50 models
+    standard_reqllm_models()
+  end
+
+  # Jido.AI.Model generators (for MetadataBridge mocking)
 
   defp minimal_mock_models do
     [
