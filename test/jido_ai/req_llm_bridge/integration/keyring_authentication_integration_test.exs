@@ -2,9 +2,6 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
   use ExUnit.Case, async: false
   use Mimic
 
-  # TODO: These tests reference non-existent ReqLlmBridge.Keys module
-  # They need refactoring to use current authentication architecture
-  @moduletag :skip
   @moduletag :capture_log
 
   alias Jido.AI.Keyring
@@ -12,6 +9,13 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
   alias Jido.AI.ReqLlmBridge.SessionAuthentication
 
   setup :set_mimic_global
+
+  setup do
+    copy(JidoKeys)
+    copy(Keyring)
+    copy(ReqLLM.Keys)
+    :ok
+  end
 
   # Helper functions to work with test-specific keyring
   defp set_provider(provider, key, keyring) do
@@ -64,9 +68,9 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       # Clear any existing session values
       SessionAuthentication.clear_for_provider(:openai)
 
-      # Mock ReqLLM to return the request override
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{api_key: "request-override-key"} ->
-        {:ok, "request-override-key", :request_options}
+      # Stub ReqLLM.Keys to extract and return api_key from req_options
+      stub(ReqLLM.Keys, :get, fn :openai, %{api_key: "request-override-key"} ->
+        {:ok, "request-override-key", :option}
       end)
 
       req_options = %{api_key: "request-override-key"}
@@ -105,10 +109,8 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       # Clear session values
       SessionAuthentication.clear_for_provider(:openai)
 
-      # Mock ReqLLM to fail
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
-        {:error, ":api_key option or OPENAI_API_KEY environment variable required"}
-      end)
+      # Stub JidoKeys to return nil (no global key)
+      stub(JidoKeys, :get, fn :openai_api_key, nil -> nil end)
 
       # Mock environment fallback
       stub(Keyring, :get_env_value, fn :default, :openai_api_key, nil ->
@@ -125,10 +127,8 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       # Clear session values
       SessionAuthentication.clear_for_provider(:openai)
 
-      # Mock ReqLLM to fail
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
-        {:error, ":api_key option or OPENAI_API_KEY environment variable required"}
-      end)
+      # Stub JidoKeys to return nil (no global key)
+      stub(JidoKeys, :get, fn :openai_api_key, nil -> nil end)
 
       # Mock environment to also fail
       stub(Keyring, :get_env_value, fn :default, :openai_api_key, nil ->
@@ -137,7 +137,7 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
 
       {:error, reason} = Authentication.authenticate_for_provider(:openai, %{})
 
-      assert reason == "API key not found: OPENAI_API_KEY"
+      assert reason == "Authentication error: API key not found: OPENAI_API_KEY"
     end
   end
 
@@ -191,8 +191,10 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       refute SessionAuthentication.has_session_auth?(:anthropic)
 
       # Authentication should fall back to other methods
-      expect(ReqLlmBridge.Keys, :get, 2, fn _provider, %{} ->
-        {:error, "No session value available"}
+      # Stub JidoKeys to return nil (no global key)
+      stub(JidoKeys, :get, fn
+        :openai_api_key, nil -> nil
+        :anthropic_api_key, nil -> nil
       end)
 
       stub(Keyring, :get_env_value, fn :default, _key, nil ->
@@ -300,9 +302,8 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       SessionAuthentication.clear_for_provider(:openai)
 
       # OpenAI should fail
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
-        {:error, "No key"}
-      end)
+      # Stub JidoKeys to return nil (no global key)
+      stub(JidoKeys, :get, fn :openai_api_key, nil -> nil end)
 
       stub(Keyring, :get_env_value, fn :default, :openai_api_key, nil ->
         nil
@@ -319,10 +320,8 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       # Clear session values
       SessionAuthentication.clear_for_provider(:openai)
 
-      # Mock ReqLLM to fail
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
-        {:error, ":api_key option or OPENAI_API_KEY environment variable required"}
-      end)
+      # Stub JidoKeys to return nil (no global key)
+      stub(JidoKeys, :get, fn :openai_api_key, nil -> nil end)
 
       # But provide keyring fallback
       stub(Keyring, :get_env_value, fn :default, :openai_api_key, nil ->
@@ -342,10 +341,8 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
       # Clear session values
       SessionAuthentication.clear_for_provider(:openai)
 
-      # Mock ReqLLM to fail
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
-        {:error, ":api_key option or OPENAI_API_KEY environment variable required"}
-      end)
+      # Stub JidoKeys to return nil (no global key)
+      stub(JidoKeys, :get, fn :openai_api_key, nil -> nil end)
 
       # Mock keyring to also fail
       stub(Keyring, :get_env_value, fn :default, :openai_api_key, nil ->
@@ -354,14 +351,14 @@ defmodule Jido.AI.ReqLlmBridge.Integration.KeyringAuthenticationIntegrationTest 
 
       # Should fail gracefully with proper error message
       {:error, reason} = Authentication.authenticate_for_provider(:openai, %{})
-      assert reason == "API key not found: OPENAI_API_KEY"
+      assert reason == "Authentication error: API key not found: OPENAI_API_KEY"
 
-      # Headers should return base headers on failure
+      # Headers should return empty map on failure
       headers = Authentication.get_authentication_headers(:openai, %{})
-      assert headers == %{"Content-Type" => "application/json"}
+      assert headers == %{}
 
       # Validation should also fail gracefully
-      {:error, "API key not found: OPENAI_API_KEY"} =
+      {:error, "Authentication error: API key not found: OPENAI_API_KEY"} =
         Authentication.validate_authentication(:openai, %{})
     end
   end
