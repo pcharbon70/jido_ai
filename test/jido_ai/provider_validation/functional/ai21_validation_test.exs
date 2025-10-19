@@ -555,7 +555,7 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
           enterprise_models =
             Enum.filter(models, fn model ->
               model_name = Map.get(model, :name, Map.get(model, :id, ""))
-              description = Map.get(model, :description, "")
+              description = Map.get(model, :description) || ""
               tags = Map.get(model, :tags, [])
 
               name_indicates_enterprise =
@@ -573,7 +573,9 @@ defmodule Jido.AI.ProviderValidation.Functional.AI21ValidationTest do
               tags_indicate_enterprise =
                 is_list(tags) and
                   Enum.any?(tags, fn tag ->
-                    Enum.any?(enterprise_indicators, &String.contains?(String.downcase(tag), &1))
+                    # Handle nil tags
+                    tag_str = to_string(tag || "")
+                    Enum.any?(enterprise_indicators, &String.contains?(String.downcase(tag_str), &1))
                   end)
 
               name_indicates_enterprise or desc_indicates_enterprise or tags_indicate_enterprise

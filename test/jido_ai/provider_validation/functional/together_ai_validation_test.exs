@@ -94,11 +94,12 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
       together_variants = [:together_ai, :together, :togetherai]
 
       Enum.each(together_variants, fn variant ->
-        case Provider.get_adapter_module(variant) do
+        case Provider.get_adapter_by_id(variant) do
           {:ok, :reqllm_backed} ->
-            # Test authentication requirements can be retrieved
-            auth_requirements = SessionAuthentication.get_provider_auth_requirements(variant)
-            assert is_map(auth_requirements), "Should return auth requirements for #{variant}"
+            # ReqLLM-backed providers don't have explicit auth requirements structure
+            # Just verify we can check for session auth
+            has_auth = SessionAuthentication.has_session_auth?(variant)
+            assert is_boolean(has_auth), "Should return boolean for session auth check"
 
           {:error, _reason} ->
             # Provider variant not available, continue testing other variants
@@ -114,7 +115,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
 
       authenticated_variant =
         Enum.find(together_variants, fn variant ->
-          case Provider.get_adapter_module(variant) do
+          case Provider.get_adapter_by_id(variant) do
             {:ok, :reqllm_backed} -> true
             _ -> false
           end
@@ -122,14 +123,19 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
 
       if authenticated_variant do
         # Test authentication key retrieval
-        result = SessionAuthentication.get_provider_key(authenticated_variant, %{})
-        assert result == nil or is_binary(result), "Should handle authentication gracefully"
+        auth_result = SessionAuthentication.get_for_request(authenticated_variant, %{})
 
-        # Test authentication requirements
-        auth_requirements =
-          SessionAuthentication.get_provider_auth_requirements(authenticated_variant)
+        # Extract key from auth result
+        key = case auth_result do
+          {:session_auth, opts} -> Keyword.get(opts, :api_key)
+          {:no_session_auth} -> nil
+        end
 
-        assert is_map(auth_requirements), "Should provide authentication requirements"
+        assert key == nil or is_binary(key), "Should handle authentication gracefully"
+
+        # Test session authentication
+        has_auth = SessionAuthentication.has_session_auth?(authenticated_variant)
+        assert is_boolean(has_auth), "Should return boolean for session auth check"
       else
         IO.puts("No Together AI provider variant found for authentication testing")
       end
@@ -141,9 +147,15 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
 
       Enum.each(together_variants, fn variant ->
         # This should not crash even with invalid or missing credentials
-        result = SessionAuthentication.get_provider_key(variant, %{invalid: "config"})
+        auth_result = SessionAuthentication.get_for_request(variant, %{invalid: "config"})
 
-        assert result == nil or is_binary(result),
+        # Extract key from auth result
+        key = case auth_result do
+          {:session_auth, opts} -> Keyword.get(opts, :api_key)
+          {:no_session_auth} -> nil
+        end
+
+        assert key == nil or is_binary(key),
                "Should handle invalid auth config for #{variant}"
       end)
     end
@@ -539,7 +551,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
 
       # Test error handling for invalid configurations
       Enum.each(together_variants, fn variant ->
-        case Provider.get_adapter_module(variant) do
+        case Provider.get_adapter_by_id(variant) do
           {:ok, :reqllm_backed} ->
             # Test invalid model configuration
             invalid_opts = {variant, [model: "non-existent-model-xyz-123"]}

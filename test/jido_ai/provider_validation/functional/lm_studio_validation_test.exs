@@ -83,9 +83,11 @@ defmodule Jido.AI.ProviderValidation.Functional.LmStudioValidationTest do
 
       openai_providers = [:openai, :openai_compatible]
 
+      provider_ids = Provider.providers() |> Enum.map(&elem(&1, 0))
+
       has_openai_support =
         Enum.any?(openai_providers, fn provider ->
-          (provider in Provider.providers()) |> Enum.map(&elem(&1, 0))
+          provider in provider_ids
         end)
 
       if has_openai_support do

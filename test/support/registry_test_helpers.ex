@@ -184,12 +184,12 @@ defmodule Jido.AI.Test.RegistryHelpers do
   def setup_comprehensive_registry_mock do
     # Stub ValidProviders for Provider.providers() call
     stub(ReqLLM.Provider.Generated.ValidProviders, :list, fn ->
-      [:anthropic, :openai, :google, :groq, :perplexity, :cohere, :togetherai, :mistral, :ai21, :openrouter]
+      [:anthropic, :openai, :google, :groq, :perplexity, :cohere, :togetherai, :mistral, :ai21, :openrouter, :ollama, :lm_studio, :"lm-studio", :lmstudio]
     end)
 
     # Stub Adapter layer to return comprehensive ReqLLM models
     stub(Jido.AI.Model.Registry.Adapter, :list_providers, fn ->
-      {:ok, [:anthropic, :openai, :google, :groq, :perplexity, :cohere, :togetherai, :mistral, :ai21, :openrouter]}
+      {:ok, [:anthropic, :openai, :google, :groq, :perplexity, :cohere, :togetherai, :mistral, :ai21, :openrouter, :ollama, :lm_studio, :"lm-studio", :lmstudio]}
     end)
 
     stub(Jido.AI.Model.Registry.Adapter, :list_models, fn provider ->
@@ -289,7 +289,14 @@ defmodule Jido.AI.Test.RegistryHelpers do
         %ReqLLM.Model{provider: :openrouter, model: "openai/gpt-4-turbo"},
         %ReqLLM.Model{provider: :openrouter, model: "google/gemini-pro-1.5"},
         %ReqLLM.Model{provider: :openrouter, model: "meta-llama/llama-3.1-405b-instruct"},
-        %ReqLLM.Model{provider: :openrouter, model: "anthropic/claude-3-haiku"}
+        %ReqLLM.Model{provider: :openrouter, model: "anthropic/claude-3-haiku"},
+
+        # Ollama models (local deployment)
+        %ReqLLM.Model{provider: :ollama, model: "llama2"},
+        %ReqLLM.Model{provider: :ollama, model: "mistral"},
+        %ReqLLM.Model{provider: :ollama, model: "codellama"},
+        %ReqLLM.Model{provider: :ollama, model: "phi"},
+        %ReqLLM.Model{provider: :ollama, model: "neural-chat"}
       ]
   end
 
