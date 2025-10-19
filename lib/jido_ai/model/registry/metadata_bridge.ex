@@ -375,7 +375,9 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     # Format cost per token as readable string avoiding scientific notation
     # Cost appears to be in thousandths, so multiply by 1000 to get the right scale
     cost_value = cost * 1_000
-    formatted_cost = :erlang.float_to_binary(cost_value, decimals: 1)
+    # Ensure cost_value is a float for :erlang.float_to_binary
+    cost_float = cost_value / 1
+    formatted_cost = :erlang.float_to_binary(cost_float, decimals: 1)
     "$#{formatted_cost} / 1M tokens"
   end
 
