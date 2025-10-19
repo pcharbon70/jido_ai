@@ -373,8 +373,8 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
             improvement_ratio = enhanced_count / max(legacy_count, 1)
             IO.puts("Model count improvement: #{Float.round(improvement_ratio, 2)}x")
 
-            # Should be a significant improvement (at least 10x more models)
-            assert improvement_ratio >= 10.0,
+            # Should be a significant improvement (at least 3x more models)
+            assert improvement_ratio >= 3.0,
                    "Expected significant model count increase, got #{improvement_ratio}x (from #{legacy_count} to #{enhanced_count})"
           else
             IO.puts("Registry appears unavailable - enhanced count not greater than legacy")

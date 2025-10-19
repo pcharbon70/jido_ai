@@ -593,6 +593,12 @@ defmodule Jido.AI.Model.Registry do
     model_tier == required_tier
   end
 
+  defp apply_single_filter(model, :provider, required_provider) do
+    # Filter models by provider
+    provider = Map.get(model, :provider) || Map.get(model, "provider")
+    provider == required_provider
+  end
+
   defp apply_single_filter(_model, _filter_type, _filter_value) do
     # Unknown filter type, allow through
     true
