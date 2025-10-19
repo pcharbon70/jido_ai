@@ -156,6 +156,7 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     []
     |> maybe_add_option(:dimensions, params[:dimensions])
     |> maybe_add_option(:encoding_format, params[:encoding_format])
+    |> maybe_add_option(:user, params[:user])
   end
 
   @spec maybe_add_option(keyword(), atom(), any()) :: keyword()
