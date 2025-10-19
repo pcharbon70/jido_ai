@@ -8,6 +8,9 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
   alias Jido.AI.Keyring.CompatibilityWrapper
 
   setup do
+    # Copy JidoKeys for mocking
+    copy(JidoKeys)
+
     # Start a unique Keyring for testing
     test_keyring_name = :"test_keyring_compat_#{:erlang.unique_integer([:positive])}"
     {:ok, _pid} = Keyring.start_link(name: test_keyring_name)
@@ -413,14 +416,14 @@ defmodule Jido.AI.Keyring.CompatibilityWrapperTest do
       assert is_binary(result)
     end
 
-    test "compatibility with enhanced error handling" do
+    test "compatibility with enhanced error handling", %{keyring: keyring} do
       # Mock JidoKeys to return an error
       expect(JidoKeys, :get, fn :error_compat_key, nil ->
         raise "Simulated JidoKeys error"
       end)
 
       # Should handle error gracefully and maintain compatibility
-      result = Keyring.get(:error_compat_key, "default")
+      result = Keyring.get(keyring, :error_compat_key, "default")
       # Should fall back as expected
       assert result == "default"
     end
