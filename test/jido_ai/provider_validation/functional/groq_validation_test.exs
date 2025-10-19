@@ -127,7 +127,10 @@ defmodule Jido.AI.ProviderValidation.Functional.GroqValidationTest do
       case Registry.get_registry_stats() do
         {:ok, stats} ->
           # Verify that Groq is included in the registry statistics
-          assert Map.has_key?(stats, :providers_with_models)
+          assert Map.has_key?(stats, :provider_coverage)
+          # Verify that Groq has models in the coverage stats
+          assert Map.has_key?(stats.provider_coverage, :groq)
+          assert stats.provider_coverage[:groq] > 0
 
         {:error, reason} ->
           # This might fail in test environment if ReqLLM is mocked
