@@ -10,14 +10,62 @@ defmodule JidoTest.AI.KeyringTest do
   setup :set_mimic_global
 
   setup do
+    # Copy modules for mocking
+    Mimic.copy(Dotenvy)
+    Mimic.copy(JidoKeys)
+
     # Reset application env
     Application.delete_env(:jido_ai, :keyring)
+
+    # Create or clear ETS table to track test keyrings (shared across processes)
+    # Use named table so it's accessible from helper functions
+    case :ets.whereis(:test_keyrings) do
+      :undefined -> :ets.new(:test_keyrings, [:set, :public, :named_table])
+      _ref -> :ets.delete_all_objects(:test_keyrings)
+    end
 
     # Mock Dotenvy.source! to return an empty map by default
     stub(Dotenvy, :source!, fn _sources -> %{} end)
 
     # Mock Dotenvy.env! to raise by default
     stub(Dotenvy, :env!, fn _key, _type -> raise "Not found" end)
+
+    # Mock JidoKeys.get to read from Keyring's state instead of its own storage
+    # This is necessary because Keyring.get() calls JidoKeys.get(), but the tests
+    # mock Dotenvy which populates Keyring's ETS cache, not JidoKeys
+    stub(JidoKeys, :get, fn key, default ->
+      # Try to find a keyring that has this value in the ETS table
+      case :ets.match(:test_keyrings, {:"$1", :"$2"}) do
+        [] ->
+          # No keyrings registered
+          default
+
+        keyrings ->
+          # Try each registered keyring
+          result =
+            Enum.find_value(keyrings, fn [keyring_name, _pid] ->
+              try do
+                case GenServer.call(keyring_name, {:get_value, key, nil}) do
+                  nil -> nil
+                  value -> value
+                end
+              catch
+                :exit, _ -> nil
+              end
+            end)
+
+          result || default
+      end
+    end)
+
+    on_exit(fn ->
+      # Don't delete the table, just clear it - it might be reused by other tests
+      try do
+        :ets.delete_all_objects(:test_keyrings)
+      catch
+        _, _ -> :ok
+      end
+    end)
 
     :ok
   end
@@ -28,11 +76,23 @@ defmodule JidoTest.AI.KeyringTest do
     registry = :"registry_#{System.unique_integer()}"
     {:ok, pid} = Keyring.start_link(name: name, registry: registry)
 
+    # Register keyring in ETS table so JidoKeys.get stub can find it
+    :ets.insert(:test_keyrings, {name, pid})
+
     on_exit(fn ->
       try do
         GenServer.stop(name, :normal, 1000)
       catch
         :exit, _ -> :ok
+      end
+
+      # Remove from tracking table (check if table still exists)
+      try do
+        if :ets.whereis(:test_keyrings) != :undefined do
+          :ets.delete(:test_keyrings, name)
+        end
+      catch
+        _, _ -> :ok
       end
     end)
 
@@ -42,7 +102,7 @@ defmodule JidoTest.AI.KeyringTest do
   describe "initialization" do
     test "loads values from environment variables" do
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{
           "ANTHROPIC_API_KEY" => "test_anthropic_key",
           "OPENAI_API_KEY" => "test_openai_key",
@@ -87,7 +147,7 @@ defmodule JidoTest.AI.KeyringTest do
       })
 
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
@@ -111,7 +171,7 @@ defmodule JidoTest.AI.KeyringTest do
 
     test "session values take precedence over environment variables" do
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
@@ -143,7 +203,7 @@ defmodule JidoTest.AI.KeyringTest do
 
     test "session values are isolated to the calling process" do
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
@@ -170,7 +230,7 @@ defmodule JidoTest.AI.KeyringTest do
 
     test "clearing session value falls back to environment" do
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
@@ -190,7 +250,7 @@ defmodule JidoTest.AI.KeyringTest do
 
     test "clearing all session values falls back to environment" do
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{
           "TEST_ENVIRONMENT_VARIABLE" => "env_test_value",
           "TEST_ENVIRONMENT_VARIABLE2" => "env_test_value2"
@@ -246,7 +306,7 @@ defmodule JidoTest.AI.KeyringTest do
 
     test "can clear session values for specific process" do
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{"TEST_ENVIRONMENT_VARIABLE" => "env_test_value"}
       end)
 
@@ -301,7 +361,7 @@ defmodule JidoTest.AI.KeyringTest do
 
     test "get/4 falls back to environment variables when no session value for a process" do
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{"TEST_KEY" => "env_test_value"}
       end)
 
@@ -335,7 +395,7 @@ defmodule JidoTest.AI.KeyringTest do
   describe "environment variable conversion" do
     test "converts environment variable names to atoms correctly" do
       # Mock Dotenvy.source! to return our test environment variables
-      expect(Dotenvy, :source!, fn _sources ->
+      stub(Dotenvy, :source!, fn _sources ->
         %{
           "SIMPLE_VAR" => "simple_value",
           "COMPLEX-VAR.NAME" => "complex_value",
