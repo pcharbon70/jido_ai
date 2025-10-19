@@ -83,7 +83,16 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
 
   def filter_credential_data(data) when is_list(data) do
     # Filter list items that might be sensitive
-    Enum.map(data, &filter_credential_data/1)
+    Enum.map(data, fn item ->
+      case item do
+        str when is_binary(str) ->
+          # Apply filtering to string items in the list
+          JidoKeysHybrid.filter_sensitive_data(str)
+
+        _ ->
+          filter_credential_data(item)
+      end
+    end)
   end
 
   def filter_credential_data(data), do: data
@@ -131,11 +140,26 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
       iex> SecurityEnhancements.safe_log_operation(:get, :api_key, %{source: :session})
       :ok
   """
-  @spec safe_log_operation(atom(), atom() | String.t(), map()) :: :ok
+  @spec safe_log_operation(atom(), atom() | String.t(), term()) :: :ok
   def safe_log_operation(operation, key, details \\ %{}) do
     # Enhanced logging with automatic credential filtering
-    filtered_details = filter_credential_data(details)
     safe_key = filter_credential_data(to_string(key))
+
+    # Convert details to keyword list for Logger metadata
+    filtered_details =
+      case details do
+        map when is_map(map) ->
+          map
+          |> filter_credential_data()
+          |> Map.to_list()
+
+        list when is_list(list) ->
+          filter_log_metadata(list)
+
+        other ->
+          # For non-enumerable types, just wrap in a keyword list
+          [details: inspect(other)]
+      end
 
     Logger.debug(
       "[Keyring-Security] #{operation} operation for #{safe_key}",
@@ -187,12 +211,13 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   @spec handle_keyring_error(atom(), atom() | String.t(), term(), map()) :: {:error, String.t()}
   def handle_keyring_error(operation, key, error, context \\ %{}) do
     # Enhanced error handling with automatic credential filtering
-    safe_key = filter_credential_data(to_string(key))
+    # Keep key name visible for debugging, just filter the context/values
+    key_str = to_string(key)
     safe_context = filter_credential_data(context)
 
     error_details = %{
       operation: operation,
-      key: safe_key,
+      key: key_str,
       error: sanitize_error(error),
       context: safe_context,
       timestamp: DateTime.utc_now()
@@ -201,8 +226,8 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
     # Log with redaction
     log_with_redaction(:error, "Keyring operation failed", error_details)
 
-    # Return filtered error for external consumption
-    format_safe_error(operation, safe_key, error)
+    # Return error with key name visible but context filtered
+    format_safe_error(operation, key_str, error)
   end
 
   @doc """
@@ -220,7 +245,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   @spec log_with_redaction(atom(), String.t(), list() | map()) :: :ok
   def log_with_redaction(level, message, metadata \\ []) do
     # Apply comprehensive filtering before logging
-    filtered_message = filter_credential_data(message)
+    filtered_message = redact_sensitive_strings(to_string(message))
     filtered_metadata = filter_log_metadata(metadata)
 
     Logger.log(level, filtered_message, [{:keyring_filtered, true} | filtered_metadata])
@@ -284,6 +309,12 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   rescue
     error ->
       {:error, error}
+  catch
+    :exit, {:noproc, _} ->
+      {:error, :keyring_not_found}
+
+    :exit, reason ->
+      {:error, {:process_error, reason}}
   end
 
   @doc """
@@ -377,16 +408,48 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
 
   defp filter_log_metadata(metadata) when is_list(metadata) do
     Enum.map(metadata, fn
+      {key, value} when is_struct(value) ->
+        # Don't try to enumerate structs like DateTime - just inspect them
+        {key, inspect(value)}
+
       {key, value} when is_binary(value) ->
-        {key, filter_credential_data(value)}
+        # Filter string values for sensitive content
+        if sensitive_key?(key) do
+          {key, "[REDACTED]"}
+        else
+          {key, redact_sensitive_strings(value)}
+        end
 
       {key, value} when is_map(value) ->
+        # Recursively filter nested maps
         {key, filter_credential_data(value)}
+
+      {key, value} when is_list(value) ->
+        # Recursively filter nested lists
+        {key, filter_log_metadata(value)}
 
       item ->
         item
     end)
   end
 
-  defp filter_log_metadata(metadata), do: [metadata]
+  defp filter_log_metadata(metadata) when is_binary(metadata) do
+    # Wrap non-list metadata in a keyword list
+    [metadata: metadata]
+  end
+
+  defp filter_log_metadata(metadata), do: [metadata: inspect(metadata)]
+
+  @spec redact_sensitive_strings(String.t()) :: String.t()
+  defp redact_sensitive_strings(message) when is_binary(message) do
+    # Redact API keys, tokens, etc. from message strings
+    message
+    |> String.replace(~r/sk-[a-zA-Z0-9]{6,}/, "[REDACTED_API_KEY]")
+    |> String.replace(~r/bearer_token_[a-zA-Z0-9]+/i, "[REDACTED_TOKEN]")
+    |> String.replace(~r/xoxb-[a-zA-Z0-9\-]{20,}/, "[REDACTED_TOKEN]")
+    |> String.replace(~r/ghp_[a-zA-Z0-9]{20,}/, "[REDACTED_TOKEN]")
+    |> String.replace(~r/AKIA[0-9A-Z]{16}/, "[REDACTED_KEY]")
+  end
+
+  defp redact_sensitive_strings(value), do: value
 end

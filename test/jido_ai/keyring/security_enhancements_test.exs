@@ -8,6 +8,10 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
   alias Jido.AI.Keyring.SecurityEnhancements
 
   setup do
+    # Copy modules for mocking
+    copy(JidoKeys)
+    copy(Jido.AI.Keyring.JidoKeysHybrid)
+
     # Start a unique Keyring for testing
     test_keyring_name = :"test_keyring_security_#{:erlang.unique_integer([:positive])}"
     {:ok, _pid} = Keyring.start_link(name: test_keyring_name)

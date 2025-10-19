@@ -344,11 +344,35 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
 
   @spec apply_basic_filtering(String.t()) :: String.t()
   defp apply_basic_filtering(data) do
-    # Basic fallback filtering for common patterns
-    data
-    |> String.replace(~r/sk-[a-zA-Z0-9]{10,}/, "[FILTERED]")
-    |> String.replace(~r/xoxb-[a-zA-Z0-9\-]{20,}/, "[FILTERED]")
-    |> String.replace(~r/ghp_[a-zA-Z0-9]{20,}/, "[FILTERED]")
-    |> String.replace(~r/AKIA[0-9A-Z]{16}/, "[FILTERED]")
+    # Check if the entire value should be filtered based on sensitive patterns
+    data_lower = String.downcase(data)
+
+    sensitive_value_patterns = [
+      "password",
+      "secret",
+      "token",
+      "bearer",
+      "api_key",
+      "api-key",
+      "apikey"
+    ]
+
+    # If the value itself contains sensitive terms, filter the entire value
+    should_filter_entire_value =
+      Enum.any?(sensitive_value_patterns, fn pattern ->
+        String.contains?(data_lower, pattern) and String.length(data) < 200
+      end)
+
+    if should_filter_entire_value do
+      "[FILTERED]"
+    else
+      # Otherwise apply pattern-based filtering for specific tokens
+      data
+      |> String.replace(~r/sk-[a-zA-Z0-9]{6,}/, "[FILTERED]")
+      |> String.replace(~r/xoxb-[a-zA-Z0-9\-]{20,}/, "[FILTERED]")
+      |> String.replace(~r/ghp_[a-zA-Z0-9]{20,}/, "[FILTERED]")
+      |> String.replace(~r/AKIA[0-9A-Z]{16}/, "[FILTERED]")
+      |> String.replace(~r/bearer_token_[a-zA-Z0-9]+/i, "[FILTERED]")
+    end
   end
 end
