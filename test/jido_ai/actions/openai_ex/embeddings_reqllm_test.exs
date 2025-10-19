@@ -8,7 +8,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsReqLLMTest do
 
   alias Jido.AI.Actions.OpenaiEx.Embeddings
   alias Jido.AI.Model
-  alias ReqLlmBridge.Provider.Generated.ValidProviders
+  alias ReqLLM.Provider.Generated.ValidProviders
 
   # Add global mock setup
   setup :set_mimic_global
@@ -17,7 +17,12 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsReqLLMTest do
     # Copy the modules we need to mock
     Mimic.copy(ReqLLM)
     Mimic.copy(JidoKeys)
-    Mimic.copy(ValidProviders)
+    # ValidProviders may not exist in all environments, try to copy if available
+    try do
+      Mimic.copy(ValidProviders)
+    catch
+      :error, _ -> :ok
+    end
 
     # Create a mock model with ReqLLM ID
     {:ok, model} =

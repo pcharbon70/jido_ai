@@ -109,7 +109,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
       ]
 
       for key <- sensitive_keys do
-        assert SecurityEnhancements.is_sensitive_key?(key),
+        assert SecurityEnhancements.sensitive_key?(key),
                "Failed to identify #{key} as sensitive"
       end
     end
@@ -128,7 +128,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
       ]
 
       for key <- normal_keys do
-        refute SecurityEnhancements.is_sensitive_key?(key),
+        refute SecurityEnhancements.sensitive_key?(key),
                "Incorrectly identified #{key} as sensitive"
       end
     end
@@ -137,7 +137,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
       edge_cases = [nil, 123, [], %{}]
 
       for key <- edge_cases do
-        refute SecurityEnhancements.is_sensitive_key?(key),
+        refute SecurityEnhancements.sensitive_key?(key),
                "Should handle edge case #{inspect(key)} safely"
       end
     end
@@ -378,7 +378,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
       {elapsed_microseconds, _results} =
         :timer.tc(fn ->
           for key <- test_keys do
-            SecurityEnhancements.is_sensitive_key?(key)
+            SecurityEnhancements.sensitive_key?(key)
           end
         end)
 
@@ -394,8 +394,8 @@ defmodule Jido.AI.Keyring.SecurityEnhancementsTest do
     test "handles nil and empty values safely" do
       assert SecurityEnhancements.filter_credential_data(nil) == nil
       assert SecurityEnhancements.filter_credential_data("") == ""
-      assert SecurityEnhancements.is_sensitive_key?(nil) == false
-      assert SecurityEnhancements.is_sensitive_key?("") == false
+      assert SecurityEnhancements.sensitive_key?(nil) == false
+      assert SecurityEnhancements.sensitive_key?("") == false
     end
 
     test "handles deeply nested data structures" do
