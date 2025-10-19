@@ -15,7 +15,12 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
     Mimic.copy(ReqLLM.Keys)
     Mimic.copy(System)
 
-    # Start a :default Keyring for fallback scenarios
+    # Stub System.get_env FIRST to return nil by default
+    # This ensures Keyrings started after this will have no environment variables loaded
+    stub(System, :get_env, fn _ -> nil end)
+
+    # Start a :default Keyring with no environment variables
+    # This prevents "no process" errors while keeping the Keyring empty
     try do
       {:ok, _default_pid} = Keyring.start_link(name: :default)
     catch
