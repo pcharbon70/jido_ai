@@ -58,7 +58,9 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
 
   describe "runtime configuration updates" do
     test "sets runtime values through JidoKeys.put/2" do
-      expect(JidoKeys, :put, fn :runtime_key, "filtered_value" ->
+      expect(JidoKeys, :put, fn :runtime_key, value ->
+        # Non-sensitive key should pass value through unfiltered
+        assert value == "test_value"
         :ok
       end)
 
@@ -116,15 +118,15 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
 
   describe "session fallback integration" do
     test "prioritizes session values over JidoKeys", %{keyring: keyring} do
-      # Set global value through JidoKeys
-      expect(JidoKeys, :get, fn :precedence_key, nil ->
+      # Set global value through JidoKeys (stub since it won't be called when session exists)
+      stub(JidoKeys, :get, fn :precedence_key, nil ->
         "global_value"
       end)
 
       # Set session value
       :ok = Keyring.set_session_value(keyring, :precedence_key, "session_value")
 
-      # Session should take precedence
+      # Session should take precedence (JidoKeys.get should NOT be called)
       result =
         JidoKeysHybrid.get_with_session_fallback(keyring, :precedence_key, "default", self())
 
@@ -254,7 +256,9 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
     end
 
     test "runtime configuration through Keyring API" do
-      expect(JidoKeys, :put, fn :runtime_config, "filtered_value" ->
+      expect(JidoKeys, :put, fn :runtime_config, value ->
+        # Non-sensitive key should pass value through unfiltered
+        assert value == "test_value"
         :ok
       end)
 
@@ -263,15 +267,15 @@ defmodule Jido.AI.Keyring.JidoKeysHybridTest do
     end
 
     test "session values still take precedence", %{keyring: keyring} do
-      # Set global value through JidoKeys
-      expect(JidoKeys, :get, fn :precedence_test, nil ->
+      # Set global value through JidoKeys (stub since it won't be called when session exists)
+      stub(JidoKeys, :get, fn :precedence_test, nil ->
         "global_from_jido_keys"
       end)
 
       # Set session value
       :ok = Keyring.set_session_value(keyring, :precedence_test, "session_override")
 
-      # Session should win
+      # Session should win (JidoKeys.get should NOT be called)
       result = Keyring.get(keyring, :precedence_test, "default")
       assert result == "session_override"
     end
