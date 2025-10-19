@@ -12,7 +12,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
   setup do
     # Copy the modules we need to mock
-    Mimic.copy(ReqLlmBridge.Keys)
+    Mimic.copy(ReqLLM.Keys)
     Mimic.copy(System)
 
     # Start a unique Keyring for testing
@@ -69,7 +69,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       Keyring.clear_session_value(keyring, :openai_api_key)
 
       # Mock ReqLlmBridge.Keys to return the per-request key
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{api_key: "request-key"} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{api_key: "request-key"} ->
         {:ok, "request-key", :option}
       end)
 
@@ -88,7 +88,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       Keyring.clear_session_value(keyring, :openai_api_key)
 
       # Mock ReqLlmBridge.Keys to return a value
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:ok, "reqllm-key", :environment}
       end)
 
@@ -100,7 +100,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "handles unknown provider gracefully" do
       # Mock ReqLlmBridge.Keys for unknown provider
-      expect(ReqLlmBridge.Keys, :get, fn :unknown_provider, %{} ->
+      expect(ReqLLM.Keys, :get, fn :unknown_provider, %{} ->
         {:error, "API key not found"}
       end)
 
@@ -112,7 +112,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "maps ReqLLM errors to Jido format" do
       # Mock ReqLlmBridge.Keys to return specific error
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:error, ":api_key option or OPENAI_API_KEY env var"}
       end)
 
@@ -139,7 +139,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "returns base headers when no authentication available" do
       # Mock ReqLlmBridge.Keys to return error
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:error, "No key"}
       end)
 
@@ -149,7 +149,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "preserves additional headers for Anthropic" do
       # Mock ReqLlmBridge.Keys to return error
-      expect(ReqLlmBridge.Keys, :get, fn :anthropic, %{} ->
+      expect(ReqLLM.Keys, :get, fn :anthropic, %{} ->
         {:error, "No key"}
       end)
 
@@ -176,7 +176,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "returns error when no key found" do
       # Mock ReqLlmBridge.Keys to return error
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:error, "API key not found"}
       end)
 
@@ -186,7 +186,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "handles keyword list options" do
       # Mock ReqLlmBridge.Keys to use the api_key from options
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{api_key: "from-opts"} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{api_key: "from-opts"} ->
         {:ok, "from-opts", :option}
       end)
 
@@ -199,7 +199,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       Keyring.set_session_value(keyring, :openai_api_key, "session-key")
 
       # Even if ReqLLM has a different value, session wins
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:ok, "reqllm-key", :environment}
       end)
 
@@ -210,7 +210,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
     test "falls back to ReqLLM when no session", %{keyring: keyring} do
       Keyring.clear_session_value(keyring, :openai_api_key)
 
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:ok, "reqllm-key", :application}
       end)
 
@@ -225,7 +225,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       stub(System, :get_env, fn "OPENAI_API_KEY" -> "env-key" end)
 
       # Mock ReqLlmBridge.Keys to fail
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:error, "Not found"}
       end)
 
@@ -235,7 +235,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "returns error when all sources fail" do
       # Mock all sources to fail
-      expect(ReqLlmBridge.Keys, :get, fn :unknown, %{} ->
+      expect(ReqLLM.Keys, :get, fn :unknown, %{} ->
         {:error, "Not found"}
       end)
 
@@ -284,7 +284,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
   describe "error message mapping" do
     test "maps 'empty' error correctly" do
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:error, "OPENAI_API_KEY was found but is empty"}
       end)
 
@@ -293,7 +293,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
     end
 
     test "maps 'not found' error correctly" do
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:error, ":api_key option or OPENAI_API_KEY env var"}
       end)
 
@@ -302,7 +302,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
     end
 
     test "preserves other error messages" do
-      expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+      expect(ReqLLM.Keys, :get, fn :openai, %{} ->
         {:error, "Custom error message"}
       end)
 

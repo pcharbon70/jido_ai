@@ -10,7 +10,7 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
   alias Jido.AI.Actions.OpenaiEx.TestHelpers
   alias Jido.AI.Model
   alias OpenaiEx.ChatMessage
-  alias ReqLlmBridge.Provider.Generated.ValidProviders
+  alias ReqLLM.Provider.Generated.ValidProviders
 
   # Add global mock setup
   setup :set_mimic_global
