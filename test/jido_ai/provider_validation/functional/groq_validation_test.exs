@@ -31,6 +31,7 @@ defmodule Jido.AI.ProviderValidation.Functional.GroqValidationTest do
   setup do
     copy(Jido.AI.Model.Registry.Adapter)
     copy(Jido.AI.Model.Registry.MetadataBridge)
+    copy(ReqLLM.Provider.Generated.ValidProviders)
     RegistryHelpers.setup_comprehensive_registry_mock()
     :ok
   end

@@ -182,6 +182,11 @@ defmodule Jido.AI.Test.RegistryHelpers do
   Stubs at Adapter and MetadataBridge layers to prevent loading real 2000+ models.
   """
   def setup_comprehensive_registry_mock do
+    # Stub ValidProviders for Provider.providers() call
+    stub(ReqLLM.Provider.Generated.ValidProviders, :list, fn ->
+      [:anthropic, :openai, :google, :groq, :perplexity, :cohere, :togetherai, :mistral, :ai21, :openrouter]
+    end)
+
     # Stub Adapter layer to return comprehensive ReqLLM models
     stub(Jido.AI.Model.Registry.Adapter, :list_providers, fn ->
       {:ok, [:anthropic, :openai, :google, :groq, :perplexity, :cohere, :togetherai, :mistral, :ai21, :openrouter]}
@@ -242,9 +247,50 @@ defmodule Jido.AI.Test.RegistryHelpers do
   end
 
   defp comprehensive_reqllm_models do
-    # For now, comprehensive uses standard models
-    # In future, could expand to full 50 models
-    standard_reqllm_models()
+    standard_reqllm_models() ++
+      [
+        # Cohere models
+        %ReqLLM.Model{provider: :cohere, model: "command-r-plus"},
+        %ReqLLM.Model{provider: :cohere, model: "command-r"},
+        %ReqLLM.Model{provider: :cohere, model: "command-light"},
+        %ReqLLM.Model{provider: :cohere, model: "embed-english-v3.0"},
+        %ReqLLM.Model{provider: :cohere, model: "embed-multilingual-v3.0"},
+
+        # Together AI models
+        %ReqLLM.Model{provider: :togetherai, model: "meta-llama/Llama-3-70b-chat-hf"},
+        %ReqLLM.Model{provider: :togetherai, model: "mistralai/Mixtral-8x7B-Instruct-v0.1"},
+        %ReqLLM.Model{provider: :togetherai, model: "Qwen/Qwen2-72B-Instruct"},
+        %ReqLLM.Model{provider: :togetherai, model: "google/gemma-2-9b-it"},
+        %ReqLLM.Model{provider: :togetherai, model: "deepseek-ai/deepseek-coder-33b-instruct"},
+
+        # More Google models
+        %ReqLLM.Model{provider: :google, model: "gemini-1.5-flash"},
+        %ReqLLM.Model{provider: :google, model: "gemini-pro"},
+        %ReqLLM.Model{provider: :google, model: "gemini-pro-vision"},
+        %ReqLLM.Model{provider: :google, model: "text-embedding-004"},
+        %ReqLLM.Model{provider: :google, model: "text-embedding-preview-0815"},
+
+        # Mistral models
+        %ReqLLM.Model{provider: :mistral, model: "mistral-large-latest"},
+        %ReqLLM.Model{provider: :mistral, model: "mistral-small-latest"},
+        %ReqLLM.Model{provider: :mistral, model: "codestral-latest"},
+        %ReqLLM.Model{provider: :mistral, model: "open-mistral-7b"},
+        %ReqLLM.Model{provider: :mistral, model: "mistral-embed"},
+
+        # AI21 models
+        %ReqLLM.Model{provider: :ai21, model: "jamba-1.5-large"},
+        %ReqLLM.Model{provider: :ai21, model: "jamba-1.5-mini"},
+        %ReqLLM.Model{provider: :ai21, model: "j2-ultra"},
+        %ReqLLM.Model{provider: :ai21, model: "j2-mid"},
+        %ReqLLM.Model{provider: :ai21, model: "j2-light"},
+
+        # OpenRouter models
+        %ReqLLM.Model{provider: :openrouter, model: "anthropic/claude-3.5-sonnet"},
+        %ReqLLM.Model{provider: :openrouter, model: "openai/gpt-4-turbo"},
+        %ReqLLM.Model{provider: :openrouter, model: "google/gemini-pro-1.5"},
+        %ReqLLM.Model{provider: :openrouter, model: "meta-llama/llama-3.1-405b-instruct"},
+        %ReqLLM.Model{provider: :openrouter, model: "anthropic/claude-3-haiku"}
+      ]
   end
 
   # Jido.AI.Model generators (for MetadataBridge mocking)

@@ -33,6 +33,7 @@ defmodule Jido.AI.ProviderValidation.Functional.CohereValidationTest do
   setup do
     copy(Jido.AI.Model.Registry.Adapter)
     copy(Jido.AI.Model.Registry.MetadataBridge)
+    copy(ReqLLM.Provider.Generated.ValidProviders)
     RegistryHelpers.setup_comprehensive_registry_mock()
     :ok
   end
@@ -316,7 +317,7 @@ defmodule Jido.AI.ProviderValidation.Functional.CohereValidationTest do
           enterprise_models =
             Enum.filter(models, fn model ->
               model_name = Map.get(model, :name, Map.get(model, :id, ""))
-              description = Map.get(model, :description, "")
+              description = Map.get(model, :description) || ""
 
               Enum.any?(enterprise_indicators, fn indicator ->
                 String.contains?(String.downcase(model_name), indicator) or

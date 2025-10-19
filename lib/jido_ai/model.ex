@@ -141,7 +141,31 @@ defmodule Jido.AI.Model do
       # A provider tuple
       {provider, opts} when is_atom(provider) and is_list(opts) ->
         case Provider.get_adapter_by_id(provider) do
-          {:ok, adapter_module} ->
+          {:ok, :reqllm_backed} ->
+            # ReqLLM-backed providers: build model directly from provider and opts
+            model_name = Keyword.get(opts, :model)
+
+            if model_name do
+              {:ok,
+               %__MODULE__{
+                 id: model_name,
+                 name: model_name,
+                 provider: provider,
+                 model: model_name,
+                 reqllm_id: compute_reqllm_id(provider, model_name),
+                 api_key: Keyword.get(opts, :api_key),
+                 base_url: Keyword.get(opts, :base_url, ""),
+                 endpoints: [],
+                 architecture: %Architecture{modality: "text", tokenizer: "unknown"},
+                 description: "ReqLLM model: #{provider}:#{model_name}",
+                 created: System.system_time(:second)
+               }}
+            else
+              {:error, "model option is required for ReqLLM-backed provider #{provider}"}
+            end
+
+          {:ok, adapter_module} when is_atom(adapter_module) ->
+            # Legacy adapter module: delegate to module's build/1
             adapter_module.build(opts)
 
           {:error, reason} ->

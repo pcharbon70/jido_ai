@@ -31,6 +31,7 @@ defmodule Jido.AI.ProviderValidation.Functional.LocalModelDiscoveryTest do
   setup do
     copy(Jido.AI.Model.Registry.Adapter)
     copy(Jido.AI.Model.Registry.MetadataBridge)
+    copy(ReqLLM.Provider.Generated.ValidProviders)
     # Local providers not in comprehensive mock, but setup prevents real registry loads
     RegistryHelpers.setup_comprehensive_registry_mock()
     :ok

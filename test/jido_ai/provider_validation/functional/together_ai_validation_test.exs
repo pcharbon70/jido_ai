@@ -32,6 +32,7 @@ defmodule Jido.AI.ProviderValidation.Functional.TogetherAiValidationTest do
     # Copy modules for mocking
     copy(Jido.AI.Model.Registry.Adapter)
     copy(Jido.AI.Model.Registry.MetadataBridge)
+    copy(ReqLLM.Provider.Generated.ValidProviders)
 
     # Use comprehensive mock - includes Together AI models
     RegistryHelpers.setup_comprehensive_registry_mock()
