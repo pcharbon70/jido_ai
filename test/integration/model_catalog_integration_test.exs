@@ -308,7 +308,7 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
 
         {:error, reason} ->
           # Error handling is acceptable
-          assert reason != nil
+          assert is_binary(reason) or is_atom(reason)
       end
 
       # 4. Test enhanced listing with invalid options
@@ -319,7 +319,7 @@ defmodule Jido.AI.ModelCatalogIntegrationTest do
 
         {:error, reason} ->
           # Error handling is acceptable
-          assert reason != nil
+          assert is_binary(reason) or is_atom(reason)
       end
     end
 
