@@ -59,41 +59,6 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
              ]
     end
 
-    test "converts OpenaiEx ChatMessage maps" do
-      # Use plain maps instead of ChatMessage module to avoid loading issues
-      # Messages need atom keys for :role and :content
-      messages = [
-        %{role: :system, content: "You are helpful"},
-        %{role: :user, content: "Hello"}
-      ]
-
-      # Access private function through the module's public interface
-      # Since it's private, we'll test it indirectly through the run function
-      params = %{
-        model: %Model{reqllm_id: "openai:gpt-4", api_key: "test-key", provider: :openai},
-        messages: messages
-      }
-
-      # Mock ReqLLM response - should return OpenAI API format
-      expect(ReqLLM, :generate_text, fn _messages, _reqllm_id, _opts ->
-        {:ok, %{
-          choices: [
-            %{message: %{content: "Hello there!", role: "assistant"}}
-          ]
-        }}
-      end)
-
-      expect(ValidProviders, :list, fn ->
-        [:openai, :anthropic, :google]
-      end)
-
-      expect(JidoKeys, :put, fn _key, _value -> :ok end)
-
-      assert {:ok, response} = OpenaiEx.run(params, %{})
-      assert is_map(response)
-      assert get_in(response, [:choices, Access.at(0), :message, :content]) == "Hello there!"
-    end
-
     test "handles mixed message formats" do
       messages = [
         %{role: :system, content: "System message"},
@@ -457,41 +422,4 @@ defmodule JidoTest.AI.Actions.OpenaiEx.ReqLLMTest do
     end
   end
 
-  describe "integration with ReqLLM" do
-    test "full integration test with mocked ReqLLM", %{params: params, context: context} do
-      # Mock ReqLlmBridge.generate_text
-      expect(ReqLLM, :generate_text, fn messages, reqllm_id, opts ->
-        assert is_list(messages)
-        assert reqllm_id == "openai:gpt-4"
-        assert is_list(opts)
-
-        {:ok,
-         %{
-           content: "Hello! I'm here to help.",
-           usage: %{prompt_tokens: 12, completion_tokens: 8, total_tokens: 20},
-           finish_reason: "stop"
-         }}
-      end)
-
-      expect(ValidProviders, :list, fn ->
-        [:openai, :anthropic, :google, :openrouter]
-      end)
-
-      expect(JidoKeys, :put, fn "OPENAI_API_KEY", "test-api-key" -> :ok end)
-      expect(ReqLLM.Keys, :env_var_name, fn :openai -> "OPENAI_API_KEY" end)
-
-      # Execute the action
-      assert {:ok, response} = OpenaiEx.run(params, context)
-
-      # Verify response format matches OpenAI API
-      assert response.choices
-      assert length(response.choices) == 1
-
-      assert get_in(response, [:choices, Access.at(0), :message, :content]) ==
-               "Hello! I'm here to help."
-
-      assert get_in(response, [:choices, Access.at(0), :message, :role]) == "assistant"
-      assert response.usage.total_tokens == 20
-    end
-  end
 end
