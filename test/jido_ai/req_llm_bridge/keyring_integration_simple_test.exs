@@ -105,23 +105,29 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationSimpleTest do
     end
 
     test "handles ReqLLM.Keys errors gracefully" do
-      expect(ReqLLM.Keys, :get, fn :openai, "default" ->
+      # Use a default value that won't be filtered by security enhancements
+      test_default = "test-default-value"
+
+      expect(ReqLLM.Keys, :get, fn :openai, nil ->
         raise RuntimeError, "ReqLLM error"
       end)
 
-      result = KeyringIntegration.get_key_for_request(:openai, %{}, "default")
+      result = KeyringIntegration.get_key_for_request(:openai, %{}, test_default)
 
-      assert result == "default"
+      assert result == test_default
     end
 
     test "handles undefined function errors gracefully" do
-      expect(ReqLLM.Keys, :get, fn :openai, "default" ->
+      # Use a default value that won't be filtered by security enhancements
+      test_default = "test-default-value"
+
+      expect(ReqLLM.Keys, :get, fn :openai, nil ->
         raise UndefinedFunctionError, function: "get/2", module: ReqLLM.Keys
       end)
 
-      result = KeyringIntegration.get_key_for_request(:openai, %{}, "default")
+      result = KeyringIntegration.get_key_for_request(:openai, %{}, test_default)
 
-      assert result == "default"
+      assert result == test_default
     end
   end
 

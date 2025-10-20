@@ -127,8 +127,8 @@ defmodule Jido.AI.ReqLlmBridge.ToolExecutorTest do
       # Missing required parameter - Jido.Action.validate_params raises, caught by rescue
       invalid_params = %{"count" => "5"}
       assert {:error, error} = callback.(invalid_params)
-      # Jido.Action raises when required params are missing, caught as "exception"
-      assert error.type == "exception"
+      # Implementation correctly returns specific error type for parameter validation
+      assert error.type == "parameter_validation_error"
     end
 
     test "callback handles type conversion", %{test_action: action} do

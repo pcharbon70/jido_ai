@@ -8,12 +8,10 @@ ExUnit.start(
   # Reduced concurrency to prevent memory leaks
   timeout: 120_000,
   # Longer timeout for integration tests
-  # Exclude slow tests by default for faster development cycle
-  # These tests now have proper cleanup and won't leak memory
+  # Exclude only performance benchmarks by default (real API calls with multiple samples)
+  # Provider validation tests now run by default after memory leak fix
   # Run with: mix test --include performance_benchmarks
-  # Run with: mix test --include provider_validation
-  # Run with: mix test --include section_2_1
-  exclude: [:performance_benchmarks, :provider_validation, :section_2_1, :functional_validation]
+  exclude: [:performance_benchmarks]
 )
 
 # Global setup to clear cache after each test
