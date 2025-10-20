@@ -12,7 +12,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
   setup do
     # Copy the modules we need to mock
-    Mimic.copy(ReqLlmBridge.Keys)
+    Mimic.copy(ReqLLM.Keys)
     Mimic.copy(System)
     Mimic.copy(Dotenvy)
 
@@ -53,7 +53,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
     test "returns per-request override when no session value" do
       # Clear any session values
-      Keyring.clear_session_value(:openai_api_key)
+      Keyring.clear_session_value(Keyring, :openai_api_key)
 
       # Should return per-request override
       req_options = %{api_key: "request-override"}
@@ -64,10 +64,10 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
     test "falls back to ReqLLM resolution when no session or request override" do
       # Clear session values
-      Keyring.clear_session_value(:openai_api_key)
+      Keyring.clear_session_value(Keyring, :openai_api_key)
 
-      # Mock ReqLlmBridge.Keys to return a value
-      expect(ReqLlmBridge.Keys, :get, fn :openai, "default" ->
+      # Mock ReqLLM.Keys to return a value (implementation passes nil as default)
+      expect(ReqLLM.Keys, :get, fn :openai, nil ->
         {:ok, "reqllm-key", :environment}
       end)
 
@@ -78,22 +78,21 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
     test "returns default when no key found anywhere" do
       # Clear session values
-      Keyring.clear_session_value(:unknown_key)
+      Keyring.clear_session_value(Keyring, :unknown_key)
 
-      # Mock ReqLlmBridge.Keys to return default
-      expect(ReqLlmBridge.Keys, :get, fn :unknown, "default" -> "default" end)
-
+      # For unknown keys with no provider mapping, it falls back to standard key resolution
+      # which checks Keyring env values. No ReqLLM.Keys call expected.
       result = KeyringIntegration.get(Keyring, :unknown_key, "default")
 
       assert result == "default"
     end
 
-    test "handles ReqLlmBridge.Keys errors gracefully" do
+    test "handles ReqLLM.Keys errors gracefully" do
       # Clear session values
-      Keyring.clear_session_value(:openai_api_key)
+      Keyring.clear_session_value(Keyring, :openai_api_key)
 
-      # Mock ReqLlmBridge.Keys to raise an error
-      expect(ReqLlmBridge.Keys, :get, fn :openai, "default" ->
+      # Mock ReqLLM.Keys to raise an error (implementation passes nil as default)
+      expect(ReqLLM.Keys, :get, fn :openai, nil ->
         raise RuntimeError, "ReqLLM error"
       end)
 
@@ -127,7 +126,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
   describe "resolve_provider_key/3 - provider key mapping" do
     test "resolves key for mapped provider" do
-      expect(ReqLlmBridge.Keys, :get, fn :openai, nil -> {:ok, "mapped-key", :environment} end)
+      expect(ReqLLM.Keys, :get, fn :openai, nil -> {:ok, "mapped-key", :environment} end)
 
       result = KeyringIntegration.resolve_provider_key(:openai_api_key, :openai, "default")
 
@@ -135,7 +134,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
     end
 
     test "falls back to direct ReqLLM lookup for unmapped key" do
-      expect(ReqLlmBridge.Keys, :get, fn :custom, "fallback" -> {:ok, "custom-key", :app} end)
+      expect(ReqLLM.Keys, :get, fn :custom, "fallback" -> {:ok, "custom-key", :app} end)
 
       result = KeyringIntegration.resolve_provider_key(:custom_key, :custom, "fallback")
 
@@ -143,7 +142,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
     end
 
     test "returns default when ReqLLM resolution fails" do
-      expect(ReqLlmBridge.Keys, :get, fn :openai, nil -> nil end)
+      expect(ReqLLM.Keys, :get, fn :openai, nil -> nil end)
 
       result = KeyringIntegration.resolve_provider_key(:openai_api_key, :openai, "fallback")
 
@@ -154,14 +153,14 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
   describe "get_key_for_request/3 - ReqLLM request integration" do
     test "resolves OpenAI provider key correctly" do
       # Set up session value to test precedence
-      Keyring.set_session_value(:openai_api_key, "session-openai-key")
+      Keyring.set_session_value(Keyring, :openai_api_key, "session-openai-key")
 
       result = KeyringIntegration.get_key_for_request(:openai)
 
       assert result == "session-openai-key"
 
       # Clean up
-      Keyring.clear_session_value(:openai_api_key)
+      Keyring.clear_session_value(Keyring, :openai_api_key)
     end
 
     test "handles per-request override for ReqLLM calls" do
@@ -174,14 +173,14 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
     test "maps unknown providers to standard key pattern" do
       # Should map unknown provider to :custom_provider_api_key pattern
-      Keyring.set_session_value(:custom_provider_api_key, "custom-key")
+      Keyring.set_session_value(Keyring, :custom_provider_api_key, "custom-key")
 
       result = KeyringIntegration.get_key_for_request(:custom_provider)
 
       assert result == "custom-key"
 
       # Clean up
-      Keyring.clear_session_value(:custom_provider_api_key)
+      Keyring.clear_session_value(Keyring, :custom_provider_api_key)
     end
   end
 
@@ -219,22 +218,22 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
   describe "validate_key_availability/2 - key validation" do
     test "detects session value availability" do
-      Keyring.set_session_value(:openai_api_key, "test-key")
+      Keyring.set_session_value(Keyring, :openai_api_key, "test-key")
 
       result = KeyringIntegration.validate_key_availability(:openai_api_key, :openai)
 
       assert {:ok, :session} = result
 
       # Clean up
-      Keyring.clear_session_value(:openai_api_key)
+      Keyring.clear_session_value(Keyring, :openai_api_key)
     end
 
     test "detects ReqLLM availability when session not available" do
       # Clear session value
-      Keyring.clear_session_value(:openai_api_key)
+      Keyring.clear_session_value(Keyring, :openai_api_key)
 
-      # Mock ReqLlmBridge.Keys to indicate availability
-      expect(ReqLlmBridge.Keys, :get, fn :openai, nil -> {:ok, "reqllm-key", :environment} end)
+      # Mock ReqLLM.Keys to indicate availability
+      expect(ReqLLM.Keys, :get, fn :openai, nil -> {:ok, "reqllm-key", :environment} end)
 
       result = KeyringIntegration.validate_key_availability(:openai_api_key, :openai)
 
@@ -243,7 +242,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
     test "returns error when key not found anywhere" do
       # Clear session value
-      Keyring.clear_session_value(:nonexistent_key)
+      Keyring.clear_session_value(Keyring, :nonexistent_key)
 
       result = KeyringIntegration.validate_key_availability(:nonexistent_key, :nonexistent)
 
@@ -305,9 +304,9 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
     end
 
     test "handles ReqLLM module unavailability" do
-      # Mock ReqLlmBridge.Keys to be undefined
-      expect(ReqLlmBridge.Keys, :get, fn _provider, _default ->
-        raise UndefinedFunctionError, function: "get/2", module: ReqLlmBridge.Keys
+      # Mock ReqLLM.Keys to be undefined
+      expect(ReqLLM.Keys, :get, fn _provider, _default ->
+        raise UndefinedFunctionError, function: "get/2", module: ReqLLM.Keys
       end)
 
       result = KeyringIntegration.get(Keyring, :openai_api_key, "fallback")
@@ -319,7 +318,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
   describe "integration with existing Keyring functions" do
     test "session management works with integration" do
       # Set session value
-      Keyring.set_session_value(:integration_test_key, "session-value")
+      Keyring.set_session_value(Keyring, :integration_test_key, "session-value")
 
       # Should work with integration function
       result = KeyringIntegration.get(Keyring, :integration_test_key, "default")
@@ -327,7 +326,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
       assert result == "session-value"
 
       # Clear session value
-      Keyring.clear_session_value(:integration_test_key)
+      Keyring.clear_session_value(Keyring, :integration_test_key)
 
       # Should now return default or environment value
       result = KeyringIntegration.get(Keyring, :integration_test_key, "default")
@@ -337,7 +336,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
 
     test "process isolation is maintained" do
       # Set session value in current process
-      Keyring.set_session_value(:process_test_key, "main-process-value")
+      Keyring.set_session_value(Keyring, :process_test_key, "main-process-value")
 
       # Spawn another process and check isolation
       task =
@@ -355,7 +354,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegrationTest do
       assert other_process_result == "other-process-default" or is_binary(other_process_result)
 
       # Clean up
-      Keyring.clear_session_value(:process_test_key)
+      Keyring.clear_session_value(Keyring, :process_test_key)
     end
   end
 end
