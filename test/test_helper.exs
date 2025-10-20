@@ -6,8 +6,13 @@ Application.ensure_all_started(:jido_ai)
 ExUnit.start(
   max_cases: 2,
   # Reduced concurrency to prevent memory leaks
-  timeout: 120_000
+  timeout: 120_000,
   # Longer timeout for integration tests
+  # Exclude memory-intensive tests by default to prevent timeouts and OOM
+  # Run with: mix test --include performance_benchmarks
+  # Run with: mix test --include provider_validation
+  # Run with: mix test --include section_2_1
+  exclude: [:performance_benchmarks, :provider_validation, :section_2_1, :functional_validation]
 )
 
 # Global setup to clear cache after each test
