@@ -46,7 +46,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
         SessionAuthentication.clear_for_provider(:openai)
 
         # Mock external systems to fail and return error with potential key exposure
-        expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+        expect(ReqLLM.Keys, :get, fn :openai, %{} ->
           {:error, "API key #{sensitive_key} is invalid"}
         end)
 
@@ -240,17 +240,17 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
       # Mock various system failures
       system_error_scenarios = [
         fn ->
-          expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+          expect(ReqLLM.Keys, :get, fn :openai, %{} ->
             raise "Internal system error with sensitive path /home/user/.env"
           end)
         end,
         fn ->
-          expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+          expect(ReqLLM.Keys, :get, fn :openai, %{} ->
             {:error, "Connection failed to internal-auth-server.company.com:8080"}
           end)
         end,
         fn ->
-          expect(ReqLlmBridge.Keys, :get, fn :openai, %{} ->
+          expect(ReqLLM.Keys, :get, fn :openai, %{} ->
             {:error, "Database connection failed: postgresql://user:pass@db.internal:5432/auth"}
           end)
         end
@@ -436,7 +436,7 @@ defmodule Jido.AI.ReqLlmBridge.Security.CredentialSafetyTest do
 
       # Double-check by attempting authentication
       # (should fail and fall back to external sources)
-      expect(ReqLlmBridge.Keys, :get, length(providers), fn _provider, %{} ->
+      expect(ReqLLM.Keys, :get, length(providers), fn _provider, %{} ->
         {:error, "No external auth available"}
       end)
 

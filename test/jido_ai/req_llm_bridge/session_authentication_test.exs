@@ -145,13 +145,16 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthenticationTest do
     test "transfers authentication to another process", %{keyring: _keyring} do
       SessionAuthentication.set_for_provider(:openai, "transfer-key")
 
+      # Capture parent pid for sending message back
+      parent = self()
+
       # Create a target process
       {:ok, target_pid} =
         Task.start(fn ->
           receive do
             :check ->
               result = SessionAuthentication.has_session_auth?(:openai)
-              send(self(), {:result, result})
+              send(parent, {:result, result})
           end
 
           receive do
