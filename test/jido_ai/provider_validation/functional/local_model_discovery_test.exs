@@ -34,6 +34,15 @@ defmodule Jido.AI.ProviderValidation.Functional.LocalModelDiscoveryTest do
     copy(ReqLLM.Provider.Generated.ValidProviders)
     # Local providers not in comprehensive mock, but setup prevents real registry loads
     RegistryHelpers.setup_comprehensive_registry_mock()
+
+    # Clean up after each test to prevent memory accumulation
+    on_exit(fn ->
+      # Clear the model registry cache to free memory
+      if Process.whereis(Jido.AI.Model.Registry.Cache) do
+        Jido.AI.Model.Registry.Cache.clear()
+      end
+    end)
+
     :ok
   end
 

@@ -43,6 +43,14 @@ defmodule Jido.AI.ProviderValidation.ProviderSystemValidationTest do
     # Comprehensive mock has 50 models across 10 providers
     RegistryHelpers.setup_comprehensive_registry_mock()
 
+    # Clean up after each test to prevent memory accumulation
+    on_exit(fn ->
+      # Clear the model registry cache to free memory
+      if Process.whereis(Jido.AI.Model.Registry.Cache) do
+        Jido.AI.Model.Registry.Cache.clear()
+      end
+    end)
+
     :ok
   end
 
