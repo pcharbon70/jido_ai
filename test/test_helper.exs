@@ -8,7 +8,8 @@ ExUnit.start(
   # Reduced concurrency to prevent memory leaks
   timeout: 120_000,
   # Longer timeout for integration tests
-  # Exclude memory-intensive tests by default to prevent timeouts and OOM
+  # Exclude slow tests by default for faster development cycle
+  # These tests now have proper cleanup and won't leak memory
   # Run with: mix test --include performance_benchmarks
   # Run with: mix test --include provider_validation
   # Run with: mix test --include section_2_1
