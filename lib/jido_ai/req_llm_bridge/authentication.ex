@@ -286,7 +286,7 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
 
           {:error, reason} ->
             # Try Keyring fallback
-            case Keyring.get_env_value(:default, jido_key, nil) do
+            case Keyring.get_env_value(Jido.AI.Keyring, jido_key, nil) do
               nil ->
                 log_authentication_error(provider, reason)
                 {:error, "API key not found: #{env_var}"}
@@ -337,7 +337,7 @@ defmodule Jido.AI.ReqLlmBridge.Authentication do
 
   # Resolves authentication using Keyring as fallback
   defp resolve_keyring_fallback(mapping, _req_options) do
-    case Keyring.get_env_value(:default, mapping.jido_key, nil) do
+    case Keyring.get_env_value(Jido.AI.Keyring, mapping.jido_key, nil) do
       nil -> {:error, "API key not found: #{mapping.env_var}"}
       key -> {:ok, key, :keyring}
     end
