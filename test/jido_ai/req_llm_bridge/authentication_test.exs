@@ -1,10 +1,13 @@
 defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
   use ExUnit.Case, async: false
+  use Mimic
 
   alias Jido.AI.ReqLlmBridge.Authentication
   alias Jido.AI.Keyring
 
   # Note: async: false because we're manipulating session values
+
+  setup :set_mimic_global
 
   @moduledoc """
   Tests for the Authentication module.
@@ -19,6 +22,21 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
   """
 
   setup do
+    # Copy modules for mocking
+    copy(ReqLLM.Keys)
+    copy(Jido.AI.Keyring)
+
+    # Stub ReqLLM.Keys.get to return error by default
+    # This ensures tests are isolated from global JidoKeys state
+    stub(ReqLLM.Keys, :get, fn provider, _opts ->
+      env_var = "#{String.upcase(to_string(provider))}_API_KEY"
+      {:error, ":api_key option or #{env_var} env var (optionally via JidoKeys.put/2)"}
+    end)
+
+    # Stub Keyring.get_env_value to return nil by default
+    # This prevents tests from finding real environment variables
+    stub(Keyring, :get_env_value, fn _server, _key, default -> default end)
+
     # Clear any session values before each test
     Keyring.clear_all_session_values(Jido.AI.Keyring)
 
@@ -138,6 +156,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "error when no session key is set and no other authentication available" do
       # Don't set any session keys
+      # ReqLLM.Keys is stubbed to return error by default
       # Authenticate should fail
       result = Authentication.authenticate_for_provider(:openai, %{})
 
@@ -164,6 +183,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
 
     test "validation fails with missing key" do
       # Don't set any session keys
+      # ReqLLM.Keys is stubbed to return error by default
       # Validate authentication should fail
       result = Authentication.validate_authentication(:openai, %{})
 
