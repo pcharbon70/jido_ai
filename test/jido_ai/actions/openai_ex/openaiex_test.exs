@@ -6,8 +6,6 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
   alias Jido.AI.Actions.OpenaiEx, as: OpenaiExAction
   alias Jido.AI.Model
   alias Jido.AI.Prompt
-  alias OpenaiEx.Chat
-  alias OpenaiEx.ChatMessage
 
   # Define test response model at module level
   defmodule TestResponse do
