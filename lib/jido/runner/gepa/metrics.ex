@@ -97,12 +97,9 @@ defmodule Jido.Runner.GEPA.Metrics do
   end
 
   typedstruct do
-    @moduledoc """
-    Aggregated metrics collection for prompt evaluation.
-
-    Contains collections of metric values organized by type,
-    enabling statistical analysis and fitness calculation.
-    """
+    # Aggregated metrics collection for prompt evaluation.
+    # Contains collections of metric values organized by type,
+    # enabling statistical analysis and fitness calculation.
 
     field(:values, %{optional(metric_type()) => list(MetricValue.t())}, default: %{})
     field(:task_ids, MapSet.t(), default: MapSet.new())
@@ -421,7 +418,8 @@ defmodule Jido.Runner.GEPA.Metrics do
   end
 
   @spec calculate_statistics(list(number())) :: aggregation_stats()
-  defp calculate_statistics([]), do: %{mean: 0.0, median: 0.0, variance: 0.0, std_dev: 0.0, min: 0.0, max: 0.0, count: 0}
+  defp calculate_statistics([]),
+    do: %{mean: 0.0, median: 0.0, variance: 0.0, std_dev: 0.0, min: 0.0, max: 0.0, count: 0}
 
   defp calculate_statistics(values) when is_list(values) do
     count = length(values)
@@ -509,12 +507,17 @@ defmodule Jido.Runner.GEPA.Metrics do
       # For large samples, use z-scores (normal distribution)
       degrees_of_freedom >= 30 ->
         case alpha do
-          a when a <= 0.01 -> 2.576
+          a when a <= 0.01 ->
+            2.576
+
           # 99% CI
-          a when a <= 0.05 -> 1.960
+          a when a <= 0.05 ->
+            1.960
+
           # 95% CI
-          _ -> 1.645
-          # 90% CI
+          _ ->
+            1.645
+            # 90% CI
         end
 
       # For small samples, use conservative t-values

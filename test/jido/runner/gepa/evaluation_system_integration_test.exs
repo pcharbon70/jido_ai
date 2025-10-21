@@ -208,7 +208,9 @@ defmodule Jido.Runner.GEPA.EvaluationSystemIntegrationTest do
         assert trajectory.duration_ms >= 0
 
         # Duration should match the time difference
-        calculated_duration = DateTime.diff(trajectory.completed_at, trajectory.started_at, :millisecond)
+        calculated_duration =
+          DateTime.diff(trajectory.completed_at, trajectory.started_at, :millisecond)
+
         # Allow small variance due to timing precision
         assert abs(calculated_duration - trajectory.duration_ms) < 10
       end
@@ -615,9 +617,7 @@ defmodule Jido.Runner.GEPA.EvaluationSystemIntegrationTest do
 
     test "partial results returned on timeout" do
       {:ok, collector} =
-        ResultCollector.start_link(
-          expected_count: 10
-        )
+        ResultCollector.start_link(expected_count: 10)
 
       # Submit only 3 results
       for i <- 1..3 do
@@ -659,9 +659,7 @@ defmodule Jido.Runner.GEPA.EvaluationSystemIntegrationTest do
   describe "result synchronization under failures (1.2 Unit Test: Result Synchronization)" do
     test "handles agent crashes during evaluation" do
       {:ok, collector} =
-        ResultCollector.start_link(
-          expected_count: 3
-        )
+        ResultCollector.start_link(expected_count: 3)
 
       # Successful evaluation
       pid1 = spawn(fn -> Process.sleep(:infinity) end)
@@ -787,9 +785,7 @@ defmodule Jido.Runner.GEPA.EvaluationSystemIntegrationTest do
 
     test "partial results include all completed evaluations" do
       {:ok, collector} =
-        ResultCollector.start_link(
-          expected_count: 10
-        )
+        ResultCollector.start_link(expected_count: 10)
 
       # Complete 4 evaluations
       completed_refs =

@@ -85,15 +85,10 @@ defmodule Jido.Runner.ChainOfThought.StructuredCode.CodeValidator do
     # Style validation
     {warnings, suggestions} =
       if check_style do
-        case validate_style(code) do
-          {:ok, style_issues} ->
-            style_warnings = Enum.filter(style_issues, &(&1.severity == :warning))
-            style_suggestions = Enum.map(style_issues, & &1.message)
-            {warnings ++ style_warnings, suggestions ++ style_suggestions}
-
-          {:error, _reason} ->
-            {warnings, suggestions}
-        end
+        {:ok, style_issues} = validate_style(code)
+        style_warnings = Enum.filter(style_issues, &(&1.severity == :warning))
+        style_suggestions = Enum.map(style_issues, & &1.message)
+        {warnings ++ style_warnings, suggestions ++ style_suggestions}
       else
         {warnings, suggestions}
       end

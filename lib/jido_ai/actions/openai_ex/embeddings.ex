@@ -234,5 +234,4 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
         {:error, "Invalid ReqLLM ID format"}
     end
   end
-
 end

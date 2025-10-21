@@ -124,7 +124,6 @@ defmodule Jido.AI.Actions.ReqLlm.ToolResponse do
   end
 
   defp execute_with_prompt(model, prompt, tools, params, context) do
-
     # Prepare the parameters for ChatCompletion
     completion_params = %{
       model: model,

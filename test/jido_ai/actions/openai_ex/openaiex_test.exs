@@ -178,7 +178,9 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
       }
 
       # Mock ReqLLM for OpenRouter
-      expect(ReqLLM, :generate_text, fn "openrouter:anthropic/claude-3-sonnet", _messages, _opts ->
+      expect(ReqLLM, :generate_text, fn "openrouter:anthropic/claude-3-sonnet",
+                                        _messages,
+                                        _opts ->
         {:ok, %{text: "Test response", usage: %{prompt_tokens: 10, completion_tokens: 5}}}
       end)
 

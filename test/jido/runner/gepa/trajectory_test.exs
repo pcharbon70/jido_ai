@@ -412,10 +412,15 @@ defmodule Jido.Runner.GEPA.TrajectoryTest do
     end
 
     test "filters by importance level - medium", %{trajectory: trajectory} do
-      filtered = Trajectory.filter(trajectory, min_importance: :medium, preserve_first_last: false)
+      filtered =
+        Trajectory.filter(trajectory, min_importance: :medium, preserve_first_last: false)
 
       assert length(filtered.steps) == 3
-      assert Enum.all?(filtered.steps, fn step -> step.importance in [:medium, :high, :critical] end)
+
+      assert Enum.all?(filtered.steps, fn step ->
+               step.importance in [:medium, :high, :critical]
+             end)
+
       assert filtered.filtered == true
     end
 
@@ -427,7 +432,8 @@ defmodule Jido.Runner.GEPA.TrajectoryTest do
     end
 
     test "filters by importance level - critical", %{trajectory: trajectory} do
-      filtered = Trajectory.filter(trajectory, min_importance: :critical, preserve_first_last: false)
+      filtered =
+        Trajectory.filter(trajectory, min_importance: :critical, preserve_first_last: false)
 
       assert length(filtered.steps) == 1
       [step] = filtered.steps

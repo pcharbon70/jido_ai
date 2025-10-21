@@ -455,9 +455,7 @@ defmodule Jido.Runner.GEPA.ResultCollectorTest do
 
     test "await_completion returns partial results on timeout" do
       {:ok, collector} =
-        ResultCollector.start_link(
-          expected_count: 3
-        )
+        ResultCollector.start_link(expected_count: 3)
 
       # Register and submit only 1 result
       ref1 = make_ref()
@@ -484,9 +482,7 @@ defmodule Jido.Runner.GEPA.ResultCollectorTest do
 
     test "await_completion returns ok when all results collected" do
       {:ok, collector} =
-        ResultCollector.start_link(
-          expected_count: 2
-        )
+        ResultCollector.start_link(expected_count: 2)
 
       # Submit both expected results
       ref1 = make_ref()
@@ -505,9 +501,7 @@ defmodule Jido.Runner.GEPA.ResultCollectorTest do
 
     test "multiple waiters notified on completion" do
       {:ok, collector} =
-        ResultCollector.start_link(
-          expected_count: 1
-        )
+        ResultCollector.start_link(expected_count: 1)
 
       # Spawn multiple waiters
       waiter1 =
@@ -539,9 +533,7 @@ defmodule Jido.Runner.GEPA.ResultCollectorTest do
 
     test "await_completion works when already complete" do
       {:ok, collector} =
-        ResultCollector.start_link(
-          expected_count: 1
-        )
+        ResultCollector.start_link(expected_count: 1)
 
       # Submit result first
       ref = make_ref()
@@ -596,9 +588,7 @@ defmodule Jido.Runner.GEPA.ResultCollectorTest do
   describe "get_stats/1" do
     test "returns accurate statistics" do
       {:ok, collector} =
-        ResultCollector.start_link(
-          expected_count: 5
-        )
+        ResultCollector.start_link(expected_count: 5)
 
       stats = ResultCollector.get_stats(collector)
       assert stats.pending_count == 0

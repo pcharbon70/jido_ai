@@ -530,6 +530,7 @@ defmodule Jido.Runner.GEPA.Optimizer do
           error: Exception.message(e),
           stacktrace: Exception.format_stacktrace(__STACKTRACE__)
         )
+
         {:error, e}
     end
   end
@@ -582,10 +583,11 @@ defmodule Jido.Runner.GEPA.Optimizer do
 
     stats = Population.statistics(population)
 
-    %{state |
-      population: population,
-      evaluations_used: state.evaluations_used + evals_used,
-      best_fitness: stats.best_fitness
+    %{
+      state
+      | population: population,
+        evaluations_used: state.evaluations_used + evals_used,
+        best_fitness: stats.best_fitness
     }
   end
 
@@ -645,10 +647,11 @@ defmodule Jido.Runner.GEPA.Optimizer do
     Logger.debug("Selected #{length(elites)} elites for next generation")
 
     # Create new population
-    {:ok, next_population} = Population.new(
-      size: state.config.population_size,
-      generation: state.generation + 1
-    )
+    {:ok, next_population} =
+      Population.new(
+        size: state.config.population_size,
+        generation: state.generation + 1
+      )
 
     # Add elites
     next_population =
@@ -686,11 +689,12 @@ defmodule Jido.Runner.GEPA.Optimizer do
       timestamp: System.monotonic_time(:millisecond)
     }
 
-    %{state |
-      population: next_population,
-      generation: state.generation + 1,
-      history: [generation_metrics | state.history],
-      best_fitness: stats.best_fitness
+    %{
+      state
+      | population: next_population,
+        generation: state.generation + 1,
+        history: [generation_metrics | state.history],
+        best_fitness: stats.best_fitness
     }
   end
 
@@ -730,9 +734,11 @@ defmodule Jido.Runner.GEPA.Optimizer do
 
       # Calculate fitness variance
       mean = Enum.sum(fitnesses) / length(fitnesses)
-      variance = Enum.reduce(fitnesses, 0.0, fn f, acc ->
-        acc + :math.pow(f - mean, 2)
-      end) / length(fitnesses)
+
+      variance =
+        Enum.reduce(fitnesses, 0.0, fn f, acc ->
+          acc + :math.pow(f - mean, 2)
+        end) / length(fitnesses)
 
       # Converged if variance is very small (< 0.001)
       variance < 0.001

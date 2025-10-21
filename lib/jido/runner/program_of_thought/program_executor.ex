@@ -116,6 +116,7 @@ defmodule Jido.Runner.ProgramOfThought.ProgramExecutor do
         end
 
       # Get the result by calling Solution.solve/0
+      # credo:disable-for-next-line Credo.Check.Warning.UndefinedModuleCall
       result = Solution.solve()
 
       {:ok, %{value: result, output: output}}

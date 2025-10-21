@@ -16,20 +16,24 @@ defmodule Jido.AI.Schemas.BooleanResponseSchema do
   use Jido.AI.Schema
 
   defschema "A boolean response from an AI assistant with explanation and confidence." do
-    field :answer, :boolean,
+    field(:answer, :boolean,
       required: true,
       doc: "The true or false answer to the question"
+    )
 
-    field :explanation, :string,
+    field(:explanation, :string,
       required: true,
       doc: "A brief explanation of the reasoning behind the answer"
+    )
 
-    field :confidence, :float,
+    field(:confidence, :float,
       required: true,
       doc: "Confidence score between 0.0 and 1.0 indicating certainty"
+    )
 
-    field :is_ambiguous, :boolean,
+    field(:is_ambiguous, :boolean,
       required: true,
       doc: "Whether the question is ambiguous or unclear"
+    )
   end
 end
