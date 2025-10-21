@@ -208,9 +208,7 @@ defmodule Jido.Runner.ProgramOfThought.ProgramGenerator do
     }
 
     try do
-      chat_action = Jido.AI.Actions.ReqLlm.ChatCompletion.new!(params)
-
-      case Jido.AI.Actions.ReqLlm.ChatCompletion.run(chat_action.params, context) do
+      case Jido.AI.Actions.ReqLlm.ChatCompletion.run(params, context) do
         {:ok, result, _context} ->
           content = extract_content(result)
           {:ok, content}

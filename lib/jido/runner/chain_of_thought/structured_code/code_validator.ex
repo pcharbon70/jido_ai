@@ -96,14 +96,10 @@ defmodule Jido.Runner.ChainOfThought.StructuredCode.CodeValidator do
     # Structure validation
     {errors, warnings, suggestions} =
       if check_structure do
-        case validate_structure(code, reasoning, analysis) do
-          {:ok, structure_result} ->
-            {errors ++ structure_result.errors, warnings ++ structure_result.warnings,
-             suggestions ++ structure_result.suggestions}
+        {:ok, structure_result} = validate_structure(code, reasoning, analysis)
 
-          {:error, _reason} ->
-            {errors, warnings, suggestions}
-        end
+        {errors ++ structure_result.errors, warnings ++ structure_result.warnings,
+         suggestions ++ structure_result.suggestions}
       else
         {errors, warnings, suggestions}
       end
