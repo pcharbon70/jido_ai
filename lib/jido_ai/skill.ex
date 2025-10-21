@@ -22,8 +22,8 @@ defmodule Jido.AI.Skill do
     ],
     chat_action: [
       type: {:custom, Jido.Util, :validate_actions, []},
-      default: Jido.AI.Actions.Instructor.ChatResponse,
-      doc: "The chat action to use"
+      default: Jido.AI.Actions.Internal.ChatResponse,
+      doc: "The chat action to use (now uses internal implementation for broader provider support)"
     ],
     tool_action: [
       type: {:custom, Jido.Util, :validate_actions, []},
@@ -32,8 +32,8 @@ defmodule Jido.AI.Skill do
     ],
     boolean_action: [
       type: {:custom, Jido.Util, :validate_actions, []},
-      default: Jido.AI.Actions.Instructor.BooleanResponse,
-      doc: "The default boolean action to use"
+      default: Jido.AI.Actions.Internal.BooleanResponse,
+      doc: "The default boolean action to use (now uses internal implementation)"
     ],
     tools: [
       type: {:custom, Jido.Util, :validate_actions, []},
@@ -62,10 +62,15 @@ defmodule Jido.AI.Skill do
 
   def mount(agent, opts) do
     chat_action =
-      Keyword.get(opts, :chat_action, Jido.AI.Actions.Instructor.ChatResponse)
+      Keyword.get(opts, :chat_action, Jido.AI.Actions.Internal.ChatResponse)
 
     tool_action =
       Keyword.get(opts, :tool_action, Jido.AI.Actions.ReqLlm.ToolResponse)
+
+    boolean_action =
+      Keyword.get(opts, :boolean_action, Jido.AI.Actions.Internal.BooleanResponse)
+
+    tools = Keyword.get(opts, :tools, [])
 
     # Add deprecation warning if using LangChain
     if tool_action == Jido.AI.Actions.Langchain.ToolResponse do
@@ -83,10 +88,24 @@ defmodule Jido.AI.Skill do
       """)
     end
 
-    boolean_action =
-      Keyword.get(opts, :boolean_action, Jido.AI.Actions.Instructor.BooleanResponse)
+    # Add deprecation warning if using Instructor
+    if chat_action in [Jido.AI.Actions.Instructor.ChatResponse, Jido.AI.Actions.Instructor.BooleanResponse, Jido.AI.Actions.Instructor.ChoiceResponse] or
+       boolean_action in [Jido.AI.Actions.Instructor.ChatResponse, Jido.AI.Actions.Instructor.BooleanResponse, Jido.AI.Actions.Instructor.ChoiceResponse] do
+      Logger.warning("""
+      Instructor actions are deprecated and will be removed in v0.7.0.
+      Please migrate to Jido.AI.Actions.Internal.* for:
+      - No external Instructor dependency
+      - Support for 57+ providers via ReqLLM
+      - Better error handling and retry logic
+      - Lighter installation footprint
 
-    tools = Keyword.get(opts, :tools, [])
+      To migrate, update your Skill configuration:
+        chat_action: Jido.AI.Actions.Internal.ChatResponse
+        boolean_action: Jido.AI.Actions.Internal.BooleanResponse
+
+      Or remove these options to use the new defaults.
+      """)
+    end
 
     # Register all actions with the agent
     actions = [chat_action, tool_action, boolean_action] ++ tools
@@ -115,10 +134,10 @@ defmodule Jido.AI.Skill do
 
   def router(_opts \\ []) do
     [
-      {"jido.ai.chat.response", %Instruction{action: Jido.AI.Actions.Instructor.ChatResponse}},
+      {"jido.ai.chat.response", %Instruction{action: Jido.AI.Actions.Internal.ChatResponse}},
       {"jido.ai.tool.response", %Instruction{action: Jido.AI.Actions.ReqLlm.ToolResponse}},
       {"jido.ai.boolean.response",
-       %Instruction{action: Jido.AI.Actions.Instructor.BooleanResponse}}
+       %Instruction{action: Jido.AI.Actions.Internal.BooleanResponse}}
     ]
   end
 

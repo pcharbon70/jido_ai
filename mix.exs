@@ -70,7 +70,7 @@ defmodule Jido.Ai.MixProject do
       {:req, "~> 0.5.8"},
       {:req_llm, "~> 1.0.0-rc"},
       {:openai_ex, "~> 0.9.0"},
-      {:instructor, "~> 0.1.0"},
+      {:instructor, "~> 0.1.0", optional: true},
       {:langchain, "~> 0.3.1"},
 
       # Testing
