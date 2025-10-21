@@ -27,8 +27,8 @@ defmodule Jido.AI.Skill do
     ],
     tool_action: [
       type: {:custom, Jido.Util, :validate_actions, []},
-      default: Jido.AI.Actions.Langchain.ToolResponse,
-      doc: "The default tool action to use"
+      default: Jido.AI.Actions.ReqLlm.ToolResponse,
+      doc: "The default tool action to use (now uses ReqLLM for 57+ provider support)"
     ],
     boolean_action: [
       type: {:custom, Jido.Util, :validate_actions, []},
@@ -65,7 +65,23 @@ defmodule Jido.AI.Skill do
       Keyword.get(opts, :chat_action, Jido.AI.Actions.Instructor.ChatResponse)
 
     tool_action =
-      Keyword.get(opts, :tool_action, Jido.AI.Actions.Langchain.ToolResponse)
+      Keyword.get(opts, :tool_action, Jido.AI.Actions.ReqLlm.ToolResponse)
+
+    # Add deprecation warning if using LangChain
+    if tool_action == Jido.AI.Actions.Langchain.ToolResponse do
+      Logger.warning("""
+      LangChain actions are deprecated and will be removed in v0.6.0.
+      Please migrate to Jido.AI.Actions.ReqLlm.ToolResponse for:
+      - Support for 57+ providers (vs 3-4 with LangChain)
+      - Better error handling
+      - Lighter dependencies
+
+      To migrate, update your Skill configuration:
+        tool_action: Jido.AI.Actions.ReqLlm.ToolResponse
+
+      Or remove the tool_action option to use the new default.
+      """)
+    end
 
     boolean_action =
       Keyword.get(opts, :boolean_action, Jido.AI.Actions.Instructor.BooleanResponse)
@@ -100,7 +116,7 @@ defmodule Jido.AI.Skill do
   def router(_opts \\ []) do
     [
       {"jido.ai.chat.response", %Instruction{action: Jido.AI.Actions.Instructor.ChatResponse}},
-      {"jido.ai.tool.response", %Instruction{action: Jido.AI.Actions.Langchain.ToolResponse}},
+      {"jido.ai.tool.response", %Instruction{action: Jido.AI.Actions.ReqLlm.ToolResponse}},
       {"jido.ai.boolean.response",
        %Instruction{action: Jido.AI.Actions.Instructor.BooleanResponse}}
     ]
