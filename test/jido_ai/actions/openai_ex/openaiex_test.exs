@@ -7,15 +7,6 @@ defmodule JidoTest.AI.Actions.OpenaiExTest do
   alias Jido.AI.Model
   alias Jido.AI.Prompt
 
-  # Define test response model at module level
-  defmodule TestResponse do
-    use Ecto.Schema
-
-    embedded_schema do
-      field(:message, :string)
-    end
-  end
-
   @moduletag :capture_log
 
   # Add global mock setup
