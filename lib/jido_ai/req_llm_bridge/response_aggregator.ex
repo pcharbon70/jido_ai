@@ -191,13 +191,31 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
 
   ## Examples
 
-      formatted = ResponseAggregator.format_for_user(response, %{
-        include_metadata: false,
-        tool_result_style: :integrated
-      })
+      iex> alias Jido.AI.ReqLlmBridge.ResponseAggregator
+      iex> response = %{
+      ...>   content: "The weather is",
+      ...>   tool_calls: [],
+      ...>   tool_results: [%{content: "sunny, 22°C"}],
+      ...>   usage: %{total_tokens: 50},
+      ...>   conversation_id: "conv_123",
+      ...>   finished: true,
+      ...>   metadata: %{processing_time_ms: 100}
+      ...> }
+      iex> ResponseAggregator.format_for_user(response, %{tool_result_style: :integrated})
+      "The weather is\\n\\nBased on the tool result: sunny, 22°C"
 
-      IO.puts(formatted)
-      # "The weather in Paris is sunny with a temperature of 22°C."
+      iex> alias Jido.AI.ReqLlmBridge.ResponseAggregator
+      iex> response = %{
+      ...>   content: "Hello!",
+      ...>   tool_calls: [],
+      ...>   tool_results: [],
+      ...>   usage: %{total_tokens: 10},
+      ...>   conversation_id: "conv_456",
+      ...>   finished: true,
+      ...>   metadata: %{processing_time_ms: 50}
+      ...> }
+      iex> ResponseAggregator.format_for_user(response)
+      "Hello!"
   """
   @spec format_for_user(aggregated_response(), map()) :: String.t()
   def format_for_user(aggregated_response, format_options \\ %{}) do
@@ -236,8 +254,41 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
 
   ## Examples
 
-      metrics = ResponseAggregator.extract_metrics(response)
-      # Use metrics as needed
+      iex> alias Jido.AI.ReqLlmBridge.ResponseAggregator
+      iex> response = %{
+      ...>   content: "Result",
+      ...>   tool_calls: [],
+      ...>   tool_results: [%{content: "success"}, %{content: "ok", error: false}],
+      ...>   usage: %{prompt_tokens: 10, completion_tokens: 20, total_tokens: 30},
+      ...>   conversation_id: "conv_789",
+      ...>   finished: true,
+      ...>   metadata: %{processing_time_ms: 150}
+      ...> }
+      iex> metrics = ResponseAggregator.extract_metrics(response)
+      iex> metrics.total_tokens
+      30
+      iex> metrics.tools_executed
+      2
+      iex> metrics.tools_successful
+      2
+      iex> metrics.tool_success_rate
+      100.0
+
+      iex> alias Jido.AI.ReqLlmBridge.ResponseAggregator
+      iex> response = %{
+      ...>   content: "Error occurred",
+      ...>   tool_calls: [],
+      ...>   tool_results: [%{content: "failed", error: true}],
+      ...>   usage: %{prompt_tokens: 5, completion_tokens: 10, total_tokens: 15},
+      ...>   conversation_id: "conv_err",
+      ...>   finished: true,
+      ...>   metadata: %{processing_time_ms: 75}
+      ...> }
+      iex> metrics = ResponseAggregator.extract_metrics(response)
+      iex> metrics.tools_failed
+      1
+      iex> metrics.tool_success_rate
+      0.0
   """
   @spec extract_metrics(aggregated_response()) :: map()
   def extract_metrics(aggregated_response) do

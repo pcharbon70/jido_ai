@@ -3,6 +3,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
 
   alias Jido.AI.ReqLlmBridge.ResponseAggregator
 
+  doctest Jido.AI.ReqLlmBridge.ResponseAggregator
+
   @moduledoc """
   Tests for the ResponseAggregator module.
 
