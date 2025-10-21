@@ -28,7 +28,7 @@ defmodule Jido.AI.ReqLlmBridge.SessionAuthentication do
   alias Jido.AI.Keyring
 
   # Default Keyring server name
-  @default_server :default
+  @default_server Jido.AI.Keyring
 
   @doc """
   Gets session authentication for a ReqLLM request.

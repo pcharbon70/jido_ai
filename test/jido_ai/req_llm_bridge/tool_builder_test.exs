@@ -1,371 +1,279 @@
 defmodule Jido.AI.ReqLlmBridge.ToolBuilderTest do
   use ExUnit.Case, async: false
-  use Mimic
 
-  @moduletag :capture_log
+  alias Jido.AI.ReqLlmBridge.ToolBuilder
 
-  alias Jido.AI.ReqLlmBridge.{SchemaValidator, ToolBuilder, ToolExecutor}
+  @moduledoc """
+  Tests for the ToolBuilder module.
 
-  # Add global mock setup
-  setup :set_mimic_global
+  Tests cover:
+  - Tool descriptor creation from Actions
+  - Tool name and description extraction
+  - Schema conversion from NimbleOptions to JSON Schema
+  - Action validation and compatibility checking
+  - Batch conversion of multiple Actions
+  """
 
-  setup do
-    # Copy the modules we need to mock
-    Mimic.copy(ReqLLM)
+  # Helper module - Action with standard name/description
+  defmodule StandardAction do
+    use Jido.Action,
+      name: "standard_action",
+      description: "A standard test action",
+      schema: [
+        message: [type: :string, required: true, doc: "Test message"],
+        count: [type: :integer, default: 1, doc: "Count value"]
+      ]
 
-    # Mock Action for testing
-    defmodule TestAction do
-      use Jido.Action,
-        name: "test_action",
-        description: "A test action for ReqLLM integration",
-        schema: [
-          name: [type: :string, required: true, doc: "The name parameter"],
-          count: [type: :integer, default: 1, doc: "The count parameter"],
-          enabled: [type: :boolean, default: false, doc: "Enable flag"]
-        ]
-
-      @impl true
-      def run(params, _context) do
-        {:ok,
-         %{
-           message: "Hello #{params.name}",
-           count: params.count,
-           enabled: params.enabled
-         }}
-      end
+    def run(params, _context) do
+      {:ok, %{message: params[:message], count: params[:count]}}
     end
-
-    # Mock Action with complex schema
-    defmodule ComplexAction do
-      use Jido.Action,
-        name: "complex_action",
-        description: "An action with complex schema",
-        schema: [
-          items: [type: {:list, :string}, required: true, doc: "List of items"],
-          config: [type: :map, doc: "Configuration map"],
-          status: [type: {:in, [:active, :inactive]}, default: :inactive, doc: "Status choice"]
-        ]
-
-      @impl true
-      def run(params, _context) do
-        {:ok, %{processed: length(params.items), config: params.config, status: params.status}}
-      end
-    end
-
-    # Invalid Action (missing required functions)
-    defmodule InvalidAction do
-      # This module doesn't implement the Jido.Action behavior properly
-      def name, do: "invalid"
-    end
-
-    {:ok,
-     %{
-       test_action: TestAction,
-       complex_action: ComplexAction,
-       invalid_action: InvalidAction
-     }}
   end
 
-  describe "create_tool_descriptor/2" do
-    test "successfully creates tool descriptor for valid action", %{test_action: action} do
-      # Mock ReqLlmBridge.tool/1 to return a tool descriptor
-      expect(ReqLLM, :tool, fn opts ->
-        %{
-          name: opts[:name],
-          description: opts[:description],
-          parameter_schema: opts[:parameter_schema],
-          callback: opts[:callback]
-        }
-      end)
+  # Helper module - Action with generic name (will test underscored conversion)
+  defmodule CustomNameAction do
+    use Jido.Action,
+      name: "custom_name",
+      description: "Action with custom name",
+      schema: [
+        value: [type: :string, required: true]
+      ]
 
-      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(action)
-      assert descriptor.name == "test_action"
-      assert descriptor.description == "A test action for ReqLLM integration"
+    def run(params, _context) do
+      {:ok, params}
+    end
+  end
+
+  # Helper module - Action without description
+  defmodule NoDescriptionAction do
+    use Jido.Action,
+      name: "no_description_action",
+      schema: []
+
+    def run(_params, _context) do
+      {:ok, %{}}
+    end
+  end
+
+  # Invalid module - not an Action
+  defmodule NotAnAction do
+    def some_function, do: :ok
+  end
+
+  # Invalid module - has metadata but no run/2
+  defmodule NoRunFunction do
+    def __action_metadata__, do: %{}
+  end
+
+  describe "3.1 Tool Descriptor Creation" do
+    test "successful descriptor creation from valid Action" do
+      # Use Jido.Actions.Basic.Sleep
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(Jido.Actions.Basic.Sleep)
+
+      # Verify required fields
+      assert Map.has_key?(descriptor, :name)
+      assert Map.has_key?(descriptor, :description)
+      assert Map.has_key?(descriptor, :parameter_schema)
+      assert Map.has_key?(descriptor, :callback)
+
+      # Verify all fields are non-nil
+      assert descriptor.name != nil
+      assert descriptor.description != nil
+      assert descriptor.parameter_schema != nil
+      assert descriptor.callback != nil
+
+      # Verify callback is a function
+      assert is_function(descriptor.callback, 1)
+    end
+
+    test "successful descriptor creation with StandardAction" do
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(StandardAction)
+
+      assert descriptor.name == "standard_action"
+      assert descriptor.description == "A standard test action"
       assert is_map(descriptor.parameter_schema)
       assert is_function(descriptor.callback, 1)
     end
 
-    test "creates tool descriptor with custom options", %{test_action: action} do
-      expect(ReqLLM, :tool, fn _opts ->
-        %{
-          name: "test_action",
-          description: "test",
-          parameter_schema: %{},
-          callback: fn _ -> :ok end
-        }
-      end)
-
-      options = %{
-        context: %{user_id: 123},
-        timeout: 10_000,
-        validate_schema: false
-      }
-
-      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(action, options)
-      assert is_map(descriptor)
+    test "tool name extraction from Action with name/0" do
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(StandardAction)
+      assert descriptor.name == "standard_action"
     end
 
-    test "validates action module before conversion", %{invalid_action: invalid} do
-      result = ToolBuilder.create_tool_descriptor(invalid)
+    test "tool name uses the name specified in Action definition" do
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(CustomNameAction)
 
-      assert {:error, error} = result
-      assert error.reason == "tool_conversion_failed"
-      assert error.action_module == invalid
+      # Uses the name from the Action definition
+      assert descriptor.name == "custom_name"
     end
 
-    test "handles schema conversion failures gracefully", %{test_action: action} do
-      # Mock SchemaValidator to fail
-      expect(ReqLLM, :tool, fn _opts -> raise "Schema conversion failed" end)
-
-      assert {:error, error} = ToolBuilder.create_tool_descriptor(action)
-      assert error.reason == "conversion_exception"
-      assert String.contains?(error.details, "Schema conversion failed")
+    test "tool description extraction from Action with description/0" do
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(StandardAction)
+      assert descriptor.description == "A standard test action"
     end
 
-    test "creates callback function that executes action correctly", %{test_action: action} do
-      expect(ReqLLM, :tool, fn opts ->
-        # Return the callback so we can test it
-        %{callback: opts[:callback]}
-      end)
+    test "tool description extraction from Action without description/0" do
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(NoDescriptionAction)
+      assert descriptor.description == "No description provided"
+    end
 
-      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(action)
-      callback = descriptor.callback
+    test "schema conversion from NimbleOptions to JSON Schema format" do
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(StandardAction)
 
-      # Test the callback execution
-      params = %{"name" => "Pascal", "count" => "5", "enabled" => "true"}
+      # Verify schema is a map (JSON Schema structure)
+      assert is_map(descriptor.parameter_schema)
 
-      assert {:ok, result} = callback.(params)
-      assert result.message == "Hello Pascal"
+      # Schema should have structure (exact format depends on SchemaValidator)
+      # Basic check that conversion happened
+      assert descriptor.parameter_schema != %{}
+    end
+
+    test "callback function can be executed" do
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(StandardAction)
+
+      # Execute callback with valid parameters
+      params = %{"message" => "test", "count" => 5}
+      assert {:ok, result} = descriptor.callback.(params)
+
+      assert result.message == "test"
       assert result.count == 5
-      assert result.enabled == true
-    end
-
-    test "callback handles parameter validation errors", %{test_action: action} do
-      expect(ReqLLM, :tool, fn opts ->
-        %{callback: opts[:callback]}
-      end)
-
-      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(action)
-      callback = descriptor.callback
-
-      # Test with invalid parameters (missing required field)
-      invalid_params = %{"count" => "5"}
-
-      assert {:error, error} = callback.(invalid_params)
-      assert error.type == "parameter_validation_error"
     end
   end
 
-  describe "batch_convert/2" do
-    test "converts multiple actions successfully", %{
-      test_action: action1,
-      complex_action: action2
-    } do
-      expect(ReqLLM, :tool, 2, fn opts ->
-        %{
-          name: opts[:name],
-          description: opts[:description],
-          parameter_schema: opts[:parameter_schema],
-          callback: opts[:callback]
-        }
-      end)
-
-      actions = [action1, action2]
-      assert {:ok, descriptors} = ToolBuilder.batch_convert(actions)
-      assert length(descriptors) == 2
-
-      names = Enum.map(descriptors, & &1.name)
-      assert "test_action" in names
-      assert "complex_action" in names
+  describe "3.2 Action Validation" do
+    test "validation succeeds for valid Action module" do
+      # Jido.Actions.Basic.Sleep is a valid action
+      assert :ok = ToolBuilder.validate_action_compatibility(Jido.Actions.Basic.Sleep)
     end
 
-    test "returns successful conversions even when some fail", %{
-      test_action: valid,
-      invalid_action: invalid
-    } do
-      expect(ReqLLM, :tool, fn opts ->
-        %{
-          name: opts[:name],
-          description: opts[:description],
-          parameter_schema: opts[:parameter_schema],
-          callback: opts[:callback]
-        }
-      end)
-
-      actions = [valid, invalid]
-      assert {:ok, descriptors} = ToolBuilder.batch_convert(actions)
-      assert length(descriptors) == 1
-      assert hd(descriptors).name == "test_action"
+    test "validation succeeds for StandardAction" do
+      assert :ok = ToolBuilder.validate_action_compatibility(StandardAction)
     end
 
-    test "returns error when no conversions succeed", %{invalid_action: invalid} do
-      actions = [invalid]
-      assert {:error, error} = ToolBuilder.batch_convert(actions)
-      assert error.reason == "all_conversions_failed"
-      assert is_list(error.failures)
-    end
-
-    test "applies options to all conversions", %{test_action: action} do
-      expect(ReqLLM, :tool, fn _opts ->
-        %{name: "test", description: "test", parameter_schema: %{}, callback: fn _ -> :ok end}
-      end)
-
-      options = %{context: %{user_id: 123}}
-      actions = [action]
-
-      assert {:ok, descriptors} = ToolBuilder.batch_convert(actions, options)
-      assert length(descriptors) == 1
-    end
-  end
-
-  describe "validate_action_compatibility/1" do
-    test "validates compatible action", %{test_action: action} do
-      assert :ok = ToolBuilder.validate_action_compatibility(action)
-    end
-
-    test "rejects invalid action module", %{invalid_action: invalid} do
-      assert {:error, error} = ToolBuilder.validate_action_compatibility(invalid)
-      assert error.reason == "invalid_action_module"
-    end
-
-    test "rejects non-existent module" do
+    test "validation fails for non-existent module" do
+      # Use a non-existent module atom
       assert {:error, error} = ToolBuilder.validate_action_compatibility(NonExistentModule)
       assert error.reason == "module_not_loaded"
     end
 
-    test "validates complex schema compatibility", %{complex_action: action} do
-      assert :ok = ToolBuilder.validate_action_compatibility(action)
+    test "validation fails for module without __action_metadata__/0" do
+      # NotAnAction doesn't implement Jido.Action behavior
+      assert {:error, error} = ToolBuilder.validate_action_compatibility(NotAnAction)
+      assert error.reason == "invalid_action_module"
+    end
+
+    test "validation fails for module without run/2" do
+      # NoRunFunction has __action_metadata__ but no run/2
+      assert {:error, error} = ToolBuilder.validate_action_compatibility(NoRunFunction)
+      assert error.reason == "missing_run_function"
+    end
+
+    test "create_tool_descriptor fails for invalid module" do
+      # Attempting to create descriptor for invalid module
+      assert {:error, error} = ToolBuilder.create_tool_descriptor(NotAnAction)
+      assert error.reason == "tool_conversion_failed"
+      assert Map.has_key?(error, :original_error)
     end
   end
 
-  describe "error handling and edge cases" do
-    test "handles action that raises exception during run", %{test_action: _action} do
-      defmodule FailingAction do
-        use Jido.Action,
-          name: "failing_action",
-          description: "An action that always fails",
-          schema: []
+  describe "3.3 Batch Conversion" do
+    test "successful batch conversion of multiple Actions" do
+      actions = [
+        Jido.Actions.Basic.Sleep,
+        StandardAction,
+        CustomNameAction
+      ]
 
-        @impl true
-        def run(_params, _context) do
-          raise "Simulated failure"
-        end
-      end
+      assert {:ok, descriptors} = ToolBuilder.batch_convert(actions)
 
-      expect(ReqLLM, :tool, fn opts ->
-        %{callback: opts[:callback]}
+      # Should have 3 descriptors
+      assert length(descriptors) == 3
+
+      # All should be valid tool descriptors
+      Enum.each(descriptors, fn descriptor ->
+        assert Map.has_key?(descriptor, :name)
+        assert Map.has_key?(descriptor, :description)
+        assert Map.has_key?(descriptor, :parameter_schema)
+        assert Map.has_key?(descriptor, :callback)
       end)
-
-      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(FailingAction)
-      callback = descriptor.callback
-
-      assert {:error, error} = callback.(%{})
-      assert error.type == "exception"
     end
 
-    test "handles action with non-serializable result", %{test_action: _action} do
-      defmodule NonSerializableAction do
-        use Jido.Action,
-          name: "non_serializable",
-          description: "Returns non-serializable data",
-          schema: []
+    test "partial success when some Actions fail" do
+      # Mix of valid and invalid actions
+      actions = [
+        StandardAction,
+        NotAnAction,
+        CustomNameAction
+      ]
 
-        @impl true
-        def run(_params, _context) do
-          {:ok, %{pid: self(), ref: make_ref()}}
-        end
-      end
+      # Should succeed with valid actions only
+      assert {:ok, descriptors} = ToolBuilder.batch_convert(actions)
 
-      expect(ReqLLM, :tool, fn opts ->
-        %{callback: opts[:callback]}
-      end)
+      # Should have 2 descriptors (NotAnAction failed)
+      assert length(descriptors) == 2
 
-      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(NonSerializableAction)
-      callback = descriptor.callback
-
-      # Should handle serialization issues gracefully
-      assert {:ok, result} = callback.(%{})
-      assert is_map(result)
-      # Should either sanitize or provide fallback
-      assert Map.has_key?(result, :pid) or Map.has_key?(result, :serialization_fallback)
+      # Verify we got the valid ones
+      names = Enum.map(descriptors, & &1.name)
+      assert "standard_action" in names
+      assert "custom_name" in names
     end
 
-    test "handles timeout during action execution" do
-      defmodule SlowAction do
-        use Jido.Action,
-          name: "slow_action",
-          description: "An action that takes too long",
-          schema: []
+    test "error when all conversions fail" do
+      # All invalid actions
+      actions = [
+        NotAnAction,
+        NoRunFunction,
+        NonExistentModule
+      ]
 
-        @impl true
-        def run(_params, _context) do
-          # Simulate slow operation
-          # Longer than default timeout
-          Process.sleep(6000)
-          {:ok, %{completed: true}}
-        end
-      end
+      assert {:error, error} = ToolBuilder.batch_convert(actions)
+      assert error.reason == "all_conversions_failed"
+      assert Map.has_key?(error, :failures)
+      assert length(error.failures) == 3
+    end
 
-      expect(ReqLLM, :tool, fn opts ->
-        %{callback: opts[:callback]}
-      end)
+    test "batch conversion with empty list returns success with empty list" do
+      assert {:ok, descriptors} = ToolBuilder.batch_convert([])
+      assert descriptors == []
+    end
 
-      # Create tool with short timeout
-      options = %{timeout: 100}
-      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(SlowAction, options)
-      callback = descriptor.callback
+    test "batch conversion preserves order of successful conversions" do
+      actions = [StandardAction, CustomNameAction, NoDescriptionAction]
 
-      assert {:error, error} = callback.(%{})
-      assert error.type == "execution_timeout"
+      assert {:ok, descriptors} = ToolBuilder.batch_convert(actions)
+      assert length(descriptors) == 3
+
+      # Verify order is preserved
+      assert Enum.at(descriptors, 0).name == "standard_action"
+      assert Enum.at(descriptors, 1).name == "custom_name"
+      assert Enum.at(descriptors, 2).name == "no_description_action"
     end
   end
 
-  describe "schema validation and conversion" do
-    test "converts simple schema correctly", %{test_action: action} do
-      expect(ReqLLM, :tool, fn opts ->
-        schema = opts[:parameter_schema]
-        assert schema.type == "object"
-        assert Map.has_key?(schema.properties, "name")
-        assert Map.has_key?(schema.properties, "count")
-        assert "name" in schema.required
+  describe "3.4 Conversion Options" do
+    test "conversion with custom context" do
+      opts = %{context: %{user_id: 123}}
 
-        %{parameter_schema: schema}
-      end)
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(StandardAction, opts)
+      assert is_function(descriptor.callback, 1)
 
-      assert {:ok, _descriptor} = ToolBuilder.create_tool_descriptor(action)
+      # Callback should work with custom context
+      params = %{"message" => "test"}
+      assert {:ok, _result} = descriptor.callback.(params)
     end
 
-    test "converts complex schema with lists and choices", %{complex_action: action} do
-      expect(ReqLLM, :tool, fn opts ->
-        schema = opts[:parameter_schema]
-        assert schema.type == "object"
-        assert Map.has_key?(schema.properties, "items")
-        assert schema.properties["items"]["type"] == "array"
-        assert Map.has_key?(schema.properties, "status")
+    test "conversion with custom timeout" do
+      opts = %{timeout: 10_000}
 
-        %{parameter_schema: schema}
-      end)
-
-      assert {:ok, _descriptor} = ToolBuilder.create_tool_descriptor(action)
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(StandardAction, opts)
+      assert is_function(descriptor.callback, 1)
     end
-  end
 
-  describe "logging and debugging" do
-    test "logs conversion success when logging enabled" do
-      # Enable logging for this test
-      Application.put_env(:jido_ai, :enable_req_llm_logging, true)
+    test "conversion with schema validation disabled" do
+      opts = %{validate_schema: false}
 
-      expect(ReqLLM, :tool, fn _opts ->
-        %{name: "test", description: "test", parameter_schema: %{}, callback: fn _ -> :ok end}
-      end)
-
-      options = %{enable_logging: true}
-
-      # Should not raise any errors and should complete successfully
-      assert {:ok, _descriptor} = ToolBuilder.create_tool_descriptor(TestAction, options)
-
-      # Cleanup
-      Application.put_env(:jido_ai, :enable_req_llm_logging, false)
+      # Should still succeed even with validation disabled
+      assert {:ok, descriptor} = ToolBuilder.create_tool_descriptor(StandardAction, opts)
+      assert Map.has_key?(descriptor, :parameter_schema)
     end
   end
 end

@@ -256,6 +256,12 @@ defmodule Jido.AI.ReqLlmBridge.ErrorHandler do
       %{password: "[REDACTED]", message: "Auth failed"}
   """
   @spec sanitize_error_for_logging(any()) :: any()
+  # Handle structs separately - don't try to enumerate them
+  def sanitize_error_for_logging(error_data) when is_struct(error_data) do
+    # For error structs, just inspect them to get a string representation
+    inspect(error_data)
+  end
+
   def sanitize_error_for_logging(error_data) when is_map(error_data) do
     sensitive_keys = [:password, :token, :secret, :api_key, :private_key, :auth, :credential]
 

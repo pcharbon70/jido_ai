@@ -307,7 +307,7 @@ defmodule Jido.AI.ReqLlmBridge.KeyringIntegration do
 
   # Standard key resolution (existing Keyring behavior)
   defp resolve_standard_key(key, default) do
-    case Keyring.get_env_value(key, nil) do
+    case Keyring.get_env_value(Keyring, key, nil) do
       nil ->
         log_key_resolution(key, :default)
         default

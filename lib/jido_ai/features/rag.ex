@@ -158,7 +158,7 @@ defmodule Jido.AI.Features.RAG do
     formatted_text =
       documents
       |> Enum.with_index(1)
-      |> Enum.map(fn {doc, idx} ->
+      |> Enum.map_join("\n", fn {doc, idx} ->
         case Map.fetch(doc, :content) do
           {:ok, content} ->
             title = Map.get(doc, :title, "Document #{idx}")
@@ -168,7 +168,6 @@ defmodule Jido.AI.Features.RAG do
             throw({:missing_content, "Document missing required :content field"})
         end
       end)
-      |> Enum.join("\n")
 
     {:ok, formatted_text}
   catch
@@ -299,7 +298,7 @@ defmodule Jido.AI.Features.RAG do
 
   defp validate_documents(documents) when is_list(documents) do
     cond do
-      Enum.empty?(documents) ->
+      documents == [] ->
         {:error, "Documents list cannot be empty"}
 
       length(documents) > @max_documents ->

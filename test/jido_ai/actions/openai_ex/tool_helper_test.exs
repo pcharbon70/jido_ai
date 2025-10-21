@@ -1,5 +1,5 @@
 defmodule Jido.AI.Actions.OpenaiEx.ToolHelperTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   alias Jido.Actions.Arithmetic.Add
   alias Jido.AI.Actions.OpenaiEx.ToolHelper
 

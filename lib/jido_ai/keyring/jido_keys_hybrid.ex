@@ -132,24 +132,31 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
     * `{:error, reason}` on failure
   """
   @spec validate_and_convert_key(term()) :: {:ok, atom()} | {:error, term()}
+  def validate_and_convert_key(nil), do: {:error, :invalid_key_type}
   def validate_and_convert_key(key) when is_atom(key), do: {:ok, key}
 
   def validate_and_convert_key(key) when is_binary(key) do
-    case JidoKeys.to_llm_atom(key) do
-      atom when is_atom(atom) -> {:ok, atom}
-      # If string returned, try existing atom
-      ^key -> {:ok, String.to_existing_atom(key)}
+    try do
+      case JidoKeys.to_llm_atom(key) do
+        atom when is_atom(atom) -> {:ok, atom}
+        # If string returned, try existing atom
+        ^key -> try_existing_atom(key)
+      end
+    rescue
+      error ->
+        {:error, error}
     end
+  end
+
+  def validate_and_convert_key(_), do: {:error, :invalid_key_type}
+
+  defp try_existing_atom(key) do
+    {:ok, String.to_existing_atom(key)}
   rescue
     ArgumentError ->
       # Key doesn't exist as atom, return as string for compatibility
       {:ok, key}
-
-    error ->
-      {:error, error}
   end
-
-  def validate_and_convert_key(_), do: {:error, :invalid_key_type}
 
   @doc """
   Gets a value with session fallback functionality.
@@ -226,18 +233,9 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
   """
   @spec filter_sensitive_data(term()) :: term()
   def filter_sensitive_data(data) when is_binary(data) do
-    # Apply JidoKeys filtering if available
-    cond do
-      function_exported?(JidoKeys.LogFilter, :filter, 2) ->
-        JidoKeys.LogFilter.filter(data, :all)
-
-      function_exported?(JidoKeys.LogFilter, :filter, 1) ->
-        JidoKeys.LogFilter.filter(data)
-
-      true ->
-        # Fallback filtering for basic patterns
-        apply_basic_filtering(data)
-    end
+    # Apply custom filtering for sensitive patterns
+    # Note: JidoKeys.LogFilter is for Logger events, not string filtering
+    apply_basic_filtering(data)
   end
 
   def filter_sensitive_data(data), do: data
@@ -312,6 +310,7 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
       "api_key",
       "password",
       "secret",
+      "sensitive",
       "token",
       "auth",
       "credential",
@@ -345,11 +344,35 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
 
   @spec apply_basic_filtering(String.t()) :: String.t()
   defp apply_basic_filtering(data) do
-    # Basic fallback filtering for common patterns
-    data
-    |> String.replace(~r/sk-[a-zA-Z0-9]{20,}/, "[FILTERED]")
-    |> String.replace(~r/xoxb-[a-zA-Z0-9\-]{50,}/, "[FILTERED]")
-    |> String.replace(~r/ghp_[a-zA-Z0-9]{36}/, "[FILTERED]")
-    |> String.replace(~r/AKIA[0-9A-Z]{16}/, "[FILTERED]")
+    # Check if the entire value should be filtered based on sensitive patterns
+    data_lower = String.downcase(data)
+
+    sensitive_value_patterns = [
+      "password",
+      "secret",
+      "token",
+      "bearer",
+      "api_key",
+      "api-key",
+      "apikey"
+    ]
+
+    # If the value itself contains sensitive terms, filter the entire value
+    should_filter_entire_value =
+      Enum.any?(sensitive_value_patterns, fn pattern ->
+        String.contains?(data_lower, pattern) and String.length(data) < 200
+      end)
+
+    if should_filter_entire_value do
+      "[FILTERED]"
+    else
+      # Otherwise apply pattern-based filtering for specific tokens
+      data
+      |> String.replace(~r/sk-[a-zA-Z0-9]{6,}/, "[FILTERED]")
+      |> String.replace(~r/xoxb-[a-zA-Z0-9\-]{20,}/, "[FILTERED]")
+      |> String.replace(~r/ghp_[a-zA-Z0-9]{20,}/, "[FILTERED]")
+      |> String.replace(~r/AKIA[0-9A-Z]{16}/, "[FILTERED]")
+      |> String.replace(~r/bearer_token_[a-zA-Z0-9]+/i, "[FILTERED]")
+    end
   end
 end

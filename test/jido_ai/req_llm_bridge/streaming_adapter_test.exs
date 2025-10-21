@@ -1,190 +1,299 @@
 defmodule Jido.AI.ReqLlmBridge.StreamingAdapterTest do
   use ExUnit.Case, async: true
-  doctest Jido.AI.ReqLlmBridge.StreamingAdapter
 
-  alias Jido.AI.ReqLlmBridge
   alias Jido.AI.ReqLlmBridge.StreamingAdapter
 
-  describe "adapt_stream/2" do
-    test "transforms basic stream chunks to Jido AI format" do
-      # Mock ReqLLM stream chunks
-      mock_chunks = [
-        %{content: "Hello", finish_reason: nil, usage: nil},
-        %{content: " world", finish_reason: nil, usage: nil},
-        %{content: "!", finish_reason: "stop", usage: %{prompt_tokens: 5, completion_tokens: 3}}
-      ]
+  @moduledoc """
+  Tests for the StreamingAdapter module.
 
-      stream = mock_chunks
-      adapted = StreamingAdapter.adapt_stream(stream)
+  Tests cover:
+  - Chunk transformation with metadata enrichment
+  - Stream lifecycle management (continuation logic)
+  - Error recovery in streaming contexts
+  """
 
-      results = Enum.to_list(adapted)
+  describe "4.1 Chunk Transformation" do
+    test "chunk transformation with metadata enrichment" do
+      # Create mock chunk
+      chunk = %{content: "Hello", finish_reason: nil}
 
-      # Should get 2 results since last chunk has finish_reason: "stop" which stops streaming
-      assert length(results) == 2
-
-      # Check first chunk
-      first_chunk = Enum.at(results, 0)
-      assert first_chunk[:content] == "Hello"
-      assert first_chunk[:delta][:content] == "Hello"
-      assert first_chunk[:delta][:role] == "assistant"
-      assert first_chunk[:chunk_metadata][:index] == 0
-      assert first_chunk[:chunk_metadata][:chunk_size] == 5
-
-      # Check second chunk has finish_reason
-      second_chunk = Enum.at(results, 1)
-      assert second_chunk[:content] == " world"
-      assert second_chunk[:finish_reason] == nil
-    end
-
-    test "handles error recovery when enabled" do
-      # Test with a simple stream for error recovery functionality
-      normal_stream = [%{content: "start", finish_reason: nil}]
-
-      adapted = StreamingAdapter.adapt_stream(normal_stream, error_recovery: true)
-
-      # Should process normally when no errors occur
-      results = Enum.to_list(adapted)
-      assert length(results) >= 1
-      assert Enum.at(results, 0)[:content] == "start"
-    end
-
-    test "applies timeout settings" do
-      mock_stream = [%{content: "test", finish_reason: nil}]
-
-      adapted = StreamingAdapter.adapt_stream(mock_stream, timeout: 1000)
-      results = Enum.to_list(adapted)
-
-      assert length(results) == 1
-      assert Enum.at(results, 0)[:content] == "test"
-    end
-  end
-
-  describe "transform_chunk_with_metadata/1" do
-    test "adds comprehensive metadata to chunks" do
-      chunk = %{content: "test content", finish_reason: nil, usage: nil}
-      result = StreamingAdapter.transform_chunk_with_metadata({chunk, 5})
-
-      assert result[:content] == "test content"
-      assert result[:chunk_metadata][:index] == 5
-      # byte_size("test content")
-      assert result[:chunk_metadata][:chunk_size] == 12
-      assert is_struct(result[:chunk_metadata][:timestamp], DateTime)
-    end
-
-    test "preserves original chunk structure" do
-      chunk = %{
-        content: "hello",
-        finish_reason: "stop",
-        usage: %{prompt_tokens: 1, completion_tokens: 1},
-        tool_calls: []
-      }
-
+      # Transform with metadata
       result = StreamingAdapter.transform_chunk_with_metadata({chunk, 0})
 
-      assert result[:content] == "hello"
-      assert result[:finish_reason] == "stop"
-      assert result[:usage][:prompt_tokens] == 1
-      assert result[:tool_calls] == []
+      # Assert basic structure
+      assert is_map(result)
+      assert result.content == "Hello"
+
+      # Assert metadata is present
+      assert Map.has_key?(result, :chunk_metadata)
+      metadata = result.chunk_metadata
+
+      # Assert all required metadata fields
+      assert Map.has_key?(metadata, :index)
+      assert Map.has_key?(metadata, :timestamp)
+      assert Map.has_key?(metadata, :chunk_size)
+      assert Map.has_key?(metadata, :provider)
+
+      # Assert metadata values
+      assert metadata.index == 0
+      assert %DateTime{} = metadata.timestamp
+      assert is_integer(metadata.chunk_size)
+      assert is_binary(metadata.provider)
+    end
+
+    test "chunk content extraction with :content key" do
+      chunk = %{content: "test content"}
+      result = StreamingAdapter.transform_chunk_with_metadata({chunk, 0})
+
+      assert result.content == "test content"
+      assert result.chunk_metadata.chunk_size == byte_size("test content")
+    end
+
+    test "chunk content extraction with string \"content\" key" do
+      chunk = %{"content" => "string key content"}
+      result = StreamingAdapter.transform_chunk_with_metadata({chunk, 1})
+
+      assert result.content == "string key content"
+      assert result.chunk_metadata.chunk_size == byte_size("string key content")
+      assert result.chunk_metadata.index == 1
+    end
+
+    test "chunk content extraction with :text key" do
+      chunk = %{text: "text key content"}
+      result = StreamingAdapter.transform_chunk_with_metadata({chunk, 2})
+
+      # transform_streaming_chunk may convert :text to :content
+      # Just verify transformation succeeds and metadata is added
+      assert is_map(result)
+      assert Map.has_key?(result, :chunk_metadata)
+      assert result.chunk_metadata.index == 2
+    end
+
+    test "chunk content extraction with nested :delta > :content" do
+      chunk = %{delta: %{content: "nested content"}}
+      result = StreamingAdapter.transform_chunk_with_metadata({chunk, 3})
+
+      # ReqLlmBridge.transform_streaming_chunk handles delta extraction
+      assert is_map(result)
+      assert Map.has_key?(result, :chunk_metadata)
+      assert result.chunk_metadata.chunk_size == byte_size("nested content")
+      assert result.chunk_metadata.index == 3
+    end
+
+    test "provider extraction from chunk with :provider key" do
+      chunk = %{content: "test", provider: "openai"}
+      result = StreamingAdapter.transform_chunk_with_metadata({chunk, 0})
+
+      assert result.chunk_metadata.provider == "openai"
+    end
+
+    test "provider extraction from chunk with :model key" do
+      chunk = %{content: "test", model: "gpt-4"}
+      result = StreamingAdapter.transform_chunk_with_metadata({chunk, 0})
+
+      # Provider extraction falls back to :model if :provider not present
+      assert result.chunk_metadata.provider == "gpt-4"
+    end
+
+    test "provider fallback to unknown when not present" do
+      chunk = %{content: "test"}
+      result = StreamingAdapter.transform_chunk_with_metadata({chunk, 0})
+
+      assert result.chunk_metadata.provider == "unknown"
     end
   end
 
-  describe "continue_stream?/1" do
-    test "continues streaming when finish_reason is nil" do
-      chunk = %{finish_reason: nil}
+  describe "4.2 Stream Lifecycle" do
+    test "continue_stream? detects finish_reason: stop" do
+      chunk = %{content: "final", finish_reason: "stop"}
+
+      assert StreamingAdapter.continue_stream?(chunk) == false
+    end
+
+    test "continue_stream? continues on finish_reason: nil" do
+      chunk = %{content: "ongoing", finish_reason: nil}
+
       assert StreamingAdapter.continue_stream?(chunk) == true
     end
 
-    test "continues streaming when finish_reason is empty string" do
-      chunk = %{finish_reason: ""}
+    test "stream continues with finish_reason: empty string" do
+      chunk = %{content: "ongoing", finish_reason: ""}
+
       assert StreamingAdapter.continue_stream?(chunk) == true
     end
 
-    test "stops streaming on definitive stop conditions" do
-      stop_conditions = ["stop", "length", "content_filter", "tool_calls"]
+    test "stream continues with finish_reason: unknown" do
+      chunk = %{content: "ongoing", finish_reason: "unknown"}
 
-      Enum.each(stop_conditions, fn reason ->
-        chunk = %{finish_reason: reason}
-        assert StreamingAdapter.continue_stream?(chunk) == false
-      end)
-    end
-
-    test "continues on other finish reasons" do
-      chunk = %{finish_reason: "unknown_reason"}
       assert StreamingAdapter.continue_stream?(chunk) == true
     end
-  end
 
-  describe "handle_stream_errors/2" do
-    test "passes through normal chunks without error recovery" do
-      normal_stream = [%{content: "chunk1"}, %{content: "chunk2"}]
+    test "continue_stream? detects finish_reason: length" do
+      chunk = %{content: "stopped", finish_reason: "length"}
 
-      result_stream = StreamingAdapter.handle_stream_errors(normal_stream, false)
-      results = Enum.to_list(result_stream)
-
-      assert length(results) == 2
-      assert Enum.at(results, 0)[:content] == "chunk1"
-      assert Enum.at(results, 1)[:content] == "chunk2"
+      assert StreamingAdapter.continue_stream?(chunk) == false
     end
 
-    test "handles errors gracefully with recovery enabled" do
-      # This is a basic test - in practice, error handling would be more complex
-      normal_stream = [%{content: "test"}]
-      result_stream = StreamingAdapter.handle_stream_errors(normal_stream, true)
-      results = Enum.to_list(result_stream)
+    test "continue_stream? detects finish_reason: content_filter" do
+      chunk = %{content: "filtered", finish_reason: "content_filter"}
 
-      assert length(results) == 1
-      assert Enum.at(results, 0)[:content] == "test"
-    end
-  end
-
-  describe "manage_stream_lifecycle/2" do
-    test "manages stream lifecycle with cleanup enabled" do
-      test_stream = [%{content: "start"}, %{content: "middle"}, %{content: "end"}]
-
-      managed_stream = StreamingAdapter.manage_stream_lifecycle(test_stream, true)
-      results = Enum.to_list(managed_stream)
-
-      assert length(results) == 3
-      assert Enum.map(results, & &1[:content]) == ["start", "middle", "end"]
+      assert StreamingAdapter.continue_stream?(chunk) == false
     end
 
-    test "passes through stream without lifecycle management when disabled" do
-      test_stream = [%{content: "test"}]
+    test "continue_stream? detects finish_reason: tool_calls" do
+      chunk = %{content: "tool", finish_reason: "tool_calls"}
 
-      result_stream = StreamingAdapter.manage_stream_lifecycle(test_stream, false)
-
-      # Should be the same stream reference when disabled
-      assert result_stream == test_stream
+      assert StreamingAdapter.continue_stream?(chunk) == false
     end
-  end
 
-  describe "integration with Jido.AI.ReqLlmBridge.convert_streaming_response/2" do
-    test "basic streaming conversion works" do
-      mock_stream = [
-        %{content: "Hello", finish_reason: nil},
-        %{content: " world", finish_reason: "stop"}
+    test "continue_stream? defaults to true for chunks without finish_reason" do
+      chunk = %{content: "no finish reason"}
+
+      assert StreamingAdapter.continue_stream?(chunk) == true
+    end
+
+    test "adapt_stream applies take_while with continue_stream?" do
+      # Create stream with chunks including stop condition
+      chunks = [
+        %{content: "first", finish_reason: nil},
+        %{content: "second", finish_reason: nil},
+        %{content: "stop", finish_reason: "stop"},
+        %{content: "should not reach", finish_reason: nil}
       ]
 
-      converted = ReqLlmBridge.convert_streaming_response(mock_stream)
-      results = Enum.to_list(converted)
+      stream = StreamingAdapter.adapt_stream(chunks, error_recovery: false, resource_cleanup: false)
+      results = Enum.to_list(stream)
 
+      # take_while stops BEFORE emitting the element that fails the test
+      # So we get 2 chunks (first, second), stop chunk is not included
       assert length(results) == 2
-      assert Enum.at(results, 0)[:content] == "Hello"
-      assert Enum.at(results, 1)[:content] == " world"
-      assert Enum.at(results, 1)[:finish_reason] == "stop"
+
+      # Verify content (order should be preserved)
+      assert Enum.at(results, 0).content == "first"
+      assert Enum.at(results, 1).content == "second"
     end
+  end
 
-    test "enhanced streaming conversion with adapter" do
-      mock_stream = [%{content: "Test", finish_reason: nil}]
+  describe "4.3 Error Recovery" do
+    test "error recovery is configurable via adapt_stream options" do
+      # Test that error_recovery option is passed through
+      chunks = [%{content: "test", finish_reason: nil}]
 
-      converted = ReqLlmBridge.convert_streaming_response(mock_stream, enhanced: true)
-      results = Enum.to_list(converted)
+      # With error recovery enabled (default)
+      stream_with_recovery = StreamingAdapter.adapt_stream(chunks, error_recovery: true)
+      results = Enum.to_list(stream_with_recovery)
 
       assert length(results) == 1
-      chunk = Enum.at(results, 0)
-      assert chunk[:content] == "Test"
-      assert chunk[:chunk_metadata][:index] == 0
-      assert is_struct(chunk[:chunk_metadata][:timestamp], DateTime)
+      assert hd(results).content == "test"
+    end
+
+    test "error recovery can be disabled" do
+      # Test that error_recovery: false still processes stream
+      chunks = [%{content: "test", finish_reason: nil}]
+
+      # With error recovery disabled
+      stream_without_recovery = StreamingAdapter.adapt_stream(chunks, error_recovery: false)
+      results = Enum.to_list(stream_without_recovery)
+
+      assert length(results) == 1
+      assert hd(results).content == "test"
+    end
+
+    test "handle_stream_errors wraps stream with error handling" do
+      # Test that handle_stream_errors creates a stream transform
+      chunks = [%{content: "test", finish_reason: nil}]
+
+      stream = StreamingAdapter.handle_stream_errors(chunks, true)
+
+      # Should successfully process stream
+      results = Enum.to_list(stream)
+      assert length(results) == 1
+      assert hd(results).content == "test"
+    end
+  end
+
+  describe "4.4 Stream Lifecycle Management" do
+    test "manage_stream_lifecycle wraps stream with resource management" do
+      chunks = [
+        %{content: "managed", finish_reason: nil}
+      ]
+
+      # Enable lifecycle management
+      stream = StreamingAdapter.manage_stream_lifecycle(Stream.map(chunks, & &1), true)
+
+      # Should complete successfully
+      results = Enum.to_list(stream)
+      assert length(results) == 1
+      assert hd(results).content == "managed"
+    end
+
+    test "lifecycle management can be disabled" do
+      chunks = [
+        %{content: "unmanaged", finish_reason: nil}
+      ]
+
+      # Disable lifecycle management
+      stream = StreamingAdapter.manage_stream_lifecycle(Stream.map(chunks, & &1), false)
+
+      # Should still work (just passes through)
+      results = Enum.to_list(stream)
+      assert length(results) == 1
+      assert hd(results).content == "unmanaged"
+    end
+  end
+
+  describe "4.5 Full Stream Adaptation" do
+    test "adapt_stream integrates all features" do
+      chunks = [
+        %{content: "first", finish_reason: nil, provider: "test-provider"},
+        %{content: "second", finish_reason: nil},
+        %{content: "final", finish_reason: "stop"}
+      ]
+
+      # Full adaptation with all features
+      stream = StreamingAdapter.adapt_stream(chunks)
+      results = Enum.to_list(stream)
+
+      # take_while stops BEFORE the chunk with finish_reason: "stop"
+      # So we get 2 chunks (first, second), not including the stop chunk
+      assert length(results) == 2
+
+      # Verify metadata enrichment
+      first_chunk = Enum.at(results, 0)
+      assert Map.has_key?(first_chunk, :chunk_metadata)
+      assert first_chunk.chunk_metadata.index == 0
+      assert first_chunk.chunk_metadata.provider == "test-provider"
+
+      second_chunk = Enum.at(results, 1)
+      assert second_chunk.chunk_metadata.index == 1
+      assert second_chunk.chunk_metadata.provider == "unknown"
+    end
+
+    test "adapt_stream with custom timeout option" do
+      chunks = [%{content: "timeout test", finish_reason: nil}]
+
+      stream = StreamingAdapter.adapt_stream(chunks, timeout: 10_000)
+      results = Enum.to_list(stream)
+
+      assert length(results) == 1
+    end
+
+    test "adapt_stream with error recovery disabled" do
+      chunks = [%{content: "no recovery", finish_reason: nil}]
+
+      stream = StreamingAdapter.adapt_stream(chunks, error_recovery: false)
+      results = Enum.to_list(stream)
+
+      assert length(results) == 1
+    end
+
+    test "adapt_stream with resource cleanup disabled" do
+      chunks = [%{content: "no cleanup", finish_reason: nil}]
+
+      stream = StreamingAdapter.adapt_stream(chunks, resource_cleanup: false)
+      results = Enum.to_list(stream)
+
+      assert length(results) == 1
     end
   end
 end

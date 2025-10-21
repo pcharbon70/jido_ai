@@ -348,8 +348,9 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     %Endpoint{
       name: reqllm_model.model,
       provider_name: Atom.to_string(reqllm_model.provider),
-      context_length: limit.context || 8192,
-      max_completion_tokens: limit.output || reqllm_model.max_tokens || 4096,
+      context_length: get_limit_field(limit, :context) || 8192,
+      max_completion_tokens:
+        get_limit_field(limit, :output) || reqllm_model.max_tokens || 4096,
       max_prompt_tokens: nil,
       quantization: nil,
       supported_parameters: infer_supported_parameters(reqllm_model),
@@ -361,8 +362,8 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
 
   defp convert_pricing(cost) when is_map(cost) do
     %Pricing{
-      completion: format_cost(cost.output),
-      prompt: format_cost(cost.input),
+      completion: format_cost(Map.get(cost, :output)),
+      prompt: format_cost(Map.get(cost, :input)),
       # Most models don't have separate image pricing
       image: nil,
       request: nil
@@ -375,7 +376,9 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     # Format cost per token as readable string avoiding scientific notation
     # Cost appears to be in thousandths, so multiply by 1000 to get the right scale
     cost_value = cost * 1_000
-    formatted_cost = :erlang.float_to_binary(cost_value, decimals: 1)
+    # Ensure cost_value is a float for :erlang.float_to_binary
+    cost_float = cost_value / 1
+    formatted_cost = :erlang.float_to_binary(cost_float, decimals: 1)
     "$#{formatted_cost} / 1M tokens"
   end
 
@@ -383,9 +386,16 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
 
   defp extract_max_tokens(%ReqLLM.Model{} = reqllm_model) do
     reqllm_model.max_tokens ||
-      (reqllm_model.limit && reqllm_model.limit.output) ||
+      (reqllm_model.limit && get_limit_field(reqllm_model.limit, :output)) ||
       1024
   end
+
+  # Helper to safely access limit fields (limit can be a struct or a map)
+  defp get_limit_field(limit, field) when is_map(limit) do
+    Map.get(limit, field) || Map.get(limit, to_string(field))
+  end
+
+  defp get_limit_field(_, _), do: nil
 
   defp get_provider_base_url(provider) do
     # Map providers to their API base URLs
@@ -468,8 +478,8 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
     alias Jido.AI.Model.Endpoint
 
     default_endpoint = %Endpoint{
-      context_length: limit.context || 8192,
-      max_completion_tokens: limit.output || 4096
+      context_length: get_limit_field(limit, :context) || 8192,
+      max_completion_tokens: get_limit_field(limit, :output) || 4096
     }
 
     %{model | endpoints: [default_endpoint]}
@@ -482,8 +492,9 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
       |> Enum.map(fn endpoint ->
         %{
           endpoint
-          | context_length: limit.context || endpoint.context_length,
-            max_completion_tokens: limit.output || endpoint.max_completion_tokens
+          | context_length: get_limit_field(limit, :context) || endpoint.context_length,
+            max_completion_tokens:
+              get_limit_field(limit, :output) || endpoint.max_completion_tokens
         }
       end)
 

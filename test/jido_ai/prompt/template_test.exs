@@ -1,5 +1,5 @@
 defmodule JidoTest.AI.Prompt.TemplateTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   doctest Jido.AI.Prompt.Template
   @moduletag :capture_log
 

@@ -36,6 +36,7 @@ defmodule Jido.AI.Model.Registry do
   require Logger
   alias Jido.AI.Model.CapabilityIndex
   alias Jido.AI.Model.Registry.Adapter
+  alias Jido.AI.Model.Registry.Cache
   alias Jido.AI.Model.Registry.MetadataBridge
   alias Jido.AI.Provider
 
@@ -75,14 +76,21 @@ defmodule Jido.AI.Model.Registry do
   """
   @spec list_models(provider_id() | nil) :: {:ok, [Jido.AI.Model.t()]} | {:error, term()}
   def list_models(provider_id \\ nil) do
-    # Check cache first if provider specified
-    case provider_id && Jido.AI.Model.Registry.Cache.get(provider_id) do
-      {:ok, cached_models} ->
-        {:ok, cached_models}
+    # CRITICAL: Disable caching in test mode to prevent 60GB memory leak
+    # Tests call list_models 165+ times, caching 2000+ models each time = OOM
+    if Mix.env() == :test do
+      # Test mode: fetch directly without caching
+      fetch_models_from_registry(provider_id)
+    else
+      # Production mode: use cache for performance
+      case provider_id && Cache.get(provider_id) do
+        {:ok, cached_models} ->
+          {:ok, cached_models}
 
-      _ ->
-        # Cache miss or no provider - fetch from registry
-        fetch_and_cache_models(provider_id)
+        _ ->
+          # Cache miss or no provider - fetch and cache
+          fetch_and_cache_models(provider_id)
+      end
     end
   rescue
     error ->
@@ -91,44 +99,50 @@ defmodule Jido.AI.Model.Registry do
   end
 
   defp fetch_and_cache_models(provider_id) do
-    # Primary path: ReqLLM registry
-    result =
-      case get_models_from_registry(provider_id) do
-        {:ok, [_ | _] = registry_models} ->
-          # Enhance registry models with legacy adapter data if available
-          enhanced_models = enhance_with_legacy_data(registry_models, provider_id)
-          {:ok, enhanced_models}
+    # Fetch models from registry
+    result = fetch_models_from_registry(provider_id)
 
-        {:ok, []} when not is_nil(provider_id) ->
-          # Fallback to legacy adapter for specific provider
-          get_models_from_legacy_adapter(provider_id)
+    # Cache successful results for specific providers (only in non-test mode)
+    if Mix.env() != :test do
+      case {result, provider_id} do
+        {{:ok, models}, pid} when is_atom(pid) and not is_nil(pid) ->
+          Cache.put(pid, models)
 
-        {:ok, []} ->
-          # Fallback to all legacy adapters
-          get_models_from_all_legacy_adapters()
-
-        {:error, reason} ->
-          Logger.warning(
-            "ReqLLM registry unavailable: #{inspect(reason)}, falling back to legacy adapters"
-          )
-
-          if provider_id do
-            get_models_from_legacy_adapter(provider_id)
-          else
-            get_models_from_all_legacy_adapters()
-          end
+        _ ->
+          :ok
       end
-
-    # Cache successful results for specific providers
-    case {result, provider_id} do
-      {{:ok, models}, pid} when is_atom(pid) and not is_nil(pid) ->
-        Jido.AI.Model.Registry.Cache.put(pid, models)
-
-      _ ->
-        :ok
     end
 
     result
+  end
+
+  defp fetch_models_from_registry(provider_id) do
+    # Primary path: ReqLLM registry
+    case get_models_from_registry(provider_id) do
+      {:ok, [_ | _] = registry_models} ->
+        # Enhance registry models with legacy adapter data if available
+        enhanced_models = enhance_with_legacy_data(registry_models, provider_id)
+        {:ok, enhanced_models}
+
+      {:ok, []} when not is_nil(provider_id) ->
+        # Fallback to legacy adapter for specific provider
+        get_models_from_legacy_adapter(provider_id)
+
+      {:ok, []} ->
+        # Fallback to all legacy adapters
+        get_models_from_all_legacy_adapters()
+
+      {:error, reason} ->
+        Logger.warning(
+          "ReqLLM registry unavailable: #{inspect(reason)}, falling back to legacy adapters"
+        )
+
+        if provider_id do
+          get_models_from_legacy_adapter(provider_id)
+        else
+          get_models_from_all_legacy_adapters()
+        end
+    end
   end
 
   @doc """
@@ -577,6 +591,12 @@ defmodule Jido.AI.Model.Registry do
     # Classify models by tier based on pricing and capabilities
     model_tier = classify_model_tier(model)
     model_tier == required_tier
+  end
+
+  defp apply_single_filter(model, :provider, required_provider) do
+    # Filter models by provider
+    provider = Map.get(model, :provider) || Map.get(model, "provider")
+    provider == required_provider
   end
 
   defp apply_single_filter(_model, _filter_type, _filter_value) do

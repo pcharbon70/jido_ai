@@ -391,6 +391,25 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
     GenServer.call(__MODULE__, :list_conversations)
   end
 
+  @doc """
+  Clears all conversations from storage.
+
+  This is primarily intended for testing purposes to ensure a clean state.
+  Use with caution in production environments.
+
+  ## Returns
+
+  - `:ok` - All conversations cleared successfully
+
+  ## Examples
+
+      :ok = ConversationManager.clear_all_conversations()
+  """
+  @spec clear_all_conversations() :: :ok
+  def clear_all_conversations do
+    GenServer.call(__MODULE__, :clear_all_conversations)
+  end
+
   # GenServer Implementation
 
   @impl true
@@ -567,10 +586,26 @@ defmodule Jido.AI.ReqLlmBridge.ConversationManager do
   end
 
   @impl true
+  def handle_call(:clear_all_conversations, _from, state) do
+    :ets.delete_all_objects(@table_name)
+    {:reply, :ok, state}
+  end
+
+  @impl true
   def handle_info(:cleanup_expired_conversations, state) do
     cleanup_expired_conversations(state.conversation_ttl)
     schedule_cleanup()
     {:noreply, state}
+  end
+
+  @impl true
+  def terminate(_reason, _state) do
+    # Clean up the ETS table on shutdown to prevent memory leaks
+    if :ets.whereis(@table_name) != :undefined do
+      :ets.delete(@table_name)
+    end
+
+    :ok
   end
 
   # Private Functions

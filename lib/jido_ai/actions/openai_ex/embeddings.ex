@@ -156,6 +156,7 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     []
     |> maybe_add_option(:dimensions, params[:dimensions])
     |> maybe_add_option(:encoding_format, params[:encoding_format])
+    |> maybe_add_option(:user, params[:user])
   end
 
   @spec maybe_add_option(keyword(), atom(), any()) :: keyword()
@@ -172,7 +173,7 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     # Set up API key for the model's provider
     setup_reqllm_keys(model)
 
-    # Convert input to list format for ReqLlmBridge.embed_many/3
+    # Convert input to list format for ReqLLM.Embedding.embed/3
     input_list =
       case input do
         str when is_binary(str) -> [str]
@@ -182,11 +183,11 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     # Build ReqLLM options
     opts = build_reqllm_options(model, params)
 
-    # Make ReqLLM request - use embed/3 for batch processing
-    case ReqLLM.embed(model.reqllm_id, input_list, opts) do
-      {:ok, response} ->
-        # Convert ReqLLM response to expected format
-        {:ok, convert_reqllm_response(response)}
+    # Make ReqLLM request
+    case ReqLLM.Embedding.embed(model.reqllm_id, input_list, opts) do
+      {:ok, embeddings} when is_list(embeddings) ->
+        # ReqLLM.Embedding.embed returns embeddings directly as a list
+        {:ok, %{embeddings: embeddings}}
 
       {:error, error} ->
         # Map ReqLLM errors to expected format
@@ -234,35 +235,4 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     end
   end
 
-  @spec convert_reqllm_response(map() | struct()) :: %{embeddings: list(list(float()))}
-  defp convert_reqllm_response(response) when is_map(response) do
-    # ReqLlmBridge.embed_many/3 returns embeddings in a structure - extract them
-    embeddings =
-      response[:embeddings] || response["embeddings"] ||
-        response[:data] || response["data"] ||
-        []
-
-    # Ensure we have the right format: list of float lists
-    formatted_embeddings =
-      case embeddings do
-        list when is_list(list) ->
-          Enum.map(list, fn
-            %{embedding: embedding} when is_list(embedding) ->
-              embedding
-
-            embedding when is_list(embedding) ->
-              embedding
-
-            other ->
-              Logger.warning("Unexpected embedding format: #{inspect(other)}")
-              []
-          end)
-
-        _ ->
-          Logger.warning("Unexpected embeddings structure: #{inspect(embeddings)}")
-          []
-      end
-
-    %{embeddings: formatted_embeddings}
-  end
 end

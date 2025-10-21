@@ -415,10 +415,63 @@ defmodule Jido.AI.Actions.OpenaiEx do
   end
 
   defp convert_tools_for_reqllm(tools) when is_list(tools) do
-    # For now, pass tools through as-is since ReqLLM should handle the conversion
-    # This handles the case where tools are already in OpenAI format maps
-    tools
+    # Convert OpenAI format tool maps to ReqLLM.Tool structs
+    Enum.map(tools, fn tool ->
+      case tool do
+        %{type: "function", function: func} ->
+          # Use ReqLLM.Tool.new/1 to create proper tool structs
+          {:ok, reqllm_tool} =
+            ReqLLM.Tool.new(
+              name: func[:name] || func["name"],
+              description: func[:description] || func["description"],
+              parameter_schema: convert_parameters_to_schema(func[:parameters] || func["parameters"]),
+              callback: fn _args -> {:ok, "Tool not executable in test"} end
+            )
+
+          reqllm_tool
+
+        # Already a ReqLLM.Tool struct
+        %ReqLLM.Tool{} = t ->
+          t
+
+        # Fallback for other formats
+        _ ->
+          tool
+      end
+    end)
   end
+
+  defp convert_parameters_to_schema(nil), do: []
+
+  defp convert_parameters_to_schema(params) when is_map(params) do
+    # Convert OpenAI parameter format to NimbleOptions format
+    # OpenAI format: %{type: "object", properties: %{...}, required: [...]}
+    # NimbleOptions format: keyword list
+    properties = params[:properties] || params["properties"] || %{}
+    required = params[:required] || params["required"] || []
+
+    Enum.map(properties, fn {key, prop} ->
+      key_atom = if is_binary(key), do: String.to_atom(key), else: key
+      type = get_nimble_type(prop[:type] || prop["type"])
+      is_required = key in required || to_string(key) in required
+
+      opts = [
+        type: type,
+        required: is_required,
+        doc: prop[:description] || prop["description"] || ""
+      ]
+
+      {key_atom, opts}
+    end)
+  end
+
+  defp get_nimble_type("string"), do: :string
+  defp get_nimble_type("integer"), do: :integer
+  defp get_nimble_type("number"), do: :float
+  defp get_nimble_type("boolean"), do: :boolean
+  defp get_nimble_type("array"), do: {:list, :any}
+  defp get_nimble_type("object"), do: :map
+  defp get_nimble_type(_), do: :any
 
   defp convert_to_openai_response_format(%{content: content} = response) do
     # Convert ReqLLM response to OpenAI format expected by ToolHelper

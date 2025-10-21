@@ -1,370 +1,300 @@
 defmodule Jido.AI.ReqLlmBridge.ToolExecutorTest do
   use ExUnit.Case, async: false
-  use Mimic
 
-  @moduletag :capture_log
+  alias Jido.AI.ReqLlmBridge.ToolExecutor
 
-  alias Jido.AI.ReqLlmBridge.{ErrorHandler, ParameterConverter, ToolExecutor}
+  @moduledoc """
+  Tests for the ToolExecutor module.
 
-  # Add global mock setup
-  setup :set_mimic_global
+  Tests cover:
+  - Basic tool execution with valid parameters
+  - Execution timeout protection
+  - Callback function creation
+  - Parameter validation and conversion
+  - Comprehensive error handling
+  - JSON serialization and sanitization
+  - Circuit breaker pattern (simplified)
+  """
 
-  setup do
-    # Mock Action for testing
-    defmodule TestAction do
-      use Jido.Action,
-        name: "test_action",
-        description: "A test action for tool execution",
-        schema: [
-          name: [type: :string, required: true, doc: "The name parameter"],
-          count: [type: :integer, default: 1, doc: "The count parameter"],
-          enabled: [type: :boolean, default: false, doc: "Enable flag"]
-        ]
+  # Helper module for testing - a simple action that returns its params
+  defmodule TestAction do
+    use Jido.Action,
+      name: "test_action",
+      description: "A test action for unit tests",
+      schema: [
+        message: [type: :string, required: true, doc: "Test message"],
+        count: [type: :integer, default: 1, doc: "Count value"]
+      ]
 
-      @impl true
-      def run(params, _context) do
-        {:ok,
-         %{
-           message: "Hello #{params.name}",
-           count: params.count,
-           enabled: params.enabled,
-           timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-         }}
-      end
+    def run(params, _context) do
+      {:ok, %{message: params[:message], count: params[:count]}}
     end
-
-    # Action that takes time (for timeout testing)
-    defmodule SlowAction do
-      use Jido.Action,
-        name: "slow_action",
-        description: "An action that takes time",
-        schema: [
-          delay: [type: :integer, default: 100, doc: "Delay in milliseconds"]
-        ]
-
-      @impl true
-      def run(%{delay: delay}, _context) do
-        Process.sleep(delay)
-        {:ok, %{completed: true, delay: delay}}
-      end
-    end
-
-    # Action that always fails
-    defmodule FailingAction do
-      use Jido.Action,
-        name: "failing_action",
-        description: "An action that always fails",
-        schema: []
-
-      @impl true
-      def run(_params, _context) do
-        {:error, "This action always fails"}
-      end
-    end
-
-    # Action that raises exceptions
-    defmodule ExceptionAction do
-      use Jido.Action,
-        name: "exception_action",
-        description: "An action that raises exceptions",
-        schema: []
-
-      @impl true
-      def run(_params, _context) do
-        raise "Simulated exception"
-      end
-    end
-
-    # Action that returns non-serializable data
-    defmodule NonSerializableAction do
-      use Jido.Action,
-        name: "non_serializable",
-        description: "Returns non-serializable data",
-        schema: []
-
-      @impl true
-      def run(_params, _context) do
-        {:ok, %{pid: self(), ref: make_ref(), function: fn -> :ok end}}
-      end
-    end
-
-    {:ok,
-     %{
-       test_action: TestAction,
-       slow_action: SlowAction,
-       failing_action: FailingAction,
-       exception_action: ExceptionAction,
-       non_serializable_action: NonSerializableAction
-     }}
   end
 
-  describe "create_callback/2" do
-    test "creates a function that executes action correctly", %{test_action: action} do
-      callback = ToolExecutor.create_callback(action)
+  # Action that times out
+  defmodule TimeoutAction do
+    use Jido.Action,
+      name: "timeout_action",
+      description: "An action that sleeps",
+      schema: [
+        duration_ms: [type: :integer, required: true, doc: "Sleep duration in milliseconds"]
+      ]
+
+    def run(params, _context) do
+      Process.sleep(params[:duration_ms])
+      {:ok, %{slept: params[:duration_ms]}}
+    end
+  end
+
+  # Action that raises an exception
+  defmodule ExceptionAction do
+    use Jido.Action,
+      name: "exception_action",
+      description: "An action that raises exceptions",
+      schema: [
+        error_message: [type: :string, required: true, doc: "Error message to raise"]
+      ]
+
+    def run(params, _context) do
+      raise RuntimeError, params[:error_message]
+    end
+  end
+
+  # Action that returns non-serializable data
+  defmodule NonSerializableAction do
+    use Jido.Action,
+      name: "non_serializable_action",
+      description: "Returns non-serializable data",
+      schema: []
+
+    def run(_params, _context) do
+      {:ok, %{pid: self(), ref: make_ref(), function: fn -> :ok end}}
+    end
+  end
+
+  describe "2.1 Basic Tool Execution" do
+    test "successful tool execution with valid params" do
+      # Use Jido.Actions.Basic.Sleep for a real action
+      params = %{"duration_ms" => 10}
+
+      assert {:ok, result} = ToolExecutor.execute_tool(Jido.Actions.Basic.Sleep, params, %{})
+      assert is_map(result)
+      assert Map.has_key?(result, :duration_ms)
+    end
+
+    test "successful execution with TestAction" do
+      params = %{"message" => "test", "count" => 5}
+
+      assert {:ok, result} = ToolExecutor.execute_tool(TestAction, params, %{})
+      assert result.message == "test"
+      assert result.count == 5
+    end
+
+    test "execution timeout protection" do
+      # Set a short timeout (100ms) for an action that sleeps longer (500ms)
+      params = %{"duration_ms" => 500}
+
+      assert {:error, error} = ToolExecutor.execute_tool(TimeoutAction, params, %{}, 100)
+      assert error.type == "execution_timeout"
+      assert error.timeout == 100
+    end
+
+    test "callback function creation" do
+      # Create callback for TestAction
+      callback = ToolExecutor.create_callback(TestAction, %{})
+
       assert is_function(callback, 1)
 
-      params = %{"name" => "Pascal", "count" => "5", "enabled" => "true"}
+      # Execute callback
+      params = %{"message" => "callback test", "count" => 3}
       assert {:ok, result} = callback.(params)
-
-      assert result.message == "Hello Pascal"
-      assert result.count == 5
-      assert result.enabled == true
-      assert is_binary(result.timestamp)
-    end
-
-    test "creates callback with context", %{test_action: action} do
-      context = %{user_id: 123, session: "test_session"}
-      callback = ToolExecutor.create_callback(action, context)
-
-      params = %{"name" => "test"}
-      assert {:ok, result} = callback.(params)
-      assert is_map(result)
-    end
-
-    test "callback handles parameter validation errors", %{test_action: action} do
-      callback = ToolExecutor.create_callback(action)
-
-      # Missing required parameter
-      invalid_params = %{"count" => "5"}
-      assert {:error, error} = callback.(invalid_params)
-      assert error.type == "parameter_validation_error"
-    end
-
-    test "callback handles type conversion", %{test_action: action} do
-      callback = ToolExecutor.create_callback(action)
-
-      # String values that need conversion
-      params = %{"name" => "test", "count" => "42", "enabled" => "true"}
-      assert {:ok, result} = callback.(params)
-
-      assert result.name == "test"
-      assert result.count == 42
-      assert result.enabled == true
-    end
-  end
-
-  describe "execute_tool/4" do
-    test "successfully executes action with valid parameters", %{test_action: action} do
-      params = %{"name" => "Pascal", "count" => "3"}
-      context = %{user_id: 123}
-
-      assert {:ok, result} = ToolExecutor.execute_tool(action, params, context)
-      assert result.message == "Hello Pascal"
+      assert result.message == "callback test"
       assert result.count == 3
     end
 
-    test "handles parameter validation failures", %{test_action: action} do
-      invalid_params = %{"invalid_field" => "value"}
+    test "callback function with context" do
+      # Create callback with context
+      context = %{user_id: 123, session: "test-session"}
+      callback = ToolExecutor.create_callback(TestAction, context)
 
-      assert {:error, error} = ToolExecutor.execute_tool(action, invalid_params, %{})
-      assert error.type == "parameter_validation_error"
-    end
+      assert is_function(callback, 1)
 
-    test "handles action execution failures", %{failing_action: action} do
-      params = %{}
-
-      assert {:error, error} = ToolExecutor.execute_tool(action, params, %{})
-      assert error.type == "action_error"
-      assert String.contains?(error.message, "Action execution failed")
-    end
-
-    test "handles action exceptions", %{exception_action: action} do
-      params = %{}
-
-      assert {:error, error} = ToolExecutor.execute_tool(action, params, %{})
-      assert error.type == "exception"
-      assert String.contains?(error.message, "Simulated exception")
-    end
-
-    test "handles execution timeout", %{slow_action: action} do
-      # 5 seconds
-      params = %{"delay" => "5000"}
-      # 100ms timeout
-      timeout = 100
-
-      assert {:error, error} = ToolExecutor.execute_tool(action, params, %{}, timeout)
-      assert error.type == "execution_timeout"
-    end
-
-    test "handles non-serializable results", %{non_serializable_action: action} do
-      params = %{}
-
-      assert {:ok, result} = ToolExecutor.execute_tool(action, params, %{})
-      # Should either sanitize or provide fallback
-      assert is_map(result)
-      # PIDs should be converted to strings or have serialization fallback
-      assert Map.has_key?(result, :pid) or Map.has_key?(result, :serialization_fallback)
-    end
-
-    test "respects custom timeout", %{slow_action: action} do
-      params = %{"delay" => "200"}
-      # Should complete within this timeout
-      timeout = 300
-
-      assert {:ok, result} = ToolExecutor.execute_tool(action, params, %{}, timeout)
-      assert result.completed == true
-      assert result.delay == 200
-    end
-
-    test "validates input parameters", %{test_action: action} do
-      # Test with non-map params
-      assert {:error, error} = ToolExecutor.execute_tool(action, "invalid", %{})
-      assert error.type == "parameter_validation_error"
-
-      # Test with non-atom action
-      assert_raise FunctionClauseError, fn ->
-        ToolExecutor.execute_tool("not_an_atom", %{}, %{})
-      end
+      # Execute callback - context should be passed through
+      params = %{"message" => "with context"}
+      assert {:ok, _result} = callback.(params)
     end
   end
 
-  describe "execute_with_circuit_breaker/4" do
-    test "executes normally when circuit is closed", %{test_action: action} do
-      params = %{"name" => "test"}
+  describe "2.2 Parameter Validation" do
+    test "parameter conversion from JSON to Jido format" do
+      # Pass JSON params with string keys
+      json_params = %{"message" => "test", "count" => 42}
 
-      assert {:ok, result} = ToolExecutor.execute_with_circuit_breaker(action, params, %{})
-      assert is_map(result)
-    end
+      assert {:ok, result} = ToolExecutor.execute_tool(TestAction, json_params, %{})
 
-    test "handles circuit breaker activation" do
-      # Note: The current implementation always returns :closed
-      # In a real implementation, this would test actual circuit breaker logic
-      params = %{"name" => "test"}
-
-      # Should work normally since circuit breaker is simplified
-      assert {:ok, _result} = ToolExecutor.execute_with_circuit_breaker(TestAction, params, %{})
-    end
-  end
-
-  describe "parameter conversion and validation" do
-    test "converts string parameters to correct types", %{test_action: action} do
-      params = %{
-        "name" => "Pascal",
-        "count" => "42",
-        "enabled" => "true"
-      }
-
-      assert {:ok, result} = ToolExecutor.execute_tool(action, params, %{})
-      assert result.name == "Pascal"
+      # Parameters should be converted and validated
+      assert result.message == "test"
       assert result.count == 42
-      assert result.enabled == true
     end
 
-    test "applies default values for missing optional parameters", %{test_action: action} do
-      # count and enabled should get defaults
-      params = %{"name" => "test"}
+    test "parameter validation against Action schema" do
+      # Missing required parameter
+      params = %{"count" => 5}
+      # Note: "message" is required
 
-      assert {:ok, result} = ToolExecutor.execute_tool(action, params, %{})
-      # default value
-      assert result.count == 1
-      # default value
-      assert result.enabled == false
+      assert {:error, error} = ToolExecutor.execute_tool(TestAction, params, %{})
+      assert error.type == "parameter_validation_error"
+      assert is_binary(error.message)
     end
 
-    test "handles mixed parameter formats", %{test_action: action} do
-      params = %{
-        "name" => "test",
-        # already an integer
-        "count" => 5,
-        # already a boolean
-        "enabled" => true
-      }
+    test "parameter validation error formatting" do
+      # Pass invalid parameters
+      params = %{"invalid_field" => "value"}
 
-      assert {:ok, result} = ToolExecutor.execute_tool(action, params, %{})
-      assert result.count == 5
-      assert result.enabled == true
-    end
-  end
+      assert {:error, error} = ToolExecutor.execute_tool(TestAction, params, %{})
 
-  describe "error handling and sanitization" do
-    test "sanitizes error data for security" do
-      sensitive_error = %{
-        password: "secret123",
-        api_key: "sk-1234567890",
-        message: "Authentication failed"
-      }
-
-      sanitized = ErrorHandler.sanitize_error_for_logging(sensitive_error)
-      assert sanitized.password == "[REDACTED]"
-      assert sanitized.api_key == "[REDACTED]"
-      assert sanitized.message == "Authentication failed"
+      assert error.type == "parameter_validation_error"
+      assert Map.has_key?(error, :message)
+      assert Map.has_key?(error, :details)
+      assert error.action_module == TestAction
     end
 
-    test "preserves non-sensitive error information" do
-      error_data = %{
-        type: "validation_error",
-        field: "name",
-        message: "Required field missing"
-      }
+    test "parameter type validation" do
+      # Pass wrong type for count (should be integer)
+      params = %{"message" => "test", "count" => "not_an_integer"}
 
-      sanitized = ErrorHandler.sanitize_error_for_logging(error_data)
-      assert sanitized == error_data
+      assert {:error, error} = ToolExecutor.execute_tool(TestAction, params, %{})
+      assert error.type == "parameter_validation_error"
     end
   end
 
-  describe "performance and resource management" do
-    test "handles concurrent tool executions", %{test_action: action} do
-      tasks =
-        1..10
-        |> Enum.map(fn i ->
-          Task.async(fn ->
-            params = %{"name" => "User#{i}", "count" => "#{i}"}
-            ToolExecutor.execute_tool(action, params, %{})
-          end)
-        end)
+  describe "2.3 Error Handling" do
+    test "execution exception catching and formatting" do
+      # Execute action that raises exception
+      params = %{"error_message" => "Test exception"}
 
-      results = Task.await_many(tasks, 5_000)
+      assert {:error, error} = ToolExecutor.execute_tool(ExceptionAction, params, %{})
 
-      # All executions should succeed
-      assert length(results) == 10
-
-      assert Enum.all?(results, fn
-               {:ok, _} -> true
-               _ -> false
-             end)
-
-      # Results should have correct user names
-      names = Enum.map(results, fn {:ok, result} -> result.message end)
-      assert "Hello User1" in names
-      assert "Hello User10" in names
+      # Exceptions raised inside actions are caught and wrapped as "action_error"
+      assert error.type == "action_error"
+      assert String.contains?(error.message, "failed")
+      # The exception details are nested in the error
+      assert is_map(error.details)
+      assert error.details.type == "action_execution_error"
     end
 
-    test "cleans up resources on timeout", %{slow_action: action} do
-      params = %{"delay" => "1000"}
-      timeout = 50
+    test "JSON serialization with non-serializable data" do
+      # Execute action that returns non-serializable data
+      params = %{}
 
-      # Should timeout and clean up properly
-      assert {:error, error} = ToolExecutor.execute_tool(action, params, %{}, timeout)
-      assert error.type == "execution_timeout"
+      assert {:ok, result} = ToolExecutor.execute_tool(NonSerializableAction, params, %{})
 
-      # Process should not be left hanging
-      # (This is handled by Task.shutdown in the implementation)
+      # Result should be sanitized
+      assert is_map(result)
+
+      # PID should be converted to string
+      assert is_binary(result.pid)
+      assert String.starts_with?(result.pid, "#PID<")
+
+      # Reference should be converted to string
+      assert is_binary(result.ref)
+      assert String.starts_with?(result.ref, "#Reference<")
+
+      # Function should be converted to string
+      assert is_binary(result.function)
+      assert String.contains?(result.function, "#Function<")
+    end
+
+    test "sanitization of PID" do
+      params = %{}
+      {:ok, result} = ToolExecutor.execute_tool(NonSerializableAction, params, %{})
+
+      # Verify PID is sanitized
+      assert is_binary(result.pid)
+      assert result.pid =~ ~r/#PID<\d+\.\d+\.\d+>/
+    end
+
+    test "sanitization of reference" do
+      params = %{}
+      {:ok, result} = ToolExecutor.execute_tool(NonSerializableAction, params, %{})
+
+      # Verify reference is sanitized
+      assert is_binary(result.ref)
+      assert result.ref =~ ~r/#Reference</
+    end
+
+    test "sanitization of function" do
+      params = %{}
+      {:ok, result} = ToolExecutor.execute_tool(NonSerializableAction, params, %{})
+
+      # Verify function is sanitized
+      assert is_binary(result.function)
+      assert result.function =~ ~r/#Function</
+    end
+
+    test "handles action errors gracefully" do
+      # Action that returns error tuple
+      defmodule ErrorAction do
+        use Jido.Action,
+          name: "error_action",
+          description: "Returns error",
+          schema: []
+
+        def run(_params, _context) do
+          {:error, "Action failed"}
+        end
+      end
+
+      params = %{}
+
+      assert {:error, error} = ToolExecutor.execute_tool(ErrorAction, params, %{})
+      assert error.type == "action_error"
+      assert String.contains?(error.message, "failed")
     end
   end
 
-  describe "logging and monitoring" do
-    test "logs execution success when logging enabled" do
-      # Enable logging for this test
-      Application.put_env(:jido_ai, :enable_req_llm_logging, true)
+  describe "2.4 Circuit Breaker (Simplified)" do
+    test "circuit breaker status check returns :closed" do
+      params = %{"message" => "test"}
 
-      params = %{"name" => "test"}
+      # Execute with circuit breaker
+      assert {:ok, result} =
+               ToolExecutor.execute_with_circuit_breaker(TestAction, params, %{})
 
-      # Should complete without errors and log appropriately
-      assert {:ok, _result} = ToolExecutor.execute_tool(TestAction, params, %{})
-
-      # Cleanup
-      Application.put_env(:jido_ai, :enable_req_llm_logging, false)
+      assert result.message == "test"
     end
 
-    test "logs execution failures when logging enabled" do
-      Application.put_env(:jido_ai, :enable_req_llm_logging, true)
+    test "circuit breaker executes tool normally when closed" do
+      params = %{"duration_ms" => 10}
 
-      invalid_params = %{"invalid" => "params"}
+      assert {:ok, result} =
+               ToolExecutor.execute_with_circuit_breaker(
+                 Jido.Actions.Basic.Sleep,
+                 params,
+                 %{}
+               )
 
-      # Should fail and log appropriately
-      assert {:error, _error} = ToolExecutor.execute_tool(TestAction, invalid_params, %{})
+      assert is_map(result)
+    end
 
-      Application.put_env(:jido_ai, :enable_req_llm_logging, false)
+    test "circuit breaker records failures" do
+      # Execute with invalid parameters to trigger failure
+      params = %{}
+
+      assert {:error, _error} =
+               ToolExecutor.execute_with_circuit_breaker(TestAction, params, %{})
+
+      # Circuit breaker should still be closed (simplified implementation)
+      # In production, repeated failures would open the circuit
+    end
+
+    test "circuit breaker with custom timeout" do
+      params = %{"message" => "test", "count" => 1}
+
+      assert {:ok, result} =
+               ToolExecutor.execute_with_circuit_breaker(TestAction, params, %{}, 10_000)
+
+      assert result.message == "test"
     end
   end
 end

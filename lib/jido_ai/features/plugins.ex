@@ -345,9 +345,7 @@ defmodule Jido.AI.Features.Plugins do
   defp validate_environment(plugin) do
     env = Map.get(plugin, :env, %{})
 
-    unless is_map(env) do
-      {:error, "Environment must be a map"}
-    else
+    if is_map(env) do
       # Check for forbidden environment variable names
       forbidden =
         Enum.find(env, fn {key, _value} ->
@@ -364,6 +362,8 @@ defmodule Jido.AI.Features.Plugins do
         nil ->
           {:ok, env}
       end
+    else
+      {:error, "Environment must be a map"}
     end
   end
 
