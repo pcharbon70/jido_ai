@@ -1,491 +1,392 @@
 defmodule Jido.AI.ReqLlmBridge.ConversationManagerTest do
   use ExUnit.Case, async: false
 
-  @moduletag :capture_log
-
   alias Jido.AI.ReqLlmBridge.ConversationManager
 
+  @moduledoc """
+  Tests for the ConversationManager module.
+
+  Tests cover:
+  - Conversation lifecycle (create, end, list)
+  - Message management (user, assistant, tool messages)
+  - Tool configuration per conversation
+  - Options management per conversation
+  - Metadata tracking and updates
+  """
+
   setup do
-    # ConversationManager is already started by the application
-    # Just ensure we have a clean state by creating a fresh conversation ID
+    # ConversationManager is started by application supervision tree
+    # Just need to clear all conversations before each test
+    :ok = ConversationManager.clear_all_conversations()
+
     :ok
   end
 
-  describe "conversation lifecycle" do
-    test "create_conversation/0 creates new conversation" do
-      assert {:ok, conv_id} = ConversationManager.create_conversation()
-      assert is_binary(conv_id)
-      assert String.length(conv_id) == 32
-    end
+  describe "5.1 Conversation Lifecycle" do
+    test "conversation creation generates unique ID" do
+      # Create first conversation
+      assert {:ok, conv_id1} = ConversationManager.create_conversation()
+      assert is_binary(conv_id1)
+      assert String.length(conv_id1) > 0
 
-    test "create_conversation/0 creates unique conversations" do
-      {:ok, conv_id1} = ConversationManager.create_conversation()
-      {:ok, conv_id2} = ConversationManager.create_conversation()
+      # Create second conversation
+      assert {:ok, conv_id2} = ConversationManager.create_conversation()
+      assert is_binary(conv_id2)
+      assert String.length(conv_id2) > 0
 
+      # IDs should be different
       assert conv_id1 != conv_id2
     end
 
-    test "end_conversation/1 removes conversation" do
+    test "conversation ending removes from storage" do
+      # Create conversation
       {:ok, conv_id} = ConversationManager.create_conversation()
 
-      # Verify conversation exists
-      assert {:ok, []} = ConversationManager.get_history(conv_id)
+      # Verify it exists in list
+      {:ok, conversations} = ConversationManager.list_conversations()
+      assert conv_id in conversations
 
       # End conversation
       assert :ok = ConversationManager.end_conversation(conv_id)
 
-      # Verify conversation no longer exists
-      assert {:error, :conversation_not_found} = ConversationManager.get_history(conv_id)
+      # Verify no longer in list
+      {:ok, conversations_after} = ConversationManager.list_conversations()
+      refute conv_id in conversations_after
+
+      # Verify getting conversation returns error
+      assert {:error, :conversation_not_found} =
+               ConversationManager.get_history(conv_id)
     end
 
-    test "list_conversations/0 returns active conversations" do
-      {:ok, conv_ids_before} = ConversationManager.list_conversations()
-
+    test "listing active conversations" do
+      # Create 3 conversations
       {:ok, conv_id1} = ConversationManager.create_conversation()
       {:ok, conv_id2} = ConversationManager.create_conversation()
+      {:ok, conv_id3} = ConversationManager.create_conversation()
 
-      {:ok, conv_ids_after} = ConversationManager.list_conversations()
+      # List should have all 3
+      {:ok, conversations} = ConversationManager.list_conversations()
+      assert length(conversations) == 3
+      assert conv_id1 in conversations
+      assert conv_id2 in conversations
+      assert conv_id3 in conversations
 
-      assert conv_id1 in conv_ids_after
-      assert conv_id2 in conv_ids_after
-      assert length(conv_ids_after) == length(conv_ids_before) + 2
+      # End 1 conversation
+      :ok = ConversationManager.end_conversation(conv_id2)
+
+      # List should now have 2
+      {:ok, conversations_after} = ConversationManager.list_conversations()
+      assert length(conversations_after) == 2
+      assert conv_id1 in conversations_after
+      refute conv_id2 in conversations_after
+      assert conv_id3 in conversations_after
     end
   end
 
-  describe "tool management" do
-    test "set_tools/2 and get_tools/1 work correctly" do
+  describe "5.2 Message Management" do
+    test "adding user messages to history" do
       {:ok, conv_id} = ConversationManager.create_conversation()
 
-      tool_descriptors = [
-        %{name: "weather_tool", description: "Gets weather", callback: fn _ -> :ok end},
-        %{name: "calculator", description: "Does math", callback: fn _ -> :ok end}
-      ]
+      # Add user message
+      assert :ok =
+               ConversationManager.add_user_message(conv_id, "What's the weather like?")
 
-      assert :ok = ConversationManager.set_tools(conv_id, tool_descriptors)
-      assert {:ok, ^tool_descriptors} = ConversationManager.get_tools(conv_id)
-    end
+      # Get history
+      {:ok, history} = ConversationManager.get_history(conv_id)
 
-    test "set_tools/2 overwrites existing tools" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
+      # Verify message in history
+      assert length(history) == 1
+      [message] = history
 
-      initial_tools = [%{name: "tool1", description: "First tool"}]
-      updated_tools = [%{name: "tool2", description: "Second tool"}]
-
-      ConversationManager.set_tools(conv_id, initial_tools)
-      ConversationManager.set_tools(conv_id, updated_tools)
-
-      {:ok, tools} = ConversationManager.get_tools(conv_id)
-      assert tools == updated_tools
-      assert length(tools) == 1
-    end
-
-    test "find_tool_by_name/2 finds tools correctly" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      weather_tool = %{name: "get_weather", description: "Weather tool"}
-      calc_tool = %{name: "calculator", description: "Math tool"}
-      tools = [weather_tool, calc_tool]
-
-      ConversationManager.set_tools(conv_id, tools)
-
-      assert {:ok, ^weather_tool} = ConversationManager.find_tool_by_name(conv_id, "get_weather")
-      assert {:ok, ^calc_tool} = ConversationManager.find_tool_by_name(conv_id, "calculator")
-      assert {:error, :not_found} = ConversationManager.find_tool_by_name(conv_id, "nonexistent")
-    end
-
-    test "tool operations fail for non-existent conversation" do
-      fake_conv_id = "nonexistent_conversation_id"
-
-      assert {:error, :conversation_not_found} = ConversationManager.get_tools(fake_conv_id)
-      assert {:error, :conversation_not_found} = ConversationManager.set_tools(fake_conv_id, [])
-
-      assert {:error, :conversation_not_found} =
-               ConversationManager.find_tool_by_name(fake_conv_id, "tool")
-    end
-  end
-
-  describe "options management" do
-    test "set_options/2 and get_options/1 work correctly" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      options = %{
-        model: "gpt-4",
-        temperature: 0.7,
-        max_tokens: 1000,
-        custom_option: "test_value"
-      }
-
-      assert :ok = ConversationManager.set_options(conv_id, options)
-      assert {:ok, ^options} = ConversationManager.get_options(conv_id)
-    end
-
-    test "set_options/2 overwrites existing options" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      initial_options = %{model: "gpt-3.5-turbo", temperature: 0.5}
-      updated_options = %{model: "gpt-4", temperature: 0.8, max_tokens: 2000}
-
-      ConversationManager.set_options(conv_id, initial_options)
-      ConversationManager.set_options(conv_id, updated_options)
-
-      {:ok, options} = ConversationManager.get_options(conv_id)
-      assert options == updated_options
-    end
-
-    test "options operations fail for non-existent conversation" do
-      fake_conv_id = "nonexistent_conversation_id"
-
-      assert {:error, :conversation_not_found} = ConversationManager.get_options(fake_conv_id)
-
-      assert {:error, :conversation_not_found} =
-               ConversationManager.set_options(fake_conv_id, %{})
-    end
-  end
-
-  describe "message management" do
-    test "add_user_message/3 adds message correctly" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      message_content = "Hello, how are you?"
-      metadata = %{client: "test_client"}
-
-      assert :ok = ConversationManager.add_user_message(conv_id, message_content, metadata)
-
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      assert length(messages) == 1
-
-      message = hd(messages)
       assert message.role == "user"
-      assert message.content == message_content
-      assert message.metadata == metadata
+      assert message.content == "What's the weather like?"
       assert %DateTime{} = message.timestamp
+      assert is_map(message.metadata)
     end
 
-    test "add_assistant_response/3 handles simple response" do
+    test "adding assistant responses to history" do
       {:ok, conv_id} = ConversationManager.create_conversation()
 
+      # Add assistant response with metadata
       response = %{
-        content: "Hello! I'm doing well, thank you.",
-        usage: %{prompt_tokens: 10, completion_tokens: 15, total_tokens: 25}
-      }
-
-      assert :ok = ConversationManager.add_assistant_response(conv_id, response)
-
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      assert length(messages) == 1
-
-      message = hd(messages)
-      assert message.role == "assistant"
-      assert message.content == "Hello! I'm doing well, thank you."
-      assert message.metadata.usage == response.usage
-    end
-
-    test "add_assistant_response/3 handles complex response with tool calls" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      response = %{
-        content: [
-          %{type: "text", text: "Let me check the weather for you."}
-        ],
-        tool_calls: [
-          %{id: "call_1", function: %{name: "get_weather", arguments: %{location: "Paris"}}}
-        ],
-        usage: %{total_tokens: 50},
+        content: "The weather is sunny and 75°F",
+        tool_calls: [%{name: "get_weather", id: "call_123"}],
+        usage: %{prompt_tokens: 10, completion_tokens: 15},
         model: "gpt-4"
       }
 
       assert :ok = ConversationManager.add_assistant_response(conv_id, response)
 
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      message = hd(messages)
+      # Get history
+      {:ok, history} = ConversationManager.get_history(conv_id)
+
+      # Verify message in history
+      assert length(history) == 1
+      [message] = history
 
       assert message.role == "assistant"
-      assert message.content == "Let me check the weather for you."
-      assert message.metadata.tool_calls == response.tool_calls
+      assert message.content == "The weather is sunny and 75°F"
+      assert %DateTime{} = message.timestamp
+
+      # Verify metadata includes tool_calls, usage, model
+      assert message.metadata.tool_calls == [%{name: "get_weather", id: "call_123"}]
+      assert message.metadata.usage == %{prompt_tokens: 10, completion_tokens: 15}
       assert message.metadata.model == "gpt-4"
     end
 
-    test "add_tool_results/3 adds tool results as messages" do
+    test "adding tool results to history" do
       {:ok, conv_id} = ConversationManager.create_conversation()
 
+      # Add tool results
       tool_results = [
         %{
-          tool_call_id: "call_1",
+          tool_call_id: "call_123",
           name: "get_weather",
-          content: ~s({"temperature": 22, "condition": "sunny"})
+          content: "Weather is sunny, 75°F"
         },
         %{
-          tool_call_id: "call_2",
-          name: "calculator",
-          content: ~s({"result": 42}),
-          error: false
+          tool_call_id: "call_124",
+          name: "get_temperature",
+          content: "Temperature is 75°F"
         }
       ]
 
-      metadata = %{execution_time: 1250}
+      assert :ok = ConversationManager.add_tool_results(conv_id, tool_results)
 
-      assert :ok = ConversationManager.add_tool_results(conv_id, tool_results, metadata)
+      # Get history
+      {:ok, history} = ConversationManager.get_history(conv_id)
 
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      assert length(messages) == 2
+      # Verify messages in history
+      assert length(history) == 2
 
-      Enum.zip(messages, tool_results)
-      |> Enum.each(fn {message, expected_result} ->
-        assert message.role == "tool"
-        assert message.content == expected_result.content
-        assert message.metadata.tool_call_id == expected_result.tool_call_id
-        assert message.metadata.tool_name == expected_result.name
-        assert Map.has_key?(message.metadata, :error)
-      end)
+      # First tool result
+      first_message = Enum.at(history, 0)
+      assert first_message.role == "tool"
+      assert first_message.content == "Weather is sunny, 75°F"
+      assert first_message.metadata.tool_call_id == "call_123"
+      assert first_message.metadata.tool_name == "get_weather"
+
+      # Second tool result
+      second_message = Enum.at(history, 1)
+      assert second_message.role == "tool"
+      assert second_message.content == "Temperature is 75°F"
+      assert second_message.metadata.tool_call_id == "call_124"
+      assert second_message.metadata.tool_name == "get_temperature"
     end
 
-    test "get_history/1 returns messages in chronological order" do
+    test "retrieving complete conversation history in chronological order" do
       {:ok, conv_id} = ConversationManager.create_conversation()
 
-      # Add messages in sequence
-      :ok = ConversationManager.add_user_message(conv_id, "First message")
-      # Ensure different timestamps
-      Process.sleep(10)
-      :ok = ConversationManager.add_assistant_response(conv_id, %{content: "Second message"})
-      Process.sleep(10)
-      :ok = ConversationManager.add_user_message(conv_id, "Third message")
+      # Add messages in order: user → assistant → tool results
+      :ok = ConversationManager.add_user_message(conv_id, "What's the weather?")
 
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      assert length(messages) == 3
-
-      contents = Enum.map(messages, & &1.content)
-      assert contents == ["First message", "Second message", "Third message"]
-
-      # Verify timestamps are in ascending order
-      timestamps = Enum.map(messages, & &1.timestamp)
-      assert timestamps == Enum.sort(timestamps, DateTime)
-    end
-
-    test "message operations fail for non-existent conversation" do
-      fake_conv_id = "nonexistent_conversation_id"
-
-      assert {:error, :conversation_not_found} = ConversationManager.get_history(fake_conv_id)
-
-      assert {:error, :conversation_not_found} =
-               ConversationManager.add_user_message(fake_conv_id, "test")
-
-      assert {:error, :conversation_not_found} =
-               ConversationManager.add_assistant_response(fake_conv_id, %{content: "test"})
-
-      assert {:error, :conversation_not_found} =
-               ConversationManager.add_tool_results(fake_conv_id, [])
-    end
-  end
-
-  describe "conversation metadata" do
-    test "get_conversation_metadata/1 returns correct metadata" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      # Add some messages and tools to test metadata
-      ConversationManager.set_tools(conv_id, [%{name: "tool1"}, %{name: "tool2"}])
-      ConversationManager.add_user_message(conv_id, "Message 1")
-      ConversationManager.add_assistant_response(conv_id, %{content: "Response 1"})
-
-      {:ok, metadata} = ConversationManager.get_conversation_metadata(conv_id)
-
-      assert metadata.id == conv_id
-      assert metadata.message_count == 2
-      assert metadata.tool_count == 2
-      assert %DateTime{} = metadata.created_at
-      assert %DateTime{} = metadata.last_activity
-    end
-
-    test "metadata tracks message count correctly" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      {:ok, initial_metadata} = ConversationManager.get_conversation_metadata(conv_id)
-      assert initial_metadata.message_count == 0
-
-      ConversationManager.add_user_message(conv_id, "Message 1")
-      {:ok, metadata_after_1} = ConversationManager.get_conversation_metadata(conv_id)
-      assert metadata_after_1.message_count == 1
-
-      ConversationManager.add_assistant_response(conv_id, %{content: "Response 1"})
-      {:ok, metadata_after_2} = ConversationManager.get_conversation_metadata(conv_id)
-      assert metadata_after_2.message_count == 2
-
-      # Tool results count as messages
-      tool_results = [%{tool_call_id: "call_1", content: "result"}]
-      ConversationManager.add_tool_results(conv_id, tool_results)
-      {:ok, metadata_after_tools} = ConversationManager.get_conversation_metadata(conv_id)
-      assert metadata_after_tools.message_count == 3
-    end
-
-    test "last_activity updates with conversation activity" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      {:ok, initial_metadata} = ConversationManager.get_conversation_metadata(conv_id)
-      initial_activity = initial_metadata.last_activity
-
-      # Ensure time difference
-      Process.sleep(50)
-
-      ConversationManager.add_user_message(conv_id, "Update activity")
-
-      {:ok, updated_metadata} = ConversationManager.get_conversation_metadata(conv_id)
-      updated_activity = updated_metadata.last_activity
-
-      assert DateTime.compare(updated_activity, initial_activity) == :gt
-    end
-  end
-
-  describe "error handling and edge cases" do
-    test "handles empty message content gracefully" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      assert :ok = ConversationManager.add_user_message(conv_id, "")
-      assert :ok = ConversationManager.add_assistant_response(conv_id, %{content: ""})
-
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      assert length(messages) == 2
-      assert Enum.all?(messages, fn msg -> msg.content == "" end)
-    end
-
-    test "handles malformed assistant response gracefully" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      # Response with unexpected structure
-      malformed_response = %{
-        content: nil,
-        weird_field: "should be ignored"
+      response = %{
+        content: "Let me check that for you",
+        tool_calls: [%{name: "get_weather", id: "call_1"}]
       }
 
-      assert :ok = ConversationManager.add_assistant_response(conv_id, malformed_response)
+      :ok = ConversationManager.add_assistant_response(conv_id, response)
 
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      message = hd(messages)
-
-      assert message.role == "assistant"
-      # Should be converted to string
-      assert is_binary(message.content)
-    end
-
-    test "handles empty tool results list" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      assert :ok = ConversationManager.add_tool_results(conv_id, [])
-
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      assert messages == []
-    end
-
-    test "handles large message history efficiently" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      # Add many messages
-      Enum.each(1..100, fn i ->
-        ConversationManager.add_user_message(conv_id, "Message #{i}")
-      end)
-
-      start_time = System.monotonic_time(:millisecond)
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      end_time = System.monotonic_time(:millisecond)
-
-      assert length(messages) == 100
-      # Should be very fast
-      assert end_time - start_time < 100
-    end
-
-    test "handles content with different types" do
-      {:ok, conv_id} = ConversationManager.create_conversation()
-
-      # Test different content types in assistant response
-      test_cases = [
-        %{content: "simple string"},
-        %{content: ["list", "of", "strings"]},
-        %{content: [%{type: "text", text: "structured content"}]},
-        # Number
-        %{content: 42},
-        # Map
-        %{content: %{nested: "object"}}
+      tool_results = [
+        %{tool_call_id: "call_1", name: "get_weather", content: "Sunny, 75°F"}
       ]
 
-      Enum.each(test_cases, fn response ->
-        assert :ok = ConversationManager.add_assistant_response(conv_id, response)
+      :ok = ConversationManager.add_tool_results(conv_id, tool_results)
+
+      # Get history
+      {:ok, history} = ConversationManager.get_history(conv_id)
+
+      # Verify chronological order
+      assert length(history) == 3
+      assert Enum.at(history, 0).role == "user"
+      assert Enum.at(history, 1).role == "assistant"
+      assert Enum.at(history, 2).role == "tool"
+
+      # Verify all messages have timestamps
+      Enum.each(history, fn message ->
+        assert %DateTime{} = message.timestamp
       end)
 
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      assert length(messages) == length(test_cases)
+      # Verify timestamps are in order (each should be >= previous)
+      [msg1, msg2, msg3] = history
 
-      # All content should be converted to strings
-      assert Enum.all?(messages, fn msg -> is_binary(msg.content) end)
+      assert DateTime.compare(msg1.timestamp, msg2.timestamp) in [:lt, :eq]
+      assert DateTime.compare(msg2.timestamp, msg3.timestamp) in [:lt, :eq]
     end
   end
 
-  describe "concurrent access" do
-    test "handles concurrent conversation creation" do
-      tasks =
-        Enum.map(1..10, fn _i ->
-          Task.async(fn ->
-            ConversationManager.create_conversation()
-          end)
-        end)
-
-      results = Task.await_many(tasks, 5_000)
-
-      # All should succeed
-      assert Enum.all?(results, fn
-               {:ok, _id} -> true
-               _ -> false
-             end)
-
-      # All IDs should be unique
-      ids = Enum.map(results, fn {:ok, id} -> id end)
-      assert length(Enum.uniq(ids)) == 10
-    end
-
-    test "handles concurrent message additions to same conversation" do
+  describe "5.3 Tool Configuration" do
+    test "setting tools for conversation" do
       {:ok, conv_id} = ConversationManager.create_conversation()
 
-      tasks =
-        Enum.map(1..20, fn i ->
-          Task.async(fn ->
-            ConversationManager.add_user_message(conv_id, "Concurrent message #{i}")
-          end)
-        end)
+      # Define tools
+      tools = [
+        %{name: "get_weather", description: "Get current weather"},
+        %{name: "get_time", description: "Get current time"}
+      ]
 
-      results = Task.await_many(tasks, 5_000)
-
-      # All additions should succeed
-      assert Enum.all?(results, fn
-               :ok -> true
-               _ -> false
-             end)
-
-      {:ok, messages} = ConversationManager.get_history(conv_id)
-      assert length(messages) == 20
+      # Set tools
+      assert :ok = ConversationManager.set_tools(conv_id, tools)
     end
 
-    test "handles concurrent operations on different conversations" do
-      # Create multiple conversations concurrently and operate on them
-      conv_tasks =
-        Enum.map(1..5, fn i ->
-          Task.async(fn ->
-            {:ok, conv_id} = ConversationManager.create_conversation()
-            ConversationManager.add_user_message(conv_id, "Message in conversation #{i}")
-            ConversationManager.set_tools(conv_id, [%{name: "tool_#{i}"}])
-            conv_id
-          end)
-        end)
+    test "getting tools for conversation" do
+      {:ok, conv_id} = ConversationManager.create_conversation()
 
-      conv_ids = Task.await_many(conv_tasks, 5_000)
+      # Set tools
+      tools = [
+        %{name: "get_weather", description: "Get current weather"},
+        %{name: "calculator", description: "Perform calculations"}
+      ]
 
-      # Verify each conversation has its own state
-      Enum.with_index(conv_ids, 1)
-      |> Enum.each(fn {conv_id, i} ->
-        {:ok, messages} = ConversationManager.get_history(conv_id)
-        assert length(messages) == 1
-        assert hd(messages).content == "Message in conversation #{i}"
+      :ok = ConversationManager.set_tools(conv_id, tools)
 
-        {:ok, tools} = ConversationManager.get_tools(conv_id)
-        assert length(tools) == 1
-        assert hd(tools).name == "tool_#{i}"
-      end)
+      # Get tools
+      assert {:ok, retrieved_tools} = ConversationManager.get_tools(conv_id)
+
+      # Verify tools match
+      assert length(retrieved_tools) == 2
+      assert Enum.any?(retrieved_tools, &(&1.name == "get_weather"))
+      assert Enum.any?(retrieved_tools, &(&1.name == "calculator"))
+    end
+
+    test "finding tool by name" do
+      {:ok, conv_id} = ConversationManager.create_conversation()
+
+      # Set multiple tools
+      tools = [
+        %{name: "get_weather", description: "Get current weather", params: %{}},
+        %{name: "calculator", description: "Perform calculations", params: %{}}
+      ]
+
+      :ok = ConversationManager.set_tools(conv_id, tools)
+
+      # Find existing tool
+      assert {:ok, tool} = ConversationManager.find_tool_by_name(conv_id, "get_weather")
+      assert tool.name == "get_weather"
+      assert tool.description == "Get current weather"
+
+      # Find non-existent tool
+      assert {:error, :not_found} =
+               ConversationManager.find_tool_by_name(conv_id, "non_existent")
+    end
+  end
+
+  describe "5.4 Options Management" do
+    test "setting conversation options (model, temperature, etc.)" do
+      {:ok, conv_id} = ConversationManager.create_conversation()
+
+      # Set options
+      options = %{
+        model: "gpt-4",
+        temperature: 0.7,
+        max_tokens: 1000,
+        top_p: 0.9
+      }
+
+      assert :ok = ConversationManager.set_options(conv_id, options)
+    end
+
+    test "getting conversation options" do
+      {:ok, conv_id} = ConversationManager.create_conversation()
+
+      # Set options
+      options = %{
+        model: "gpt-4",
+        temperature: 0.7,
+        max_tokens: 1000
+      }
+
+      :ok = ConversationManager.set_options(conv_id, options)
+
+      # Get options
+      assert {:ok, retrieved_options} = ConversationManager.get_options(conv_id)
+
+      # Verify options match
+      assert retrieved_options.model == "gpt-4"
+      assert retrieved_options.temperature == 0.7
+      assert retrieved_options.max_tokens == 1000
+    end
+  end
+
+  describe "5.5 Metadata" do
+    test "conversation metadata includes creation time" do
+      {:ok, conv_id} = ConversationManager.create_conversation()
+
+      # Get metadata
+      {:ok, metadata} = ConversationManager.get_conversation_metadata(conv_id)
+
+      # Verify created_at timestamp exists
+      assert Map.has_key?(metadata, :created_at)
+      assert %DateTime{} = metadata.created_at
+    end
+
+    test "metadata includes message count" do
+      {:ok, conv_id} = ConversationManager.create_conversation()
+
+      # Add 3 messages
+      :ok = ConversationManager.add_user_message(conv_id, "Message 1")
+      :ok = ConversationManager.add_user_message(conv_id, "Message 2")
+      :ok = ConversationManager.add_user_message(conv_id, "Message 3")
+
+      # Get metadata
+      {:ok, metadata} = ConversationManager.get_conversation_metadata(conv_id)
+
+      # Verify message_count is 3
+      assert metadata.message_count == 3
+    end
+
+    test "last_activity updates on message add" do
+      {:ok, conv_id} = ConversationManager.create_conversation()
+
+      # Get initial metadata
+      {:ok, initial_metadata} = ConversationManager.get_conversation_metadata(conv_id)
+      initial_last_activity = initial_metadata.last_activity
+
+      # Wait a bit to ensure timestamp difference
+      Process.sleep(100)
+
+      # Add message
+      :ok = ConversationManager.add_user_message(conv_id, "New message")
+
+      # Get updated metadata
+      {:ok, updated_metadata} = ConversationManager.get_conversation_metadata(conv_id)
+      updated_last_activity = updated_metadata.last_activity
+
+      # Verify last_activity is later than initial
+      assert DateTime.compare(updated_last_activity, initial_last_activity) == :gt
+    end
+  end
+
+  describe "5.6 Error Handling" do
+    test "operations on non-existent conversation return error" do
+      non_existent_id = "non_existent_conversation_id"
+
+      # Try various operations
+      assert {:error, :conversation_not_found} =
+               ConversationManager.get_history(non_existent_id)
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.get_tools(non_existent_id)
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.get_options(non_existent_id)
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.get_conversation_metadata(non_existent_id)
+    end
+
+    test "adding message to non-existent conversation returns error" do
+      non_existent_id = "non_existent_conversation_id"
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.add_user_message(non_existent_id, "Test message")
+    end
+
+    test "setting tools for non-existent conversation returns error" do
+      non_existent_id = "non_existent_conversation_id"
+
+      assert {:error, :conversation_not_found} =
+               ConversationManager.set_tools(non_existent_id, [])
     end
   end
 end

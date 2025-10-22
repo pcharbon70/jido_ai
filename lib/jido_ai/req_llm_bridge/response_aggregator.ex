@@ -142,16 +142,20 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
 
     try do
       {accumulated_content, tool_data, usage_data} =
-        Enum.reduce(stream_chunks, {"", [], %{}}, fn chunk, {content, tools, usage} ->
-          chunk_content = extract_chunk_content(chunk)
-          chunk_tools = extract_chunk_tools(chunk)
-          chunk_usage = extract_chunk_usage(chunk)
+        Enum.reduce(stream_chunks, {"", [], %{}}, fn
+          # Skip nil chunks
+          nil, acc -> acc
+          # Process valid chunks
+          chunk, {content, tools, usage} ->
+            chunk_content = extract_chunk_content(chunk)
+            chunk_tools = extract_chunk_tools(chunk)
+            chunk_usage = extract_chunk_usage(chunk)
 
-          {
-            content <> chunk_content,
-            tools ++ chunk_tools,
-            merge_usage_stats(usage, chunk_usage)
-          }
+            {
+              content <> chunk_content,
+              tools ++ chunk_tools,
+              merge_usage_stats(usage, chunk_usage)
+            }
         end)
 
       response_data = %{
@@ -187,13 +191,31 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
 
   ## Examples
 
-      formatted = ResponseAggregator.format_for_user(response, %{
-        include_metadata: false,
-        tool_result_style: :integrated
-      })
+      iex> alias Jido.AI.ReqLlmBridge.ResponseAggregator
+      iex> response = %{
+      ...>   content: "The weather is",
+      ...>   tool_calls: [],
+      ...>   tool_results: [%{content: "sunny, 22°C"}],
+      ...>   usage: %{total_tokens: 50},
+      ...>   conversation_id: "conv_123",
+      ...>   finished: true,
+      ...>   metadata: %{processing_time_ms: 100}
+      ...> }
+      iex> ResponseAggregator.format_for_user(response, %{tool_result_style: :integrated})
+      "The weather is\\n\\nBased on the tool result: sunny, 22°C"
 
-      IO.puts(formatted)
-      # "The weather in Paris is sunny with a temperature of 22°C."
+      iex> alias Jido.AI.ReqLlmBridge.ResponseAggregator
+      iex> response = %{
+      ...>   content: "Hello!",
+      ...>   tool_calls: [],
+      ...>   tool_results: [],
+      ...>   usage: %{total_tokens: 10},
+      ...>   conversation_id: "conv_456",
+      ...>   finished: true,
+      ...>   metadata: %{processing_time_ms: 50}
+      ...> }
+      iex> ResponseAggregator.format_for_user(response)
+      "Hello!"
   """
   @spec format_for_user(aggregated_response(), map()) :: String.t()
   def format_for_user(aggregated_response, format_options \\ %{}) do
@@ -232,8 +254,41 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
 
   ## Examples
 
-      metrics = ResponseAggregator.extract_metrics(response)
-      # Use metrics as needed
+      iex> alias Jido.AI.ReqLlmBridge.ResponseAggregator
+      iex> response = %{
+      ...>   content: "Result",
+      ...>   tool_calls: [],
+      ...>   tool_results: [%{content: "success"}, %{content: "ok", error: false}],
+      ...>   usage: %{prompt_tokens: 10, completion_tokens: 20, total_tokens: 30},
+      ...>   conversation_id: "conv_789",
+      ...>   finished: true,
+      ...>   metadata: %{processing_time_ms: 150}
+      ...> }
+      iex> metrics = ResponseAggregator.extract_metrics(response)
+      iex> metrics.total_tokens
+      30
+      iex> metrics.tools_executed
+      2
+      iex> metrics.tools_successful
+      2
+      iex> metrics.tool_success_rate
+      100.0
+
+      iex> alias Jido.AI.ReqLlmBridge.ResponseAggregator
+      iex> response = %{
+      ...>   content: "Error occurred",
+      ...>   tool_calls: [],
+      ...>   tool_results: [%{content: "failed", error: true}],
+      ...>   usage: %{prompt_tokens: 5, completion_tokens: 10, total_tokens: 15},
+      ...>   conversation_id: "conv_err",
+      ...>   finished: true,
+      ...>   metadata: %{processing_time_ms: 75}
+      ...> }
+      iex> metrics = ResponseAggregator.extract_metrics(response)
+      iex> metrics.tools_failed
+      1
+      iex> metrics.tool_success_rate
+      0.0
   """
   @spec extract_metrics(aggregated_response()) :: map()
   def extract_metrics(aggregated_response) do
@@ -281,8 +336,9 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
       {"", tool_results} ->
         format_tool_only_response(tool_results)
 
-      {content, tool_results} ->
-        enhance_content_with_tool_results(content, tool_results)
+      {content, _tool_results} ->
+        # Keep original content - tool results will be added in format_for_user if needed
+        content
     end
   end
 
@@ -397,18 +453,6 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
     end
   end
 
-  defp enhance_content_with_tool_results(content, tool_results) do
-    successful_results =
-      Enum.filter(tool_results, fn result ->
-        not Map.get(result, :error, false)
-      end)
-
-    case successful_results do
-      [] -> content
-      results -> content <> "\n\n" <> format_tool_results_summary(results)
-    end
-  end
-
   defp format_single_tool_result(result) do
     tool_name = Map.get(result, :name, "Tool")
     content = Map.get(result, :content, "")
@@ -431,21 +475,6 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
       |> Enum.map_join("\n", fn {key, value} -> "  #{key}: #{inspect(value)}" end)
 
     "#{tool_name} results:\n#{formatted_fields}"
-  end
-
-  defp format_tool_results_summary(results) do
-    case length(results) do
-      1 -> "Tool result: " <> format_single_tool_result(hd(results))
-      n -> "Results from #{n} tools:\n\n" <> format_multiple_tool_results(results)
-    end
-  end
-
-  defp format_multiple_tool_results(results) do
-    results
-    |> Enum.with_index(1)
-    |> Enum.map_join("\n\n", fn {result, index} ->
-      "#{index}. #{format_single_tool_result(result)}"
-    end)
   end
 
   defp integrate_tool_results_into_content(content, tool_results) do

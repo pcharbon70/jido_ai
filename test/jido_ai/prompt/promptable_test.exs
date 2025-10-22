@@ -1,5 +1,5 @@
 defmodule JidoTest.AI.Prompt.PromptableTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   doctest Jido.AI.Promptable
   @moduletag :capture_log
   alias Jido.AI.Promptable

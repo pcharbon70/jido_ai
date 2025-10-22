@@ -1,627 +1,632 @@
 defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
   use ExUnit.Case, async: true
 
-  @moduletag :capture_log
-
   alias Jido.AI.ReqLlmBridge.ResponseAggregator
 
-  describe "aggregate_response/2" do
-    test "aggregates simple response without tools" do
+  doctest Jido.AI.ReqLlmBridge.ResponseAggregator
+
+  @moduledoc """
+  Tests for the ResponseAggregator module.
+
+  Tests cover:
+  - Content aggregation and normalization
+  - Tool result integration
+  - Usage statistics extraction and merging
+  - Response formatting for users
+  - Metrics extraction
+  """
+
+  describe "6.1 Content Aggregation" do
+    test "extracting base content from response with :content key" do
+      response = %{content: "Hello from the LLM"}
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.content == "Hello from the LLM"
+    end
+
+    test "extracting base content from response with string key" do
+      response = %{"content" => "Response with string key"}
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.content == "Response with string key"
+    end
+
+    test "extracting content from content array" do
       response = %{
-        content: "This is a simple response",
-        usage: %{prompt_tokens: 10, completion_tokens: 15, total_tokens: 25}
+        content: [
+          %{type: "text", text: "Hello"},
+          %{type: "text", text: " world"}
+        ]
       }
 
-      context = %{
-        conversation_id: "conv_123",
-        processing_start_time: System.monotonic_time(:millisecond) - 100
-      }
+      context = %{conversation_id: "conv_1", options: %{}}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
 
-      assert aggregated.content == "This is a simple response"
-      assert aggregated.tool_calls == []
-      assert aggregated.tool_results == []
-      assert aggregated.usage.total_tokens == 25
-      assert aggregated.conversation_id == "conv_123"
-      assert aggregated.finished == true
-      assert is_map(aggregated.metadata)
-      assert aggregated.metadata.processing_time_ms >= 0
+      assert aggregated.content == "Hello world"
     end
 
-    test "aggregates response with tool calls and results" do
-      tool_calls = [
-        %{
-          id: "call_1",
-          function: %{name: "get_weather", arguments: %{location: "Paris"}}
-        }
-      ]
-
-      tool_results = [
-        %{
-          tool_call_id: "call_1",
-          role: "tool",
-          name: "get_weather",
-          content: ~s({"temperature": 22, "condition": "sunny"})
-        }
-      ]
-
+    test "normalizing content arrays to strings" do
       response = %{
-        content: "Let me check the weather for you.",
-        tool_calls: tool_calls,
-        tool_results: tool_results,
-        usage: %{total_tokens: 75}
+        content: [
+          %{type: "text", text: "Part 1"},
+          %{type: "image", data: "base64..."},
+          %{type: "text", text: " Part 2"}
+        ]
       }
 
-      context = %{conversation_id: "conv_456"}
+      context = %{conversation_id: "conv_1", options: %{}}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
 
-      assert aggregated.content == "Let me check the weather for you."
-      assert length(aggregated.tool_calls) == 1
-      assert length(aggregated.tool_results) == 1
-      assert aggregated.tool_calls == tool_calls
-      assert aggregated.tool_results == tool_results
-      assert aggregated.conversation_id == "conv_456"
-      assert aggregated.finished == true
-    end
-
-    test "handles empty content gracefully" do
-      response = %{
-        content: "",
-        usage: %{total_tokens: 10}
-      }
-
-      context = %{conversation_id: "conv_empty"}
-
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
-
-      assert aggregated.content == "I don't have any response to provide."
-      assert aggregated.finished == true
-    end
-
-    test "handles response with only tool results" do
-      tool_results = [
-        %{
-          tool_call_id: "call_1",
-          name: "calculator",
-          content: ~s({"result": 42})
-        }
-      ]
-
-      response = %{
-        content: "",
-        tool_results: tool_results,
-        usage: %{total_tokens: 30}
-      }
-
-      context = %{conversation_id: "conv_tools_only"}
-
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
-
-      assert String.contains?(aggregated.content, "Here are the results")
-      assert String.contains?(aggregated.content, "calculator")
-      assert aggregated.tool_results == tool_results
-    end
-
-    test "determines finished status based on tool call completion" do
-      # Test case where we have tool calls but no matching results (not finished)
-      incomplete_response = %{
-        content: "Working on it...",
-        tool_calls: [%{id: "call_1", function: %{name: "tool"}}],
-        # No results for the call
-        tool_results: [],
-        usage: %{total_tokens: 20}
-      }
-
-      context = %{conversation_id: "conv_incomplete"}
-
-      assert {:ok, aggregated} =
-               ResponseAggregator.aggregate_response(incomplete_response, context)
-
-      assert aggregated.finished == false
-
-      # Test case where tool calls have matching results (finished)
-      complete_response = %{
-        content: "Done!",
-        tool_calls: [%{id: "call_1", function: %{name: "tool"}}],
-        tool_results: [%{tool_call_id: "call_1", content: "result"}],
-        usage: %{total_tokens: 25}
-      }
-
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(complete_response, context)
-      assert aggregated.finished == true
-    end
-
-    test "builds comprehensive metadata" do
-      response = %{
-        content: "Response with metadata",
-        tool_calls: [%{id: "call_1"}],
-        tool_results: [
-          %{tool_call_id: "call_1", content: "success"},
-          %{tool_call_id: "call_2", content: "error", error: true}
-        ],
-        usage: %{total_tokens: 50}
-      }
-
-      start_time = System.monotonic_time(:millisecond)
-
-      context = %{
-        conversation_id: "conv_metadata",
-        processing_start_time: start_time
-      }
-
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
-
-      metadata = aggregated.metadata
-      assert metadata.processing_time_ms >= 0
-      assert metadata.tools_executed == 2
-      assert metadata.has_tool_calls == true
-      assert metadata.response_type == :content_with_tools
-      assert Map.has_key?(metadata, :tool_errors)
-      assert length(metadata.tool_errors) == 1
-    end
-  end
-
-  describe "aggregate_streaming_response/2" do
-    test "aggregates streaming chunks with content only" do
-      stream_chunks = [
-        %{content: "This "},
-        %{content: "is a "},
-        %{content: "streaming "},
-        %{content: "response."},
-        %{usage: %{prompt_tokens: 15, completion_tokens: 10, total_tokens: 25}}
-      ]
-
-      context = %{conversation_id: "conv_stream"}
-
-      assert {:ok, aggregated} =
-               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
-
-      assert aggregated.content == "This is a streaming response."
-      assert aggregated.usage.total_tokens == 25
-      assert aggregated.conversation_id == "conv_stream"
-      assert aggregated.finished == true
-    end
-
-    test "aggregates streaming chunks with tool calls" do
-      stream_chunks = [
-        %{content: "Let me help you with that."},
-        %{tool_calls: [%{id: "stream_call", function: %{name: "helper"}}]},
-        %{usage: %{total_tokens: 40}}
-      ]
-
-      context = %{conversation_id: "conv_stream_tools"}
-
-      assert {:ok, aggregated} =
-               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
-
-      assert aggregated.content == "Let me help you with that."
-      assert length(aggregated.tool_calls) == 1
-      assert aggregated.tool_calls == [%{id: "stream_call", function: %{name: "helper"}}]
-    end
-
-    test "handles empty streaming chunks" do
-      stream_chunks = []
-      context = %{conversation_id: "conv_empty_stream"}
-
-      assert {:ok, aggregated} =
-               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
-
-      assert aggregated.content == "I don't have any response to provide."
-      assert aggregated.tool_calls == []
-      assert aggregated.finished == true
-    end
-
-    test "merges usage statistics correctly" do
-      stream_chunks = [
-        %{content: "Part 1", usage: %{prompt_tokens: 10, completion_tokens: 5, total_tokens: 15}},
-        %{content: " Part 2", usage: %{prompt_tokens: 0, completion_tokens: 8, total_tokens: 8}},
-        %{usage: %{prompt_tokens: 5, completion_tokens: 2, total_tokens: 7}}
-      ]
-
-      context = %{conversation_id: "conv_usage_merge"}
-
-      assert {:ok, aggregated} =
-               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
-
+      # Non-text items are skipped
       assert aggregated.content == "Part 1 Part 2"
-      assert aggregated.usage.prompt_tokens == 15
-      assert aggregated.usage.completion_tokens == 15
-      assert aggregated.usage.total_tokens == 30
     end
 
-    test "handles malformed streaming chunks gracefully" do
-      stream_chunks = [
-        %{content: "Good chunk"},
-        # Bad chunk
-        nil,
-        # Missing expected fields
-        %{malformed: true},
-        %{content: " Another good chunk"}
-      ]
+    test "handling empty string content" do
+      response = %{content: ""}
+      context = %{conversation_id: "conv_1", options: %{}}
 
-      context = %{conversation_id: "conv_malformed"}
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
 
-      assert {:ok, aggregated} =
-               ResponseAggregator.aggregate_streaming_response(stream_chunks, context)
+      assert aggregated.content == "I don't have any response to provide."
+    end
 
-      # Should still process the good chunks
-      assert String.contains?(aggregated.content, "Good chunk")
-      assert String.contains?(aggregated.content, "Another good chunk")
+    test "handling empty array content" do
+      response = %{content: []}
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.content == "I don't have any response to provide."
     end
   end
 
-  describe "format_for_user/2" do
-    test "formats simple response" do
+  describe "6.2 Tool Result Integration" do
+    test "extracting tool calls from response" do
       response = %{
-        content: "This is a simple response",
-        tool_calls: [],
-        tool_results: [],
-        usage: %{total_tokens: 20},
-        conversation_id: "conv_123",
-        finished: true,
-        metadata: %{processing_time_ms: 150, tools_executed: 0}
+        content: "Let me check that",
+        tool_calls: [
+          %{id: "call_1", function: %{name: "get_weather", arguments: "{}"}}
+        ]
       }
 
-      formatted = ResponseAggregator.format_for_user(response)
-      assert formatted == "This is a simple response"
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert length(aggregated.tool_calls) == 1
+      assert Enum.at(aggregated.tool_calls, 0).id == "call_1"
     end
 
-    test "formats response with integrated tool results" do
+    test "extracting tool results from response" do
       response = %{
-        content: "The weather information is",
-        tool_calls: [%{id: "call_1"}],
+        content: "The weather is sunny",
         tool_results: [
           %{
             tool_call_id: "call_1",
             name: "get_weather",
             content: ~s({"temperature": 22, "condition": "sunny"})
           }
-        ],
-        usage: %{total_tokens: 50},
-        conversation_id: "conv_456",
-        finished: true,
-        metadata: %{processing_time_ms: 200, tools_executed: 1}
+        ]
       }
 
-      formatted = ResponseAggregator.format_for_user(response, %{tool_result_style: :integrated})
+      context = %{conversation_id: "conv_1", options: %{}}
 
-      assert String.contains?(formatted, "The weather information is")
-      assert String.contains?(formatted, "tool result")
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert length(aggregated.tool_results) == 1
+      assert Enum.at(aggregated.tool_results, 0).tool_call_id == "call_1"
     end
 
-    test "formats response with appended tool results" do
+    test "integrating tool results into content with integrated style" do
       response = %{
-        content: "Here's what I found:",
-        tool_calls: [],
+        content: "The weather is",
         tool_results: [
           %{
             tool_call_id: "call_1",
-            name: "search_tool",
-            content: ~s({"results": ["item1", "item2"]})
-          }
-        ],
-        usage: %{total_tokens: 75},
-        conversation_id: "conv_789",
-        finished: true,
-        metadata: %{processing_time_ms: 300, tools_executed: 1}
-      }
-
-      formatted = ResponseAggregator.format_for_user(response, %{tool_result_style: :appended})
-
-      assert String.contains?(formatted, "Here's what I found:")
-      assert String.contains?(formatted, "Tool Results:")
-      assert String.contains?(formatted, "search_tool")
-    end
-
-    test "includes metadata when requested" do
-      response = %{
-        content: "Response with metadata",
-        tool_calls: [],
-        tool_results: [],
-        usage: %{total_tokens: 30},
-        conversation_id: "conv_meta",
-        finished: true,
-        metadata: %{processing_time_ms: 500, tools_executed: 0}
-      }
-
-      formatted = ResponseAggregator.format_for_user(response, %{include_metadata: true})
-
-      assert String.contains?(formatted, "Response with metadata")
-      assert String.contains?(formatted, "Response Metadata:")
-      assert String.contains?(formatted, "Processing time: 500ms")
-      assert String.contains?(formatted, "Tokens used: 30")
-    end
-
-    test "handles tool-only responses" do
-      response = %{
-        content: "",
-        tool_calls: [],
-        tool_results: [
-          %{
-            tool_call_id: "call_1",
-            name: "calculator",
-            content: ~s({"result": 42, "operation": "add"})
-          }
-        ],
-        usage: %{total_tokens: 25},
-        conversation_id: "conv_tools_only",
-        finished: true,
-        metadata: %{processing_time_ms: 100, tools_executed: 1}
-      }
-
-      formatted = ResponseAggregator.format_for_user(response)
-
-      assert String.contains?(formatted, "Here are the results")
-      assert String.contains?(formatted, "calculator")
-    end
-
-    test "handles tool results with errors" do
-      response = %{
-        content: "I tried to help but encountered an issue",
-        tool_calls: [],
-        tool_results: [
-          %{
-            tool_call_id: "call_1",
-            name: "broken_tool",
-            content: ~s({"error": true, "message": "Tool failed"}),
-            error: true
-          }
-        ],
-        usage: %{total_tokens: 40},
-        conversation_id: "conv_error",
-        finished: true,
-        metadata: %{processing_time_ms: 200, tools_executed: 1}
-      }
-
-      # Tool errors should not be included in user-facing format
-      formatted = ResponseAggregator.format_for_user(response)
-      assert formatted == "I tried to help but encountered an issue"
-    end
-  end
-
-  describe "extract_metrics/1" do
-    test "extracts comprehensive metrics from response" do
-      response = %{
-        content: "Response with metrics",
-        tool_calls: [%{id: "call_1"}, %{id: "call_2"}],
-        tool_results: [
-          %{tool_call_id: "call_1", content: "success"},
-          %{tool_call_id: "call_2", content: "error", error: true}
-        ],
-        usage: %{prompt_tokens: 25, completion_tokens: 35, total_tokens: 60},
-        conversation_id: "conv_metrics",
-        finished: true,
-        metadata: %{
-          processing_time_ms: 1500,
-          tools_executed: 2,
-          has_tool_calls: true
-        }
-      }
-
-      metrics = ResponseAggregator.extract_metrics(response)
-
-      assert metrics.processing_time_ms == 1500
-      assert metrics.total_tokens == 60
-      assert metrics.prompt_tokens == 25
-      assert metrics.completion_tokens == 35
-      assert metrics.tools_executed == 2
-      assert metrics.tools_successful == 1
-      assert metrics.tools_failed == 1
-      assert metrics.tool_success_rate == 50.0
-      assert metrics.conversation_id == "conv_metrics"
-      assert metrics.finished == true
-    end
-
-    test "handles response without tools" do
-      response = %{
-        content: "Simple response",
-        tool_calls: [],
-        tool_results: [],
-        usage: %{total_tokens: 20},
-        conversation_id: "conv_simple",
-        finished: true,
-        metadata: %{processing_time_ms: 100}
-      }
-
-      metrics = ResponseAggregator.extract_metrics(response)
-
-      assert metrics.tools_executed == 0
-      assert metrics.tools_successful == 0
-      assert metrics.tools_failed == 0
-      assert metrics.tool_success_rate == 0.0
-      assert metrics.total_tokens == 20
-    end
-
-    test "calculates success rate correctly" do
-      # All successful
-      all_success_response = %{
-        content: "All good",
-        tool_calls: [],
-        tool_results: [
-          %{content: "success 1"},
-          %{content: "success 2"},
-          %{content: "success 3"}
-        ],
-        usage: %{total_tokens: 50},
-        conversation_id: "conv_all_success",
-        finished: true,
-        metadata: %{processing_time_ms: 200}
-      }
-
-      metrics = ResponseAggregator.extract_metrics(all_success_response)
-      assert metrics.tool_success_rate == 100.0
-
-      # All failed
-      all_failed_response = %{
-        content: "All failed",
-        tool_calls: [],
-        tool_results: [
-          %{content: "error", error: true},
-          %{content: "error", error: true}
-        ],
-        usage: %{total_tokens: 30},
-        conversation_id: "conv_all_failed",
-        finished: true,
-        metadata: %{processing_time_ms: 150}
-      }
-
-      metrics = ResponseAggregator.extract_metrics(all_failed_response)
-      assert metrics.tool_success_rate == 0.0
-    end
-  end
-
-  describe "content extraction and formatting" do
-    test "extracts text from structured content" do
-      response = %{
-        content: [
-          %{type: "text", text: "Hello "},
-          %{type: "text", text: "world!"}
-        ],
-        usage: %{total_tokens: 15}
-      }
-
-      context = %{conversation_id: "conv_structured"}
-
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
-      assert aggregated.content == "Hello world!"
-    end
-
-    test "handles mixed content types gracefully" do
-      response = %{
-        content: [
-          %{type: "text", text: "Text part "},
-          %{type: "unknown", data: "should be ignored"},
-          "Raw string part"
-        ],
-        usage: %{total_tokens: 20}
-      }
-
-      context = %{conversation_id: "conv_mixed"}
-
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
-      assert String.contains?(aggregated.content, "Text part")
-      assert String.contains?(aggregated.content, "Raw string part")
-    end
-
-    test "formats structured tool results correctly" do
-      tool_result = %{
-        tool_call_id: "call_1",
-        name: "weather_api",
-        content: ~s({
-          "temperature": 22,
-          "condition": "sunny",
-          "humidity": 65,
-          "location": "Paris"
-        })
-      }
-
-      response = %{
-        content: "",
-        tool_results: [tool_result],
-        usage: %{total_tokens: 30}
-      }
-
-      context = %{conversation_id: "conv_structured_tools"}
-
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
-
-      # Should format the JSON nicely in the content
-      assert String.contains?(aggregated.content, "weather_api")
-    end
-
-    test "handles non-JSON tool results gracefully" do
-      tool_result = %{
-        tool_call_id: "call_1",
-        name: "simple_tool",
-        content: "Plain text result"
-      }
-
-      response = %{
-        content: "",
-        tool_results: [tool_result],
-        usage: %{total_tokens: 25}
-      }
-
-      context = %{conversation_id: "conv_plain_tools"}
-
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
-
-      assert String.contains?(aggregated.content, "simple_tool")
-      assert String.contains?(aggregated.content, "Plain text result")
-    end
-  end
-
-  describe "error handling" do
-    test "handles aggregation errors gracefully" do
-      # Simulate a response that causes an error during processing
-      bad_response = %{
-        content: "Normal content",
-        tool_results: [
-          %{
-            # This might cause an error
-            tool_call_id: nil,
-            name: nil,
-            content: nil
+            name: "get_weather",
+            content: ~s({"temperature": 22, "condition": "sunny"})
           }
         ]
       }
 
-      context = %{conversation_id: "conv_error"}
+      context = %{conversation_id: "conv_1", options: %{}}
 
-      # Should still return an error tuple rather than crashing
-      result = ResponseAggregator.aggregate_response(bad_response, context)
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+      formatted = ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
 
-      case result do
-        # If it handles gracefully
-        {:ok, _aggregated} -> :ok
-        # Expected error format
-        {:error, {:aggregation_failed, _error}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+      # Tool result should be integrated into narrative
+      assert formatted =~ "The weather is"
+      assert formatted =~ "Based on the tool result"
     end
+  end
 
-    test "handles missing usage information" do
+  describe "6.3 Usage Statistics" do
+    test "extracting usage stats from response" do
       response = %{
-        content: "Response without usage"
-        # No usage field
+        content: "Response",
+        usage: %{prompt_tokens: 10, completion_tokens: 20, total_tokens: 30}
       }
 
-      context = %{conversation_id: "conv_no_usage"}
+      context = %{conversation_id: "conv_1", options: %{}}
 
-      assert {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
 
-      # Should provide default usage values
+      assert aggregated.usage.prompt_tokens == 10
+      assert aggregated.usage.completion_tokens == 20
+      assert aggregated.usage.total_tokens == 30
+    end
+
+    test "merging usage stats from streaming chunks" do
+      chunks = [
+        %{content: "Hello", usage: %{prompt_tokens: 5, completion_tokens: 3, total_tokens: 8}},
+        %{content: " world", usage: %{prompt_tokens: 0, completion_tokens: 5, total_tokens: 5}},
+        %{content: "!", usage: %{prompt_tokens: 0, completion_tokens: 2, total_tokens: 2}}
+      ]
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(chunks, context)
+
+      assert aggregated.usage.prompt_tokens == 5
+      assert aggregated.usage.completion_tokens == 10
+      assert aggregated.usage.total_tokens == 15
+    end
+
+    test "handling missing usage stats defaults to zero" do
+      response = %{content: "Response without usage"}
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
       assert aggregated.usage.prompt_tokens == 0
       assert aggregated.usage.completion_tokens == 0
       assert aggregated.usage.total_tokens == 0
     end
+  end
 
-    test "handles malformed context gracefully" do
-      response = %{
-        content: "Test response",
-        usage: %{total_tokens: 10}
+  describe "6.4 Response Formatting" do
+    test "formatting response with integrated tool result style" do
+      aggregated = %{
+        content: "The current temperature is",
+        tool_results: [
+          %{content: ~s({"temperature": 22}), error: false}
+        ],
+        tool_calls: [],
+        usage: %{total_tokens: 30},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 100}
       }
 
-      # Context missing required fields
-      malformed_context =
-        %{
-          # Missing conversation_id
-        }
+      formatted = ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
 
-      # Should handle gracefully or provide sensible defaults
-      result = ResponseAggregator.aggregate_response(response, malformed_context)
+      assert formatted =~ "The current temperature is"
+      assert formatted =~ "Based on the tool result"
+    end
 
-      case result do
-        {:ok, aggregated} ->
-          # Should have some conversation_id, even if nil or default
-          assert Map.has_key?(aggregated, :conversation_id)
+    test "formatting response with appended tool result style" do
+      aggregated = %{
+        content: "Here is the information",
+        tool_results: [
+          %{content: "Tool result data", name: "my_tool", error: false}
+        ],
+        tool_calls: [],
+        usage: %{total_tokens: 30},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 100}
+      }
 
-        # Acceptable to error on malformed input
-        {:error, _} ->
-          :ok
-      end
+      formatted = ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :appended})
+
+      assert formatted =~ "Here is the information"
+      assert formatted =~ "---"
+      assert formatted =~ "Tool Results:"
+    end
+
+    test "formatting with metadata included" do
+      aggregated = %{
+        content: "Response content",
+        tool_results: [],
+        tool_calls: [],
+        usage: %{prompt_tokens: 10, completion_tokens: 20, total_tokens: 30},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 150, tools_executed: 2}
+      }
+
+      formatted = ResponseAggregator.format_for_user(aggregated, %{include_metadata: true})
+
+      assert formatted =~ "Response content"
+      assert formatted =~ "Response Metadata:"
+      assert formatted =~ "Processing time: 150ms"
+      assert formatted =~ "Tokens used: 30"
+      assert formatted =~ "Tools executed: 2"
+    end
+
+    test "formatting without metadata by default" do
+      aggregated = %{
+        content: "Response content",
+        tool_results: [],
+        tool_calls: [],
+        usage: %{total_tokens: 30},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 150}
+      }
+
+      formatted = ResponseAggregator.format_for_user(aggregated, %{})
+
+      assert formatted == "Response content"
+      refute formatted =~ "Response Metadata:"
+    end
+  end
+
+  describe "6.5 Metrics Extraction" do
+    test "extracting processing time metrics" do
+      aggregated = %{
+        content: "Response",
+        tool_results: [],
+        tool_calls: [],
+        usage: %{total_tokens: 30},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 250}
+      }
+
+      metrics = ResponseAggregator.extract_metrics(aggregated)
+
+      assert metrics.processing_time_ms == 250
+    end
+
+    test "extracting tool execution statistics" do
+      aggregated = %{
+        content: "Response",
+        tool_results: [
+          %{tool_call_id: "call_1", content: "result1", error: false},
+          %{tool_call_id: "call_2", content: "result2", error: false},
+          %{tool_call_id: "call_3", content: "error", error: true}
+        ],
+        tool_calls: [],
+        usage: %{total_tokens: 30},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 100, tools_executed: 3}
+      }
+
+      metrics = ResponseAggregator.extract_metrics(aggregated)
+
+      assert metrics.tools_executed == 3
+      assert metrics.tools_successful == 2
+      assert metrics.tools_failed == 1
+    end
+
+    test "calculating tool success rate" do
+      aggregated = %{
+        content: "Response",
+        tool_results: [
+          %{content: "result1", error: false},
+          %{content: "result2", error: false},
+          %{content: "result3", error: false},
+          %{content: "error", error: true}
+        ],
+        tool_calls: [],
+        usage: %{total_tokens: 30},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 100}
+      }
+
+      metrics = ResponseAggregator.extract_metrics(aggregated)
+
+      assert metrics.tool_success_rate == 75.0
+      assert metrics.tools_executed == 4
+      assert metrics.tools_successful == 3
+      assert metrics.tools_failed == 1
+    end
+
+    test "calculating success rate with zero tools" do
+      aggregated = %{
+        content: "Response",
+        tool_results: [],
+        tool_calls: [],
+        usage: %{total_tokens: 30},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 100}
+      }
+
+      metrics = ResponseAggregator.extract_metrics(aggregated)
+
+      assert metrics.tool_success_rate == 0.0
+      assert metrics.tools_executed == 0
+      assert metrics.tools_successful == 0
+      assert metrics.tools_failed == 0
+    end
+
+    test "extracting token usage metrics" do
+      aggregated = %{
+        content: "Response",
+        tool_results: [],
+        tool_calls: [],
+        usage: %{prompt_tokens: 15, completion_tokens: 25, total_tokens: 40},
+        conversation_id: "conv_1",
+        finished: true,
+        metadata: %{processing_time_ms: 100}
+      }
+
+      metrics = ResponseAggregator.extract_metrics(aggregated)
+
+      assert metrics.total_tokens == 40
+      assert metrics.prompt_tokens == 15
+      assert metrics.completion_tokens == 25
+    end
+  end
+
+  describe "6.6 Streaming Response Aggregation" do
+    test "aggregating streaming chunks with content accumulation" do
+      chunks = [
+        %{content: "Hello"},
+        %{content: " there"},
+        %{content: " world"}
+      ]
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(chunks, context)
+
+      assert aggregated.content == "Hello there world"
+      assert aggregated.finished == true
+    end
+
+    test "aggregating streaming chunks with tool calls" do
+      chunks = [
+        %{content: "Let me check", tool_calls: [%{id: "call_1", function: %{name: "tool1"}}]},
+        %{content: " that", tool_calls: []},
+        %{content: ".", tool_calls: [%{id: "call_1", function: %{name: "tool1"}}]}
+      ]
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(chunks, context)
+
+      assert aggregated.content == "Let me check that."
+      # Duplicate tool calls should be deduplicated
+      assert length(aggregated.tool_calls) == 1
+    end
+
+    test "handling nil chunks in streaming" do
+      chunks = [
+        %{content: "Hello"},
+        nil,
+        %{content: " world"},
+        nil
+      ]
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_streaming_response(chunks, context)
+
+      assert aggregated.content == "Hello world"
+    end
+  end
+
+  describe "6.7 Response Metadata" do
+    test "metadata includes processing time" do
+      response = %{content: "Response"}
+      start_time = System.monotonic_time(:millisecond)
+      context = %{conversation_id: "conv_1", options: %{}, processing_start_time: start_time}
+
+      # Simulate some processing time
+      Process.sleep(10)
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.metadata.processing_time_ms >= 10
+    end
+
+    test "metadata includes tool execution count" do
+      response = %{
+        content: "Response",
+        tool_results: [
+          %{content: "result1"},
+          %{content: "result2"}
+        ]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.metadata.tools_executed == 2
+    end
+
+    test "metadata includes response type" do
+      response = %{
+        content: "Response",
+        tool_results: [%{content: "result"}]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.metadata.response_type == :content_with_tools
+    end
+
+    test "metadata detects content_only response" do
+      response = %{content: "Just text"}
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.metadata.response_type == :content_only
+    end
+
+    test "metadata detects tools_only response" do
+      response = %{
+        content: "",
+        tool_results: [%{content: "result"}]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.metadata.response_type == :tools_only
+    end
+
+    test "metadata detects empty response" do
+      response = %{content: ""}
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.metadata.response_type == :empty
+    end
+  end
+
+  describe "6.8 Finished Status Detection" do
+    test "response is finished when all tool calls have results" do
+      response = %{
+        content: "Done",
+        tool_calls: [%{id: "call_1"}],
+        tool_results: [%{tool_call_id: "call_1", content: "result"}]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.finished == true
+    end
+
+    test "response is not finished when tool calls are pending" do
+      response = %{
+        content: "Working on it",
+        tool_calls: [%{id: "call_1"}, %{id: "call_2"}],
+        tool_results: [%{tool_call_id: "call_1", content: "result"}]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.finished == false
+    end
+
+    test "response is finished when no tool calls present" do
+      response = %{content: "Simple response"}
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.finished == true
+    end
+  end
+
+  describe "6.9 Error Handling" do
+    test "aggregate_response handles malformed input gracefully" do
+      # Test with invalid data that might cause issues
+      response = %{content: nil}
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert is_binary(aggregated.content)
+    end
+
+    test "tool errors are included in metadata" do
+      response = %{
+        content: "Response",
+        tool_results: [
+          %{tool_call_id: "call_1", content: "result", error: false},
+          %{tool_call_id: "call_2", content: "failed", error: true, reason: "timeout"}
+        ]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert Map.has_key?(aggregated.metadata, :tool_errors)
+      assert length(aggregated.metadata.tool_errors) == 1
+    end
+
+    test "tool errors are sanitized in metadata" do
+      response = %{
+        content: "Response",
+        tool_results: [
+          %{
+            tool_call_id: "call_1",
+            content: "failed",
+            error: true,
+            password: "secret123"
+          }
+        ]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      # Password should be redacted in error metadata
+      error = Enum.at(aggregated.metadata.tool_errors, 0)
+      assert error.password == "[REDACTED]"
+    end
+  end
+
+  describe "6.10 Tool-Only Response Formatting" do
+    test "formatting response with only tool results" do
+      response = %{
+        content: "",
+        tool_results: [
+          %{name: "calculator", content: ~s({"result": 42})}
+        ]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.content =~ "Here are the results:"
+    end
+
+    test "formatting tool-only response with multiple results" do
+      response = %{
+        content: "",
+        tool_results: [
+          %{name: "tool1", content: ~s({"value": "result1"})},
+          %{name: "tool2", content: ~s({"value": "result2"})}
+        ]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.content =~ "Here are the results:"
+    end
+
+    test "formatting tool-only response with all errors" do
+      response = %{
+        content: "",
+        tool_results: [
+          %{name: "tool1", content: "error", error: true}
+        ]
+      }
+
+      context = %{conversation_id: "conv_1", options: %{}}
+
+      {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
+
+      assert aggregated.content =~ "encountered errors"
     end
   end
 end

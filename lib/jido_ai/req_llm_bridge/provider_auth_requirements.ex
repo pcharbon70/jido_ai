@@ -418,8 +418,8 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirements do
     Enum.reduce(requirements.required_keys, %{}, fn key, acc ->
       value =
         Keyword.get(opts, key) ||
-          Keyring.get_session_value(:default, key, session_pid) ||
-          Keyring.get_env_value(:default, key) ||
+          Keyring.get_session_value(Jido.AI.Keyring, key, session_pid) ||
+          Keyring.get_env_value(Jido.AI.Keyring, key) ||
           System.get_env(requirements.env_var)
 
       if value do
@@ -436,8 +436,8 @@ defmodule Jido.AI.ReqLlmBridge.ProviderAuthRequirements do
     Enum.reduce(optional_keys, params, fn key, acc ->
       value =
         Keyword.get(opts, key) ||
-          Keyring.get_session_value(:default, key, session_pid) ||
-          Keyring.get_env_value(:default, key) ||
+          Keyring.get_session_value(Jido.AI.Keyring, key, session_pid) ||
+          Keyring.get_env_value(Jido.AI.Keyring, key) ||
           get_optional_env_var(requirements, key)
 
       if value do

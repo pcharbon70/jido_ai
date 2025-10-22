@@ -162,22 +162,25 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
   @spec validate_performance_compatibility(atom(), non_neg_integer(), non_neg_integer()) ::
           :ok | {:error, map()}
   def validate_performance_compatibility(operation, iterations \\ 100, max_time_ms \\ 50) do
+    # Use the default Keyring server for performance testing
+    server = Jido.AI.Keyring
+
     {elapsed_microseconds, _results} =
       :timer.tc(fn ->
         case operation do
           :get ->
             for _i <- 1..iterations do
-              Keyring.get(:test_perf_key, "default")
+              Keyring.get(server, :test_perf_key, "default")
             end
 
           :set_session ->
             for i <- 1..iterations do
-              Keyring.set_session_value(:"test_perf_key_#{i}", "test_value")
+              Keyring.set_session_value(server, :"test_perf_key_#{i}", "test_value")
             end
 
           :get_env ->
             for _i <- 1..iterations do
-              Keyring.get_env_value(:test_perf_key, "default")
+              Keyring.get_env_value(server, :test_perf_key, "default")
             end
 
           _ ->
@@ -220,7 +223,11 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
   @spec map_configuration_compatibility(map(), map()) :: map()
   def map_configuration_compatibility(jido_keys_config, keyring_config) do
     # Merge configurations while preserving existing patterns
-    merged_config = Map.merge(keyring_config, jido_keys_config)
+    # Handle nil and invalid configs
+    jido_config = if is_map(jido_keys_config), do: jido_keys_config, else: %{}
+    keyring_conf = if is_map(keyring_config), do: keyring_config, else: %{}
+
+    merged_config = Map.merge(keyring_conf, jido_config)
 
     # Apply compatibility mappings
     merged_config
