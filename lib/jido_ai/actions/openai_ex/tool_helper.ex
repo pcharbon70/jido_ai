@@ -71,7 +71,10 @@ defmodule Jido.AI.Actions.OpenaiEx.ToolHelper do
   """
   @spec handle_tool_call(map(), [module()]) :: {:ok, term()} | {:error, term()}
   # Handle OpenAI format with function key
-  def handle_tool_call(%{function: %{name: name, arguments: arguments}} = _tool_call, available_actions) do
+  def handle_tool_call(
+        %{function: %{name: name, arguments: arguments}} = _tool_call,
+        available_actions
+      ) do
     with {:ok, arguments} <- Jason.decode(arguments),
          {:ok, action} <- find_action(name, available_actions),
          {:ok, params} <- convert_params(arguments, action),

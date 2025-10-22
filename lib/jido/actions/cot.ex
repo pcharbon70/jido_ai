@@ -401,21 +401,16 @@ defmodule Jido.Actions.CoT do
 
     @impl true
     def run(params, _context) do
-      case perform_validation(params) do
-        {:ok, validation} ->
-          Logger.info("""
-          [CoT Validation]
-          Status: #{validation.status}
-          Match Score: #{Float.round(validation.match_score, 2)}
-          Recommendation: #{validation.recommendation}
-          """)
+      {:ok, validation} = perform_validation(params)
 
-          {:ok, %{validation: validation}}
+      Logger.info("""
+      [CoT Validation]
+      Status: #{validation.status}
+      Match Score: #{Float.round(validation.match_score, 2)}
+      Recommendation: #{validation.recommendation}
+      """)
 
-        {:error, reason} = error ->
-          Logger.error("Validation failed: #{inspect(reason)}")
-          error
-      end
+      {:ok, %{validation: validation}}
     end
 
     @spec perform_validation(map()) :: {:ok, map()} | {:error, term()}
@@ -550,21 +545,16 @@ defmodule Jido.Actions.CoT do
            }
          }}
       else
-        case analyze_error(params) do
-          {:ok, correction} ->
-            Logger.info("""
-            [CoT Self-Correction]
-            Attempt: #{params.attempt + 1}/#{params.max_attempts}
-            Analysis: #{correction.analysis}
-            Strategy: #{correction.strategy}
-            """)
+        {:ok, correction} = analyze_error(params)
 
-            {:ok, %{correction: correction}}
+        Logger.info("""
+        [CoT Self-Correction]
+        Attempt: #{params.attempt + 1}/#{params.max_attempts}
+        Analysis: #{correction.analysis}
+        Strategy: #{correction.strategy}
+        """)
 
-          {:error, reason} = error ->
-            Logger.error("Self-correction failed: #{inspect(reason)}")
-            error
-        end
+        {:ok, %{correction: correction}}
       end
     end
 

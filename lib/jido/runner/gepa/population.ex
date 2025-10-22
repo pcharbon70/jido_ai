@@ -124,7 +124,6 @@ defmodule Jido.Runner.GEPA.Population do
   end
 
   defp do_new(size, opts) do
-
     generation = Keyword.get(opts, :generation, 0)
     now = System.monotonic_time(:millisecond)
 

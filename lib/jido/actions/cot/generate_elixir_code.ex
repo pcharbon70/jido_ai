@@ -287,11 +287,9 @@ defmodule Jido.Actions.CoT.GenerateElixirCode do
       max_tokens: 2000
     }
 
-    # Try to use Jido.AI.Actions.ChatCompletion if available
+    # Try to use Jido.AI.Actions.ReqLlm.ChatCompletion if available
     try do
-      chat_action = Jido.AI.Actions.ChatCompletion.new!(params)
-
-      case Jido.AI.Actions.ChatCompletion.run(chat_action.params, context) do
+      case Jido.AI.Actions.ReqLlm.ChatCompletion.run(params, context) do
         {:ok, result, _context} ->
           # Extract content from response
           content =

@@ -255,9 +255,6 @@ defmodule Jido.Runner.ReAct do
           {:error, parse_reason} ->
             {:error, {:parse_failed, parse_reason}}
         end
-
-      {:error, reason} ->
-        {:error, {:thought_generation_failed, reason}}
     end
   end
 

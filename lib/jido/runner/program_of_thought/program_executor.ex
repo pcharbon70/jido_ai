@@ -116,6 +116,8 @@ defmodule Jido.Runner.ProgramOfThought.ProgramExecutor do
         end
 
       # Get the result by calling Solution.solve/0
+      # Note: Solution module is dynamically compiled in the sandbox above,
+      # so the compiler warning about undefined module is expected and can be ignored
       result = Solution.solve()
 
       {:ok, %{value: result, output: output}}

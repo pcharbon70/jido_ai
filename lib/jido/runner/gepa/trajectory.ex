@@ -130,12 +130,9 @@ defmodule Jido.Runner.GEPA.Trajectory do
   end
 
   typedstruct do
-    @moduledoc """
-    Complete execution trajectory for a prompt evaluation.
-
-    Contains the full sequence of steps, state snapshots, timing data,
-    and outcome information for reflection analysis.
-    """
+    # Complete execution trajectory for a prompt evaluation.
+    # Contains the full sequence of steps, state snapshots, timing data,
+    # and outcome information for reflection analysis.
 
     field(:id, String.t(), enforce: true)
     field(:steps, list(Step.t()), default: [])
@@ -360,7 +357,8 @@ defmodule Jido.Runner.GEPA.Trajectory do
         step_level = importance_to_level(step.importance)
 
         # Always keep first and last if requested
-        is_boundary = preserve_first_last and (index == 0 or index == length(trajectory.steps) - 1)
+        is_boundary =
+          preserve_first_last and (index == 0 or index == length(trajectory.steps) - 1)
 
         is_boundary or step_level >= importance_threshold
       end)

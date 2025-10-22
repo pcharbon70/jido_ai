@@ -631,7 +631,11 @@ defmodule Jido.Runner.GEPA.Evaluator do
 
   @doc false
   @spec calculate_accuracy_score(Trajectory.t(), Signal.t(), EvaluationConfig.t()) :: float()
-  defp calculate_accuracy_score(%Trajectory{} = trajectory, %Signal{} = response, %EvaluationConfig{} = _config) do
+  defp calculate_accuracy_score(
+         %Trajectory{} = trajectory,
+         %Signal{} = response,
+         %EvaluationConfig{} = _config
+       ) do
     # Placeholder accuracy calculation
     # In a real implementation, this would compare the agent's output to expected results
     # For now, base it on response presence and trajectory completion

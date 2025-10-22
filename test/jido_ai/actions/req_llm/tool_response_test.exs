@@ -157,7 +157,11 @@ defmodule Jido.AI.Actions.ReqLlm.ToolResponseTest do
     test "handles invalid model" do
       prompt = Prompt.new(:user, "Hello")
 
-      result = ToolResponse.run(%{model: %Model{provider: :invalid, model: "test"}, prompt: prompt, tools: []}, %{})
+      result =
+        ToolResponse.run(
+          %{model: %Model{provider: :invalid, model: "test"}, prompt: prompt, tools: []},
+          %{}
+        )
 
       assert match?({:error, _}, result)
     end
