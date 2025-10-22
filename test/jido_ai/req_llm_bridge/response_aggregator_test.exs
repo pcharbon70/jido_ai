@@ -138,7 +138,9 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
       context = %{conversation_id: "conv_1", options: %{}}
 
       {:ok, aggregated} = ResponseAggregator.aggregate_response(response, context)
-      formatted = ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
+
+      formatted =
+        ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
 
       # Tool result should be integrated into narrative
       assert formatted =~ "The weather is"
@@ -204,7 +206,8 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregatorTest do
         metadata: %{processing_time_ms: 100}
       }
 
-      formatted = ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
+      formatted =
+        ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
 
       assert formatted =~ "The current temperature is"
       assert formatted =~ "Based on the tool result"

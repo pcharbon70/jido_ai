@@ -13,8 +13,9 @@ defmodule Jido.AI.Schemas.ChatResponseSchema do
   use Jido.AI.Schema
 
   defschema "A chat response from an AI assistant." do
-    field :response, :string,
+    field(:response, :string,
       required: true,
       doc: "The natural language response text"
+    )
   end
 end

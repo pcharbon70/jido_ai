@@ -54,7 +54,8 @@ defmodule Jido.AI.Actions.Internal.ChatResponse do
 
   use Jido.Action,
     name: "get_chat_response_internal",
-    description: "Get a natural language response from the AI assistant (internal implementation)",
+    description:
+      "Get a natural language response from the AI assistant (internal implementation)",
     schema: [
       model: [
         type: {:custom, Jido.AI.Model, :validate_model_opts, []},
@@ -168,7 +169,10 @@ defmodule Jido.AI.Actions.Internal.ChatResponse do
             )
 
           {:error, validation_errors} ->
-            Logger.error("Chat response validation failed after all retries: #{validation_errors}")
+            Logger.error(
+              "Chat response validation failed after all retries: #{validation_errors}"
+            )
+
             {:error, "Response validation failed: #{validation_errors}"}
         end
 

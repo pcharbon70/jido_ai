@@ -144,7 +144,9 @@ defmodule Jido.AI.ReqLlmBridge.ResponseAggregator do
       {accumulated_content, tool_data, usage_data} =
         Enum.reduce(stream_chunks, {"", [], %{}}, fn
           # Skip nil chunks
-          nil, acc -> acc
+          nil, acc ->
+            acc
+
           # Process valid chunks
           chunk, {content, tools, usage} ->
             chunk_content = extract_chunk_content(chunk)

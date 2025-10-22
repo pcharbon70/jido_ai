@@ -67,6 +67,7 @@ defmodule Jido.AI.Schema do
       unquote(block)
 
       def __schema__(:doc), do: @schema_doc
+
       def __schema__(:fields) do
         @schema_fields
         |> Enum.reverse()

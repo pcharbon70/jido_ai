@@ -161,7 +161,9 @@ defmodule Jido.AI.ReqLlmBridge.StreamingAdapterTest do
         %{content: "should not reach", finish_reason: nil}
       ]
 
-      stream = StreamingAdapter.adapt_stream(chunks, error_recovery: false, resource_cleanup: false)
+      stream =
+        StreamingAdapter.adapt_stream(chunks, error_recovery: false, resource_cleanup: false)
+
       results = Enum.to_list(stream)
 
       # take_while stops BEFORE emitting the element that fails the test

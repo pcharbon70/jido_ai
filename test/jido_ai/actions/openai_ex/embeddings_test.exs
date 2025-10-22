@@ -42,8 +42,8 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsTest do
     } do
       # Mock ReqLLM.Embedding.embed/3 call
       expect(ReqLLM.Embedding, :embed, fn "openai:text-embedding-ada-002",
-                                           ["Hello, world!"],
-                                           [] ->
+                                          ["Hello, world!"],
+                                          [] ->
         {:ok, [[0.1, 0.2, 0.3]]}
       end)
 
@@ -59,8 +59,8 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsTest do
 
       # Mock ReqLLM.Embedding.embed/3 call
       expect(ReqLLM.Embedding, :embed, fn "openai:text-embedding-ada-002",
-                                           ["Hello", "World"],
-                                           [] ->
+                                          ["Hello", "World"],
+                                          [] ->
         {:ok, [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]}
       end)
 
@@ -81,8 +81,8 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsTest do
 
       # Mock ReqLLM.Embedding.embed/3 call with options
       expect(ReqLLM.Embedding, :embed, fn "openai:text-embedding-ada-002",
-                                           ["Hello, world!"],
-                                           [encoding_format: :base64, dimensions: 1024] ->
+                                          ["Hello, world!"],
+                                          [encoding_format: :base64, dimensions: 1024] ->
         {:ok, [[0.1, 0.2, 0.3]]}
       end)
 
@@ -106,8 +106,8 @@ defmodule JidoTest.AI.Actions.OpenaiEx.EmbeddingsTest do
 
       # Mock ReqLLM.Embedding.embed/3 call for OpenRouter
       expect(ReqLLM.Embedding, :embed, fn "openrouter:openai/text-embedding-3-large",
-                                           ["Hello, world!"],
-                                           [] ->
+                                          ["Hello, world!"],
+                                          [] ->
         {:ok, [[0.1, 0.2, 0.3]]}
       end)
 

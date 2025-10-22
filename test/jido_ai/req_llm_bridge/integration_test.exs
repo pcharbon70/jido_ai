@@ -2,6 +2,7 @@ defmodule Jido.AI.ReqLlmBridge.IntegrationTest do
   use ExUnit.Case, async: false
 
   alias Jido.AI.ReqLlmBridge
+
   alias Jido.AI.ReqLlmBridge.{
     Authentication,
     ConversationManager,
@@ -41,7 +42,8 @@ defmodule Jido.AI.ReqLlmBridge.IntegrationTest do
 
       # Assert we get a valid tool descriptor (ToolBuilder succeeds)
       assert {:ok, descriptor} = result
-      assert descriptor.name == "sleep_action"  # Action name includes "_action" suffix
+      # Action name includes "_action" suffix
+      assert descriptor.name == "sleep_action"
       assert is_function(descriptor.callback, 1)
 
       # Attempt to execute the tool with valid parameters using the callback
@@ -113,12 +115,14 @@ defmodule Jido.AI.ReqLlmBridge.IntegrationTest do
         content: "Let me check that",
         tool_calls: [%{id: "call_1", name: "weather"}]
       }
+
       :ok = ConversationManager.add_assistant_response(conv_id, response)
 
       # Add tool results
       tool_results = [
         %{tool_call_id: "call_1", name: "weather", content: "Sunny, 22°C"}
       ]
+
       :ok = ConversationManager.add_tool_results(conv_id, tool_results)
 
       # Verify all messages in history
@@ -156,6 +160,7 @@ defmodule Jido.AI.ReqLlmBridge.IntegrationTest do
         content: "Let me calculate that",
         tool_calls: [%{id: "call_1", name: "calculator"}]
       }
+
       :ok = ConversationManager.add_assistant_response(conv_id, response)
 
       # Add tool results
@@ -193,7 +198,9 @@ defmodule Jido.AI.ReqLlmBridge.IntegrationTest do
       assert Enum.at(aggregated.tool_results, 0).content == "42"
 
       # Format for user
-      formatted = ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
+      formatted =
+        ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
+
       assert is_binary(formatted)
       assert formatted =~ "Based on the calculation"
     end
@@ -216,7 +223,9 @@ defmodule Jido.AI.ReqLlmBridge.IntegrationTest do
       assert length(aggregated.tool_results) == 1
 
       # Format with integrated style
-      formatted = ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
+      formatted =
+        ResponseAggregator.format_for_user(aggregated, %{tool_result_style: :integrated})
+
       assert formatted =~ "The answer is"
       assert formatted =~ "Based on the tool result"
     end
@@ -405,14 +414,18 @@ defmodule Jido.AI.ReqLlmBridge.IntegrationTest do
       # Assistant responds with tool call
       response = %{
         content: "Let me calculate that",
-        tool_calls: [%{id: "call_1", function: %{name: "calculator", arguments: ~s({"a": 2, "b": 2})}}]
+        tool_calls: [
+          %{id: "call_1", function: %{name: "calculator", arguments: ~s({"a": 2, "b": 2})}}
+        ]
       }
+
       :ok = ConversationManager.add_assistant_response(conv_id, response)
 
       # Tool execution (simulated)
       tool_results = [
         %{tool_call_id: "call_1", name: "calculator", content: ~s({"result": 4})}
       ]
+
       :ok = ConversationManager.add_tool_results(conv_id, tool_results)
 
       # Assistant final response
@@ -503,7 +516,8 @@ defmodule Jido.AI.ReqLlmBridge.IntegrationTest do
       }
 
       start_time = System.monotonic_time(:millisecond)
-      Process.sleep(50)  # Simulate processing time
+      # Simulate processing time
+      Process.sleep(50)
 
       context = %{
         conversation_id: "conv_1",

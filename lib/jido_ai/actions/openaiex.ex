@@ -424,7 +424,8 @@ defmodule Jido.AI.Actions.OpenaiEx do
             ReqLLM.Tool.new(
               name: func[:name] || func["name"],
               description: func[:description] || func["description"],
-              parameter_schema: convert_parameters_to_schema(func[:parameters] || func["parameters"]),
+              parameter_schema:
+                convert_parameters_to_schema(func[:parameters] || func["parameters"]),
               callback: fn _args -> {:ok, "Tool not executable in test"} end
             )
 

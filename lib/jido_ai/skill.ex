@@ -23,7 +23,8 @@ defmodule Jido.AI.Skill do
     chat_action: [
       type: {:custom, Jido.Util, :validate_actions, []},
       default: Jido.AI.Actions.Internal.ChatResponse,
-      doc: "The chat action to use (now uses internal implementation for broader provider support)"
+      doc:
+        "The chat action to use (now uses internal implementation for broader provider support)"
     ],
     tool_action: [
       type: {:custom, Jido.Util, :validate_actions, []},
@@ -89,8 +90,16 @@ defmodule Jido.AI.Skill do
     end
 
     # Add deprecation warning if using Instructor
-    if chat_action in [Jido.AI.Actions.Instructor.ChatResponse, Jido.AI.Actions.Instructor.BooleanResponse, Jido.AI.Actions.Instructor.ChoiceResponse] or
-       boolean_action in [Jido.AI.Actions.Instructor.ChatResponse, Jido.AI.Actions.Instructor.BooleanResponse, Jido.AI.Actions.Instructor.ChoiceResponse] do
+    if chat_action in [
+         Jido.AI.Actions.Instructor.ChatResponse,
+         Jido.AI.Actions.Instructor.BooleanResponse,
+         Jido.AI.Actions.Instructor.ChoiceResponse
+       ] or
+         boolean_action in [
+           Jido.AI.Actions.Instructor.ChatResponse,
+           Jido.AI.Actions.Instructor.BooleanResponse,
+           Jido.AI.Actions.Instructor.ChoiceResponse
+         ] do
       Logger.warning("""
       Instructor actions are deprecated and will be removed in v0.7.0.
       Please migrate to Jido.AI.Actions.Internal.* for:
@@ -136,8 +145,7 @@ defmodule Jido.AI.Skill do
     [
       {"jido.ai.chat.response", %Instruction{action: Jido.AI.Actions.Internal.ChatResponse}},
       {"jido.ai.tool.response", %Instruction{action: Jido.AI.Actions.ReqLlm.ToolResponse}},
-      {"jido.ai.boolean.response",
-       %Instruction{action: Jido.AI.Actions.Internal.BooleanResponse}}
+      {"jido.ai.boolean.response", %Instruction{action: Jido.AI.Actions.Internal.BooleanResponse}}
     ]
   end
 

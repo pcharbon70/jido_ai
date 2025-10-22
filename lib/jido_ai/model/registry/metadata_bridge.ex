@@ -349,8 +349,7 @@ defmodule Jido.AI.Model.Registry.MetadataBridge do
       name: reqllm_model.model,
       provider_name: Atom.to_string(reqllm_model.provider),
       context_length: get_limit_field(limit, :context) || 8192,
-      max_completion_tokens:
-        get_limit_field(limit, :output) || reqllm_model.max_tokens || 4096,
+      max_completion_tokens: get_limit_field(limit, :output) || reqllm_model.max_tokens || 4096,
       max_prompt_tokens: nil,
       quantization: nil,
       supported_parameters: infer_supported_parameters(reqllm_model),

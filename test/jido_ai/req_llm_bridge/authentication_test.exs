@@ -163,6 +163,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
       # Should get error
       assert {:error, reason} = result
       assert is_binary(reason)
+
       assert String.contains?(String.downcase(reason), "api key") or
                String.contains?(String.downcase(reason), "authentication")
     end
