@@ -8,10 +8,10 @@ ExUnit.start(
   # Reduced concurrency to prevent memory leaks
   timeout: 120_000,
   # Longer timeout for integration tests
-  # Exclude only performance benchmarks by default (real API calls with multiple samples)
-  # Provider validation tests now run by default after memory leak fix
-  # Run with: mix test --include performance_benchmarks
-  exclude: [:performance_benchmarks]
+  # Exclude performance benchmarks, integration tests, and tests requiring API keys by default
+  # Integration tests require real API credentials and network connectivity
+  # Run with: mix test --include integration --include requires_api --include performance_benchmarks
+  exclude: [:performance_benchmarks, :integration, :requires_api]
 )
 
 # Global setup to clear cache after each test
@@ -46,4 +46,7 @@ if Code.loaded?(Mimic) do
   Mimic.copy(Jido.AI.Keyring)
   Mimic.copy(Jido.Exec)
   Mimic.copy(Jido.AI.Actions.OpenaiEx)
+  # GEPA test infrastructure
+  Mimic.copy(Jido.AI.Actions.Internal.ChatResponse)
+  Mimic.copy(Jido.Agent.Server)
 end

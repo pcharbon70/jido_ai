@@ -1,10 +1,15 @@
 defmodule Jido.Runner.GEPA.EvaluatorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
+  use Jido.Runner.GEPA.TestCase
 
   alias Jido.Runner.GEPA.Evaluator
   alias Jido.Runner.GEPA.Evaluator.EvaluationResult
 
   describe "evaluate_prompt/2" do
+    setup do
+      setup_mock_model(:openai, scenario: :success)
+    end
+
     test "evaluates a single prompt successfully" do
       prompt = "Think step by step and solve the problem"
       task = %{type: :reasoning, prompt: "What is 2+2?"}
@@ -28,11 +33,13 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
     end
 
     test "handles evaluation timeout" do
+      # Override setup with timeout scenario
+      {:ok, _context} = setup_mock_model(:openai, scenario: :timeout)
+
       prompt = "Test prompt"
       task = %{type: :reasoning, prompt: "Long running task"}
 
-      # Use very short timeout to force timeout
-      {:ok, result} = Evaluator.evaluate_prompt(prompt, task: task, timeout: 1)
+      {:ok, result} = Evaluator.evaluate_prompt(prompt, task: task, timeout: 5_000)
 
       assert %EvaluationResult{} = result
       assert result.prompt == prompt
@@ -58,7 +65,7 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
       task = %{type: :reasoning}
 
       custom_ai_config = [
-        model: %{provider: :openai, model: "gpt-4"},
+        model: {:openai, model: "gpt-4"},
         verbose: true
       ]
 
@@ -71,6 +78,10 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
   end
 
   describe "evaluate_batch/2" do
+    setup do
+      setup_mock_model(:openai, scenario: :success)
+    end
+
     test "evaluates multiple prompts concurrently" do
       prompts = [
         "Approach 1: Think step by step",
@@ -179,6 +190,10 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
   end
 
   describe "evaluation result structure" do
+    setup do
+      setup_mock_model(:openai, scenario: :success)
+    end
+
     test "includes all required fields" do
       prompt = "Test prompt"
       task = %{type: :reasoning}
@@ -230,13 +245,17 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
   end
 
   describe "agent configuration merging" do
+    setup do
+      setup_mock_model(:openai, scenario: :success)
+    end
+
     test "merges prompt with base configuration" do
       prompt = "Custom prompt for testing"
       task = %{type: :reasoning}
 
       base_opts = [
         ai: [
-          model: %{provider: :openai, model: "gpt-4"},
+          model: {:openai, model: "gpt-4"},
           verbose: false
         ]
       ]
@@ -260,15 +279,21 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
   end
 
   describe "timeout enforcement" do
+    setup do
+      setup_mock_model(:openai, scenario: :success)
+    end
+
     test "enforces timeout on long-running evaluations" do
+      # Override with timeout scenario
+      {:ok, _context} = setup_mock_model(:openai, scenario: :timeout)
+
       prompt = "Test prompt"
       task = %{type: :reasoning}
 
-      # Very short timeout should cause timeout
-      {:ok, result} = Evaluator.evaluate_prompt(prompt, task: task, timeout: 1)
+      {:ok, result} = Evaluator.evaluate_prompt(prompt, task: task, timeout: 5_000)
 
-      # Should timeout or complete very quickly
-      assert result.error == :timeout or is_integer(result.metrics.duration_ms)
+      # Should timeout
+      assert result.error == :timeout
     end
 
     test "allows successful completion within timeout" do
@@ -307,6 +332,10 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
   end
 
   describe "concurrent execution" do
+    setup do
+      setup_mock_model(:openai, scenario: :success)
+    end
+
     test "executes multiple evaluations in parallel" do
       prompts = Enum.map(1..4, fn i -> "Prompt #{i}" end)
       task = %{type: :reasoning}
@@ -365,6 +394,10 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
   end
 
   describe "agent lifecycle management" do
+    setup do
+      setup_mock_model(:openai, scenario: :success)
+    end
+
     test "cleans up agent process after evaluation" do
       prompt = "Test prompt"
       task = %{type: :reasoning}
@@ -400,13 +433,15 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
     end
 
     test "cleans up even when evaluation fails" do
+      # Override with timeout scenario
+      {:ok, _context} = setup_mock_model(:openai, scenario: :timeout)
+
       prompt = "Test prompt"
       task = %{type: :reasoning}
 
       initial_processes = length(Process.list())
 
-      # Force timeout
-      {:ok, _result} = Evaluator.evaluate_prompt(prompt, task: task, timeout: 1)
+      {:ok, _result} = Evaluator.evaluate_prompt(prompt, task: task, timeout: 5_000)
 
       # Wait for cleanup
       Process.sleep(100)
@@ -419,6 +454,10 @@ defmodule Jido.Runner.GEPA.EvaluatorTest do
   end
 
   describe "error handling" do
+    setup do
+      setup_mock_model(:openai, scenario: :success)
+    end
+
     test "handles agent spawn failures gracefully" do
       # This test is tricky - we'd need to mock the spawn to fail
       # For now, verify that error results have correct structure

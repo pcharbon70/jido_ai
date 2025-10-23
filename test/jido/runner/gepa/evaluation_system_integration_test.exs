@@ -878,9 +878,9 @@ defmodule Jido.Runner.GEPA.EvaluationSystemIntegrationTest do
       all_metrics =
         Enum.reduce(results, all_metrics, fn result, acc ->
           if result.error == nil do
-            Metrics.add_metric(acc, :success_rate, 1.0, task_id: task.id)
+            Metrics.add_metric(acc, :success_rate, 1.0)
           else
-            Metrics.add_metric(acc, :success_rate, 0.0, task_id: task.id)
+            Metrics.add_metric(acc, :success_rate, 0.0)
           end
         end)
 

@@ -200,6 +200,7 @@ defmodule Jido.Runner.GEPA.Evaluator do
     start_time = System.monotonic_time(:millisecond)
 
     # Use Task.async_stream for controlled concurrency
+    # Zip with prompts to preserve prompt on task exit
     results =
       prompts
       |> Task.async_stream(
@@ -210,9 +211,10 @@ defmodule Jido.Runner.GEPA.Evaluator do
         ordered: true,
         on_timeout: :kill_task
       )
+      |> Enum.zip(prompts)
       |> Enum.map(fn
-        {:ok, result} -> result
-        {:exit, reason} -> build_error_result("", {:agent_crashed, reason})
+        {{:ok, result}, _prompt} -> result
+        {{:exit, reason}, prompt} -> build_error_result(prompt, {:agent_crashed, reason})
       end)
 
     duration_ms = System.monotonic_time(:millisecond) - start_time
@@ -413,7 +415,11 @@ defmodule Jido.Runner.GEPA.Evaluator do
         %EvaluationResult{
           prompt: prompt,
           fitness: nil,
-          metrics: %{success: false, timeout: true},
+          metrics: %{
+            success: false,
+            timeout: true,
+            duration_ms: trajectory.duration_ms || 0
+          },
           trajectory: trajectory,
           error: :timeout
         }
@@ -435,7 +441,11 @@ defmodule Jido.Runner.GEPA.Evaluator do
         %EvaluationResult{
           prompt: prompt,
           fitness: nil,
-          metrics: %{success: false},
+          metrics: %{
+            success: false,
+            timeout: false,
+            duration_ms: trajectory.duration_ms || 0
+          },
           trajectory: trajectory,
           error: reason
         }
@@ -516,6 +526,8 @@ defmodule Jido.Runner.GEPA.Evaluator do
       fitness: fitness,
       metrics: %{
         success: true,
+        timeout: false,
+        duration_ms: trajectory.duration_ms || 0,
         response_type: response.type,
         trajectory_steps: length(trajectory.steps),
         trajectory_snapshots: length(trajectory.state_snapshots),
@@ -663,6 +675,9 @@ defmodule Jido.Runner.GEPA.Evaluator do
       Logger.debug("Cleaning up evaluation agent", pid: agent_pid)
 
       try do
+        # Unlink before stopping to prevent EXIT signal from killing calling process
+        # This is important for batch evaluations using Task.async_stream
+        Process.unlink(agent_pid)
         GenServer.stop(agent_pid, :normal, 1_000)
       catch
         :exit, reason ->
@@ -691,7 +706,11 @@ defmodule Jido.Runner.GEPA.Evaluator do
     %EvaluationResult{
       prompt: prompt,
       fitness: nil,
-      metrics: %{success: false},
+      metrics: %{
+        success: false,
+        timeout: false,
+        duration_ms: trajectory.duration_ms || 0
+      },
       trajectory: trajectory,
       error: error
     }
