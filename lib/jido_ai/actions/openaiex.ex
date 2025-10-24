@@ -399,20 +399,23 @@ defmodule Jido.AI.Actions.OpenaiEx do
     opts
   end
 
-  defp extract_provider_from_reqllm_id(reqllm_id) do
-    provider_str =
-      reqllm_id
-      |> String.split(":")
-      |> hd()
+  defp extract_provider_from_reqllm_id(reqllm_id) when is_binary(reqllm_id) do
+    case String.split(reqllm_id, ":") do
+      [provider_str | _] ->
+        # Create a safe string-to-atom mapping from ReqLLM's valid providers
+        # This avoids creating arbitrary atoms from user input
+        valid_providers =
+          ValidProviders.list()
+          |> Map.new(fn atom -> {to_string(atom), atom} end)
 
-    # Create a safe string-to-atom mapping from ReqLLM's valid providers
-    # This avoids creating arbitrary atoms from user input
-    valid_providers =
-      ValidProviders.list()
-      |> Map.new(fn atom -> {to_string(atom), atom} end)
+        Map.get(valid_providers, provider_str)
 
-    Map.get(valid_providers, provider_str)
+      [] ->
+        nil
+    end
   end
+
+  defp extract_provider_from_reqllm_id(_), do: nil
 
   defp convert_tools_for_reqllm(tools) when is_list(tools) do
     # Convert OpenAI format tool maps to ReqLLM.Tool structs
