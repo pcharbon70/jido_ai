@@ -842,7 +842,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzer do
   defp deduplicate_indicators(indicators) do
     indicators
     |> Enum.group_by(&{&1.type, &1.description})
-    |> Enum.map(fn {_key, group} -> hd(group) end)
+    |> Enum.map(fn {_key, [first | _rest]} -> first end)
   end
 
   defp generate_comparative_insights(differences, _successful, _failed) do

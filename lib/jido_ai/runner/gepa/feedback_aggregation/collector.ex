@@ -221,14 +221,13 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Collector do
 
   defp merge_suggestion_group([single]), do: single
 
-  defp merge_suggestion_group(group) do
-    first = hd(group)
-
+  defp merge_suggestion_group([first | _rest] = group) do
     all_sources = group |> Enum.flat_map(& &1.sources) |> Enum.uniq()
     all_contexts = group |> Enum.flat_map(& &1.contexts)
     all_impact_scores = group |> Enum.flat_map(& &1.edit_impact_scores)
 
     timestamps = Enum.map(group, & &1.first_seen)
+    # Safe min/max with DateTime comparator function
     first_seen = Enum.min(timestamps, DateTime)
     last_seen = Enum.max(timestamps, DateTime)
 

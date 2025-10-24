@@ -180,7 +180,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
     |> String.trim()
   end
 
-  defp create_failure_pattern(normalized_cause, causes, collection) do
+  defp create_failure_pattern(normalized_cause, [first_cause | _rest] = causes, collection) do
     frequency = length(causes) / max(collection.total_evaluations, 1)
     affected_evals = Enum.map(causes, & &1.evaluation_id) |> Enum.uniq()
 
@@ -196,7 +196,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
     %FailurePattern{
       id: generate_pattern_id(),
       pattern_type: pattern_type,
-      description: hd(causes).original,
+      description: first_cause.original,
       frequency: frequency,
       confidence: confidence,
       statistical_significance: p_value,

@@ -175,18 +175,18 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.ConflictResolver do
     %{group | resolved: true, selected_edit: selected}
   end
 
-  defp select_edit_from_group(edits, :highest_impact) do
-    Enum.max_by(edits, & &1.impact_score, fn -> hd(edits) end)
+  defp select_edit_from_group([first | _rest] = edits, :highest_impact) do
+    Enum.max_by(edits, & &1.impact_score, fn -> first end)
   end
 
-  defp select_edit_from_group(edits, :highest_priority) do
+  defp select_edit_from_group([first | _rest] = edits, :highest_priority) do
     priority_order = %{high: 3, medium: 2, low: 1}
 
-    Enum.max_by(edits, &Map.get(priority_order, &1.priority, 0), fn -> hd(edits) end)
+    Enum.max_by(edits, &Map.get(priority_order, &1.priority, 0), fn -> first end)
   end
 
-  defp select_edit_from_group(edits, :first) do
-    hd(edits)
+  defp select_edit_from_group([first | _rest], :first) do
+    first
   end
 
   defp select_edit_from_group(edits, _) do
