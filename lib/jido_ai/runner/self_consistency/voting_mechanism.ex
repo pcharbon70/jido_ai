@@ -199,6 +199,10 @@ defmodule Jido.AI.Runner.SelfConsistency.VotingMechanism do
     end
   end
 
+  defp majority_vote([], _tie_breaker) do
+    {:error, :no_paths}
+  end
+
   defp majority_vote(grouped, tie_breaker) do
     # Count votes for each answer
     vote_counts =
@@ -220,6 +224,10 @@ defmodule Jido.AI.Runner.SelfConsistency.VotingMechanism do
         # Tie-breaking needed
         break_tie(multiple_winners, tie_breaker)
     end
+  end
+
+  defp confidence_weighted_vote([], _tie_breaker) do
+    {:error, :no_paths}
   end
 
   defp confidence_weighted_vote(grouped, tie_breaker) do
@@ -248,6 +256,10 @@ defmodule Jido.AI.Runner.SelfConsistency.VotingMechanism do
     end
   end
 
+  defp quality_weighted_vote([], _tie_breaker) do
+    {:error, :no_paths}
+  end
+
   defp quality_weighted_vote(grouped, tie_breaker) do
     # Sum quality scores for each answer
     weighted_votes =
@@ -274,6 +286,10 @@ defmodule Jido.AI.Runner.SelfConsistency.VotingMechanism do
       multiple_winners ->
         break_tie(multiple_winners, tie_breaker)
     end
+  end
+
+  defp hybrid_vote([], _tie_breaker) do
+    {:error, :no_paths}
   end
 
   defp hybrid_vote(grouped, tie_breaker) do

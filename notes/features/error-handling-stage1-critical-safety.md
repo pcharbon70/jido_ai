@@ -1,634 +1,761 @@
-# Feature: Error Handling Stage 1 - Critical Safety Fixes
+# Feature: Error Handling Stage 1 - Critical Safety Fixes (UPDATED)
+
+**Last Updated**: 2025-10-24
+**Status**: Re-audit Complete - Ready for Implementation
+**Branch**: `feature/error-handling-stage1`
+**Audit Reference**: `notes/audits/codebase-safety-audit-2025-10-24.md`
 
 ## Problem Statement
 
-The JidoAI codebase contains critical safety vulnerabilities that cause immediate runtime crashes when encountering edge cases. Through comprehensive auditing, we identified 26 high-priority issues across 9 files where unsafe operations can crash GenServers and interrupt workflows:
+Post-namespace refactoring (Jido.* → Jido.AI.*), a comprehensive re-audit of the codebase identified **11 critical safety vulnerabilities** that cause immediate runtime crashes when encountering edge cases. These unsafe operations can crash GenServers and interrupt workflows:
 
 ### Critical Issues Causing Immediate Crashes:
 
-1. **Unsafe List Operations (9 occurrences in 9 files)**: Using `hd()` and `tl()` on potentially empty lists causes `ArgumentError`, crashing processes that attempt to access the first element of empty collections.
+1. **Unsafe List Operations (1 occurrence)**: Using `hd()` on `String.split()` result without validation can produce unexpected behavior with invalid input formats.
 
-2. **Unsafe Enumerable Operations (12 occurrences in 12 files)**: Using `Enum.min/max/min_by/max_by` on empty collections causes `Enum.EmptyError`, crashing during aggregation, optimization, and scoring operations.
+2. **Unsafe Enumerable Operations (4 occurrences)**: Using `Enum.max` on potentially empty vote_counts/weighted_votes in the voting mechanism causes `Enum.EmptyError`, crashing during consensus operations.
 
-3. **Unsafe Map Access (5 occurrences in 5 files)**: Using `Map.fetch!` on maps with potentially missing keys causes `KeyError`, crashing during state access and parameter validation.
+3. **Unsafe Map Access (6 occurrences)**: Using `Map.fetch!` on maps with potentially missing keys causes `KeyError`, crashing during:
+   - Tree node lookup operations
+   - GEPA candidate/task creation
+   - Action parameter extraction
 
 ### Impact:
 
-- **Agent Failures**: GenServer crashes interrupt agent workflows
-- **GEPA Optimization Failures**: Empty populations or feedback clusters crash optimization loops
-- **Chain-of-Thought Failures**: Empty reasoning paths crash CoT pattern execution
-- **Signal Routing Failures**: Empty route lists crash signal processing
+- **Self-Consistency Failures**: Empty reasoning paths crash voting consensus algorithms
+- **GEPA Optimization Failures**: Missing keys crash candidate creation and task scheduling
+- **Tree of Thoughts Failures**: Invalid parent IDs crash tree construction
+- **Action Execution Failures**: Missing required parameters crash action entry points
 - **Data Loss**: Unexpected crashes prevent graceful state cleanup
 
-These issues represent the highest priority fixes because they can cause immediate, unpredictable system failures under normal operating conditions.
+### Previous Fixes (Already Completed):
+
+During initial implementation, 5 unsafe `hd()` operations were already fixed in:
+- `lib/jido_ai/runner/gepa/feedback_aggregation/collector.ex:225`
+- `lib/jido_ai/runner/gepa/feedback_aggregation/pattern_detector.ex:199` (now line 183)
+- `lib/jido_ai/runner/gepa/trajectory_analyzer.ex:845`
+- `lib/jido_ai/runner/gepa/suggestion_generation/conflict_resolver.ex:178,182,188`
+
+These represent the highest priority remaining fixes because they can cause immediate, unpredictable system failures under normal operating conditions.
 
 ## Solution Overview
 
-Stage 1 implements defensive programming techniques to prevent crashes from unsafe operations:
+Stage 1 implements defensive programming techniques to prevent crashes from the 11 identified unsafe operations:
 
 ### Approach:
 
-1. **Pattern Matching for List Operations**: Replace `hd(list)` with pattern matching `[first | _rest]` or safe alternatives like `List.first(list, default)`
-
-2. **Guard Clauses for Enumerables**: Add guards validating non-empty collections before `Enum.min/max` operations, or use safe alternatives with default values
-
-3. **Safe Map Access**: Replace `Map.fetch!(map, key)` with:
-   - `Map.get(map, key, default)` for optional keys
-   - `Map.fetch(map, key)` with explicit error handling for required keys
-   - Pattern matching for required map structures
-
-4. **Error Propagation**: Return `{:ok, result}` | `{:error, reason}` tuples instead of crashing, allowing calling code to handle edge cases gracefully
-
-5. **Comprehensive Testing**: Add tests for all edge cases (empty lists, empty collections, missing keys) to prevent regressions
+1. **Pattern Matching for String Parsing**: Replace `String.split(":") |> hd()` with pattern matching and validation
+2. **Guard Clauses for Voting**: Add guards validating non-empty grouped paths before `Enum.max` operations
+3. **Safe Map Access**: Replace `Map.fetch!(map, key)` with `Map.fetch(map, key)` and explicit error handling
+4. **Error Propagation**: Return `{:ok, result}` | `{:error, reason}` tuples instead of crashing
+5. **Comprehensive Testing**: Add tests for all edge cases (empty collections, missing keys, invalid formats)
 
 ### Benefits:
 
 - **Reliability**: Graceful failure handling instead of crashes
-- **Debuggability**: Clear error messages identifying the issue
+- **Debuggability**: Clear error messages identifying the issue and context
 - **Maintainability**: Consistent patterns for safe operations
 - **Production Readiness**: Robust operation under edge cases
 
 ## Technical Details
 
-### Section 1.1: List Operation Safety (9 files)
+### Section 1.1: List Operation Safety (1 file)
 
-#### 1.1.1 GEPA Feedback Aggregation Fixes
+#### 1.1.1 OpenAI Provider Extraction Fix
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/feedback_aggregation/collector.ex:225`**
-- **Issue**: `hd(group)` crashes on empty feedback groups
-- **Fix**: Pattern match `[first | _rest] = group` with guard or `List.first(group)`
-- **Context**: Feedback group aggregation
-- **Error Type**: `ArgumentError` on empty list
+**File: `lib/jido_ai/actions/openaiex.ex:406`**
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/feedback_aggregation/pattern_detector.ex:199`**
-- **Issue**: `hd(causes).original` crashes on empty cause lists
-- **Fix**: Pattern match or safe extraction with default
-- **Context**: Pattern cause analysis
-- **Error Type**: `ArgumentError` on empty list
+```elixir
+# BEFORE (line 406):
+defp extract_provider_from_reqllm_id(reqllm_id) do
+  provider_str =
+    reqllm_id
+    |> String.split(":")
+    |> hd()
+  # ... rest of function
+end
 
-#### 1.1.2 Runner & Workflow Fixes
+# AFTER:
+defp extract_provider_from_reqllm_id(reqllm_id) when is_binary(reqllm_id) do
+  case String.split(reqllm_id, ":") do
+    [provider_str | _rest] ->
+      # Create a safe string-to-atom mapping from ReqLLM's valid providers
+      valid_providers =
+        ValidProviders.list()
+        |> Map.new(fn atom -> {to_string(atom), atom} end)
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/chain/workflow.ex:264`**
-- **Issue**: `hd(steps)` crashes on empty step lists
-- **Fix**: Pattern match `[first_step | _rest] = steps` with guard `when steps != []`
-- **Context**: Workflow step validation
-- **Error Type**: `ArgumentError` on empty list
+      Map.get(valid_providers, provider_str)
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/chain/workflow.ex:274`**
-- **Issue**: `hd(steps)` crashes in step chain validation
-- **Fix**: Pattern match or safe first step extraction
-- **Context**: Step chain dependency validation
-- **Error Type**: `ArgumentError` on empty list
+    [] ->
+      # Should not happen with String.split, but be defensive
+      nil
+  end
+end
 
-#### 1.1.3 Signal Processing Fixes
+defp extract_provider_from_reqllm_id(_invalid), do: nil
+```
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/signal/signal_router.ex:246`**
-- **Issue**: `hd(routes)` crashes on empty route lists
-- **Fix**: Pattern match `[first_route | _rest] = routes` or `List.first(routes)`
-- **Context**: Signal route selection
-- **Error Type**: `ArgumentError` on empty list
+- **Issue**: `String.split(":") |> hd()` - While String.split always returns at least one element, the function should handle invalid input gracefully
+- **Fix**: Pattern match on split result and add fallback clause for invalid input
+- **Context**: ReqLLM provider extraction from ID format "provider:model"
+- **Error Type**: Potential confusion with invalid reqllm_id formats
+- **Priority**: Medium
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/signal/signal_router.ex:260`**
-- **Issue**: `hd(routes)` crashes in route validation
-- **Fix**: Guard clause `when length(routes) > 0` or pattern matching
-- **Context**: Route validation and priority ordering
-- **Error Type**: `ArgumentError` on empty list
+**Test Helper File: `lib/jido_ai/actions/openai_ex/test_helpers.ex:36`**
+- Same pattern, update to match production code
 
-#### 1.1.4 Sensor & Test Fixture Fixes
+**Tests to Add:**
+```elixir
+test "extract_provider_from_reqllm_id handles empty string" do
+  assert extract_provider_from_reqllm_id("") == nil
+end
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/sensor/registry.ex:97`**
-- **Issue**: `hd(processes)` crashes on empty process lists
-- **Fix**: Pattern match or safe process selection with error tuple
-- **Context**: Sensor process selection from registry
-- **Error Type**: `ArgumentError` on empty list
+test "extract_provider_from_reqllm_id handles missing colon" do
+  assert extract_provider_from_reqllm_id("openai") in [valid_provider, nil]
+end
 
-**File: `/home/ducky/code/agentjido/cot/test/support/gepa_test_fixtures.ex:45`**
-- **Issue**: `hd(suggestions)` crashes in test data generation
-- **Fix**: Guard clause or pattern matching for test fixtures
-- **Context**: Test data extraction
-- **Error Type**: `ArgumentError` on empty list
+test "extract_provider_from_reqllm_id handles invalid provider" do
+  assert extract_provider_from_reqllm_id("invalid:model") == nil
+end
+```
 
-### Section 1.2: Enumerable Operation Safety (12 files)
+### Section 1.2: Enumerable Operation Safety (1 file, 4 occurrences)
 
-#### 1.2.1 GEPA Module Fixes
+#### 1.2.1 Self-Consistency Voting Mechanism Fixes
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/feedback_aggregation/collector.ex:232-233`**
-- **Issue**: `Enum.min/max` on timestamp collections crashes when empty
-- **Fix**: Guard `when length(timestamps) > 0` or `Enum.min(timestamps, fn -> default end)`
-- **Context**: Timestamp range calculation for feedback windows
+**File: `lib/jido_ai/runner/self_consistency/voting_mechanism.ex`**
+
+All four occurrences follow the same pattern: calling `Enum.max()` on a list that could be empty if `grouped` is empty.
+
+##### Fix 1: Line 210 - majority_vote
+
+```elixir
+# BEFORE (line 210):
+defp majority_vote(grouped, tie_breaker) do
+  vote_counts =
+    Enum.map(grouped, fn {answer, paths} ->
+      {answer, length(paths), paths}
+    end)
+
+  max_votes = vote_counts |> Enum.map(fn {_, count, _} -> count end) |> Enum.max()
+  # ... rest
+
+# AFTER:
+defp majority_vote([], _tie_breaker) do
+  {:error, :no_paths}
+end
+
+defp majority_vote(grouped, tie_breaker) do
+  vote_counts =
+    Enum.map(grouped, fn {answer, paths} ->
+      {answer, length(paths), paths}
+    end)
+
+  max_votes = vote_counts |> Enum.map(fn {_, count, _} -> count end) |> Enum.max()
+  # ... rest (unchanged)
+end
+```
+
+- **Issue**: Empty `grouped` causes empty `vote_counts`, triggering `Enum.EmptyError`
+- **Fix**: Add function clause handling empty grouped list
+- **Context**: Majority voting in self-consistency
 - **Error Type**: `Enum.EmptyError`
+- **Priority**: High - Core voting algorithm
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/feedback_aggregation/deduplicator.ex:214,217`**
-- **Issue**: `Enum.max_by` on cluster collections crashes when empty
-- **Fix**: Guard clause or safe alternative with default value
-- **Context**: Cluster merging and priority selection
+##### Fix 2: Line 234 - weighted_vote_by_confidence
+
+```elixir
+# BEFORE (line 234):
+defp weighted_vote_by_confidence(grouped) do
+  weighted_votes =
+    Enum.map(grouped, fn {answer, paths} ->
+      total_confidence = Enum.reduce(paths, 0.0, fn p, acc -> acc + p.confidence end)
+      {answer, total_confidence, paths}
+    end)
+
+  max_weight = weighted_votes |> Enum.map(fn {_, weight, _} -> weight end) |> Enum.max()
+  # ... rest
+
+# AFTER:
+defp weighted_vote_by_confidence([]) do
+  {:error, :no_paths}
+end
+
+defp weighted_vote_by_confidence(grouped) do
+  weighted_votes =
+    Enum.map(grouped, fn {answer, paths} ->
+      total_confidence = Enum.reduce(paths, 0.0, fn p, acc -> acc + p.confidence end)
+      {answer, total_confidence, paths}
+    end)
+
+  max_weight = weighted_votes |> Enum.map(fn {_, weight, _} -> weight end) |> Enum.max()
+  # ... rest (unchanged)
+end
+```
+
+- **Issue**: Empty `grouped` causes empty `weighted_votes`, triggering `Enum.EmptyError`
+- **Fix**: Add function clause handling empty grouped list
+- **Context**: Confidence-weighted voting
 - **Error Type**: `Enum.EmptyError`
+- **Priority**: High
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/optimizer.ex` (2 occurrences)**
-- **Issue**: `Enum.min/max` on population fitness crashes on empty populations
-- **Fix**: Guard clauses validating non-empty populations
-- **Context**: Population fitness statistics during optimization
+##### Fix 3: Line 262 - weighted_vote_by_quality
+
+```elixir
+# BEFORE (line 262):
+defp weighted_vote_by_quality(grouped) do
+  weighted_votes =
+    Enum.map(grouped, fn {answer, paths} ->
+      total_quality = Enum.reduce(paths, 0.0, fn p, acc -> acc + (p.quality_score || 0.0) end)
+      {answer, total_quality, paths}
+    end)
+
+  max_weight = weighted_votes |> Enum.map(fn {_, weight, _} -> weight end) |> Enum.max()
+  # ... rest
+
+# AFTER:
+defp weighted_vote_by_quality([]) do
+  {:error, :no_paths}
+end
+
+defp weighted_vote_by_quality(grouped) do
+  weighted_votes =
+    Enum.map(grouped, fn {answer, paths} ->
+      total_quality = Enum.reduce(paths, 0.0, fn p, acc -> acc + (p.quality_score || 0.0) end)
+      {answer, total_quality, paths}
+    end)
+
+  max_weight = weighted_votes |> Enum.map(fn {_, weight, _} -> weight end) |> Enum.max()
+  # ... rest (unchanged)
+end
+```
+
+- **Issue**: Same pattern as above
+- **Fix**: Add function clause handling empty grouped list
+- **Context**: Quality-weighted voting
 - **Error Type**: `Enum.EmptyError`
+- **Priority**: High
 
-#### 1.2.2 CoT Pattern Fixes
+##### Fix 4: Line 296 - weighted_vote_combined
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/chain/cot/tree_of_thoughts.ex` (2 occurrences)**
-- **Issue**: `Enum.max_by` on thought scores crashes on empty reasoning paths
-- **Fix**: Guard clauses or safe scoring with default
-- **Context**: Best thought selection in tree exploration
+```elixir
+# BEFORE (line 296):
+defp weighted_vote_combined(grouped) do
+  weighted_votes =
+    Enum.map(grouped, fn {answer, paths} ->
+      score = calculate_combined_score(paths)
+      {answer, score, paths}
+    end)
+
+  max_score = weighted_votes |> Enum.map(fn {_, score, _} -> score end) |> Enum.max()
+  # ... rest
+
+# AFTER:
+defp weighted_vote_combined([]) do
+  {:error, :no_paths}
+end
+
+defp weighted_vote_combined(grouped) do
+  weighted_votes =
+    Enum.map(grouped, fn {answer, paths} ->
+      score = calculate_combined_score(paths)
+      {answer, score, paths}
+    end)
+
+  max_score = weighted_votes |> Enum.map(fn {_, score, _} -> score end) |> Enum.max()
+  # ... rest (unchanged)
+end
+```
+
+- **Issue**: Same pattern as above
+- **Fix**: Add function clause handling empty grouped list
+- **Context**: Combined score voting
 - **Error Type**: `Enum.EmptyError`
+- **Priority**: High
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/chain/cot/self_consistency.ex` (2 occurrences)**
-- **Issue**: `Enum.max_by` on path consensus crashes on empty paths
-- **Fix**: Guard clauses or safe consensus calculation
-- **Context**: Most consistent reasoning path selection
-- **Error Type**: `Enum.EmptyError`
+**Tests to Add:**
+```elixir
+describe "voting with empty paths" do
+  test "majority_vote returns error for empty paths" do
+    assert {:error, :no_paths} = VotingMechanism.vote([], :majority, :first)
+  end
 
-#### 1.2.3 Error & Action Module Fixes
+  test "weighted_vote_by_confidence returns error for empty paths" do
+    assert {:error, :no_paths} = VotingMechanism.vote([], :weighted, :confidence)
+  end
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/error.ex`**
-- **Issue**: `Enum.min/max` on error categories crashes on empty errors
-- **Fix**: Guard clause or safe categorization
-- **Context**: Error categorization and priority
-- **Error Type**: `Enum.EmptyError`
+  test "weighted_vote_by_quality returns error for empty paths" do
+    assert {:error, :no_paths} = VotingMechanism.vote([], :weighted, :quality)
+  end
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/actions.ex`**
-- **Issue**: `Enum.max_by` on action priorities crashes on empty action lists
-- **Fix**: Guard clause validating non-empty actions
-- **Context**: Action priority scheduling
-- **Error Type**: `Enum.EmptyError`
+  test "weighted_vote_combined returns error for empty paths" do
+    assert {:error, :no_paths} = VotingMechanism.vote([], :weighted, :combined)
+  end
+end
+```
 
-#### 1.2.4 Directive & Sensor Fixes
+### Section 1.3: Map Access Safety (3 files, 6 occurrences)
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/directive_evaluation.ex`**
-- **Issue**: `Enum.max_by` on directive scores crashes on empty directives
-- **Fix**: Guard clause or safe scoring
-- **Context**: Best directive selection
-- **Error Type**: `Enum.EmptyError`
+#### 1.3.1 Tree of Thoughts Node Lookup
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/sensor/pubsub_sensor.ex`**
-- **Issue**: `Enum.min/max` on message timestamps crashes on empty messages
-- **Fix**: Guard clause or safe timestamp operations
-- **Context**: Message window calculation
-- **Error Type**: `Enum.EmptyError`
+**File: `lib/jido_ai/runner/tree_of_thoughts/tree.ex:87`**
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/sensor/telemetry_sensor.ex`**
-- **Issue**: `Enum.min/max` on telemetry metrics crashes on empty metrics
-- **Fix**: Guard clause or safe metric aggregation
-- **Context**: Telemetry metric statistics
-- **Error Type**: `Enum.EmptyError`
+```elixir
+# BEFORE (line 87):
+def add_child(tree, parent_id, thought, state, opts \\ []) do
+  parent = Map.fetch!(tree.nodes, parent_id)
 
-### Section 1.3: Map Access Safety (5 files)
+  child =
+    TreeNode.new(
+      thought,
+      state,
+      Keyword.merge(opts,
+        parent_id: parent_id,
+        # ... rest
 
-#### 1.3.1 Runner Module Fixes
+# AFTER:
+def add_child(tree, parent_id, thought, state, opts \\ []) do
+  case Map.fetch(tree.nodes, parent_id) do
+    {:ok, parent} ->
+      child =
+        TreeNode.new(
+          thought,
+          state,
+          Keyword.merge(opts,
+            parent_id: parent_id,
+            depth: parent.depth + 1
+          )
+        )
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner.ex` (2 occurrences)**
-- **Issue**: `Map.fetch!` crashes on missing state keys
-- **Fix**: `Map.get(state, key, default)` or `Map.fetch(state, key)` with error handling
-- **Context**: Agent state access
+      updated_tree = %{
+        tree
+        | nodes: Map.put(tree.nodes, child.id, child),
+          node_count: tree.node_count + 1
+      }
+
+      {:ok, {updated_tree, child}}
+
+    :error ->
+      {:error, {:parent_not_found, parent_id}}
+  end
+end
+```
+
+- **Issue**: `Map.fetch!(tree.nodes, parent_id)` crashes with `KeyError` if parent_id doesn't exist
+- **Fix**: Use `Map.fetch/2` with case statement for explicit error handling
+- **Context**: Adding child nodes to tree structure
 - **Error Type**: `KeyError`
+- **Priority**: High - Core tree operation
+- **Return Type Change**: Returns `{:ok, {tree, child}}` | `{:error, reason}` instead of `{tree, child}`
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/runner/chain.ex`**
-- **Issue**: `Map.fetch!` crashes on missing chain state keys
-- **Fix**: Safe key access with defaults or explicit error handling
-- **Context**: Chain state validation
+**Tests to Add:**
+```elixir
+test "add_child returns error for non-existent parent" do
+  tree = Tree.new("root")
+
+  assert {:error, {:parent_not_found, "non-existent"}} =
+    Tree.add_child(tree, "non-existent", "thought", %{})
+end
+```
+
+#### 1.3.2 GEPA Population - Candidate Creation
+
+**File: `lib/jido_ai/runner/gepa/population.ex:458`**
+
+```elixir
+# BEFORE (line 458):
+defp ensure_candidate_struct(data, generation) when is_map(data) do
+  id = Map.get(data, :id, generate_candidate_id())
+  now = System.monotonic_time(:millisecond)
+
+  %Candidate{
+    id: id,
+    prompt: Map.fetch!(data, :prompt),
+    fitness: Map.get(data, :fitness),
+    # ... rest
+
+# AFTER:
+defp ensure_candidate_struct(data, generation) when is_map(data) do
+  with {:ok, prompt} <- Map.fetch(data, :prompt) do
+    id = Map.get(data, :id, generate_candidate_id())
+    now = System.monotonic_time(:millisecond)
+
+    candidate = %Candidate{
+      id: id,
+      prompt: prompt,
+      fitness: Map.get(data, :fitness),
+      generation: Map.get(data, :generation, generation),
+      parent_ids: Map.get(data, :parent_ids, []),
+      metadata: Map.get(data, :metadata, %{}),
+      created_at: Map.get(data, :created_at, now),
+      evaluated_at: Map.get(data, :evaluated_at)
+    }
+
+    {:ok, candidate}
+  else
+    :error -> {:error, :missing_prompt}
+  end
+end
+```
+
+- **Issue**: `Map.fetch!(data, :prompt)` crashes with `KeyError` if :prompt is missing
+- **Fix**: Use `Map.fetch/2` with `with` statement for validation
+- **Context**: Creating candidate structures from map data
 - **Error Type**: `KeyError`
+- **Priority**: High - Candidate creation
+- **Return Type Change**: Returns `{:ok, candidate}` | `{:error, :missing_prompt}`
 
-#### 1.3.2 Action System Fixes
+**Callers to Update:**
+Need to update all call sites to handle new return type:
+- Line 379 in `add_candidates/2`
+- Any other callers
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/actions.ex`**
-- **Issue**: `Map.fetch!` crashes on missing action parameters
-- **Fix**: `Map.get` with defaults or pattern matching for required params
-- **Context**: Action parameter extraction
+**Tests to Add:**
+```elixir
+test "add_candidates returns error for candidates without prompt" do
+  pop = Population.new()
+  invalid_candidate = %{id: "test", fitness: 0.5}  # Missing :prompt
+
+  assert {:error, :missing_prompt} = Population.add_candidates(pop, [invalid_candidate])
+end
+```
+
+#### 1.3.3 GEPA Scheduler - Task Creation
+
+**File: `lib/jido_ai/runner/gepa/scheduler.ex:248,250`**
+
+```elixir
+# BEFORE (lines 248-250):
+task = %Task{
+  id: task_id,
+  candidate_id: Map.fetch!(task_spec, :candidate_id),
+  priority: Map.get(task_spec, :priority, :normal),
+  evaluator: Map.fetch!(task_spec, :evaluator),
+  metadata: Map.get(task_spec, :metadata, %{}),
+  # ... rest
+
+# AFTER:
+with {:ok, candidate_id} <- Map.fetch(task_spec, :candidate_id),
+     {:ok, evaluator} <- Map.fetch(task_spec, :evaluator) do
+  task = %Task{
+    id: task_id,
+    candidate_id: candidate_id,
+    priority: Map.get(task_spec, :priority, :normal),
+    evaluator: evaluator,
+    metadata: Map.get(task_spec, :metadata, %{}),
+    submitted_at: System.monotonic_time(:millisecond),
+    status: :pending
+  }
+
+  # Add to queue and update state
+  # ... (existing logic)
+else
+  :error ->
+    Logger.warning("Invalid task_spec missing required keys",
+      task_spec: task_spec,
+      required: [:candidate_id, :evaluator]
+    )
+    {:reply, {:error, :invalid_task_spec}, state}
+end
+```
+
+- **Issue**: `Map.fetch!(task_spec, :candidate_id)` and `Map.fetch!(task_spec, :evaluator)` crash with `KeyError` if keys are missing
+- **Fix**: Use `Map.fetch/2` with `with` statement validating both required keys
+- **Context**: Creating evaluation tasks in scheduler
 - **Error Type**: `KeyError`
+- **Priority**: High - Task scheduling
+- **Additional**: Add logging for debugging invalid task specs
 
-**File: `/home/ducky/code/agentjido/cot/lib/jido/actions/compensation.ex`**
-- **Issue**: `Map.fetch!` crashes on missing compensation data
-- **Fix**: Safe data access with error tuples
-- **Context**: Compensation data validation
+**Tests to Add:**
+```elixir
+test "submit_task returns error for task_spec without candidate_id" do
+  {:ok, scheduler} = Scheduler.start_link()
+
+  invalid_spec = %{evaluator: &some_function/1}  # Missing :candidate_id
+
+  assert {:error, :invalid_task_spec} = Scheduler.submit_task(scheduler, invalid_spec)
+end
+
+test "submit_task returns error for task_spec without evaluator" do
+  {:ok, scheduler} = Scheduler.start_link()
+
+  invalid_spec = %{candidate_id: "test-123"}  # Missing :evaluator
+
+  assert {:error, :invalid_task_spec} = Scheduler.submit_task(scheduler, invalid_spec)
+end
+```
+
+#### 1.3.4 Action Entry Points - Parameter Validation
+
+**File: `lib/jido_ai/actions/cot/generate_elixir_code.ex:75`**
+
+```elixir
+# BEFORE (line 75):
+@impl true
+def run(params, context) do
+  requirements = Map.fetch!(params, :requirements)
+  template_type = Map.get(params, :template_type)
+  # ... rest
+
+# AFTER:
+@impl true
+def run(params, context) do
+  with {:ok, requirements} <- Map.fetch(params, :requirements) do
+    template_type = Map.get(params, :template_type)
+    generate_specs = Map.get(params, :generate_specs, true)
+    generate_docs = Map.get(params, :generate_docs, true)
+    model = Map.get(params, :model)
+
+    with {:ok, analysis} <- ProgramAnalyzer.analyze(requirements),
+         {:ok, template} <- get_reasoning_template(analysis, template_type),
+         # ... rest of existing with chain
+
+  else
+    :error -> {:error, :missing_requirements}
+  end
+end
+```
+
+- **Issue**: `Map.fetch!(params, :requirements)` crashes with `KeyError` if :requirements is missing
+- **Fix**: Use `Map.fetch/2` with `with` statement at entry point
+- **Context**: Action entry point parameter extraction
 - **Error Type**: `KeyError`
+- **Priority**: High - Action execution
+- **Return**: Consistent `{:error, :missing_requirements}` for missing required param
 
-## Success Criteria
+**File: `lib/jido_ai/actions/cot/program_of_thought.ex:94`**
 
-### Functional Requirements:
+```elixir
+# BEFORE (line 94):
+@impl true
+def run(params, context) do
+  problem = Map.fetch!(params, :problem)
+  domain = Map.get(params, :domain, :auto)
+  # ... rest
 
-1. **No ArgumentError on Empty Lists**: All `hd()` usage replaced with safe alternatives
-2. **No EmptyError on Empty Collections**: All `Enum.min/max` usage guarded or using safe alternatives
-3. **No KeyError on Missing Keys**: All `Map.fetch!` replaced with safe access patterns
-4. **Graceful Error Returns**: Functions return `{:error, reason}` instead of crashing
-5. **Actionable Error Messages**: Error tuples include context about what failed and why
+# AFTER:
+@impl true
+def run(params, context) do
+  with {:ok, problem} <- Map.fetch(params, :problem) do
+    domain = Map.get(params, :domain, :auto)
+    timeout = Map.get(params, :timeout, 5000)
+    generate_explanation = Map.get(params, :generate_explanation, true)
+    validate_result = Map.get(params, :validate_result, true)
+    model = Map.get(params, :model)
 
-### Non-Functional Requirements:
+    Logger.debug("Starting Program-of-Thought for problem: #{inspect(problem)}")
 
-1. **All Tests Passing**: 2054/2054 tests passing after all fixes
-2. **No Performance Degradation**: Guard clauses add <1% overhead
-3. **No Regressions**: Existing functionality unchanged, only edge case handling improved
-4. **Consistent Patterns**: Same error handling approach across all modules
+    # ... rest of existing logic
+  else
+    :error -> {:error, :missing_problem}
+  end
+end
+```
 
-### Test Coverage Requirements:
+- **Issue**: `Map.fetch!(params, :problem)` crashes with `KeyError` if :problem is missing
+- **Fix**: Use `Map.fetch/2` with `with` statement at entry point
+- **Context**: Action entry point parameter extraction
+- **Error Type**: `KeyError`
+- **Priority**: High - Action execution
+- **Return**: Consistent `{:error, :missing_problem}` for missing required param
 
-1. **Edge Case Coverage**: Every fixed function tested with edge cases
-2. **Error Message Validation**: Error messages tested for clarity and context
-3. **Integration Tests**: End-to-end tests with edge cases (empty collections, missing data)
-4. **Regression Tests**: All previously passing tests still pass
+**Tests to Add:**
+```elixir
+describe "parameter validation" do
+  test "generate_elixir_code returns error without requirements" do
+    params = %{template_type: :iterative}  # Missing :requirements
+
+    assert {:error, :missing_requirements} =
+      GenerateElixirCode.run(params, %{})
+  end
+
+  test "program_of_thought returns error without problem" do
+    params = %{domain: :mathematical}  # Missing :problem
+
+    assert {:error, :missing_problem} =
+      ProgramOfThought.run(params, %{})
+  end
+end
+```
 
 ## Implementation Plan
 
-### Phase 1: List Operation Safety (Section 1.1)
+### Phase 1: Voting Mechanism Fixes (Highest Priority)
+**Files**: 1 file, 4 functions
+**Risk**: High - Affects self-consistency reliability
 
-**Estimated Time**: 2-3 hours
+1. Fix `lib/jido_ai/runner/self_consistency/voting_mechanism.ex` (4 functions)
+2. Add comprehensive tests for empty path collections
+3. Run existing self-consistency tests to verify no regressions
+4. Test with property-based testing (empty list scenarios)
 
-**Step 1.1.1: GEPA Feedback Aggregation Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/feedback_aggregation/collector.ex`
-2. Locate line 225, analyze context around `hd(group)` usage
-3. Replace with safe pattern matching or `List.first/1`
-4. Add test for empty feedback groups
-5. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/feedback_aggregation/pattern_detector.ex`
-6. Locate line 199, analyze `hd(causes).original` context
-7. Replace with safe extraction pattern
-8. Add test for empty cause lists
-9. Run tests: `mix test test/jido/runner/gepa/feedback_aggregation/`
+### Phase 2: Action Entry Point Fixes
+**Files**: 2 files
+**Risk**: High - User-facing parameter validation
 
-**Step 1.1.2: Runner & Workflow Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/chain/workflow.ex`
-2. Locate lines 264 and 274, analyze `hd(steps)` usage contexts
-3. Replace both with pattern matching and guards
-4. Add tests for empty step lists in workflow validation
-5. Run tests: `mix test test/jido/runner/chain/workflow_test.exs`
+1. Fix `lib/jido_ai/actions/cot/generate_elixir_code.ex:75`
+2. Fix `lib/jido_ai/actions/cot/program_of_thought.ex:94`
+3. Add parameter validation tests
+4. Update action documentation with required parameters
 
-**Step 1.1.3: Signal Processing Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/signal/signal_router.ex`
-2. Locate lines 246 and 260, analyze `hd(routes)` usage
-3. Replace with safe route extraction patterns
-4. Add tests for empty route lists
-5. Run tests: `mix test test/jido/signal/signal_router_test.exs`
+### Phase 3: GEPA Core Operations
+**Files**: 3 files (tree, population, scheduler)
+**Risk**: Medium - Internal operations with upstream validation
 
-**Step 1.1.4: Sensor & Test Fixture Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/sensor/registry.ex`
-2. Locate line 97, analyze `hd(processes)` context
-3. Replace with safe process selection
-4. Add test for empty process registry
-5. Read `/home/ducky/code/agentjido/cot/test/support/gepa_test_fixtures.ex`
-6. Locate line 45, add guards for test fixture safety
-7. Run tests: `mix test test/jido/sensor/registry_test.exs`
+1. Fix `lib/jido_ai/runner/tree_of_thoughts/tree.ex:87`
+2. Fix `lib/jido_ai/runner/gepa/population.ex:458`
+3. Fix `lib/jido_ai/runner/gepa/scheduler.ex:248,250`
+4. Update callers to handle new return types
+5. Add tests for missing keys/invalid IDs
 
-**Validation**:
-- Run full test suite: `mix test`
-- Verify no ArgumentError exceptions in test output
-- Check all edge case tests pass
+### Phase 4: String Parsing Fix
+**Files**: 1 file + test helper
+**Risk**: Low - Mostly defensive improvement
 
-### Phase 2: Enumerable Operation Safety (Section 1.2)
+1. Fix `lib/jido_ai/actions/openaiex.ex:406`
+2. Fix `lib/jido_ai/actions/openai_ex/test_helpers.ex:36`
+3. Add tests for invalid reqllm_id formats
 
-**Estimated Time**: 3-4 hours
+### Phase 5: Integration Testing
+**Scope**: All fixes
 
-**Step 1.2.1: GEPA Module Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/feedback_aggregation/collector.ex`
-2. Locate lines 232-233, analyze timestamp min/max context
-3. Add guard clauses for non-empty timestamp lists
-4. Run tests for feedback collector
-5. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/feedback_aggregation/deduplicator.ex`
-6. Locate lines 214, 217, analyze cluster max_by operations
-7. Add guards or safe alternatives
-8. Add tests for empty cluster collections
-9. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/gepa/optimizer.ex`
-10. Find and fix 2 occurrences of population min/max
-11. Add tests for empty population edge cases
-12. Run tests: `mix test test/jido/runner/gepa/`
+1. Run full test suite (2054 tests)
+2. Add property-based tests for edge cases
+3. Test GEPA workflows end-to-end
+4. Test CoT patterns with edge cases
+5. Verify no performance degradation
 
-**Step 1.2.2: CoT Pattern Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/chain/cot/tree_of_thoughts.ex`
-2. Find 2 occurrences of thought scoring max_by operations
-3. Add guard clauses validating non-empty thoughts
-4. Add tests for empty reasoning paths
-5. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/chain/cot/self_consistency.ex`
-6. Find 2 occurrences of path consensus max_by
-7. Add guards or safe consensus calculation
-8. Add tests for empty path collections
-9. Run tests: `mix test test/jido/runner/chain/cot/`
+## Success Criteria
 
-**Step 1.2.3: Error & Action Module Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/error.ex`
-2. Find min/max operations on error categories
-3. Add guard clauses for non-empty errors
-4. Add tests for empty error collections
-5. Read `/home/ducky/code/agentjido/cot/lib/jido/actions.ex`
-6. Find max_by operations on action priorities
-7. Add guards validating non-empty actions
-8. Add tests for empty action lists
-9. Run tests: `mix test test/jido/actions_test.exs test/jido/error_test.exs`
-
-**Step 1.2.4: Directive & Sensor Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/directive_evaluation.ex`
-2. Find directive scoring max_by operations
-3. Add guard clauses for non-empty directives
-4. Add tests for empty directive lists
-5. Read `/home/ducky/code/agentjido/cot/lib/jido/sensor/pubsub_sensor.ex`
-6. Find message timestamp min/max operations
-7. Add guards for non-empty messages
-8. Read `/home/ducky/code/agentjido/cot/lib/jido/sensor/telemetry_sensor.ex`
-9. Find telemetry metric min/max operations
-10. Add guards for non-empty metrics
-11. Add sensor tests for empty metric collections
-12. Run tests: `mix test test/jido/sensor/`
-
-**Validation**:
-- Run full test suite: `mix test`
-- Verify no Enum.EmptyError exceptions
-- Check all empty collection tests pass
-
-### Phase 3: Map Access Safety (Section 1.3)
-
-**Estimated Time**: 1-2 hours
-
-**Step 1.3.1: Runner Module Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/runner.ex`
-2. Find 2 occurrences of Map.fetch! on state
-3. Replace with Map.get/3 or Map.fetch/2 with error handling
-4. Add tests for missing state keys
-5. Read `/home/ducky/code/agentjido/cot/lib/jido/runner/chain.ex`
-6. Find Map.fetch! on chain state
-7. Replace with safe access pattern
-8. Add tests for missing chain state keys
-9. Run tests: `mix test test/jido/runner/`
-
-**Step 1.3.2: Action System Fixes**
-1. Read `/home/ducky/code/agentjido/cot/lib/jido/actions.ex`
-2. Find Map.fetch! on action parameters
-3. Replace with safe parameter access
-4. Add tests for missing parameters
-5. Read `/home/ducky/code/agentjido/cot/lib/jido/actions/compensation.ex`
-6. Find Map.fetch! on compensation data
-7. Replace with safe data access
-8. Add tests for missing compensation data
-9. Run tests: `mix test test/jido/actions/`
-
-**Validation**:
-- Run full test suite: `mix test`
-- Verify no KeyError exceptions
-- Check all missing key tests pass
-
-### Phase 4: Integration Testing (Section 1.4)
-
-**Estimated Time**: 2-3 hours
-
-**Step 1.4.1: Crash Prevention Validation**
-1. Create comprehensive edge case test suite
-2. Test all list operations with empty lists
-3. Test all enum operations with empty collections
-4. Test all map access with missing keys
-5. Verify all operations return error tuples instead of crashing
-6. Document test results
-
-**Step 1.4.2: Error Message Quality Validation**
-1. Review all error messages for clarity
-2. Verify error messages include context (module, function)
-3. Test error propagation through call chains
-4. Validate error logging captures sufficient detail
-5. Document error message patterns
-
-**Step 1.4.3: Regression Testing**
-1. Run full test suite: `mix test`
-2. Verify 2054/2054 tests passing
-3. Test GEPA optimization workflows end-to-end
-4. Test CoT pattern execution with edge cases
-5. Benchmark performance to verify no degradation
-6. Document any regressions found and fixed
-
-**Final Validation**:
-- All 26 critical fixes implemented
-- All new edge case tests passing
-- No regressions in existing tests
-- Error messages clear and actionable
-- Performance impact <1%
+- [ ] All 11 unsafe operations fixed with defensive patterns
+- [ ] All 2054 existing tests passing
+- [ ] New tests added for all edge cases:
+  - Empty collection inputs (voting mechanisms)
+  - Missing map keys (tree, GEPA, actions)
+  - Invalid string formats (reqllm_id parsing)
+- [ ] Error messages provide actionable context
+- [ ] No crashes on edge case inputs
+- [ ] Documentation updated with:
+  - Required parameters for actions
+  - Error return types for all modified functions
+  - Examples of safe usage patterns
 
 ## Testing Strategy
 
 ### Unit Tests
 
-**List Operation Tests** (Section 1.1):
-```elixir
-# Test empty list handling
-test "handles empty feedback group gracefully" do
-  assert {:error, :empty_group} = Collector.process_group([])
-end
+1. **Voting Mechanism Edge Cases**
+   - Empty grouped paths for all 4 voting functions
+   - Single path (no tie-breaking needed)
+   - Multiple paths with ties
 
-# Test safe extraction
-test "returns first step when steps exist" do
-  steps = [%Step{id: 1}, %Step{id: 2}]
-  assert {:ok, %Step{id: 1}} = Workflow.first_step(steps)
-end
+2. **Map Access Edge Cases**
+   - Missing required keys (all 6 occurrences)
+   - Missing optional keys (should use defaults)
+   - Empty maps
 
-# Test empty list error
-test "returns error for empty step list" do
-  assert {:error, :no_steps} = Workflow.first_step([])
-end
-```
-
-**Enumerable Operation Tests** (Section 1.2):
-```elixir
-# Test empty collection handling
-test "handles empty population gracefully" do
-  assert {:error, :empty_population} = Optimizer.min_fitness([])
-end
-
-# Test guard clause
-test "calculates min fitness when population exists" do
-  population = [%Individual{fitness: 0.5}, %Individual{fitness: 0.8}]
-  assert {:ok, 0.5} = Optimizer.min_fitness(population)
-end
-
-# Test empty timestamp collection
-test "returns error for empty timestamp list" do
-  assert {:error, :no_timestamps} = Collector.timestamp_range([])
-end
-```
-
-**Map Access Tests** (Section 1.3):
-```elixir
-# Test missing key handling
-test "returns error for missing state key" do
-  state = %{other: "value"}
-  assert {:error, {:missing_key, :required_key}} = Runner.get_state(state, :required_key)
-end
-
-# Test optional key with default
-test "returns default for optional missing key" do
-  state = %{other: "value"}
-  assert {:ok, nil} = Runner.get_optional(state, :optional_key)
-end
-
-# Test existing key access
-test "returns value for existing key" do
-  state = %{key: "value"}
-  assert {:ok, "value"} = Runner.get_state(state, :key)
-end
-```
+3. **String Parsing Edge Cases**
+   - Empty strings
+   - Strings without separators
+   - Invalid provider names
 
 ### Integration Tests
 
-**End-to-End Edge Case Testing**:
+1. **Self-Consistency with Empty Paths**
+   - Voting with no reasoning paths
+   - Voting with single path
+   - Voting with tied paths
+
+2. **GEPA Workflows**
+   - Population operations with invalid candidates
+   - Scheduler with invalid task specs
+   - Tree operations with invalid parent IDs
+
+3. **Action Execution**
+   - Actions called without required parameters
+   - Actions with partial parameters
+
+### Property-Based Tests
+
 ```elixir
-test "GEPA optimization handles empty feedback gracefully" do
-  agent = create_test_agent()
-  # Simulate scenario with no feedback
-  result = GEPA.optimize(agent, feedback: [])
-  assert {:ok, _optimized_agent} = result
-end
-
-test "CoT pattern handles empty reasoning paths" do
-  context = %{thoughts: []}
-  result = TreeOfThoughts.select_best(context)
-  assert {:error, :no_thoughts} = result
-end
-
-test "signal routing handles empty routes" do
-  signal = create_test_signal()
-  result = SignalRouter.route(signal, routes: [])
-  assert {:error, :no_routes} = result
+property "voting functions handle arbitrary empty/non-empty path lists" do
+  check all paths <- list_of(reasoning_path_generator(), min_length: 0) do
+    case Self Consistency.vote(paths, strategy, tie_breaker) do
+      {:ok, _result} -> assert length(paths) > 0
+      {:error, :no_paths} -> assert paths == []
+      {:error, _other} -> :ok
+    end
+  end
 end
 ```
 
-**Regression Testing**:
-```elixir
-# Verify existing functionality unchanged
-test "normal operations still work correctly" do
-  # Test with valid data ensuring no regressions
-  assert {:ok, result} = NormalOperation.run(valid_data)
-end
-```
+## Rollback Plan
 
-### Test Execution Plan
+If issues arise during implementation:
 
-1. **Per-Module Testing**: After each fix, run module-specific tests
-2. **Section Testing**: After completing each section (1.1, 1.2, 1.3), run all affected tests
-3. **Integration Testing**: After all fixes, run full test suite
-4. **Edge Case Suite**: Create dedicated edge case test file running all critical scenarios
-5. **Performance Testing**: Benchmark before/after to verify <1% overhead
+1. **Revert Strategy**: Git revert individual commits by phase
+2. **Testing Gate**: Don't merge until all 2054 tests pass
+3. **Incremental**: Each phase is independently revertible
+4. **Monitoring**: Track error rates in development before production deployment
 
-### Test Coverage Goals
+## Documentation Updates
 
-- **Edge Cases**: 100% coverage for all fixed unsafe operations
-- **Error Paths**: Test all error tuple return scenarios
-- **Error Messages**: Validate all error messages provide context
-- **Regression**: All 2054 existing tests continue passing
-- **Integration**: End-to-end tests cover realistic edge case scenarios
+### Files to Update:
 
-## Implementation Checklist
+1. **API Documentation**
+   - `lib/jido_ai/actions/cot/generate_elixir_code.ex` - Document required :requirements param
+   - `lib/jido_ai/actions/cot/program_of_thought.ex` - Document required :problem param
+   - `lib/jido_ai/runner/tree_of_thoughts/tree.ex` - Document error returns
+   - `lib/jido_ai/runner/gepa/population.ex` - Document required candidate fields
+   - `lib/jido_ai/runner/gepa/scheduler.ex` - Document required task_spec fields
 
-### Pre-Implementation
-- [ ] Review all 26 file locations and line numbers
-- [ ] Set up test branch from `fix/test-failures-post-reqllm-merge`
-- [ ] Create tracking document for implementation progress
-- [ ] Ensure test suite currently passing (2054/2054)
+2. **Error Handling Guide**
+   - Add examples of safe list operations
+   - Add examples of safe enum operations
+   - Add examples of safe map access
+   - Document error tuple patterns
 
-### Section 1.1: List Operation Safety
-- [ ] Fix `collector.ex:225` (hd on group)
-- [ ] Fix `pattern_detector.ex:199` (hd on causes)
-- [ ] Fix `workflow.ex:264` (hd on steps)
-- [ ] Fix `workflow.ex:274` (hd on steps)
-- [ ] Fix `signal_router.ex:246` (hd on routes)
-- [ ] Fix `signal_router.ex:260` (hd on routes)
-- [ ] Fix `registry.ex:97` (hd on processes)
-- [ ] Fix `gepa_test_fixtures.ex:45` (hd on suggestions)
-- [ ] Add unit tests for all list operation fixes
-- [ ] Run section tests: `mix test --only list_safety`
+3. **Migration Guide**
+   - Breaking changes in return types (tree.ex, population.ex)
+   - How to handle new error returns
+   - Updated action parameter requirements
 
-### Section 1.2: Enumerable Operation Safety
-- [ ] Fix `collector.ex:232-233` (min/max timestamps)
-- [ ] Fix `deduplicator.ex:214,217` (max_by clusters)
-- [ ] Fix `optimizer.ex` (2x min/max population)
-- [ ] Fix `tree_of_thoughts.ex` (2x max_by thoughts)
-- [ ] Fix `self_consistency.ex` (2x max_by paths)
-- [ ] Fix `error.ex` (min/max categories)
-- [ ] Fix `actions.ex` (max_by priorities)
-- [ ] Fix `directive_evaluation.ex` (max_by scores)
-- [ ] Fix `pubsub_sensor.ex` (min/max timestamps)
-- [ ] Fix `telemetry_sensor.ex` (min/max metrics)
-- [ ] Add unit tests for all enum operation fixes
-- [ ] Run section tests: `mix test --only enum_safety`
+## Performance Considerations
 
-### Section 1.3: Map Access Safety
-- [ ] Fix `runner.ex` (2x fetch! on state)
-- [ ] Fix `chain.ex` (fetch! on chain state)
-- [ ] Fix `actions.ex` (fetch! on parameters)
-- [ ] Fix `compensation.ex` (fetch! on data)
-- [ ] Add unit tests for all map access fixes
-- [ ] Run section tests: `mix test --only map_safety`
+All fixes add minimal overhead:
 
-### Section 1.4: Integration Testing
-- [ ] Create comprehensive edge case test suite
-- [ ] Validate crash prevention (no ArgumentError, EmptyError, KeyError)
-- [ ] Validate error message quality
-- [ ] Run full regression test suite (2054/2054 passing)
-- [ ] Benchmark performance (<1% overhead)
-- [ ] Document all test results
+1. **Pattern Matching**: Zero overhead (compile-time)
+2. **Map.fetch vs Map.fetch!**: Identical performance
+3. **Guard Clauses**: Negligible overhead (~1ns)
+4. **Error Tuples**: No allocation overhead for success path
 
-### Post-Implementation
-- [ ] Run full test suite: `mix test`
-- [ ] Verify all 2054 tests passing
-- [ ] Review all error messages for clarity
-- [ ] Update documentation with new error handling patterns
-- [ ] Create summary of fixes implemented
-- [ ] Prepare for Stage 2 planning
+Expected performance impact: **< 0.1%** on happy paths
 
-## Risk Mitigation
+## Security Considerations
 
-### Identified Risks
+These fixes improve security by:
 
-1. **Breaking Changes**: Changing function signatures or return types
-   - **Mitigation**: Maintain backward compatibility, only add error handling to edge cases
-   - **Validation**: Full regression test suite
-
-2. **Performance Impact**: Guard clauses and validation overhead
-   - **Mitigation**: Use efficient pattern matching, avoid unnecessary checks
-   - **Validation**: Benchmark before/after, target <1% overhead
-
-3. **Incomplete Fixes**: Missing edge cases in fixes
-   - **Mitigation**: Comprehensive test coverage, property-based testing
-   - **Validation**: Fuzzing tests for edge case discovery
-
-4. **Test Suite Maintenance**: Large number of new tests
-   - **Mitigation**: Organize tests clearly, use test tags for grouping
-   - **Validation**: Test organization review
-
-### Rollback Plan
-
-If critical issues discovered:
-1. Revert to previous commit
-2. Analyze failure mode
-3. Fix issue in isolation
-4. Re-apply with additional tests
-5. Document lesson learned
+1. **Preventing Crashes**: GenServer crashes don't expose internal state
+2. **Graceful Degradation**: Systems continue operating with partial failures
+3. **Error Context**: Error messages don't leak sensitive data
+4. **Input Validation**: Action entry points validate required parameters
 
 ## Dependencies
 
-### Required Before Start
-- Clean git working directory
-- All 2054 tests passing
-- Access to full codebase
-- Test execution environment
+**No new dependencies required**. All fixes use standard library functions:
+- `Map.fetch/2` (existing)
+- `Pattern matching` (existing)
+- `with` expressions (existing)
 
-### No External Dependencies
-- All fixes use standard Elixir patterns
-- No new dependencies required
-- No breaking API changes
+## Related Work
 
-## Timeline Estimate
+- **Audit Document**: `notes/audits/codebase-safety-audit-2025-10-24.md`
+- **Master Plan**: `notes/planning/error-handling-improvements.md`
+- **Previous Fixes**: Already fixed 5 hd() operations in GEPA modules (committed)
 
-**Total Estimated Time**: 8-12 hours
+## Sign-Off
 
-- **Phase 1** (List Safety): 2-3 hours
-- **Phase 2** (Enum Safety): 3-4 hours
-- **Phase 3** (Map Safety): 1-2 hours
-- **Phase 4** (Integration): 2-3 hours
-
-**Recommended Approach**: Implement in order (1.1 → 1.2 → 1.3 → 1.4), validating after each section.
-
-## Next Steps After Stage 1
-
-Upon successful completion:
-1. **Stage 2**: Type Conversion Safety (Atom/Integer validation)
-2. **Stage 3**: External Operations Safety (File, JSON, String)
-3. **Stage 4**: Testing, Documentation & Validation
-
-Stage 1 establishes the foundation for systematic error handling improvements, preventing the most critical immediate crashes and setting patterns for subsequent stages.
+**Prepared By**: Claude Code
+**Date**: 2025-10-24
+**Review Status**: Ready for Implementation
+**Estimated Effort**: 8-12 hours (4 phases + testing)
