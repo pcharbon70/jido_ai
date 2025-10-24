@@ -91,45 +91,48 @@ defmodule Jido.AI.Actions.CoT.ProgramOfThought do
 
   @impl true
   def run(params, context) do
-    problem = Map.fetch!(params, :problem)
-    domain = Map.get(params, :domain, :auto)
-    timeout = Map.get(params, :timeout, 5000)
-    generate_explanation = Map.get(params, :generate_explanation, true)
-    validate_result = Map.get(params, :validate_result, true)
-    model = Map.get(params, :model)
+    with {:ok, problem} <- Map.fetch(params, :problem) do
+      domain = Map.get(params, :domain, :auto)
+      timeout = Map.get(params, :timeout, 5000)
+      generate_explanation = Map.get(params, :generate_explanation, true)
+      validate_result = Map.get(params, :validate_result, true)
+      model = Map.get(params, :model)
 
-    Logger.debug("Starting Program-of-Thought for problem: #{inspect(problem)}")
+      Logger.debug("Starting Program-of-Thought for problem: #{inspect(problem)}")
 
-    with {:ok, analysis} <- analyze_problem(problem, domain),
-         {:ok, program} <- generate_program(problem, analysis, model, context),
-         {:ok, execution_result} <- execute_program(program, timeout),
-         {:ok, result} <-
-           integrate_result(
-             execution_result,
-             program,
-             analysis,
-             generate_explanation,
-             validate_result,
-             model,
-             context
-           ) do
-      Logger.debug("PoT completed successfully: #{inspect(result.answer)}")
+      with {:ok, analysis} <- analyze_problem(problem, domain),
+           {:ok, program} <- generate_program(problem, analysis, model, context),
+           {:ok, execution_result} <- execute_program(program, timeout),
+           {:ok, result} <-
+             integrate_result(
+               execution_result,
+               program,
+               analysis,
+               generate_explanation,
+               validate_result,
+               model,
+               context
+             ) do
+        Logger.debug("PoT completed successfully: #{inspect(result.answer)}")
 
-      final_result = %{
-        answer: result.answer,
-        program: program,
-        explanation: result.explanation,
-        computational_steps: result.steps,
-        domain: analysis.domain,
-        execution_time: execution_result.duration_ms,
-        validation: result.validation
-      }
+        final_result = %{
+          answer: result.answer,
+          program: program,
+          explanation: result.explanation,
+          computational_steps: result.steps,
+          domain: analysis.domain,
+          execution_time: execution_result.duration_ms,
+          validation: result.validation
+        }
 
-      {:ok, final_result, context}
+        {:ok, final_result, context}
+      else
+        {:error, reason} ->
+          Logger.error("PoT failed: #{inspect(reason)}")
+          {:error, reason, context}
+      end
     else
-      {:error, reason} ->
-        Logger.error("PoT failed: #{inspect(reason)}")
-        {:error, reason, context}
+      :error -> {:error, :missing_problem, context}
     end
   end
 
