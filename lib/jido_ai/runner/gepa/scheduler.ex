@@ -240,33 +240,45 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
         if Queue.size(state.queue) >= state.config.max_queue_size do
           {:reply, {:error, :queue_full}, state}
         else
-          # Create task with unique ID
-          task_id = generate_task_id(state.task_counter)
+          # Validate required task_spec keys
+          with {:ok, candidate_id} <- Map.fetch(task_spec, :candidate_id),
+               {:ok, evaluator} <- Map.fetch(task_spec, :evaluator) do
+            # Create task with unique ID
+            task_id = generate_task_id(state.task_counter)
 
-          task = %Task{
-            id: task_id,
-            candidate_id: Map.fetch!(task_spec, :candidate_id),
-            priority: Map.get(task_spec, :priority, :normal),
-            evaluator: Map.fetch!(task_spec, :evaluator),
-            metadata: Map.get(task_spec, :metadata, %{}),
-            submitted_at: System.monotonic_time(:millisecond),
-            status: :pending
-          }
+            task = %Task{
+              id: task_id,
+              candidate_id: candidate_id,
+              priority: Map.get(task_spec, :priority, :normal),
+              evaluator: evaluator,
+              metadata: Map.get(task_spec, :metadata, %{}),
+              submitted_at: System.monotonic_time(:millisecond),
+              status: :pending
+            }
 
-          # Add to queue
-          updated_queue = Queue.enqueue(state.queue, task)
+            # Add to queue
+            updated_queue = Queue.enqueue(state.queue, task)
 
-          new_state = %{
-            state
-            | queue: updated_queue,
-              task_counter: state.task_counter + 1,
-              stats: update_stats(state.stats, :submitted)
-          }
+            new_state = %{
+              state
+              | queue: updated_queue,
+                task_counter: state.task_counter + 1,
+                stats: update_stats(state.stats, :submitted)
+            }
 
-          # Try to dispatch tasks if capacity available
-          final_state = dispatch_tasks(new_state)
+            # Try to dispatch tasks if capacity available
+            final_state = dispatch_tasks(new_state)
 
-          {:reply, {:ok, task_id}, final_state}
+            {:reply, {:ok, task_id}, final_state}
+          else
+            :error ->
+              Logger.warning("Invalid task_spec missing required keys",
+                task_spec: task_spec,
+                required: [:candidate_id, :evaluator]
+              )
+
+              {:reply, {:error, :invalid_task_spec}, state}
+          end
         end
 
       {:error, reason} ->

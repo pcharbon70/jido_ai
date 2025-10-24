@@ -100,7 +100,7 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
 
     test "adds child to tree" do
       tree = Tree.new("Root", %{})
-      {updated_tree, child} = Tree.add_child(tree, tree.root_id, "Child thought", %{})
+      {:ok, {updated_tree, child}} = Tree.add_child(tree, tree.root_id, "Child thought", %{})
 
       assert updated_tree.size == 2
       assert child.parent_id == tree.root_id
@@ -132,8 +132,8 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
 
     test "gets children of node" do
       tree = Tree.new("Root", %{})
-      {tree, child1} = Tree.add_child(tree, tree.root_id, "Child 1", %{})
-      {tree, _child2} = Tree.add_child(tree, tree.root_id, "Child 2", %{})
+      {:ok, {tree, child1}} = Tree.add_child(tree, tree.root_id, "Child 1", %{})
+      {:ok, {tree, _child2}} = Tree.add_child(tree, tree.root_id, "Child 2", %{})
 
       children = Tree.get_children(tree, tree.root_id)
       assert length(children) == 2
@@ -142,7 +142,7 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
 
     test "gets parent of node" do
       tree = Tree.new("Root", %{})
-      {tree, child} = Tree.add_child(tree, tree.root_id, "Child", %{})
+      {:ok, {tree, child}} = Tree.add_child(tree, tree.root_id, "Child", %{})
 
       {:ok, parent} = Tree.get_parent(tree, child.id)
       assert parent.id == tree.root_id
@@ -155,8 +155,8 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
 
     test "gets path from root to node" do
       tree = Tree.new("Root", %{})
-      {tree, child} = Tree.add_child(tree, tree.root_id, "Child", %{})
-      {tree, grandchild} = Tree.add_child(tree, child.id, "Grandchild", %{})
+      {:ok, {tree, child}} = Tree.add_child(tree, tree.root_id, "Child", %{})
+      {:ok, {tree, grandchild}} = Tree.add_child(tree, child.id, "Grandchild", %{})
 
       path = Tree.get_path(tree, grandchild.id)
       assert length(path) == 3
@@ -166,9 +166,9 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
 
     test "performs BFS traversal" do
       tree = Tree.new("Root", %{})
-      {tree, c1} = Tree.add_child(tree, tree.root_id, "C1", %{})
-      {tree, c2} = Tree.add_child(tree, tree.root_id, "C2", %{})
-      {tree, gc1} = Tree.add_child(tree, c1.id, "GC1", %{})
+      {:ok, {tree, c1}} = Tree.add_child(tree, tree.root_id, "C1", %{})
+      {:ok, {tree, c2}} = Tree.add_child(tree, tree.root_id, "C2", %{})
+      {:ok, {tree, gc1}} = Tree.add_child(tree, c1.id, "GC1", %{})
 
       nodes = Tree.bfs(tree)
       assert length(nodes) == 4
@@ -183,9 +183,9 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
 
     test "performs DFS traversal" do
       tree = Tree.new("Root", %{})
-      {tree, c1} = Tree.add_child(tree, tree.root_id, "C1", %{})
-      {tree, _c2} = Tree.add_child(tree, tree.root_id, "C2", %{})
-      {tree, _gc1} = Tree.add_child(tree, c1.id, "GC1", %{})
+      {:ok, {tree, c1}} = Tree.add_child(tree, tree.root_id, "C1", %{})
+      {:ok, {tree, _c2}} = Tree.add_child(tree, tree.root_id, "C2", %{})
+      {:ok, {tree, _gc1}} = Tree.add_child(tree, c1.id, "GC1", %{})
 
       nodes = Tree.dfs(tree)
       assert length(nodes) == 4
@@ -193,9 +193,9 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
 
     test "gets all leaf nodes" do
       tree = Tree.new("Root", %{})
-      {tree, c1} = Tree.add_child(tree, tree.root_id, "C1", %{})
-      {tree, c2} = Tree.add_child(tree, tree.root_id, "C2", %{})
-      {tree, gc1} = Tree.add_child(tree, c1.id, "GC1", %{})
+      {:ok, {tree, c1}} = Tree.add_child(tree, tree.root_id, "C1", %{})
+      {:ok, {tree, c2}} = Tree.add_child(tree, tree.root_id, "C2", %{})
+      {:ok, {tree, gc1}} = Tree.add_child(tree, c1.id, "GC1", %{})
 
       leaves = Tree.get_leaves(tree)
       assert length(leaves) == 2
@@ -207,8 +207,8 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
 
     test "prunes by value threshold" do
       tree = Tree.new("Root", %{})
-      {tree, c1} = Tree.add_child(tree, tree.root_id, "C1", %{})
-      {tree, c2} = Tree.add_child(tree, tree.root_id, "C2", %{})
+      {:ok, {tree, c1}} = Tree.add_child(tree, tree.root_id, "C1", %{})
+      {:ok, {tree, c2}} = Tree.add_child(tree, tree.root_id, "C2", %{})
 
       # Set values
       {:ok, c1_node} = Tree.get_node(tree, c1.id)
@@ -733,7 +733,7 @@ defmodule Jido.AI.Runner.TreeOfThoughtsTest do
   # Helper functions
 
   defp add_valued_child(tree, parent_id, thought, value) do
-    {updated_tree, child} = Tree.add_child(tree, parent_id, thought, %{})
+    {:ok, {updated_tree, child}} = Tree.add_child(tree, parent_id, thought, %{})
     child_with_value = TreeNode.set_value(child, value)
     final_tree = Tree.update_node(updated_tree, child_with_value)
     {final_tree, child_with_value}

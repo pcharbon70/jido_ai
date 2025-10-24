@@ -17,8 +17,8 @@ defmodule Jido.AI.Runner.TreeOfThoughts.Tree do
       tree = Tree.new("What is 2+2?", %{problem: "2+2"})
 
       # Add thoughts
-      {tree, child1} = Tree.add_child(tree, tree.root_id, "Approach: Add directly", %{})
-      {tree, child2} = Tree.add_child(tree, tree.root_id, "Approach: Count fingers", %{})
+      {:ok, {tree, child1}} = Tree.add_child(tree, tree.root_id, "Approach: Add directly", %{})
+      {:ok, {tree, child2}} = Tree.add_child(tree, tree.root_id, "Approach: Count fingers", %{})
 
       # Traverse
       nodes = Tree.bfs(tree)
@@ -80,34 +80,39 @@ defmodule Jido.AI.Runner.TreeOfThoughts.Tree do
 
   ## Returns
 
-  `{updated_tree, child_node}`
+  `{:ok, {updated_tree, child_node}}` or `{:error, {:parent_not_found, parent_id}}`
   """
-  @spec add_child(t(), String.t(), String.t(), map(), keyword()) :: {t(), TreeNode.t()}
+  @spec add_child(t(), String.t(), String.t(), map(), keyword()) ::
+          {:ok, {t(), TreeNode.t()}} | {:error, {:parent_not_found, String.t()}}
   def add_child(tree, parent_id, thought, state, opts \\ []) do
-    parent = Map.fetch!(tree.nodes, parent_id)
+    case Map.fetch(tree.nodes, parent_id) do
+      {:ok, parent} ->
+        child =
+          TreeNode.new(
+            thought,
+            state,
+            Keyword.merge(opts,
+              parent_id: parent_id,
+              depth: parent.depth + 1
+            )
+          )
 
-    child =
-      TreeNode.new(
-        thought,
-        state,
-        Keyword.merge(opts,
-          parent_id: parent_id,
-          depth: parent.depth + 1
-        )
-      )
+        # Update parent to include child
+        updated_parent = TreeNode.add_child(parent, child.id)
 
-    # Update parent to include child
-    updated_parent = TreeNode.add_child(parent, child.id)
+        # Update tree
+        updated_tree = %{
+          tree
+          | nodes: Map.put(tree.nodes, parent_id, updated_parent) |> Map.put(child.id, child),
+            size: tree.size + 1,
+            max_depth: max(tree.max_depth, child.depth)
+        }
 
-    # Update tree
-    updated_tree = %{
-      tree
-      | nodes: Map.put(tree.nodes, parent_id, updated_parent) |> Map.put(child.id, child),
-        size: tree.size + 1,
-        max_depth: max(tree.max_depth, child.depth)
-    }
+        {:ok, {updated_tree, child}}
 
-    {updated_tree, child}
+      :error ->
+        {:error, {:parent_not_found, parent_id}}
+    end
   end
 
   @doc """

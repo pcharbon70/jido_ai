@@ -378,7 +378,7 @@ defmodule Jido.AI.Runner.TreeOfThoughts do
         {new_tree, children} =
           limited_thoughts_scores
           |> Enum.reduce({state.tree, []}, fn {thought, score}, {acc_tree, acc_children} ->
-            {updated_tree, child} =
+            {:ok, {updated_tree, child}} =
               Tree.add_child(acc_tree, node.id, thought, %{score: score})
 
             child_with_value = TreeNode.set_value(child, score)

@@ -164,17 +164,21 @@ defmodule Jido.AI.Runner.GEPA.Population do
   """
   @spec add_candidate(t(), map() | candidate()) :: {:ok, t()} | {:error, term()}
   def add_candidate(%__MODULE__{} = population, candidate_data) when is_map(candidate_data) do
-    candidate = ensure_candidate_struct(candidate_data, population.generation)
+    case ensure_candidate_struct(candidate_data, population.generation) do
+      {:ok, candidate} ->
+        cond do
+          Map.has_key?(population.candidates, candidate.id) ->
+            {:error, {:duplicate_id, candidate.id}}
 
-    cond do
-      Map.has_key?(population.candidates, candidate.id) ->
-        {:error, {:duplicate_id, candidate.id}}
+          length(population.candidate_ids) < population.size ->
+            add_candidate_internal(population, candidate)
 
-      length(population.candidate_ids) < population.size ->
-        add_candidate_internal(population, candidate)
+          true ->
+            maybe_replace_worst_candidate(population, candidate)
+        end
 
-      true ->
-        maybe_replace_worst_candidate(population, candidate)
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -446,23 +450,32 @@ defmodule Jido.AI.Runner.GEPA.Population do
   # Private Functions
 
   @doc false
-  @spec ensure_candidate_struct(map() | candidate(), non_neg_integer()) :: candidate()
-  defp ensure_candidate_struct(%Candidate{} = candidate, _generation), do: candidate
+  @spec ensure_candidate_struct(map() | candidate(), non_neg_integer()) ::
+          {:ok, candidate()} | {:error, :missing_prompt}
+  defp ensure_candidate_struct(%Candidate{} = candidate, _generation), do: {:ok, candidate}
 
   defp ensure_candidate_struct(data, generation) when is_map(data) do
-    id = Map.get(data, :id, generate_candidate_id())
-    now = System.monotonic_time(:millisecond)
+    case Map.fetch(data, :prompt) do
+      {:ok, prompt} ->
+        id = Map.get(data, :id, generate_candidate_id())
+        now = System.monotonic_time(:millisecond)
 
-    %Candidate{
-      id: id,
-      prompt: Map.fetch!(data, :prompt),
-      fitness: Map.get(data, :fitness),
-      generation: Map.get(data, :generation, generation),
-      parent_ids: Map.get(data, :parent_ids, []),
-      metadata: Map.get(data, :metadata, %{}),
-      created_at: Map.get(data, :created_at, now),
-      evaluated_at: Map.get(data, :evaluated_at)
-    }
+        candidate = %Candidate{
+          id: id,
+          prompt: prompt,
+          fitness: Map.get(data, :fitness),
+          generation: Map.get(data, :generation, generation),
+          parent_ids: Map.get(data, :parent_ids, []),
+          metadata: Map.get(data, :metadata, %{}),
+          created_at: Map.get(data, :created_at, now),
+          evaluated_at: Map.get(data, :evaluated_at)
+        }
+
+        {:ok, candidate}
+
+      :error ->
+        {:error, :missing_prompt}
+    end
   end
 
   @doc false
