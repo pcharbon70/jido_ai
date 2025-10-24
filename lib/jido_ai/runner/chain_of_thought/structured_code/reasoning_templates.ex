@@ -653,8 +653,23 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.ReasoningTemplates do
   defp format_sections(template) do
     template.sections
     |> Enum.map(fn section ->
-      section_key = section |> String.downcase() |> String.to_atom()
-      Map.get(template.prompts, section_key, "")
+      # Safe atom conversion - only convert if atom already exists
+      # This prevents creating arbitrary atoms from template section strings
+      section_key =
+        try do
+          section |> String.downcase() |> String.to_existing_atom()
+        rescue
+          ArgumentError ->
+            # Section string doesn't map to an existing atom key
+            # Return nil to skip this section (no corresponding prompt)
+            nil
+        end
+
+      if section_key do
+        Map.get(template.prompts, section_key, "")
+      else
+        ""
+      end
     end)
     |> Enum.join("\n\n")
   end

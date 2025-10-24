@@ -512,7 +512,8 @@ defmodule Jido.AI.Runner.GEPA.PopulationTest do
       path = Path.join(tmp_dir, "invalid.pop")
       File.write!(path, "invalid data")
 
-      assert {:error, {:load_failed, _}} = Population.load(path)
+      # Enhanced error handling returns more specific error type
+      assert {:error, {:deserialization_failed, _}} = Population.load(path)
     end
 
     @tag :tmp_dir

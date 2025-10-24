@@ -301,17 +301,56 @@ defmodule Jido.AI.Provider do
 
   @doc """
   Ensures the given value is an atom.
+
+  Uses safe conversion with `String.to_existing_atom/1` to prevent atom table exhaustion.
+  Only converts strings that are already existing atoms (provider names, etc.).
   """
   @spec ensure_atom(atom() | String.t() | term()) :: atom() | term()
   def ensure_atom(id) when is_atom(id), do: id
-  def ensure_atom(id) when is_binary(id), do: String.to_atom(id)
+
+  def ensure_atom(id) when is_binary(id) do
+    try do
+      String.to_existing_atom(id)
+    rescue
+      ArgumentError ->
+        # If atom doesn't exist, return the string as-is
+        # This prevents creating arbitrary atoms from user input
+        id
+    end
+  end
+
   def ensure_atom(id), do: id
 
   def call_provider_callback(provider, callback, args) do
+    require Logger
     impl = module_for(provider)
 
     if function_exported?(impl, callback, length(args)) do
-      apply(impl, callback, args)
+      # Call the callback with error handling for runtime errors
+      try do
+        apply(impl, callback, args)
+      rescue
+        e in UndefinedFunctionError ->
+          Logger.warning(
+            "Callback #{inspect(impl)}.#{callback}/#{length(args)} is not defined: #{inspect(e)}"
+          )
+
+          {:error, {:callback_not_found, {impl, callback, length(args)}}}
+
+        e in FunctionClauseError ->
+          Logger.warning(
+            "Callback #{inspect(impl)}.#{callback}/#{length(args)} clause mismatch with args #{inspect(args)}: #{inspect(e)}"
+          )
+
+          {:error, {:callback_clause_mismatch, args}}
+
+        e ->
+          Logger.warning(
+            "Callback #{inspect(impl)}.#{callback}/#{length(args)} failed: #{inspect(e)}"
+          )
+
+          {:error, {:callback_failed, inspect(e)}}
+      end
     else
       {:error, "#{inspect(impl)} does not implement callback #{callback}/#{length(args)}"}
     end
@@ -330,8 +369,13 @@ defmodule Jido.AI.Provider do
     - List of model maps, each containing provider information
   """
   def list_all_cached_models do
-    # Ensure the base directory exists
-    File.mkdir_p!(base_dir())
+    # Ensure the base directory exists (with error handling)
+    case File.mkdir_p(base_dir()) do
+      :ok -> :ok
+      {:error, reason} ->
+        require Logger
+        Logger.warning("Failed to create cache directory: #{inspect(reason)}")
+    end
 
     # Find all provider directories
     provider_dirs =
@@ -343,10 +387,23 @@ defmodule Jido.AI.Provider do
     # Collect models from each provider
     provider_dirs
     |> Enum.flat_map(fn provider_dir ->
-      provider_id = String.to_atom(provider_dir)
-      models_file = Path.join([base_dir(), provider_dir, "models.json"])
+      # Safe atom conversion - only convert if provider atom already exists
+      provider_id =
+        try do
+          String.to_existing_atom(provider_dir)
+        rescue
+          ArgumentError ->
+            # Provider directory name not a known provider, skip it
+            nil
+        end
 
-      if File.exists?(models_file) do
+      # Skip if provider_id couldn't be converted (unknown provider)
+      if provider_id == nil do
+        []
+      else
+        models_file = Path.join([base_dir(), provider_dir, "models.json"])
+
+        if File.exists?(models_file) do
         case File.read(models_file) do
           {:ok, json} ->
             case Jason.decode(json) do
@@ -363,8 +420,9 @@ defmodule Jido.AI.Provider do
           _ ->
             []
         end
-      else
-        []
+        else
+          []
+        end
       end
     end)
   end

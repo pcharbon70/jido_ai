@@ -281,10 +281,32 @@ defmodule Jido.AI.Keyring.CompatibilityWrapper do
 
   @spec ensure_keys_format(term()) :: [atom()]
   defp ensure_keys_format(keys) when is_list(keys) do
-    Enum.map(keys, fn
-      key when is_atom(key) -> key
-      key when is_binary(key) -> String.to_atom(key)
-      key -> String.to_atom(to_string(key))
+    Enum.flat_map(keys, fn
+      key when is_atom(key) ->
+        [key]
+
+      key when is_binary(key) ->
+        # Use safe atom conversion - only convert if atom already exists
+        try do
+          [String.to_existing_atom(key)]
+        rescue
+          ArgumentError ->
+            # Key string doesn't represent an existing atom, skip it
+            # This prevents creating arbitrary atoms from user input
+            []
+        end
+
+      key ->
+        # Try to convert to string first, then to existing atom
+        str_key = to_string(key)
+
+        try do
+          [String.to_existing_atom(str_key)]
+        rescue
+          ArgumentError ->
+            # Key doesn't represent an existing atom, skip it
+            []
+        end
     end)
   end
 

@@ -184,7 +184,20 @@ defmodule Jido.AI.Runner.ReAct.ObservationProcessor do
   defp map_to_observation(map, format, preserve_metadata) do
     case format do
       :json ->
-        Jason.encode!(map)
+        # Try to encode as JSON, fall back to inspect if encoding fails
+        # This handles non-JSON-encodable data like PIDs, refs, functions
+        try do
+          Jason.encode!(map)
+        rescue
+          e ->
+            require Logger
+
+            Logger.warning(
+              "Failed to JSON encode observation (#{inspect(e)}). Falling back to inspect/1."
+            )
+
+            inspect(map)
+        end
 
       :text ->
         map_to_text(map, preserve_metadata)

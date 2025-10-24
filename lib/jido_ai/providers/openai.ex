@@ -207,14 +207,24 @@ defmodule Jido.AI.Provider.OpenAI do
     url = base_url() <> "/models/#{model}"
     headers = request_headers(opts)
 
-    # Ensure the models directory exists
+    # Ensure the models directory exists (with error handling)
     base_dir = Provider.base_dir()
     provider_dir = Path.join(base_dir, @provider_path)
     model_dir = Path.join(provider_dir, "models")
 
     # Create the models directory if it doesn't exist
     unless File.exists?(model_dir) do
-      File.mkdir_p!(model_dir)
+      case File.mkdir_p(model_dir) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          require Logger
+
+          Logger.warning(
+            "Failed to create models cache directory #{model_dir}: #{inspect(reason)}. Caching may not work."
+          )
+      end
     end
 
     Helpers.fetch_model_from_api(

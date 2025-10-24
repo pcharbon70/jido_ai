@@ -153,12 +153,35 @@ defmodule Jido.AI.Runner.SelfConsistency do
         Enum.map(1..sample_count, generator)
       end
 
-    # Filter out any errors
-    valid_paths = Enum.filter(paths, &is_binary/1)
+    # Filter out any errors and log failures for observability
+    {valid_paths, errors} =
+      paths
+      |> Enum.with_index(1)
+      |> Enum.reduce({[], []}, fn {path, index}, {valid, errs} ->
+        if is_binary(path) do
+          {[path | valid], errs}
+        else
+          Logger.warning("Path generation #{index}/#{sample_count} failed: #{inspect(path)}")
+          {valid, [path | errs]}
+        end
+      end)
+
+    valid_paths = Enum.reverse(valid_paths)
+    errors = Enum.reverse(errors)
 
     if length(valid_paths) >= div(sample_count, 2) do
+      if length(errors) > 0 do
+        Logger.info(
+          "Self-consistency completed with partial failures: #{length(valid_paths)}/#{sample_count} paths succeeded"
+        )
+      end
+
       {:ok, valid_paths}
     else
+      Logger.error(
+        "Self-consistency failed: insufficient valid paths (#{length(valid_paths)}/#{sample_count}, needed #{div(sample_count, 2)})"
+      )
+
       {:error, :insufficient_valid_paths}
     end
   end
