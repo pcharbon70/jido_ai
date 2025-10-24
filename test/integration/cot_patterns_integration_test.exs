@@ -15,14 +15,14 @@ defmodule Integration.CoTPatternTest do
 
   use ExUnit.Case, async: false
 
-  alias Jido.Runner.{
+  alias Jido.AI.Runner.{
     ReAct,
     SelfConsistency,
     TreeOfThoughts
   }
 
-  alias Jido.Actions.CoT.ProgramOfThought
-  alias Jido.Runner.ProgramOfThought.ProblemClassifier
+  alias Jido.AI.Actions.CoT.ProgramOfThought
+  alias Jido.AI.Runner.ProgramOfThought.ProblemClassifier
 
   # ============================================================================
   # Section 3.5.1: Self-Consistency Integration Tests
@@ -623,12 +623,12 @@ defmodule Integration.CoTPatternTest do
       assert is_boolean(params.generate_explanation)
 
       # Verify the action module exists
-      assert Code.ensure_loaded?(Jido.Actions.CoT.ProgramOfThought)
+      assert Code.ensure_loaded?(Jido.AI.Actions.CoT.ProgramOfThought)
     end
 
     test "3.5.4.3: sandbox safety validations" do
       # Test that sandbox prevents dangerous operations
-      alias Jido.Runner.ProgramOfThought.ProgramExecutor
+      alias Jido.AI.Runner.ProgramOfThought.ProgramExecutor
 
       dangerous_programs = [
         {"File I/O", "defmodule Solution do\n  def solve, do: File.read(\"secret.txt\")\nend"},
@@ -657,7 +657,7 @@ defmodule Integration.CoTPatternTest do
 
     test "3.5.4.4: program execution with timeout enforcement" do
       # Test timeout enforcement
-      alias Jido.Runner.ProgramOfThought.ProgramExecutor
+      alias Jido.AI.Runner.ProgramOfThought.ProgramExecutor
 
       infinite_loop_program = """
       defmodule Solution do
@@ -673,7 +673,7 @@ defmodule Integration.CoTPatternTest do
 
     test "compilation and runtime error handling" do
       # Test error handling for various error types
-      alias Jido.Runner.ProgramOfThought.ProgramExecutor
+      alias Jido.AI.Runner.ProgramOfThought.ProgramExecutor
 
       # Syntax error
       bad_syntax = """
@@ -704,7 +704,7 @@ defmodule Integration.CoTPatternTest do
 
     test "successful program execution" do
       # Test successful execution of a simple program
-      alias Jido.Runner.ProgramOfThought.ProgramExecutor
+      alias Jido.AI.Runner.ProgramOfThought.ProgramExecutor
 
       valid_program = """
       defmodule Solution do

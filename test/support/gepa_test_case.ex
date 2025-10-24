@@ -1,4 +1,4 @@
-defmodule Jido.Runner.GEPA.TestCase do
+defmodule Jido.AI.Runner.GEPA.TestCase do
   @moduledoc """
   Test case template for GEPA evaluations.
 
@@ -9,7 +9,7 @@ defmodule Jido.Runner.GEPA.TestCase do
 
       defmodule MyGEPATest do
         use ExUnit.Case, async: true
-        use Jido.Runner.GEPA.TestCase
+        use Jido.AI.Runner.GEPA.TestCase
 
         test_with_models "evaluates successfully", [:openai, :anthropic] do
           {:ok, result} = Evaluator.evaluate_prompt("test", task: %{type: :reasoning})
@@ -26,9 +26,9 @@ defmodule Jido.Runner.GEPA.TestCase do
 
   defmacro __using__(_opts) do
     quote do
-      import Jido.Runner.GEPA.TestFixtures
-      import Jido.Runner.GEPA.TestHelper
-      import Jido.Runner.GEPA.TestCase
+      import Jido.AI.Runner.GEPA.TestFixtures
+      import Jido.AI.Runner.GEPA.TestHelper
+      import Jido.AI.Runner.GEPA.TestCase
       import Mimic
 
       setup :set_mimic_global

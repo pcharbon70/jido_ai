@@ -24,8 +24,8 @@ defmodule Examples.FullLifecycleHookAgent do
       {:ok, result_agent, directives} = Jido.Agent.run(agent)
 
       # Access planning and execution context
-      {:ok, planning} = Jido.Runner.ChainOfThought.PlanningHook.get_planning_reasoning(result_agent)
-      {:ok, plan} = Jido.Runner.ChainOfThought.ExecutionHook.get_execution_plan(result_agent)
+      {:ok, planning} = Jido.AI.Runner.ChainOfThought.PlanningHook.get_planning_reasoning(result_agent)
+      {:ok, plan} = Jido.AI.Runner.ChainOfThought.ExecutionHook.get_execution_plan(result_agent)
 
   ## Features
 
@@ -42,7 +42,7 @@ defmodule Examples.FullLifecycleHookAgent do
     actions: [],
     schema: []
 
-  alias Jido.Runner.ChainOfThought.{PlanningHook, ExecutionHook, ValidationHook}
+  alias Jido.AI.Runner.ChainOfThought.{PlanningHook, ExecutionHook, ValidationHook}
 
   @doc """
   Planning hook - generates strategic reasoning before instructions are queued.

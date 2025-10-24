@@ -29,7 +29,7 @@ defmodule Examples.ValidationHookAgent do
       |> Jido.Agent.run()
 
       # Access validation result
-      {:ok, validation} = Jido.Runner.ChainOfThought.ValidationHook.get_validation_result(agent)
+      {:ok, validation} = Jido.AI.Runner.ChainOfThought.ValidationHook.get_validation_result(agent)
       IO.puts(validation.status)
       IO.puts(validation.reflection)
 
@@ -48,7 +48,7 @@ defmodule Examples.ValidationHookAgent do
     actions: [],
     schema: []
 
-  alias Jido.Runner.ChainOfThought.{PlanningHook, ExecutionHook, ValidationHook}
+  alias Jido.AI.Runner.ChainOfThought.{PlanningHook, ExecutionHook, ValidationHook}
 
   @doc """
   Planning hook - generates strategic reasoning before instructions are queued.

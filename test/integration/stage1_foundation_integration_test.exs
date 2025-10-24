@@ -15,8 +15,8 @@ defmodule Integration.Stage1FoundationTest do
   use ExUnit.Case, async: false
 
   alias Jido.Agent
-  alias Jido.Runner.ChainOfThought
-  alias Jido.Skills.ChainOfThought, as: CoTSkill
+  alias Jido.AI.Runner.ChainOfThought
+  alias Jido.AI.Skills.ChainOfThought, as: CoTSkill
 
   # ============================================================================
   # Test Setup and Helpers
@@ -191,7 +191,7 @@ defmodule Integration.Stage1FoundationTest do
       assert agent.state.cot_config.fallback_on_error == true
 
       # Verify OutcomeValidator module exists and is loadable
-      assert Code.ensure_loaded?(Jido.Runner.ChainOfThought.OutcomeValidator)
+      assert Code.ensure_loaded?(Jido.AI.Runner.ChainOfThought.OutcomeValidator)
     end
   end
 
@@ -341,10 +341,10 @@ defmodule Integration.Stage1FoundationTest do
       {:ok, agent} = CoTSkill.mount(agent, mode: :zero_shot)
 
       # Verify CoT actions are available
-      assert Code.ensure_loaded?(Jido.Actions.CoT.GenerateReasoning)
-      assert Code.ensure_loaded?(Jido.Actions.CoT.ReasoningStep)
-      assert Code.ensure_loaded?(Jido.Actions.CoT.ValidateReasoning)
-      assert Code.ensure_loaded?(Jido.Actions.CoT.SelfCorrect)
+      assert Code.ensure_loaded?(Jido.AI.Actions.CoT.GenerateReasoning)
+      assert Code.ensure_loaded?(Jido.AI.Actions.CoT.ReasoningStep)
+      assert Code.ensure_loaded?(Jido.AI.Actions.CoT.ValidateReasoning)
+      assert Code.ensure_loaded?(Jido.AI.Actions.CoT.SelfCorrect)
     end
 
     test "1.5.3.3: routing integration with semantic event patterns" do

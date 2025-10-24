@@ -1,4 +1,4 @@
-defmodule Jido.Runner.GEPA.TestHelper do
+defmodule Jido.AI.Runner.GEPA.TestHelper do
   @moduledoc """
   Helper functions for GEPA evaluation tests.
 
@@ -10,7 +10,7 @@ defmodule Jido.Runner.GEPA.TestHelper do
 
       defmodule MyGEPATest do
         use ExUnit.Case
-        import Jido.Runner.GEPA.TestHelper
+        import Jido.AI.Runner.GEPA.TestHelper
 
         setup do
           setup_mock_model(:openai, scenario: :success)
@@ -26,9 +26,9 @@ defmodule Jido.Runner.GEPA.TestHelper do
   import Mimic
   import ExUnit.Assertions
 
-  alias Jido.Runner.GEPA.TestFixtures
-  alias Jido.Runner.GEPA.Evaluator.EvaluationResult
-  alias Jido.Runner.GEPA.Trajectory
+  alias Jido.AI.Runner.GEPA.TestFixtures
+  alias Jido.AI.Runner.GEPA.Evaluator.EvaluationResult
+  alias Jido.AI.Runner.GEPA.Trajectory
 
   @doc """
   Sets up a mock model in the test context.

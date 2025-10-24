@@ -20,7 +20,7 @@ defmodule Examples.PlanningHookAgent do
       |> Examples.PlanningHookAgent.enqueue(SomeAction, %{}, context: %{enable_planning_cot: false})
 
       # Access planning reasoning
-      {:ok, planning} = Jido.Runner.ChainOfThought.PlanningHook.get_planning_reasoning(agent)
+      {:ok, planning} = Jido.AI.Runner.ChainOfThought.PlanningHook.get_planning_reasoning(agent)
       IO.puts(planning.goal)
       IO.inspect(planning.dependencies)
       IO.inspect(planning.potential_issues)
@@ -40,7 +40,7 @@ defmodule Examples.PlanningHookAgent do
     actions: [],
     schema: []
 
-  alias Jido.Runner.ChainOfThought.PlanningHook
+  alias Jido.AI.Runner.ChainOfThought.PlanningHook
 
   @doc """
   Planning hook callback - generates strategic reasoning before instructions are queued.

@@ -26,7 +26,7 @@ defmodule Examples.ExecutionHookAgent do
       {:ok, result_agent, directives} = Jido.Agent.run(agent)
 
       # Access execution plan
-      {:ok, plan} = Jido.Runner.ChainOfThought.ExecutionHook.get_execution_plan(result_agent)
+      {:ok, plan} = Jido.AI.Runner.ChainOfThought.ExecutionHook.get_execution_plan(result_agent)
       IO.puts(plan.execution_strategy)
       IO.inspect(plan.steps)
       IO.inspect(plan.data_flow)
@@ -47,7 +47,7 @@ defmodule Examples.ExecutionHookAgent do
     actions: [],
     schema: []
 
-  alias Jido.Runner.ChainOfThought.ExecutionHook
+  alias Jido.AI.Runner.ChainOfThought.ExecutionHook
 
   @doc """
   Execution hook callback - analyzes pending instructions before execution.
