@@ -324,12 +324,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
         state
       end
 
-    Logger.debug("ResultCollector started",
-      batch_size: config.batch_size,
-      batch_timeout: config.batch_timeout,
-      expected_count: config.expected_count,
-      timeout: config.timeout
-    )
+    Logger.debug("ResultCollector started (batch_size: #{config.batch_size}, batch_timeout: #{config.batch_timeout}, expected_count: #{inspect(config.expected_count)}, timeout: #{config.timeout})")
 
     {:ok, state}
   end
@@ -341,11 +336,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
 
     state = %{state | pending: Map.put(state.pending, ref, pid)}
 
-    Logger.debug("Registered evaluation",
-      ref: inspect(ref),
-      pid: inspect(pid),
-      pending_count: map_size(state.pending)
-    )
+    Logger.debug("Registered evaluation (ref: #{inspect(ref)}, pid: #{inspect(pid)}, pending_count: #{map_size(state.pending)})")
 
     {:noreply, state}
   end
@@ -355,7 +346,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
     cond do
       # Already have this result
       Map.has_key?(state.results, ref) ->
-        Logger.warning("Duplicate result submission ignored", ref: inspect(ref))
+        Logger.warning("Duplicate result submission ignored (ref: #{inspect(ref)})")
         {:noreply, state}
 
       # Expected result
@@ -369,12 +360,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
         # Add to current batch
         state = add_to_batch(state, result)
 
-        Logger.debug("Result submitted",
-          ref: inspect(ref),
-          fitness: result.fitness,
-          pending_count: map_size(state.pending),
-          completed_count: map_size(state.results)
-        )
+        Logger.debug("Result submitted (ref: #{inspect(ref)}, fitness: #{inspect(result.fitness)}, pending_count: #{map_size(state.pending)}, completed_count: #{map_size(state.results)})")
 
         # Check if batch should be flushed
         state = maybe_flush_batch(state)
@@ -386,7 +372,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
 
       # Unexpected result (not registered)
       true ->
-        Logger.warning("Result submitted for unregistered evaluation", ref: inspect(ref))
+        Logger.warning("Result submitted for unregistered evaluation (ref: #{inspect(ref)})")
 
         # Accept it anyway
         state = %{state | results: Map.put(state.results, ref, result)}
@@ -446,11 +432,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
     # Find the evaluation ref for this PID
     case Enum.find(state.pending, fn {_ref, p} -> p == pid end) do
       {eval_ref, ^pid} ->
-        Logger.warning("Evaluation process crashed",
-          pid: inspect(pid),
-          reason: inspect(reason),
-          ref: inspect(eval_ref)
-        )
+        Logger.warning("Evaluation process crashed (pid: #{inspect(pid)}, reason: #{inspect(reason)}, ref: #{inspect(eval_ref)})")
 
         # Create error result
         error_result = %EvaluationResult{
@@ -489,10 +471,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
 
   @impl GenServer
   def handle_info(:global_timeout, state) do
-    Logger.warning("Global timeout reached",
-      pending_count: map_size(state.pending),
-      completed_count: map_size(state.results)
-    )
+    Logger.warning("Global timeout reached (pending_count: #{map_size(state.pending)}, completed_count: #{map_size(state.results)})")
 
     # Flush current batch
     state = flush_batch_internal(state)
@@ -556,17 +535,15 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
       # Invoke batch callback if configured
       if state.config.on_batch do
         try do
-          state.config.on_batch.(Enum.reverse(state.current_batch))
+          _ = state.config.on_batch.(Enum.reverse(state.current_batch))
+          :ok
         rescue
           error ->
-            Logger.error("Batch callback failed",
-              error: inspect(error),
-              batch_size: length(state.current_batch)
-            )
+            Logger.error("Batch callback failed (error: #{inspect(error)}, batch_size: #{length(state.current_batch)})")
         end
       end
 
-      Logger.debug("Batch flushed", size: length(state.current_batch))
+      Logger.debug("Batch flushed (size: #{length(state.current_batch)})")
 
       # Clear batch
       %{state | current_batch: [], batch_started_at: nil, batch_timer_ref: nil}
@@ -586,10 +563,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
   @spec maybe_notify_completion(State.t()) :: State.t()
   defp maybe_notify_completion(state) do
     if is_complete?(state) do
-      Logger.info("All expected results collected",
-        count: map_size(state.results),
-        expected: state.config.expected_count
-      )
+      Logger.info("All expected results collected (count: #{map_size(state.results)}, expected: #{state.config.expected_count})")
 
       notify_waiters(state, :complete)
     else
