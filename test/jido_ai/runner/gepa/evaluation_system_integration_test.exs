@@ -938,12 +938,10 @@ defmodule Jido.AI.Runner.GEPA.EvaluationSystemIntegrationTest do
 
       metrics =
         Enum.reduce(collected, metrics, fn result, acc ->
-          cond do
-            result.error == nil and is_float(result.fitness) ->
-              Metrics.add_metric(acc, :quality_score, result.fitness)
-
-            true ->
-              acc
+          if result.error == nil and is_float(result.fitness) do
+            Metrics.add_metric(acc, :quality_score, result.fitness)
+          else
+            acc
           end
         end)
 

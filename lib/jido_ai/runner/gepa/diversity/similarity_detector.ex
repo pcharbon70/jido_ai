@@ -168,13 +168,11 @@ defmodule Jido.AI.Runner.GEPA.Diversity.SimilarityDetector do
     id_a = resolve_id(matrix, id_a)
     id_b = resolve_id(matrix, id_b)
 
-    cond do
-      id_a == id_b ->
-        1.0
-
-      true ->
-        {min_id, max_id} = if id_a < id_b, do: {id_a, id_b}, else: {id_b, id_a}
-        Map.get(matrix.scores, {min_id, max_id}, 0.0)
+    if id_a == id_b do
+      1.0
+    else
+      {min_id, max_id} = if id_a < id_b, do: {id_a, id_b}, else: {id_b, id_a}
+      Map.get(matrix.scores, {min_id, max_id}, 0.0)
     end
   end
 

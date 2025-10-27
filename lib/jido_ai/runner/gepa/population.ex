@@ -132,18 +132,16 @@ defmodule Jido.AI.Runner.GEPA.Population do
   """
   @spec new(keyword()) :: {:ok, t()} | {:error, term()}
   def new(opts) do
-    cond do
-      not Keyword.has_key?(opts, :size) ->
-        {:error, :size_required}
+    if not Keyword.has_key?(opts, :size) do
+      {:error, :size_required}
+    else
+      size = Keyword.fetch!(opts, :size)
 
-      true ->
-        size = Keyword.fetch!(opts, :size)
-
-        unless is_integer(size) and size > 0 do
-          {:error, {:invalid_size, size}}
-        else
-          do_new(size, opts)
-        end
+      unless is_integer(size) and size > 0 do
+        {:error, {:invalid_size, size}}
+      else
+        do_new(size, opts)
+      end
     end
   end
 

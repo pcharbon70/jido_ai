@@ -399,16 +399,14 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
 
   @impl GenServer
   def handle_call(:await_completion, from, state) do
-    cond do
+    if is_complete?(state) do
       # Already complete
-      is_complete?(state) ->
-        results = Map.values(state.results)
-        {:reply, {:ok, results}, state}
-
+      results = Map.values(state.results)
+      {:reply, {:ok, results}, state}
+    else
       # Not complete, add to waiters
-      true ->
-        state = %{state | completion_waiters: [from | state.completion_waiters]}
-        {:noreply, state}
+      state = %{state | completion_waiters: [from | state.completion_waiters]}
+      {:noreply, state}
     end
   end
 

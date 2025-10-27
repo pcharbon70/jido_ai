@@ -450,26 +450,24 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
   @doc false
   @spec run_evolution_cycles(State.t()) :: State.t()
   defp run_evolution_cycles(%State{} = state) do
-    cond do
+    if should_stop?(state) do
       # Check if we should stop
-      should_stop?(state) ->
-        Logger.info("Evolution cycle terminated", reason: get_stop_reason(state))
-        state
-
+      Logger.info("Evolution cycle terminated", reason: get_stop_reason(state))
+      state
+    else
       # Continue to next generation
-      true ->
-        Logger.info("Starting generation #{state.generation + 1}")
+      Logger.info("Starting generation #{state.generation + 1}")
 
-        # Execute one complete generation cycle
-        case execute_generation(state) do
-          {:ok, new_state} ->
-            # Recursively continue to next generation
-            run_evolution_cycles(new_state)
+      # Execute one complete generation cycle
+      case execute_generation(state) do
+        {:ok, new_state} ->
+          # Recursively continue to next generation
+          run_evolution_cycles(new_state)
 
-          {:error, reason} ->
-            Logger.error("Generation failed (reason: #{inspect(reason)}, generation: #{state.generation})")
-            %{state | status: :failed}
-        end
+        {:error, reason} ->
+          Logger.error("Generation failed (reason: #{inspect(reason)}, generation: #{state.generation})")
+          %{state | status: :failed}
+      end
     end
   end
 

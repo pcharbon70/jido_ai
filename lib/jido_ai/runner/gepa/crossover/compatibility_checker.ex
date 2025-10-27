@@ -267,14 +267,12 @@ defmodule JidoAI.Runner.GEPA.Crossover.CompatibilityChecker do
     task_a = Enum.find(parent_a.segments, &(&1.type == :task_description))
     task_b = Enum.find(parent_b.segments, &(&1.type == :task_description))
 
-    cond do
-      is_nil(task_a) or is_nil(task_b) ->
-        false
-
-      true ->
-        # Check if tasks are semantically different
-        similarity = word_overlap_similarity(task_a.content, task_b.content)
-        similarity < 0.2
+    if is_nil(task_a) or is_nil(task_b) do
+      false
+    else
+      # Check if tasks are semantically different
+      similarity = word_overlap_similarity(task_a.content, task_b.content)
+      similarity < 0.2
     end
   end
 
