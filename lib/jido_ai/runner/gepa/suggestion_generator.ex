@@ -89,9 +89,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
   @spec generate_edit_plan(ParsedReflection.t(), keyword()) ::
           {:ok, EditPlan.t()} | {:error, term()}
   def generate_edit_plan(%ParsedReflection{} = reflection, opts \\ []) do
-    Logger.info("Starting edit plan generation",
-      suggestions: length(reflection.suggestions)
-    )
+    Logger.info("Starting edit plan generation (suggestions: #{length(reflection.suggestions)})")
 
     with {:ok, prompt} <- get_original_prompt(opts),
          {:ok, structure} <- PromptStructureAnalyzer.analyze(prompt),
@@ -117,10 +115,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
         }
       }
 
-      Logger.info("Edit plan generated successfully",
-        total_edits: plan.total_edits,
-        high_impact: plan.high_impact_edits
-      )
+      Logger.info("Edit plan generated successfully (total_edits: #{plan.total_edits}, high_impact: #{plan.high_impact_edits})")
 
       {:ok, plan}
     else
@@ -170,7 +165,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
   end
 
   defp build_all_edits(suggestions, structure, opts) do
-    Logger.debug("Building edits from suggestions", count: length(suggestions))
+    Logger.debug("Building edits from suggestions (count: #{length(suggestions)})")
 
     edits_results =
       Enum.map(suggestions, fn suggestion ->
@@ -194,7 +189,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
   end
 
   defp validate_all_edits(edits, structure) do
-    Logger.debug("Validating edits", count: length(edits))
+    Logger.debug("Validating edits (count: #{length(edits)})")
 
     validated_edits =
       edits
@@ -204,7 +199,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
             validated
 
           {:error, reason} ->
-            Logger.warning("Edit validation failed", edit_id: edit.id, reason: reason)
+            Logger.warning("Edit validation failed (edit_id: #{edit.id}, reason: #{inspect(reason)})")
             # Return edit marked as invalid
             %{edit | validated: false}
         end
@@ -213,10 +208,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
     # Filter out completely invalid edits
     valid_edits = Enum.filter(validated_edits, & &1.validated)
 
-    Logger.debug("Validation complete",
-      valid: length(valid_edits),
-      invalid: length(edits) - length(valid_edits)
-    )
+    Logger.debug("Validation complete (valid: #{length(valid_edits)}, invalid: #{length(edits) - length(valid_edits)})")
 
     {:ok, valid_edits}
   end
@@ -224,18 +216,14 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
   defp resolve_all_conflicts(edits, opts) do
     strategy = Keyword.get(opts, :conflict_resolution_strategy, :highest_impact)
 
-    Logger.debug("Resolving conflicts", strategy: strategy)
+    Logger.debug("Resolving conflicts (strategy: #{inspect(strategy)})")
 
     case ConflictResolver.resolve_conflicts(edits, strategy: strategy) do
       {:ok, resolved} ->
         # Filter out edits that lost conflict resolution
         non_conflicting = Enum.filter(resolved, &(&1.conflicts_with == []))
 
-        Logger.debug("Conflicts resolved",
-          original: length(edits),
-          resolved: length(non_conflicting),
-          removed: length(edits) - length(non_conflicting)
-        )
+        Logger.debug("Conflicts resolved (original: #{length(edits)}, resolved: #{length(non_conflicting)}, removed: #{length(edits) - length(non_conflicting)})")
 
         {:ok, non_conflicting}
 
@@ -261,12 +249,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
       |> Enum.filter(&(&1.impact_score >= min_impact))
       |> Enum.take(max_edits)
 
-    Logger.debug("Applied filters",
-      before: length(edits),
-      after: length(filtered),
-      max_edits: max_edits,
-      min_impact: min_impact
-    )
+    Logger.debug("Applied filters (before: #{length(edits)}, after: #{length(filtered)}, max_edits: #{max_edits}, min_impact: #{min_impact})")
 
     {:ok, filtered}
   end
