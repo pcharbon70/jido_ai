@@ -233,11 +233,11 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzer do
 
     # Add failure analysis if not successful
     analysis =
-      if trajectory.outcome not in [:success, nil] do
+      if trajectory.outcome in [:success, nil] do
+        analysis
+      else
         failure_points = identify_failure_points(trajectory)
         %{analysis | failure_points: failure_points}
-      else
-        analysis
       end
 
     # Add reasoning analysis if requested

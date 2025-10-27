@@ -407,7 +407,9 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
     Enum.reduce(patterns, {errors, warnings, suggestions}, fn pattern, {errs, warns, suggs} ->
       case pattern do
         :pipeline ->
-          if not String.contains?(code, "|>") do
+          if String.contains?(code, "|>") do
+            {errs, warns, suggs}
+          else
             err = %{
               type: :missing_pattern,
               message: "pipeline (|>) operator",
@@ -416,12 +418,12 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
             }
 
             {[err | errs], warns, ["Use pipe operator for data transformations" | suggs]}
-          else
-            {errs, warns, suggs}
           end
 
         :pattern_matching ->
-          if not Regex.match?(~r/=\s*%\{|case\s+|def\s+\w+\([^)]*%\{/, code) do
+          if Regex.match?(~r/=\s*%\{|case\s+|def\s+\w+\([^)]*%\{/, code) do
+            {errs, warns, suggs}
+          else
             warn = %{
               type: :missing_pattern,
               message: "Limited pattern matching usage",
@@ -430,16 +432,14 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
             }
 
             {errs, [warn | warns], ["Consider using pattern matching" | suggs]}
-          else
-            {errs, warns, suggs}
           end
 
         :with_syntax ->
-          if not String.contains?(code, "with ") do
+          if String.contains?(code, "with ") do
+            {errs, warns, suggs}
+          else
             sugg = "Consider using 'with' for error handling"
             {errs, warns, [sugg | suggs]}
-          else
-            {errs, warns, suggs}
           end
 
         _ ->
@@ -451,7 +451,9 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
   defp check_control_flow(code, control_flow, errors, warnings, suggestions) do
     case control_flow.type do
       :iterative ->
-        if not Regex.match?(~r/Enum\.|Stream\.|for\s+/, code) do
+        if Regex.match?(~r/Enum\.|Stream\.|for\s+/, code) do
+          {errors, warnings, suggestions}
+        else
           err = %{
             type: :structure_mismatch,
             message: "Expected iterative control flow (Enum/Stream/for)",
@@ -460,12 +462,12 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
           }
 
           {[err | errors], warnings, suggestions}
-        else
-          {errors, warnings, suggestions}
         end
 
       :conditional ->
-        if not Regex.match?(~r/case\s+|cond\s+|if\s+|def\s+\w+.*when/, code) do
+        if Regex.match?(~r/case\s+|cond\s+|if\s+|def\s+\w+.*when/, code) do
+          {errors, warnings, suggestions}
+        else
           err = %{
             type: :structure_mismatch,
             message: "Expected conditional logic (case/cond/if/guards)",
@@ -474,8 +476,6 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
           }
 
           {[err | errors], warnings, suggestions}
-        else
-          {errors, warnings, suggestions}
         end
 
       :recursive ->
@@ -501,7 +501,9 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
           _ -> true
         end
 
-      if not present do
+      if present do
+        {warns, suggs}
+      else
         warn = %{
           type: :data_flow_mismatch,
           message: "Expected #{transform} transformation",
@@ -511,8 +513,6 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
 
         sugg = "Consider adding #{transform} operation as identified in analysis"
         {[warn | warns], [sugg | suggs]}
-      else
-        {warns, suggs}
       end
     end)
   end

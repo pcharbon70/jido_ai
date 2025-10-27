@@ -163,7 +163,9 @@ defmodule Jido.AI.Runner.ChainOfThought.OutcomeValidator do
       end
 
     notes =
-      if not matches do
+      if matches do
+        notes
+      else
         case result do
           {:error, reason} ->
             ["Execution failed: #{inspect(reason)}" | notes]
@@ -171,8 +173,6 @@ defmodule Jido.AI.Runner.ChainOfThought.OutcomeValidator do
           _ ->
             ["Result did not match expected outcome" | notes]
         end
-      else
-        notes
       end
 
     Enum.reverse(notes)
