@@ -370,13 +370,13 @@ Implement hypervolume indicator measuring the quality and coverage of the Pareto
 - [x] 2.1.4.4 Support hypervolume-based performance tracking across generations
 
 ### Unit Tests - Section 2.1
-- [x] **Unit Tests 2.1 Complete**
-- [x] Test multi-objective evaluation accuracy
-- [x] Test dominance relationship correctness
-- [x] Test frontier maintenance operations
-- [x] Test hypervolume calculation
-- [x] Validate frontier diversity
-- [ ] Test performance under various objective trade-offs
+- [ ] **Unit Tests 2.1 Complete**
+- [x] Test multi-objective evaluation accuracy (42 tests)
+- [x] Test dominance relationship correctness (47 tests)
+- [x] Test frontier maintenance operations (39 tests)
+- [x] Test hypervolume calculation (37 tests)
+- [x] Validate frontier diversity (crowding distance tests)
+- [ ] Test performance under various objective trade-offs (performance benchmarks)
 
 ---
 
