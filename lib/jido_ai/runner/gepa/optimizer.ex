@@ -227,11 +227,7 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
   @impl true
   @spec init(Config.t()) :: {:ok, State.t()}
   def init(%Config{} = config) do
-    Logger.info("Initializing GEPA Optimizer",
-      population_size: config.population_size,
-      max_generations: config.max_generations,
-      evaluation_budget: config.evaluation_budget
-    )
+    Logger.info("Initializing GEPA Optimizer (population_size: #{config.population_size}, max_generations: #{config.max_generations}, evaluation_budget: #{config.evaluation_budget})")
 
     state = %State{
       config: config,
@@ -250,19 +246,14 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
 
   @impl true
   def handle_continue(:initialize_population, %State{} = state) do
-    Logger.debug("Initializing population from seed prompts",
-      seed_count: length(state.config.seed_prompts)
-    )
+    Logger.debug("Initializing population from seed prompts (seed_count: #{length(state.config.seed_prompts)})")
 
     {:ok, population} = initialize_population(state.config)
     stats = Population.statistics(population)
 
     new_state = %{state | population: population, status: :ready}
 
-    Logger.info("GEPA Optimizer initialized and ready",
-      population_size: stats.size,
-      status: new_state.status
-    )
+    Logger.info("GEPA Optimizer initialized and ready (population_size: #{stats.size}, status: #{new_state.status})")
 
     {:noreply, new_state}
   end
@@ -274,10 +265,7 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
   end
 
   def handle_call(:optimize, _from, %State{} = state) do
-    Logger.info("Starting optimization cycle",
-      generation: state.generation,
-      evaluations_remaining: state.config.evaluation_budget - state.evaluations_used
-    )
+    Logger.info("Starting optimization cycle (generation: #{state.generation}, evaluations_remaining: #{state.config.evaluation_budget - state.evaluations_used})")
 
     # Execute optimization loop (placeholder - will be implemented in later tasks)
     result = execute_optimization_loop(state)
@@ -398,10 +386,7 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
         end
       end)
 
-    Logger.debug("Population initialized",
-      total: population.size,
-      candidates: length(Population.get_all(population))
-    )
+    Logger.debug("Population initialized (total: #{population.size}, candidates: #{length(Population.get_all(population))})")
 
     {:ok, population}
   end
@@ -451,10 +436,7 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
   @doc false
   @spec execute_optimization_loop(State.t()) :: optimization_result()
   defp execute_optimization_loop(%State{} = state) do
-    Logger.info("Starting evolution cycle coordination",
-      max_generations: state.config.max_generations,
-      evaluation_budget: state.config.evaluation_budget
-    )
+    Logger.info("Starting evolution cycle coordination (max_generations: #{state.config.max_generations}, evaluation_budget: #{state.config.evaluation_budget})")
 
     updated_state = %{state | status: :running}
 
@@ -485,7 +467,7 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
             run_evolution_cycles(new_state)
 
           {:error, reason} ->
-            Logger.error("Generation failed", reason: reason, generation: state.generation)
+            Logger.error("Generation failed (reason: #{inspect(reason)}, generation: #{state.generation})")
             %{state | status: :failed}
         end
     end
@@ -496,40 +478,34 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
   defp execute_generation(%State{} = state) do
     try do
       # Phase 1: Evaluation - evaluate all candidates in population
-      Logger.debug("Phase 1: Evaluating population", generation: state.generation + 1)
+      Logger.debug("Phase 1: Evaluating population (generation: #{state.generation + 1})")
       {evaluation_results, evals_used} = evaluate_population(state)
 
       # Update state with evaluation results
       state_after_eval = update_population_fitness(state, evaluation_results, evals_used)
 
       # Phase 2: Reflection - analyze results (placeholder for Section 1.3)
-      Logger.debug("Phase 2: Reflection (placeholder)", generation: state.generation + 1)
+      Logger.debug("Phase 2: Reflection (placeholder) (generation: #{state.generation + 1})")
       reflection_insights = perform_reflection(state_after_eval)
 
       # Phase 3: Mutation - generate new candidates (placeholder for Section 1.4)
-      Logger.debug("Phase 3: Mutation (placeholder)", generation: state.generation + 1)
+      Logger.debug("Phase 3: Mutation (placeholder) (generation: #{state.generation + 1})")
       offspring = generate_offspring(state_after_eval, reflection_insights)
 
       # Phase 4: Selection - select next generation
-      Logger.debug("Phase 4: Selection", generation: state.generation + 1)
+      Logger.debug("Phase 4: Selection (generation: #{state.generation + 1})")
       next_population = perform_selection(state_after_eval, offspring)
 
       # Phase 5: Progress tracking - record generation metrics
-      Logger.debug("Phase 5: Recording generation metrics", generation: state.generation + 1)
+      Logger.debug("Phase 5: Recording generation metrics (generation: #{state.generation + 1})")
       final_state = record_generation_metrics(state_after_eval, next_population)
 
-      Logger.info("Generation #{final_state.generation} complete",
-        best_fitness: final_state.best_fitness,
-        evaluations_used: final_state.evaluations_used
-      )
+      Logger.info("Generation #{final_state.generation} complete (best_fitness: #{final_state.best_fitness}, evaluations_used: #{final_state.evaluations_used})")
 
       {:ok, final_state}
     rescue
       e ->
-        Logger.error("Error in generation execution",
-          error: Exception.message(e),
-          stacktrace: Exception.format_stacktrace(__STACKTRACE__)
-        )
+        Logger.error("Error in generation execution (error: #{Exception.message(e)}, stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)})")
 
         {:error, e}
     end
