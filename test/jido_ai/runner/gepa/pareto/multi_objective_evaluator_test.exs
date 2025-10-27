@@ -36,7 +36,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluatorTest do
       assert {:ok, objectives} =
                MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy, :latency])
 
-      assert Map.keys(objectives) == [:accuracy, :latency]
+      assert Enum.sort(Map.keys(objectives)) == [:accuracy, :latency]
     end
 
     test "evaluates custom objectives" do
