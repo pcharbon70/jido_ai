@@ -455,8 +455,7 @@ defmodule Jido.AI.Runner.ChainOfThought.ExecutionHook do
   defp summarize_agent_state(state) do
     state
     |> Map.drop([:planning_cot, :execution_plan, :cot_config])
-    |> Enum.map(fn {key, value} -> "- #{key}: #{inspect(value, limit: 3)}" end)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", fn {key, value} -> "- #{key}: #{inspect(value, limit: 3)}" end)
   end
 
   @spec summarize_instructions(list()) :: String.t()
@@ -465,12 +464,11 @@ defmodule Jido.AI.Runner.ChainOfThought.ExecutionHook do
   defp summarize_instructions(instructions) do
     instructions
     |> Enum.with_index(1)
-    |> Enum.map(fn {instruction, index} ->
+    |> Enum.map_join("\n", fn {instruction, index} ->
       action = get_action_name(instruction)
       params = get_params_summary(instruction)
       "#{index}. #{action} with #{params}"
     end)
-    |> Enum.join("\n")
   end
 
   @spec get_action_name(term()) :: String.t()
@@ -486,7 +484,7 @@ defmodule Jido.AI.Runner.ChainOfThought.ExecutionHook do
     if map_size(params) == 0 do
       "no params"
     else
-      keys = Map.keys(params) |> Enum.take(3) |> Enum.map(&to_string/1) |> Enum.join(", ")
+      keys = Map.keys(params) |> Enum.take(3) |> Enum.map_join(", ", &to_string/1)
       "params: #{keys}"
     end
   end
@@ -495,7 +493,7 @@ defmodule Jido.AI.Runner.ChainOfThought.ExecutionHook do
     if map_size(params) == 0 do
       "no params"
     else
-      keys = Map.keys(params) |> Enum.take(3) |> Enum.map(&to_string/1) |> Enum.join(", ")
+      keys = Map.keys(params) |> Enum.take(3) |> Enum.map_join(", ", &to_string/1)
       "params: #{keys}"
     end
   end

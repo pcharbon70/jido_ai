@@ -480,9 +480,8 @@ defmodule Jido.AI.Runner.ChainOfThought.ErrorHandler do
 
   defp format_context(context) do
     context
-    |> Enum.map(fn {key, value} ->
+    |> Enum.map_join("", fn {key, value} ->
       "\n      #{key}: #{inspect(value)}"
     end)
-    |> Enum.join()
   end
 end

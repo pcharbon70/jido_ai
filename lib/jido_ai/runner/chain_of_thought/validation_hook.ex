@@ -516,8 +516,7 @@ defmodule Jido.AI.Runner.ChainOfThought.ValidationHook do
   @spec summarize_result(map()) :: String.t()
   defp summarize_result(result) when is_map(result) do
     result
-    |> Enum.map(fn {key, value} -> "- #{key}: #{inspect(value, limit: 3)}" end)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", fn {key, value} -> "- #{key}: #{inspect(value, limit: 3)}" end)
   end
 
   defp summarize_result(result), do: inspect(result, limit: 5)

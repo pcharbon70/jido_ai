@@ -206,10 +206,9 @@ defmodule Jido.AI.SchemaValidator do
   def format_errors(errors) when is_list(errors) do
     error_lines =
       errors
-      |> Enum.map(fn error ->
+      |> Enum.map_join("\n", fn error ->
         "  - #{error.field}: #{error.message}"
       end)
-      |> Enum.join("\n")
 
     "Validation errors:\n#{error_lines}"
   end

@@ -226,15 +226,13 @@ defmodule Jido.AI.Runner.ReAct.ObservationProcessor do
         # Filter out metadata unless requested
         !preserve_metadata && k in [:metadata, :__meta__, :__struct__]
       end)
-      |> Enum.map(fn {k, v} -> "#{k}: #{inspect(v)}" end)
-      |> Enum.join(", ")
+      |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{inspect(v)}" end)
     end
   end
 
   defp map_to_markdown(map) do
     map
-    |> Enum.map(fn {k, v} -> "**#{k}**: #{inspect(v)}" end)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", fn {k, v} -> "**#{k}**: #{inspect(v)}" end)
   end
 
   defp list_to_observation([], _format) do

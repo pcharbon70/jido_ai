@@ -279,19 +279,18 @@ defmodule Jido.AI.Runner.ChainOfThought.TestExecution.TestSuiteManager do
 
   defp generate_basic_tests(functions, module_name) do
     functions
-    |> Enum.map(fn func_name ->
+    |> Enum.map_join("\n", fn func_name ->
       """
         test "#{func_name}/0 returns expected result" do
           assert #{module_name}.#{func_name}() != nil
         end
       """
     end)
-    |> Enum.join("\n")
   end
 
   defp generate_comprehensive_tests(functions, module_name) do
     functions
-    |> Enum.map(fn func_name ->
+    |> Enum.map_join("\n", fn func_name ->
       """
         describe "#{func_name}" do
           test "returns expected result for valid input" do
@@ -305,12 +304,11 @@ defmodule Jido.AI.Runner.ChainOfThought.TestExecution.TestSuiteManager do
         end
       """
     end)
-    |> Enum.join("\n")
   end
 
   defp generate_exhaustive_tests(functions, module_name) do
     functions
-    |> Enum.map(fn func_name ->
+    |> Enum.map_join("\n", fn func_name ->
       """
         describe "#{func_name}" do
           test "returns expected result for valid input" do
@@ -334,12 +332,11 @@ defmodule Jido.AI.Runner.ChainOfThought.TestExecution.TestSuiteManager do
         end
       """
     end)
-    |> Enum.join("\n")
   end
 
   defp generate_basic_properties(functions, module_name) do
     functions
-    |> Enum.map(fn func_name ->
+    |> Enum.map_join("\n", fn func_name ->
       """
         property "#{func_name} satisfies basic properties" do
           check all input <- term() do
@@ -349,12 +346,11 @@ defmodule Jido.AI.Runner.ChainOfThought.TestExecution.TestSuiteManager do
         end
       """
     end)
-    |> Enum.join("\n")
   end
 
   defp generate_comprehensive_properties(functions, module_name) do
     functions
-    |> Enum.map(fn func_name ->
+    |> Enum.map_join("\n", fn func_name ->
       """
         property "#{func_name} is deterministic" do
           check all input <- term() do
@@ -372,7 +368,6 @@ defmodule Jido.AI.Runner.ChainOfThought.TestExecution.TestSuiteManager do
         end
       """
     end)
-    |> Enum.join("\n")
   end
 
   defp framework_extension(:ex_unit), do: "_test.exs"

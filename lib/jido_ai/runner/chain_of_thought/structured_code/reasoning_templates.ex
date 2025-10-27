@@ -652,7 +652,7 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.ReasoningTemplates do
 
   defp format_sections(template) do
     template.sections
-    |> Enum.map(fn section ->
+    |> Enum.map_join("\n\n", fn section ->
       # Safe atom conversion - only convert if atom already exists
       # This prevents creating arbitrary atoms from template section strings
       section_key =
@@ -671,7 +671,6 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.ReasoningTemplates do
         ""
       end
     end)
-    |> Enum.join("\n\n")
   end
 
   defp format_examples(template) do

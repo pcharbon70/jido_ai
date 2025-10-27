@@ -571,8 +571,7 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredCode.CodeValidator do
   defp fix_trailing_whitespace(code) do
     code
     |> String.split("\n")
-    |> Enum.map(&String.trim_trailing/1)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &String.trim_trailing/1)
   end
 
   defp fix_blank_lines(code) do

@@ -93,8 +93,7 @@ defmodule Jido.AI.Runner.ReAct.ToolRegistry do
       else
         params =
           parameters
-          |> Enum.map(&to_string/1)
-          |> Enum.join(", ")
+          |> Enum.map_join(", ", &to_string/1)
 
         "(#{params})"
       end

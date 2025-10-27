@@ -271,8 +271,7 @@ defmodule Jido.AI.Actions.CoT.GenerateElixirCode do
 
     code
     |> String.split("\n")
-    |> Enum.map(&"#{indent}#{&1}")
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &"#{indent}#{&1}")
   end
 
   defp call_llm(prompt, model_name, context) do

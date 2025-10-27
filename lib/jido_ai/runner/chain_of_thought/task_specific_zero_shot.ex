@@ -390,8 +390,7 @@ defmodule Jido.AI.Runner.ChainOfThought.TaskSpecificZeroShot do
 
   defp format_context(context) do
     context
-    |> Enum.map(fn {k, v} -> "#{k}: #{inspect(v)}" end)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", fn {k, v} -> "#{k}: #{inspect(v)}" end)
     |> then(&"Context:\n#{&1}\n\n")
   end
 

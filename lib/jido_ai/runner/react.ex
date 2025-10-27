@@ -303,8 +303,7 @@ defmodule Jido.AI.Runner.ReAct do
     # Format tools description
     tools_desc =
       state.tools
-      |> Enum.map(fn tool -> ToolRegistry.format_tool_description(tool) end)
-      |> Enum.join("\n")
+      |> Enum.map_join("\n", fn tool -> ToolRegistry.format_tool_description(tool) end)
 
     # Format trajectory
     trajectory_desc = format_trajectory(state.trajectory)
@@ -320,7 +319,7 @@ defmodule Jido.AI.Runner.ReAct do
 
   defp format_trajectory(trajectory) do
     trajectory
-    |> Enum.map(fn step ->
+    |> Enum.map_join("\n\n", fn step ->
       parts = [
         "Step #{step.step_number}:",
         "Thought: #{step.thought}"
@@ -349,7 +348,6 @@ defmodule Jido.AI.Runner.ReAct do
 
       Enum.join(parts, "\n")
     end)
-    |> Enum.join("\n\n")
   end
 
   defp simulate_thought_output(state) do

@@ -161,8 +161,7 @@ defmodule Jido.AI.Actions.CoT do
 
     defp format_context(context) do
       context
-      |> Enum.map(fn {k, v} -> "#{k}: #{inspect(v)}" end)
-      |> Enum.join("\n")
+      |> Enum.map_join("\n", fn {k, v} -> "#{k}: #{inspect(v)}" end)
       |> then(&"Additional Context:\n#{&1}")
     end
 
