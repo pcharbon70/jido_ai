@@ -81,13 +81,9 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
       |> Enum.map(fn {normalized_cause, causes} ->
         create_failure_pattern(normalized_cause, causes, collection)
       end)
-      |> Enum.filter(&(&1.frequency >= min_frequency))
       |> Enum.filter(fn pattern ->
-        if require_significance do
-          pattern.confidence != :low
-        else
-          true
-        end
+        pattern.frequency >= min_frequency and
+          (not require_significance or pattern.confidence != :low)
       end)
       |> Enum.sort_by(& &1.frequency, :desc)
 

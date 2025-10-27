@@ -520,8 +520,7 @@ defmodule Jido.AI.Runner.ChainOfThought.StructuredZeroShot do
     lines
     |> Enum.filter(&bullet_point?/1)
     |> Enum.map(&clean_bullet_point/1)
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.reject(&(String.length(&1) < 5))
+    |> Enum.reject(&(&1 == "" or String.length(&1) < 5))
   end
 
   @spec bullet_point?(String.t()) :: boolean()
