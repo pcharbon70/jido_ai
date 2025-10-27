@@ -94,9 +94,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditValidator do
           if String.contains?(structure.raw_text, location.relative_marker) do
             {:ok, edit}
           else
-            Logger.warning("Relative marker not found in prompt",
-              marker: location.relative_marker
-            )
+            Logger.warning("Relative marker not found in prompt (marker: #{location.relative_marker})")
 
             # Fallback to end
             {:ok, %{edit | location: %{location | type: :end}}}
@@ -128,7 +126,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditValidator do
           if contains_pattern?(structure.raw_text, location.pattern) do
             {:ok, edit}
           else
-            Logger.warning("Pattern not found in prompt", pattern: pattern_str)
+            Logger.warning("Pattern not found in prompt (pattern: #{pattern_str})")
             # Cannot fall back for within - this is an error
             {:ok,
              %{
@@ -181,7 +179,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditValidator do
           if String.contains?(structure.raw_text, edit.target_text) do
             {:ok, edit}
           else
-            Logger.warning("Target text not found in prompt", target: edit.target_text)
+            Logger.warning("Target text not found in prompt (target: #{edit.target_text})")
 
             {:ok,
              %{
@@ -199,7 +197,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditValidator do
           if String.contains?(structure.raw_text, edit.target_text) do
             {:ok, edit}
           else
-            Logger.warning("Deletion target not found", target: edit.target_text)
+            Logger.warning("Deletion target not found (target: #{edit.target_text})")
 
             {:ok,
              %{
