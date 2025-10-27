@@ -59,6 +59,30 @@ defmodule Jido.AI.Runner.ChainOfThought.SelfCorrection do
   @type validation_result :: {:ok, term()} | {:error, term(), divergence_level()}
   @type quality_score :: float()
 
+  # Private struct to group iteration context parameters
+  defmodule CorrectionContext do
+    @moduledoc false
+    defstruct [
+      :reasoning_fn,
+      :validator,
+      :max_iter,
+      :threshold,
+      :callback,
+      :iteration,
+      :history
+    ]
+
+    @type t :: %__MODULE__{
+            reasoning_fn: fun(),
+            validator: fun(),
+            max_iter: pos_integer(),
+            threshold: float(),
+            callback: fun() | nil,
+            iteration: pos_integer(),
+            history: list()
+          }
+  end
+
   @doc """
   Validates outcome by comparing expected vs. actual results.
 
@@ -242,15 +266,17 @@ defmodule Jido.AI.Runner.ChainOfThought.SelfCorrection do
       raise ArgumentError, "validator function is required"
     end
 
-    do_iterative_execute(
-      reasoning_fn,
-      validator,
-      max_iterations,
-      quality_threshold,
-      on_correction,
-      1,
-      []
-    )
+    context = %CorrectionContext{
+      reasoning_fn: reasoning_fn,
+      validator: validator,
+      max_iter: max_iterations,
+      threshold: quality_threshold,
+      callback: on_correction,
+      iteration: 1,
+      history: []
+    }
+
+    do_iterative_execute(context)
   end
 
   @doc """
@@ -368,147 +394,72 @@ defmodule Jido.AI.Runner.ChainOfThought.SelfCorrection do
     if union == 0, do: 1.0, else: intersection / union
   end
 
-  defp do_iterative_execute(_fn, _validator, max_iter, _threshold, _callback, iteration, _history)
+  defp do_iterative_execute(%CorrectionContext{iteration: iteration, max_iter: max_iter})
        when iteration > max_iter do
     {:error, :max_iterations_exceeded}
   end
 
-  defp do_iterative_execute(
-         reasoning_fn,
-         validator,
-         max_iter,
-         threshold,
-         callback,
-         iteration,
-         history
-       ) do
-    Logger.debug("Self-correction iteration #{iteration}/#{max_iter}")
+  defp do_iterative_execute(%CorrectionContext{} = context) do
+    Logger.debug("Self-correction iteration #{context.iteration}/#{context.max_iter}")
 
     # Execute reasoning
-    result = reasoning_fn.()
+    result = context.reasoning_fn.()
 
     # Validate result
-    case validator.(result) do
+    case context.validator.(result) do
       {:ok, validated_result} ->
         # Check quality
         score = quality_score(validated_result, [])
 
-        if quality_threshold_met?(score, threshold) do
-          Logger.info("Self-correction succeeded at iteration #{iteration} with quality #{score}")
+        if quality_threshold_met?(score, context.threshold) do
+          Logger.info("Self-correction succeeded at iteration #{context.iteration} with quality #{score}")
           {:ok, validated_result}
         else
           # Quality not met, try correction
-          handle_quality_failure(
-            reasoning_fn,
-            validator,
-            max_iter,
-            threshold,
-            callback,
-            iteration,
-            history,
-            result,
-            score
-          )
+          handle_quality_failure(context, result, score)
         end
 
       {:error, reason, divergence} ->
         # Validation failed
-        handle_validation_failure(
-          reasoning_fn,
-          validator,
-          max_iter,
-          threshold,
-          callback,
-          iteration,
-          history,
-          result,
-          reason,
-          divergence
-        )
+        handle_validation_failure(context, result, reason, divergence)
 
       {:error, reason} ->
         # Validation error without divergence classification
-        handle_validation_failure(
-          reasoning_fn,
-          validator,
-          max_iter,
-          threshold,
-          callback,
-          iteration,
-          history,
-          result,
-          reason,
-          :critical
-        )
+        handle_validation_failure(context, result, reason, :critical)
     end
   end
 
-  defp handle_quality_failure(
-         reasoning_fn,
-         validator,
-         max_iter,
-         threshold,
-         callback,
-         iteration,
-         history,
-         result,
-         score
-       ) do
-    Logger.warning("Quality threshold not met: #{score} < #{threshold}")
+  defp handle_quality_failure(%CorrectionContext{} = context, result, score) do
+    Logger.warning("Quality threshold not met: #{score} < #{context.threshold}")
 
-    if iteration >= max_iter do
+    if context.iteration >= context.max_iter do
       Logger.warning("Max iterations reached, accepting partial result")
       {:ok, result, :partial}
     else
       # Try correction
-      strategy = select_correction_strategy(:minor, iteration, history)
-      new_history = [{iteration, result, score, strategy} | history]
+      strategy = select_correction_strategy(:minor, context.iteration, context.history)
+      new_history = [{context.iteration, result, score, strategy} | context.history]
 
-      if callback, do: callback.({:correction, iteration, strategy, score})
+      if context.callback, do: context.callback.({:correction, context.iteration, strategy, score})
 
-      do_iterative_execute(
-        reasoning_fn,
-        validator,
-        max_iter,
-        threshold,
-        callback,
-        iteration + 1,
-        new_history
-      )
+      new_context = %{context | iteration: context.iteration + 1, history: new_history}
+      do_iterative_execute(new_context)
     end
   end
 
-  defp handle_validation_failure(
-         reasoning_fn,
-         validator,
-         max_iter,
-         threshold,
-         callback,
-         iteration,
-         history,
-         result,
-         reason,
-         divergence
-       ) do
+  defp handle_validation_failure(%CorrectionContext{} = context, result, reason, divergence) do
     Logger.warning("Validation failed: #{inspect(reason)}, divergence: #{divergence}")
 
-    if iteration >= max_iter do
+    if context.iteration >= context.max_iter do
       {:error, reason}
     else
-      strategy = select_correction_strategy(divergence, iteration, history)
-      new_history = [{iteration, result, reason, divergence, strategy} | history]
+      strategy = select_correction_strategy(divergence, context.iteration, context.history)
+      new_history = [{context.iteration, result, reason, divergence, strategy} | context.history]
 
-      if callback, do: callback.({:correction, iteration, strategy, divergence})
+      if context.callback, do: context.callback.({:correction, context.iteration, strategy, divergence})
 
-      do_iterative_execute(
-        reasoning_fn,
-        validator,
-        max_iter,
-        threshold,
-        callback,
-        iteration + 1,
-        new_history
-      )
+      new_context = %{context | iteration: context.iteration + 1, history: new_history}
+      do_iterative_execute(new_context)
     end
   end
 
