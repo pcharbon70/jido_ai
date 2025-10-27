@@ -1,9 +1,9 @@
 defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector
   alias Jido.AI.Runner.GEPA.Pareto.DominanceComparator
   alias Jido.AI.Runner.GEPA.Population.Candidate
+  alias Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector
 
   describe "assign_crowding_distances/2" do
     test "returns empty list for empty population" do

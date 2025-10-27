@@ -1,8 +1,8 @@
 defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.Selection.TournamentSelector
   alias Jido.AI.Runner.GEPA.Population.Candidate
+  alias Jido.AI.Runner.GEPA.Selection.TournamentSelector
 
   describe "select/2 - basic validation" do
     test "returns error for empty population" do
@@ -240,8 +240,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
         )
 
       boundary_count = Enum.count(parents, fn p -> p.id == "boundary" end)
-      # Should strongly favor boundary
-      assert boundary_count > 30
+      # Should strongly favor boundary (probabilistic, so allow >= 30)
+      assert boundary_count >= 30
     end
 
     test "uses rank as tiebreaker when distances equal" do

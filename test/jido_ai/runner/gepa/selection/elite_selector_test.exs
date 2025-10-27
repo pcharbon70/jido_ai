@@ -1,8 +1,8 @@
 defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.Selection.EliteSelector
   alias Jido.AI.Runner.GEPA.Population.Candidate
+  alias Jido.AI.Runner.GEPA.Selection.EliteSelector
 
   describe "select_elites/2 - basic validation" do
     test "returns empty list for empty population" do

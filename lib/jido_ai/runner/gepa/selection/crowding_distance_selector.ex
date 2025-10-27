@@ -330,20 +330,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
         front_candidate_ids = Enum.map(fronts[rank], & &1.id)
         front_candidates = Enum.map(front_candidate_ids, fn id -> candidate_map[id] end)
 
-        cond do
+        if length(front_candidates) <= remaining do
           # Entire front fits
-          length(front_candidates) <= remaining ->
-            {:cont, {selected ++ front_candidates, remaining - length(front_candidates)}}
-
+          {:cont, {selected ++ front_candidates, remaining - length(front_candidates)}}
+        else
           # Front needs trimming - select by crowding distance
-          true ->
-            # Sort front by crowding distance (descending)
-            selected_from_front =
-              front_candidates
-              |> Enum.sort_by(fn c -> negate_distance(c.crowding_distance) end, :asc)
-              |> Enum.take(remaining)
+          # Sort front by crowding distance (descending)
+          selected_from_front =
+            front_candidates
+            |> Enum.sort_by(fn c -> negate_distance(c.crowding_distance) end, :asc)
+            |> Enum.take(remaining)
 
-            {:halt, {selected ++ selected_from_front, 0}}
+          {:halt, {selected ++ selected_from_front, 0}}
         end
       end)
 
