@@ -157,14 +157,18 @@ defmodule Jido.AI.Runner.GEPA.TestHelper do
     end
 
     # Check fitness range if specified
-    if {min, max} = expectations[:fitness_range] do
-      if result.fitness do
-        assert result.fitness >= min,
-               "Fitness #{result.fitness} below minimum #{min}"
+    case expectations[:fitness_range] do
+      {min, max} when is_number(min) and is_number(max) ->
+        if result.fitness do
+          assert result.fitness >= min,
+                 "Fitness #{result.fitness} below minimum #{min}"
 
-        assert result.fitness <= max,
-               "Fitness #{result.fitness} above maximum #{max}"
-      end
+          assert result.fitness <= max,
+                 "Fitness #{result.fitness} above maximum #{max}"
+        end
+
+      _ ->
+        :ok
     end
 
     # Check exact fitness if specified
