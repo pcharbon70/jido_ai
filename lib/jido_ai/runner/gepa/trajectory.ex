@@ -228,11 +228,7 @@ defmodule Jido.AI.Runner.GEPA.Trajectory do
       parent_step_id: Keyword.get(opts, :parent_step_id)
     }
 
-    Logger.debug("Recording trajectory step",
-      trajectory_id: trajectory.id,
-      step_type: step.type,
-      importance: step.importance
-    )
+    Logger.debug("Recording trajectory step (trajectory_id: #{trajectory.id}, step_type: #{step.type}, importance: #{step.importance})")
 
     %{trajectory | steps: trajectory.steps ++ [step]}
   end
@@ -270,11 +266,7 @@ defmodule Jido.AI.Runner.GEPA.Trajectory do
       metadata: Keyword.get(opts, :metadata, %{})
     }
 
-    Logger.debug("Recording state snapshot",
-      trajectory_id: trajectory.id,
-      reason: snapshot.reason,
-      step_id: snapshot.step_id
-    )
+    Logger.debug("Recording state snapshot (trajectory_id: #{trajectory.id}, reason: #{snapshot.reason}, step_id: #{inspect(snapshot.step_id)})")
 
     %{trajectory | state_snapshots: trajectory.state_snapshots ++ [snapshot]}
   end
@@ -301,13 +293,7 @@ defmodule Jido.AI.Runner.GEPA.Trajectory do
     outcome = Keyword.get(opts, :outcome, :success)
     error = Keyword.get(opts, :error)
 
-    Logger.info("Trajectory completed",
-      trajectory_id: trajectory.id,
-      duration_ms: duration_ms,
-      steps: length(trajectory.steps),
-      snapshots: length(trajectory.state_snapshots),
-      outcome: outcome
-    )
+    Logger.info("Trajectory completed (trajectory_id: #{trajectory.id}, duration_ms: #{duration_ms}, steps: #{length(trajectory.steps)}, snapshots: #{length(trajectory.state_snapshots)}, outcome: #{outcome})")
 
     %{
       trajectory
@@ -374,13 +360,7 @@ defmodule Jido.AI.Runner.GEPA.Trajectory do
     original_steps = length(trajectory.steps)
     filtered_step_count = length(filtered_steps)
 
-    Logger.debug("Filtered trajectory",
-      trajectory_id: trajectory.id,
-      original_steps: original_steps,
-      filtered_steps: filtered_step_count,
-      removed: original_steps - filtered_step_count,
-      min_importance: min_importance
-    )
+    Logger.debug("Filtered trajectory (trajectory_id: #{trajectory.id}, original_steps: #{original_steps}, filtered_steps: #{filtered_step_count}, removed: #{original_steps - filtered_step_count}, min_importance: #{min_importance})")
 
     %{
       trajectory
