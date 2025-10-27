@@ -75,7 +75,8 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.ImpactRanker do
     location_score = calculate_location_score(edit.location) * 0.15
     validation_bonus = if edit.validated, do: 0.10, else: 0.0
 
-    impact_score = priority_score + category_score + specificity_score + location_score + validation_bonus
+    impact_score =
+      priority_score + category_score + specificity_score + location_score + validation_bonus
 
     # Clamp to [0.0, 1.0]
     clamped_score = min(max(impact_score, 0.0), 1.0)
@@ -92,11 +93,16 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.ImpactRanker do
 
   defp calculate_category_score(category) do
     case category do
-      :clarity -> 0.9      # Clarity improvements highly impactful
-      :constraint -> 0.85  # Constraints enforce correctness
-      :reasoning -> 0.8    # Reasoning guidance valuable
-      :example -> 0.7      # Examples helpful but not critical
-      :structure -> 0.6    # Structure changes moderate impact
+      # Clarity improvements highly impactful
+      :clarity -> 0.9
+      # Constraints enforce correctness
+      :constraint -> 0.85
+      # Reasoning guidance valuable
+      :reasoning -> 0.8
+      # Examples helpful but not critical
+      :example -> 0.7
+      # Structure changes moderate impact
+      :structure -> 0.6
       _ -> 0.5
     end
   end
@@ -104,7 +110,8 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.ImpactRanker do
   defp calculate_specificity_score(edit) do
     cond do
       # Has specific text from LLM
-      edit.source_suggestion.specific_text && String.trim(edit.source_suggestion.specific_text) != "" ->
+      edit.source_suggestion.specific_text &&
+          String.trim(edit.source_suggestion.specific_text) != "" ->
         1.0
 
       # Has concrete content generated
@@ -123,12 +130,17 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.ImpactRanker do
 
   defp calculate_location_score(location) do
     case location.type do
-      :end -> 0.7      # Appending is safe and common
-      :start -> 0.8    # Prepending can be very impactful
-      :within -> 0.9   # Targeted edits are most impactful
-      :before -> 0.75  # Relative positioning good
+      # Appending is safe and common
+      :end -> 0.7
+      # Prepending can be very impactful
+      :start -> 0.8
+      # Targeted edits are most impactful
+      :within -> 0.9
+      # Relative positioning good
+      :before -> 0.75
       :after -> 0.75
-      :replace_all -> 0.5  # Bulk replacements risky
+      # Bulk replacements risky
+      :replace_all -> 0.5
       _ -> 0.5
     end
   end

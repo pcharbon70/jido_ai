@@ -153,7 +153,8 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.PromptStructureAnalyzer do
 
   defp identify_instruction_section(prompt) do
     # Look for instruction markers at the start
-    if String.length(prompt) < 200 and not String.contains?(String.downcase(prompt), ["example:", "for example"]) do
+    if String.length(prompt) < 200 and
+         not String.contains?(String.downcase(prompt), ["example:", "for example"]) do
       [
         %{
           name: "instructions",
@@ -201,6 +202,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.PromptStructureAnalyzer do
     if has_examples?(prompt) do
       # Find example markers
       example_regex = ~r/(for example|e\.g\.|example:|such as).*/i
+
       case Regex.run(example_regex, prompt, return: :index) do
         [{start, length} | _] ->
           [

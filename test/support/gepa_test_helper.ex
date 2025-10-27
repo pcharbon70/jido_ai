@@ -89,12 +89,13 @@ defmodule Jido.AI.Runner.GEPA.TestHelper do
       else
         # For non-chat signals, return a simple success response
         # This prevents issues with concurrent agent lifecycle management
-        {:ok, %Jido.Signal{
-          id: Jido.Signal.ID.generate!(),
-          type: "jido.agent.internal.ok",
-          source: "/mock/agent",
-          data: %{status: :ok}
-        }}
+        {:ok,
+         %Jido.Signal{
+           id: Jido.Signal.ID.generate!(),
+           type: "jido.agent.internal.ok",
+           source: "/mock/agent",
+           data: %{status: :ok}
+         }}
       end
     end)
 

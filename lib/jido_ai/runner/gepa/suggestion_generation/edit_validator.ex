@@ -120,14 +120,22 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditValidator do
       :within ->
         # Check if pattern exists in prompt
         if location.pattern do
-          pattern_str = if is_struct(location.pattern, Regex), do: inspect(location.pattern), else: location.pattern
+          pattern_str =
+            if is_struct(location.pattern, Regex),
+              do: inspect(location.pattern),
+              else: location.pattern
 
           if contains_pattern?(structure.raw_text, location.pattern) do
             {:ok, edit}
           else
             Logger.warning("Pattern not found in prompt", pattern: pattern_str)
             # Cannot fall back for within - this is an error
-            {:ok, %{edit | validated: false, metadata: Map.put(edit.metadata, :validation_warning, :pattern_not_found)}}
+            {:ok,
+             %{
+               edit
+               | validated: false,
+                 metadata: Map.put(edit.metadata, :validation_warning, :pattern_not_found)
+             }}
           end
         else
           {:error, :missing_pattern}
@@ -174,7 +182,13 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditValidator do
             {:ok, edit}
           else
             Logger.warning("Target text not found in prompt", target: edit.target_text)
-            {:ok, %{edit | validated: false, metadata: Map.put(edit.metadata, :validation_warning, :target_not_found)}}
+
+            {:ok,
+             %{
+               edit
+               | validated: false,
+                 metadata: Map.put(edit.metadata, :validation_warning, :target_not_found)
+             }}
           end
         else
           {:error, :missing_target_text}
@@ -186,7 +200,13 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditValidator do
             {:ok, edit}
           else
             Logger.warning("Deletion target not found", target: edit.target_text)
-            {:ok, %{edit | validated: false, metadata: Map.put(edit.metadata, :validation_warning, :target_not_found)}}
+
+            {:ok,
+             %{
+               edit
+               | validated: false,
+                 metadata: Map.put(edit.metadata, :validation_warning, :target_not_found)
+             }}
           end
         else
           {:error, :missing_deletion_target}

@@ -97,32 +97,36 @@ defmodule Jido.AI.Runner.GEPA.TestFixtures do
 
     case scenario do
       :success ->
-        {:ok, %{
-          content: "Mock successful response for: #{prompt}",
-          role: :assistant,
-          metadata: %{model: "mock-model", tokens: 50}
-        }}
+        {:ok,
+         %{
+           content: "Mock successful response for: #{prompt}",
+           role: :assistant,
+           metadata: %{model: "mock-model", tokens: 50}
+         }}
 
       :high_fitness ->
-        {:ok, %{
-          content: "Excellent response with high-quality reasoning: #{prompt}",
-          role: :assistant,
-          metadata: %{model: "mock-model", tokens: 100, quality: :high}
-        }}
+        {:ok,
+         %{
+           content: "Excellent response with high-quality reasoning: #{prompt}",
+           role: :assistant,
+           metadata: %{model: "mock-model", tokens: 100, quality: :high}
+         }}
 
       :low_fitness ->
-        {:ok, %{
-          content: "Poor quality response",
-          role: :assistant,
-          metadata: %{model: "mock-model", tokens: 10, quality: :low}
-        }}
+        {:ok,
+         %{
+           content: "Poor quality response",
+           role: :assistant,
+           metadata: %{model: "mock-model", tokens: 10, quality: :low}
+         }}
 
       :partial ->
-        {:ok, %{
-          content: "Partial response (incomplete)",
-          role: :assistant,
-          metadata: %{model: "mock-model", tokens: 25, complete: false}
-        }}
+        {:ok,
+         %{
+           content: "Partial response (incomplete)",
+           role: :assistant,
+           metadata: %{model: "mock-model", tokens: 25, complete: false}
+         }}
 
       :timeout ->
         {:error, :timeout}
@@ -137,11 +141,12 @@ defmodule Jido.AI.Runner.GEPA.TestFixtures do
         {:error, :agent_crashed}
 
       _ ->
-        {:ok, %{
-          content: "Mock response",
-          role: :assistant,
-          metadata: %{model: "mock-model"}
-        }}
+        {:ok,
+         %{
+           content: "Mock response",
+           role: :assistant,
+           metadata: %{model: "mock-model"}
+         }}
     end
   end
 
@@ -155,13 +160,14 @@ defmodule Jido.AI.Runner.GEPA.TestFixtures do
   A `Trajectory.t()` struct populated with appropriate steps and metadata
   """
   def build_trajectory_for_scenario(scenario) do
-    base_trajectory = Trajectory.new(
-      metadata: %{
-        scenario: scenario,
-        test_fixture: true,
-        created_at: DateTime.utc_now()
-      }
-    )
+    base_trajectory =
+      Trajectory.new(
+        metadata: %{
+          scenario: scenario,
+          test_fixture: true,
+          created_at: DateTime.utc_now()
+        }
+      )
 
     case scenario do
       :success -> add_success_steps(base_trajectory)

@@ -100,7 +100,14 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
          {:ok, suggestion_patterns} <- detect_suggestion_patterns(enriched, opts),
          {:ok, clusters} <- deduplicate_suggestions(enriched, opts),
          {:ok, weighted} <- weight_suggestions(clusters, enriched, opts),
-         {:ok, aggregated} <- build_aggregated_feedback(enriched, failure_patterns, suggestion_patterns, clusters, weighted) do
+         {:ok, aggregated} <-
+           build_aggregated_feedback(
+             enriched,
+             failure_patterns,
+             suggestion_patterns,
+             clusters,
+             weighted
+           ) do
       Logger.info("Feedback aggregation complete",
         total_evaluations: collection.total_evaluations,
         unique_suggestions: aggregated.total_unique_suggestions,
@@ -263,7 +270,13 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
     end
   end
 
-  defp build_aggregated_feedback(collection, failure_patterns, suggestion_patterns, clusters, weighted) do
+  defp build_aggregated_feedback(
+         collection,
+         failure_patterns,
+         suggestion_patterns,
+         clusters,
+         weighted
+       ) do
     {high_conf, medium_conf, low_conf, _} = partition_by_priority(weighted)
 
     total_unique = length(clusters)

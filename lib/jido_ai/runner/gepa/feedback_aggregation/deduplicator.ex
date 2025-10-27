@@ -104,16 +104,18 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Deduplicator do
     type_category_score = (type_match + category_match) / 2.0
 
     # 2. Description similarity (40% weight)
-    desc_similarity = jaro_winkler_similarity(
-      s1.suggestion.description,
-      s2.suggestion.description
-    )
+    desc_similarity =
+      jaro_winkler_similarity(
+        s1.suggestion.description,
+        s2.suggestion.description
+      )
 
     # 3. Rationale similarity (15% weight)
-    rationale_similarity = jaro_winkler_similarity(
-      s1.suggestion.rationale || "",
-      s2.suggestion.rationale || ""
-    )
+    rationale_similarity =
+      jaro_winkler_similarity(
+        s1.suggestion.rationale || "",
+        s2.suggestion.rationale || ""
+      )
 
     # 4. Target section match (5% weight)
     target_match =

@@ -480,7 +480,6 @@ defmodule Jido.AI.Runner.GEPA.Reflector do
     end
   end
 
-
   defp score_reflection(reflection) do
     confidence_score =
       case reflection.confidence do

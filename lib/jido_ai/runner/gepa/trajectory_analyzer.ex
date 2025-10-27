@@ -171,6 +171,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzer do
 
     field(:trajectory_id, String.t(), enforce: true)
     field(:outcome, Trajectory.outcome(), enforce: true)
+
     field(:failure_points, list(Jido.AI.Runner.GEPA.TrajectoryAnalyzer.FailurePoint.t()),
       default: []
     )
@@ -732,7 +733,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzer do
 
     # Check for efficient execution
     indicators =
-      if trajectory.duration_ms && trajectory.duration_ms < 5000 and
+      if (trajectory.duration_ms && trajectory.duration_ms < 5000) and
            length(trajectory.steps) < 10 do
         [
           %SuccessIndicator{

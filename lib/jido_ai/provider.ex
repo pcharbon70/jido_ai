@@ -371,7 +371,9 @@ defmodule Jido.AI.Provider do
   def list_all_cached_models do
     # Ensure the base directory exists (with error handling)
     case File.mkdir_p(base_dir()) do
-      :ok -> :ok
+      :ok ->
+        :ok
+
       {:error, reason} ->
         require Logger
         Logger.warning("Failed to create cache directory: #{inspect(reason)}")
@@ -404,22 +406,22 @@ defmodule Jido.AI.Provider do
         models_file = Path.join([base_dir(), provider_dir, "models.json"])
 
         if File.exists?(models_file) do
-        case File.read(models_file) do
-          {:ok, json} ->
-            case Jason.decode(json) do
-              {:ok, %{"data" => models}} when is_list(models) ->
-                Enum.map(models, &Map.put(&1, :provider, provider_id))
+          case File.read(models_file) do
+            {:ok, json} ->
+              case Jason.decode(json) do
+                {:ok, %{"data" => models}} when is_list(models) ->
+                  Enum.map(models, &Map.put(&1, :provider, provider_id))
 
-              {:ok, models} when is_list(models) ->
-                Enum.map(models, &Map.put(&1, :provider, provider_id))
+                {:ok, models} when is_list(models) ->
+                  Enum.map(models, &Map.put(&1, :provider, provider_id))
 
-              _ ->
-                []
-            end
+                _ ->
+                  []
+              end
 
-          _ ->
-            []
-        end
+            _ ->
+              []
+          end
         else
           []
         end

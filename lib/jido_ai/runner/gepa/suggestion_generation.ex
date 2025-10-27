@@ -232,9 +232,10 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration do
     field(:id, String.t(), enforce: true)
     field(:original_prompt, String.t(), enforce: true)
 
-    field(:prompt_structure,
-          Jido.AI.Runner.GEPA.SuggestionGeneration.PromptStructure.t(),
-          enforce: true
+    field(
+      :prompt_structure,
+      Jido.AI.Runner.GEPA.SuggestionGeneration.PromptStructure.t(),
+      enforce: true
     )
 
     field(:edits, list(Jido.AI.Runner.GEPA.SuggestionGeneration.PromptEdit.t()), default: [])
@@ -280,14 +281,16 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration do
 
     field(:edits, list(Jido.AI.Runner.GEPA.SuggestionGeneration.PromptEdit.t()), enforce: true)
 
-    field(:conflict_type,
-          Jido.AI.Runner.GEPA.SuggestionGeneration.conflict_type(),
-          enforce: true
+    field(
+      :conflict_type,
+      Jido.AI.Runner.GEPA.SuggestionGeneration.conflict_type(),
+      enforce: true
     )
 
-    field(:resolution_strategy,
-          Jido.AI.Runner.GEPA.SuggestionGeneration.resolution_strategy(),
-          default: :highest_impact
+    field(
+      :resolution_strategy,
+      Jido.AI.Runner.GEPA.SuggestionGeneration.resolution_strategy(),
+      default: :highest_impact
     )
 
     field(:resolved, boolean(), default: false)

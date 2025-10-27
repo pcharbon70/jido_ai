@@ -116,8 +116,8 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzerTest do
       analysis = TrajectoryAnalyzer.analyze(trajectory)
 
       assert Enum.all?(analysis.failure_points, fn fp ->
-        is_map(fp.context) and fp.description != nil
-      end)
+               is_map(fp.context) and fp.description != nil
+             end)
     end
   end
 
@@ -207,8 +207,8 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzerTest do
       issues = TrajectoryAnalyzer.analyze_reasoning_steps(trajectory)
 
       assert Enum.all?(issues, fn issue ->
-        issue.evidence != nil and issue.step_ids != []
-      end)
+               issue.evidence != nil and issue.step_ids != []
+             end)
     end
 
     test "returns empty list for trajectory with good reasoning" do
@@ -807,7 +807,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzerTest do
 
   defp build_step(type, content, metadata \\ %{}) do
     %Trajectory.Step{
-      id: "step_#{:rand.uniform(100000)}",
+      id: "step_#{:rand.uniform(100_000)}",
       type: type,
       content: content,
       timestamp: DateTime.utc_now(),

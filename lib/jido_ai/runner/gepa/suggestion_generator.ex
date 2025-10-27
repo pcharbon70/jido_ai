@@ -44,6 +44,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
 
   alias Jido.AI.Runner.GEPA.Reflector.ParsedReflection
   alias Jido.AI.Runner.GEPA.SuggestionGeneration
+
   alias Jido.AI.Runner.GEPA.SuggestionGeneration.{
     PromptStructureAnalyzer,
     EditBuilder,
@@ -99,7 +100,6 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
          {:ok, conflict_resolved_edits} <- resolve_all_conflicts(validated_edits, opts),
          {:ok, ranked_edits} <- rank_all_edits(conflict_resolved_edits),
          {:ok, filtered_edits} <- filter_by_criteria(ranked_edits, opts) do
-
       plan = %EditPlan{
         id: generate_plan_id(),
         original_prompt: prompt,
@@ -200,7 +200,9 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
       edits
       |> Enum.map(fn edit ->
         case EditValidator.validate(edit, structure) do
-          {:ok, validated} -> validated
+          {:ok, validated} ->
+            validated
+
           {:error, reason} ->
             Logger.warning("Edit validation failed", edit_id: edit.id, reason: reason)
             # Return edit marked as invalid

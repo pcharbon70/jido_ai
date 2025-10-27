@@ -58,7 +58,10 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditBuilder do
   @spec build_edits(Suggestion.t(), PromptStructure.t(), keyword()) ::
           {:ok, list(PromptEdit.t())} | {:error, term()}
   def build_edits(%Suggestion{} = suggestion, %PromptStructure{} = structure, opts \\ []) do
-    Logger.debug("Building edits for suggestion", type: suggestion.type, category: suggestion.category)
+    Logger.debug("Building edits for suggestion",
+      type: suggestion.type,
+      category: suggestion.category
+    )
 
     case suggestion.type do
       :add -> build_addition_edits(suggestion, structure, opts)
@@ -179,9 +182,10 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditBuilder do
   end
 
   defp find_section_location(section_name, structure) do
-    section = Enum.find(structure.sections, fn s ->
-      String.downcase(s.name) == String.downcase(section_name)
-    end)
+    section =
+      Enum.find(structure.sections, fn s ->
+        String.downcase(s.name) == String.downcase(section_name)
+      end)
 
     if section do
       %PromptLocation{

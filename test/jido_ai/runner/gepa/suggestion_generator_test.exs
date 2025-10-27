@@ -9,6 +9,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
 
   alias Jido.AI.Runner.GEPA.{SuggestionGenerator, Reflector}
   alias Jido.AI.Runner.GEPA.SuggestionGeneration
+
   alias Jido.AI.Runner.GEPA.SuggestionGeneration.{
     PromptStructureAnalyzer,
     EditBuilder,
@@ -46,10 +47,11 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
 
       prompt = "Solve this math problem"
 
-      assert {:ok, plan} = SuggestionGenerator.generate_edit_plan(
-        reflection,
-        original_prompt: prompt
-      )
+      assert {:ok, plan} =
+               SuggestionGenerator.generate_edit_plan(
+                 reflection,
+                 original_prompt: prompt
+               )
 
       assert %SuggestionGeneration.EditPlan{} = plan
       assert plan.original_prompt == prompt
@@ -75,7 +77,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
       }
 
       assert {:error, :missing_original_prompt} =
-        SuggestionGenerator.generate_edit_plan(reflection, [])
+               SuggestionGenerator.generate_edit_plan(reflection, [])
     end
 
     test "handles empty suggestions list" do
@@ -84,10 +86,11 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
         suggestions: []
       }
 
-      assert {:ok, plan} = SuggestionGenerator.generate_edit_plan(
-        reflection,
-        original_prompt: "Test prompt"
-      )
+      assert {:ok, plan} =
+               SuggestionGenerator.generate_edit_plan(
+                 reflection,
+                 original_prompt: "Test prompt"
+               )
 
       assert plan.total_edits == 0
       assert plan.edits == []
@@ -116,11 +119,12 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
         ]
       }
 
-      assert {:ok, plan} = SuggestionGenerator.generate_edit_plan(
-        reflection,
-        original_prompt: "Test",
-        min_impact_score: 0.6
-      )
+      assert {:ok, plan} =
+               SuggestionGenerator.generate_edit_plan(
+                 reflection,
+                 original_prompt: "Test",
+                 min_impact_score: 0.6
+               )
 
       # Should filter out low-impact edits
       assert Enum.all?(plan.edits, &(&1.impact_score >= 0.6))
@@ -128,27 +132,29 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
 
     test "respects max_edits limit" do
       # Create many suggestions
-      suggestions = Enum.map(1..10, fn i ->
-        %Reflector.Suggestion{
-          type: :add,
-          category: :clarity,
-          description: "Suggestion #{i}",
-          rationale: "Reason #{i}",
-          priority: :medium,
-          specific_text: "Text #{i}"
-        }
-      end)
+      suggestions =
+        Enum.map(1..10, fn i ->
+          %Reflector.Suggestion{
+            type: :add,
+            category: :clarity,
+            description: "Suggestion #{i}",
+            rationale: "Reason #{i}",
+            priority: :medium,
+            specific_text: "Text #{i}"
+          }
+        end)
 
       reflection = %Reflector.ParsedReflection{
         analysis: "Many improvements",
         suggestions: suggestions
       }
 
-      assert {:ok, plan} = SuggestionGenerator.generate_edit_plan(
-        reflection,
-        original_prompt: "Test",
-        max_edits: 3
-      )
+      assert {:ok, plan} =
+               SuggestionGenerator.generate_edit_plan(
+                 reflection,
+                 original_prompt: "Test",
+                 max_edits: 3
+               )
 
       assert length(plan.edits) <= 3
     end
@@ -176,10 +182,11 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
         ]
       }
 
-      assert {:ok, plan} = SuggestionGenerator.generate_edit_plan(
-        reflection,
-        original_prompt: "Test"
-      )
+      assert {:ok, plan} =
+               SuggestionGenerator.generate_edit_plan(
+                 reflection,
+                 original_prompt: "Test"
+               )
 
       if length(plan.edits) > 1 do
         # Check descending order
@@ -314,7 +321,8 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
         id: "test_2",
         operation: :insert,
         location: %SuggestionGeneration.PromptLocation{type: :end, scope: :prompt},
-        content: nil,  # Missing content
+        # Missing content
+        content: nil,
         source_suggestion: %Reflector.Suggestion{
           type: :add,
           category: :clarity,

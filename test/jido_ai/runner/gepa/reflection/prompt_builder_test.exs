@@ -330,11 +330,12 @@ defmodule Jido.AI.Runner.GEPA.Reflection.PromptBuilderTest do
         suggestions: []
       }
 
-      follow_up = PromptBuilder.build_follow_up_prompt(
-        request,
-        reflection,
-        "Can you elaborate on the constraint issues?"
-      )
+      follow_up =
+        PromptBuilder.build_follow_up_prompt(
+          request,
+          reflection,
+          "Can you elaborate on the constraint issues?"
+        )
 
       assert is_binary(follow_up)
       assert follow_up =~ "Continuing Reflection"
@@ -357,11 +358,12 @@ defmodule Jido.AI.Runner.GEPA.Reflection.PromptBuilderTest do
         suggestions: []
       }
 
-      follow_up = PromptBuilder.build_follow_up_prompt(
-        request,
-        reflection,
-        "Follow-up question"
-      )
+      follow_up =
+        PromptBuilder.build_follow_up_prompt(
+          request,
+          reflection,
+          "Follow-up question"
+        )
 
       assert follow_up =~ "Previous analysis ABC123"
       assert follow_up =~ "Original test prompt"
@@ -383,11 +385,12 @@ defmodule Jido.AI.Runner.GEPA.Reflection.PromptBuilderTest do
         suggestions: []
       }
 
-      follow_up = PromptBuilder.build_follow_up_prompt(
-        request,
-        reflection,
-        "Why did reasoning fail?"
-      )
+      follow_up =
+        PromptBuilder.build_follow_up_prompt(
+          request,
+          reflection,
+          "Why did reasoning fail?"
+        )
 
       assert follow_up =~ "Solve math problem"
       assert follow_up =~ "Algebra task"

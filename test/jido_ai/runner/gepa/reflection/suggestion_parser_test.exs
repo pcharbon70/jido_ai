@@ -255,7 +255,8 @@ defmodule Jido.AI.Runner.GEPA.Reflection.SuggestionParserTest do
 
     test "falls back to text parsing on invalid JSON" do
       response = %Reflector.ReflectionResponse{
-        content: "This is not valid JSON {broken. You should add more constraints. The prompt should include examples. Consider modifying the structure.",
+        content:
+          "This is not valid JSON {broken. You should add more constraints. The prompt should include examples. Consider modifying the structure.",
         format: :json,
         timestamp: DateTime.utc_now()
       }
@@ -321,7 +322,8 @@ defmodule Jido.AI.Runner.GEPA.Reflection.SuggestionParserTest do
   describe "parse/2 - text parsing fallback" do
     test "parses text response" do
       response = %Reflector.ReflectionResponse{
-        content: "The prompt should add more specific constraints. It should clarify the output format.",
+        content:
+          "The prompt should add more specific constraints. It should clarify the output format.",
         format: :text,
         timestamp: DateTime.utc_now()
       }
@@ -633,8 +635,7 @@ defmodule Jido.AI.Runner.GEPA.Reflection.SuggestionParserTest do
 
       without_text = %{
         with_text
-        | suggestions:
-            Enum.map(with_text.suggestions, fn s -> %{s | specific_text: nil} end)
+        | suggestions: Enum.map(with_text.suggestions, fn s -> %{s | specific_text: nil} end)
       }
 
       with_conf = SuggestionParser.score_confidence(with_text)
@@ -681,7 +682,9 @@ defmodule Jido.AI.Runner.GEPA.Reflection.SuggestionParserTest do
       low_priority = %{
         high_priority
         | suggestions:
-            Enum.map(high_priority.suggestions, fn s -> %{s | priority: :low, specific_text: nil} end),
+            Enum.map(high_priority.suggestions, fn s ->
+              %{s | priority: :low, specific_text: nil}
+            end),
           root_causes: []
       }
 
@@ -910,7 +913,8 @@ defmodule Jido.AI.Runner.GEPA.Reflection.SuggestionParserTest do
           "priority" => "medium"
         }
       ],
-      "expected_improvement" => "The model should produce more consistent outputs with better formatting"
+      "expected_improvement" =>
+        "The model should produce more consistent outputs with better formatting"
     })
   end
 end

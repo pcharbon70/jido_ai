@@ -292,8 +292,9 @@ defmodule Jido.AI.Runner.GEPA.ReflectorTest do
         case result do
           {:ok, updated} ->
             assert %Reflector.ConversationState{} = updated
-            # Current implementation returns unchanged conversation
-            # This is a stub for future multi-turn implementation
+
+          # Current implementation returns unchanged conversation
+          # This is a stub for future multi-turn implementation
 
           {:error, _} ->
             assert true
