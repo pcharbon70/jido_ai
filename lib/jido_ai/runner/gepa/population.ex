@@ -416,25 +416,17 @@ defmodule Jido.AI.Runner.GEPA.Population do
 
       try do
         File.write!(path, binary)
-        Logger.info("Population saved successfully", path: path, size: byte_size(binary))
+        Logger.info("Population saved successfully (path: #{path}, size: #{byte_size(binary)})")
         :ok
       rescue
         error ->
-          Logger.error("Failed to write population file",
-            path: path,
-            operation: "file_write",
-            error: Exception.message(error)
-          )
+          Logger.error("Failed to write population file (path: #{path}, operation: file_write, error: #{Exception.message(error)})")
 
           {:error, {:file_write_failed, error}}
       end
     rescue
       error ->
-        Logger.error("Failed to serialize population",
-          path: path,
-          operation: "serialization",
-          error: Exception.message(error)
-        )
+        Logger.error("Failed to serialize population (path: #{path}, operation: serialization, error: #{Exception.message(error)})")
 
         {:error, {:serialization_failed, error}}
     end
@@ -468,7 +460,7 @@ defmodule Jido.AI.Runner.GEPA.Population do
 
         case data do
           %{version: 1, population: population} ->
-            Logger.info("Population loaded successfully", path: path)
+            Logger.info("Population loaded successfully (path: #{path})")
             {:ok, population}
 
           %{version: version} ->
@@ -479,21 +471,13 @@ defmodule Jido.AI.Runner.GEPA.Population do
         end
       rescue
         error ->
-          Logger.error("Failed to deserialize population",
-            path: path,
-            operation: "deserialization",
-            error: Exception.message(error)
-          )
+          Logger.error("Failed to deserialize population (path: #{path}, operation: deserialization, error: #{Exception.message(error)})")
 
           {:error, {:deserialization_failed, error}}
       end
     rescue
       error ->
-        Logger.error("Failed to read population file",
-          path: path,
-          operation: "file_read",
-          error: Exception.message(error)
-        )
+        Logger.error("Failed to read population file (path: #{path}, operation: file_read, error: #{Exception.message(error)})")
 
         {:error, {:file_read_failed, error}}
     end
