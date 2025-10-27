@@ -2,8 +2,8 @@
 
 **Branch**: `fix/credo-warnings`
 **Date**: 2025-10-27
-**Total Refactoring Opportunities Fixed**: 53 out of 56 (94.6%)
-**Remaining**: 3 opportunities
+**Total Refactoring Opportunities Fixed**: 54 out of 56 (96.4%)
+**Remaining**: 2 opportunities
 
 ## Overview
 
@@ -221,6 +221,39 @@ list
 - 2 files changed
 - 3 insertions(+), 8 deletions(-)
 
+### 6. Pattern Matching in If Conditions (1 occurrence - 2%)
+
+**Issue**: Using pattern matching directly in `if` conditions is misleading - the match will succeed for any value (including `nil`), only failing on match errors.
+
+**Solution**: Extract pattern matching to `case` statement to make the control flow explicit.
+
+**Code Clarity Impact**: Makes pattern matching intentions clear and improves code readability.
+
+**Pattern Applied**:
+```elixir
+# Before (misleading):
+if {min, max} = expectations[:fitness_range] do
+  # This always executes, even if fitness_range is nil
+  # because the pattern match succeeds
+end
+
+# After (explicit):
+case expectations[:fitness_range] do
+  {min, max} when is_number(min) and is_number(max) ->
+    # Only executes when value is a tuple of two numbers
+  _ ->
+    :ok
+end
+```
+
+**Files Modified** (1 total):
+- **Test support** (1 file):
+  - `gepa_test_helper.ex` - Extracted fitness_range tuple pattern match to case statement with guard clauses
+
+**Commit**: `refactor: extract pattern match from if condition to case statement`
+- 1 file changed
+- 11 insertions(+), 7 deletions(-)
+
 ## Test Validation
 
 **Command**: `mix test --seed 0`
@@ -251,27 +284,21 @@ All changes compile successfully with no errors. Only pre-existing warnings rema
 - **Maintainability**: More idiomatic Elixir patterns throughout
 
 ### Statistics
-- **Files Modified**: 35 unique files
-- **Lines Changed**: ~201 net change (119 insertions, 198 deletions)
-- **Credo Refactoring Score**: 53/56 opportunities addressed (94.6%)
-- **Commits**: 7 atomic commits (1 per category/fix + summary)
+- **Files Modified**: 36 unique files
+- **Lines Changed**: ~212 net change (130 insertions, 205 deletions)
+- **Credo Refactoring Score**: 54/56 opportunities addressed (96.4%)
+- **Commits**: 9 atomic commits (1 per category/fix + summary updates)
 
-## Remaining Refactoring Opportunities (3 total)
+## Remaining Refactoring Opportunities (2 total)
 
 The following opportunities remain:
 
-### 6. Function Arity Too High (2 occurrences)
+### 7. Function Arity Too High (2 occurrences)
 Files affected:
 - `self_correction.ex:481` - `handle_validation_failure/10` (10 parameters)
 - `self_correction.ex:446` - `handle_quality_failure/9` (9 parameters)
 
-**Suggested fix**: Refactor to use struct/map parameter instead of individual parameters. This will require more design consideration than other fixes.
-
-### 7. Matches in If Conditions (1 occurrence)
-Files affected:
-- `gepa_test_helper.ex:160` - Pattern match in if condition
-
-**Suggested fix**: Extract pattern matching from `if` condition to separate `case` or function clause
+**Suggested fix**: Refactor to use struct/map parameter instead of individual parameters. This will require more design consideration and potentially breaking changes, as these functions may be part of the public API.
 
 ### Other Credo Categories Not Addressed
 
@@ -286,6 +313,8 @@ These could be addressed in future improvements.
 All commits made on branch `fix/credo-warnings` (refactoring opportunities):
 
 ```
+29f7944 refactor: extract pattern match from if condition to case statement
+6fd7ab2 docs: update refactoring summary with chained Enum fixes
 71931d6 refactor: combine chained Enum operations (2 occurrences)
 54c0365 refactor: replace unless-else with if and remove negated condition in population.ex
 6af8954 docs: update refactoring summary with redundant with clauses fix
@@ -313,23 +342,21 @@ cd02463 perf: replace length() == 0 with Enum.empty?() (6 occurrences)
 
 For future refactoring sessions:
 
-1. **Extract if condition matches** - Better code organization (1 occurrence) - Quick fix
-2. **Refactor high-arity functions** - Requires design work but improves API usability (2 functions) - More complex
-3. **Consider Credo readability issues** - Many can be automated or batch-fixed (59 remaining)
-4. **Review design suggestions** - May require architectural discussions (75 remaining)
+1. **Refactor high-arity functions** - Requires design work but improves API usability (2 functions) - More complex, may involve API changes
+2. **Consider Credo readability issues** - Many can be automated or batch-fixed (59 remaining)
+3. **Review design suggestions** - May require architectural discussions (75 remaining)
 
 ## Conclusion
 
-Successfully addressed 94.6% of Credo refactoring opportunities (53/56), focusing on high-impact categories that improve performance, readability, and code clarity. All changes are backward-compatible, well-tested (2493 tests passing), and follow Elixir best practices.
+Successfully addressed 96.4% of Credo refactoring opportunities (54/56), focusing on high-impact categories that improve performance, readability, and code clarity. All changes are backward-compatible, well-tested (2493 tests passing), and follow Elixir best practices.
 
 **What was fixed:**
 - Performance optimizations (26 Enum.map_join + 2 chained Enum operations = 28 improvements)
 - Control flow simplifications (16 conditional improvements: 14 negated + 2 unless/else)
-- Code clarity enhancements (8 redundant with clause removals)
+- Code clarity enhancements (8 redundant with clause removals + 1 pattern match extraction)
 - Pattern simplifications (6 cond statements replaced with if/else)
 
 **What remains:**
-- 2 high-arity functions needing parameter refactoring (more complex)
-- 1 pattern match in if condition (quick fix)
+- 2 high-arity functions needing parameter refactoring (more complex, may require API changes)
 
-The remaining 3 opportunities are documented and can be addressed in future work if desired.
+The remaining 2 opportunities are documented and can be addressed in future work if desired. These require more significant design consideration as they may impact the public API.
