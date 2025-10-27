@@ -223,9 +223,8 @@ defmodule Jido.AI.Runner.ChainOfThought.ExecutionHook do
   @spec generate_plan_text(list(), map()) :: {:ok, String.t()} | {:error, term()}
   defp generate_plan_text(instructions, agent) do
     with {:ok, prompt} <- build_execution_prompt(instructions, agent),
-         {:ok, model} <- get_execution_model(agent),
-         {:ok, text} <- call_llm_for_execution_plan(prompt, model, agent) do
-      {:ok, text}
+         {:ok, model} <- get_execution_model(agent) do
+      call_llm_for_execution_plan(prompt, model, agent)
     end
   end
 

@@ -240,9 +240,8 @@ defmodule Jido.AI.Runner.GEPA.Population do
   """
   @spec replace_candidate(t(), String.t(), map() | candidate()) :: {:ok, t()} | {:error, term()}
   def replace_candidate(%__MODULE__{} = population, old_id, new_candidate_data) do
-    with {:ok, pop} <- remove_candidate(population, old_id),
-         {:ok, pop} <- add_candidate(pop, new_candidate_data) do
-      {:ok, pop}
+    with {:ok, pop} <- remove_candidate(population, old_id) do
+      add_candidate(pop, new_candidate_data)
     end
   end
 
@@ -542,9 +541,8 @@ defmodule Jido.AI.Runner.GEPA.Population do
       worst = find_worst_candidate(population)
 
       if worst && (!worst.fitness || new_candidate.fitness > worst.fitness) do
-        with {:ok, pop} <- remove_candidate(population, worst.id),
-             {:ok, pop} <- add_candidate_internal(pop, new_candidate) do
-          {:ok, pop}
+        with {:ok, pop} <- remove_candidate(population, worst.id) do
+          add_candidate_internal(pop, new_candidate)
         end
       else
         {:error, :population_full}

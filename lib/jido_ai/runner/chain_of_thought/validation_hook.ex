@@ -385,9 +385,8 @@ defmodule Jido.AI.Runner.ChainOfThought.ValidationHook do
           {:ok, String.t()} | {:error, term()}
   defp generate_reflection(agent, result, validation_result) do
     with {:ok, prompt} <- build_reflection_prompt(agent, result, validation_result),
-         {:ok, model} <- get_validation_model(agent),
-         {:ok, reflection_text} <- call_llm_for_reflection(prompt, model, agent) do
-      {:ok, reflection_text}
+         {:ok, model} <- get_validation_model(agent) do
+      call_llm_for_reflection(prompt, model, agent)
     end
   end
 

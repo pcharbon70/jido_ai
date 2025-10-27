@@ -69,9 +69,8 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Promoter do
 
       :all ->
         # Apply multiple strategies
-        with {:ok, injected} <- apply_random_injection(prompts, metrics, opts),
-             {:ok, diversified} <- apply_targeted_diversification(injected, metrics, opts) do
-          {:ok, diversified}
+        with {:ok, injected} <- apply_random_injection(prompts, metrics, opts) do
+          apply_targeted_diversification(injected, metrics, opts)
         end
 
       _ ->

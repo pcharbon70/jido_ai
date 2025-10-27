@@ -62,9 +62,8 @@ defmodule Jido.AI.Runner.ChainOfThought.TestExecution do
 
     with {:ok, test_file} <- TestSuiteManager.store_tests(test_suite, framework),
          {:ok, code_file} <- TestSuiteManager.store_code(code),
-         {:ok, exec_result} <- ExecutionSandbox.execute(code_file, test_file, timeout: timeout),
-         {:ok, analyzed} <- ResultAnalyzer.analyze(exec_result) do
-      {:ok, analyzed}
+         {:ok, exec_result} <- ExecutionSandbox.execute(code_file, test_file, timeout: timeout) do
+      ResultAnalyzer.analyze(exec_result)
     end
   end
 

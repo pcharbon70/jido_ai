@@ -148,9 +148,8 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
         ) :: {:ok, list(SuggestionGeneration.PromptEdit.t())} | {:error, term()}
   def generate_edits_for_suggestion(suggestion, prompt, opts \\ []) do
     with {:ok, structure} <- PromptStructureAnalyzer.analyze(prompt),
-         {:ok, edits} <- EditBuilder.build_edits(suggestion, structure, opts),
-         {:ok, validated} <- validate_edits(edits, structure) do
-      {:ok, validated}
+         {:ok, edits} <- EditBuilder.build_edits(suggestion, structure, opts) do
+      validate_edits(edits, structure)
     end
   end
 

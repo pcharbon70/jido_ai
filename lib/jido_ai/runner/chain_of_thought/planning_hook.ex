@@ -176,9 +176,8 @@ defmodule Jido.AI.Runner.ChainOfThought.PlanningHook do
   @spec generate_planning_text(list(), map(), map()) :: {:ok, String.t()} | {:error, term()}
   defp generate_planning_text(instructions, agent, context) do
     with {:ok, prompt} <- build_planning_prompt(instructions, agent),
-         {:ok, model} <- get_planning_model(context),
-         {:ok, text} <- call_llm_for_planning(prompt, model, context) do
-      {:ok, text}
+         {:ok, model} <- get_planning_model(context) do
+      call_llm_for_planning(prompt, model, context)
     end
   end
 
