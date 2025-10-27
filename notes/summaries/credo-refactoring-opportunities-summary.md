@@ -2,8 +2,8 @@
 
 **Branch**: `fix/credo-warnings`
 **Date**: 2025-10-27
-**Total Refactoring Opportunities Fixed**: 49 out of 56 (87.5%)
-**Remaining**: 7 opportunities
+**Total Refactoring Opportunities Fixed**: 53 out of 56 (94.6%)
+**Remaining**: 3 opportunities
 
 ## Overview
 
@@ -181,6 +181,46 @@ end
 - 7 files changed
 - 16 insertions(+), 24 deletions(-)
 
+### 5. Chained Enum Operations (2 occurrences - 4%)
+
+**Issue**: Multiple consecutive Enum operations of the same type create unnecessary list traversals.
+
+**Solution**: Combine predicates into single operation for better performance.
+
+**Performance Impact**: Reduces iteration passes and improves efficiency by eliminating redundant list traversals.
+
+**Pattern Applied**:
+```elixir
+# Before (two filters):
+list
+|> Enum.filter(&predicate1/1)
+|> Enum.filter(&predicate2/1)
+
+# After (single filter with compound predicate):
+list
+|> Enum.filter(&(predicate1(&1) and predicate2(&1)))
+
+# Before (two rejects):
+list
+|> Enum.reject(&predicate1/1)
+|> Enum.reject(&predicate2/1)
+
+# After (single reject with OR predicate):
+list
+|> Enum.reject(&(predicate1(&1) or predicate2(&1)))
+```
+
+**Files Modified** (2 total):
+- **GEPA modules** (1 file):
+  - `feedback_aggregation/pattern_detector.ex` - Combined two `Enum.filter/2` into compound predicate checking both frequency threshold and significance level
+
+- **Chain of Thought modules** (1 file):
+  - `structured_zero_shot.ex` - Combined two `Enum.reject/2` into single reject with OR predicate for empty strings and short strings
+
+**Commit**: `refactor: combine chained Enum operations (2 occurrences)`
+- 2 files changed
+- 3 insertions(+), 8 deletions(-)
+
 ## Test Validation
 
 **Command**: `mix test --seed 0`
@@ -201,54 +241,37 @@ All changes compile successfully with no errors. Only pre-existing warnings rema
 
 ### Performance Improvements
 - **Enum.map_join optimizations**: 26 call sites now use single-pass operations
-- **Estimated impact**: Reduced memory allocations in string formatting operations throughout codebase
+- **Chained Enum operations**: 2 call sites now use single-pass predicates
+- **Estimated impact**: Reduced memory allocations and list traversals throughout codebase
 
 ### Code Quality Improvements
-- **Readability**: 14 conditionals now use positive-first logic
+- **Readability**: 16 conditionals now use positive-first logic (14 negated + 2 unless/else)
 - **Simplification**: 6 complex `cond` statements replaced with simple `if/else`
 - **Code clarity**: 8 redundant `with` clauses removed
 - **Maintainability**: More idiomatic Elixir patterns throughout
 
 ### Statistics
-- **Files Modified**: 33 unique files
-- **Lines Changed**: ~190 net change (113 insertions, 182 deletions)
-- **Credo Refactoring Score**: 49/56 opportunities addressed (87.5%)
-- **Commits**: 5 atomic commits (1 per category + summary)
+- **Files Modified**: 35 unique files
+- **Lines Changed**: ~201 net change (119 insertions, 198 deletions)
+- **Credo Refactoring Score**: 53/56 opportunities addressed (94.6%)
+- **Commits**: 7 atomic commits (1 per category/fix + summary)
 
-## Remaining Refactoring Opportunities (7 total)
+## Remaining Refactoring Opportunities (3 total)
 
 The following opportunities remain:
 
-### 5. Function Arity Too High (2 occurrences)
+### 6. Function Arity Too High (2 occurrences)
 Files affected:
-- `self_correction.ex` (2 functions with 9-10 parameters)
+- `self_correction.ex:481` - `handle_validation_failure/10` (10 parameters)
+- `self_correction.ex:446` - `handle_quality_failure/9` (9 parameters)
 
-**Suggested fix**: Refactor to use struct/map parameter instead of individual parameters
+**Suggested fix**: Refactor to use struct/map parameter instead of individual parameters. This will require more design consideration than other fixes.
 
-### 6. Chained Enum Operations (2 occurrences)
+### 7. Matches in If Conditions (1 occurrence)
 Files affected:
-- `structured_zero_shot.ex` - Double `Enum.reject/2`
-- `pattern_detector.ex` - Double `Enum.filter/2`
+- `gepa_test_helper.ex:160` - Pattern match in if condition
 
-**Suggested fix**: Combine predicates into single operation
-
-### 6. Negated Condition in If-Else (1 occurrence)
-Files affected:
-- `population.ex` - Line 135
-
-**Suggested fix**: Reverse the if-else block to check positive condition first
-
-### 7. Unless With Else Blocks (1 occurrence)
-Files affected:
-- `population.ex` - Line 140
-
-**Suggested fix**: Replace `unless...else` with `if` for clarity (same location as #6)
-
-### 8. Matches in If Conditions (1 occurrence)
-Files affected:
-- `gepa_test_helper.ex`
-
-**Suggested fix**: Extract pattern matching from `if` condition
+**Suggested fix**: Extract pattern matching from `if` condition to separate `case` or function clause
 
 ### Other Credo Categories Not Addressed
 
@@ -260,11 +283,14 @@ These could be addressed in future improvements.
 
 ## Git Commit History
 
-All commits made on branch `fix/credo-warnings`:
+All commits made on branch `fix/credo-warnings` (refactoring opportunities):
 
 ```
-9e9b21a docs: add comprehensive Credo refactoring opportunities summary
+71931d6 refactor: combine chained Enum operations (2 occurrences)
+54c0365 refactor: replace unless-else with if and remove negated condition in population.ex
+6af8954 docs: update refactoring summary with redundant with clauses fix
 3f4a5bd refactor: remove redundant last clauses in with statements (8 occurrences)
+9e9b21a docs: add comprehensive Credo refactoring opportunities summary
 c08783e refactor: reverse negated conditions in if-else blocks (8 occurrences)
 3672b30 refactor: simplify single-condition cond to if statements (6 files)
 18d228e refactor: replace Enum.map + Enum.join with Enum.map_join (26 files)
@@ -287,25 +313,23 @@ cd02463 perf: replace length() == 0 with Enum.empty?() (6 occurrences)
 
 For future refactoring sessions:
 
-1. **Fix chained Enum operations** - Performance improvement opportunity (2 occurrences)
-2. **Address negated condition + unless/else** in population.ex - Quick readability win
-3. **Extract if condition matches** - Better code organization (1 occurrence)
-4. **Refactor high-arity functions** - Requires design work but improves API usability (2 functions)
-5. **Consider Credo readability issues** - Many can be automated or batch-fixed (59 remaining)
-6. **Review design suggestions** - May require architectural discussions (75 remaining)
+1. **Extract if condition matches** - Better code organization (1 occurrence) - Quick fix
+2. **Refactor high-arity functions** - Requires design work but improves API usability (2 functions) - More complex
+3. **Consider Credo readability issues** - Many can be automated or batch-fixed (59 remaining)
+4. **Review design suggestions** - May require architectural discussions (75 remaining)
 
 ## Conclusion
 
-Successfully addressed 87.5% of Credo refactoring opportunities (49/56), focusing on high-impact categories that improve performance, readability, and code clarity. All changes are backward-compatible, well-tested (2493 tests passing), and follow Elixir best practices.
+Successfully addressed 94.6% of Credo refactoring opportunities (53/56), focusing on high-impact categories that improve performance, readability, and code clarity. All changes are backward-compatible, well-tested (2493 tests passing), and follow Elixir best practices.
 
 **What was fixed:**
-- Performance optimizations (26 Enum.map_join improvements)
-- Control flow simplifications (14 conditional improvements)
+- Performance optimizations (26 Enum.map_join + 2 chained Enum operations = 28 improvements)
+- Control flow simplifications (16 conditional improvements: 14 negated + 2 unless/else)
 - Code clarity enhancements (8 redundant with clause removals)
+- Pattern simplifications (6 cond statements replaced with if/else)
 
 **What remains:**
-- 2 high-arity functions needing parameter refactoring
-- 2 chained Enum operations to optimize
-- 3 minor conditional/pattern issues
+- 2 high-arity functions needing parameter refactoring (more complex)
+- 1 pattern match in if condition (quick fix)
 
-The remaining 7 opportunities are documented and straightforward to address in future work.
+The remaining 3 opportunities are documented and can be addressed in future work if desired.
