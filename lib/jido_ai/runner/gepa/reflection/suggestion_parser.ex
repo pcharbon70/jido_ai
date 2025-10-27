@@ -85,7 +85,7 @@ defmodule Jido.AI.Runner.GEPA.Reflection.SuggestionParser do
       parsed.analysis == "" ->
         {:error, :missing_analysis}
 
-      length(parsed.suggestions) == 0 ->
+      Enum.empty?(parsed.suggestions) ->
         {:error, :no_suggestions}
 
       not all_suggestions_valid?(parsed.suggestions) ->

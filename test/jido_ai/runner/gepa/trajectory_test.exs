@@ -488,7 +488,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryTest do
     test "removes snapshots when keep_snapshots is false", %{trajectory: trajectory} do
       filtered = Trajectory.filter(trajectory, min_importance: :high, keep_snapshots: false)
 
-      assert length(filtered.state_snapshots) == 0
+      assert Enum.empty?(filtered.state_snapshots)
     end
 
     test "marks trajectory as filtered", %{trajectory: trajectory} do
@@ -508,7 +508,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryTest do
       trajectory = Trajectory.new()
       filtered = Trajectory.filter(trajectory, min_importance: :critical)
 
-      assert length(filtered.steps) == 0
+      assert Enum.empty?(filtered.steps)
       assert filtered.filtered == true
     end
 

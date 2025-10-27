@@ -305,7 +305,7 @@ defmodule Jido.AI.Runner.GEPA.Reflection.PromptBuilder do
   end
 
   defp format_failure_points(failure_points) do
-    if length(failure_points) == 0 do
+    if Enum.empty?(failure_points) do
       "None detected."
     else
       failure_points
@@ -329,7 +329,7 @@ defmodule Jido.AI.Runner.GEPA.Reflection.PromptBuilder do
   end
 
   defp format_reasoning_issues(reasoning_issues) do
-    if length(reasoning_issues) == 0 do
+    if Enum.empty?(reasoning_issues) do
       "None detected."
     else
       reasoning_issues
@@ -346,7 +346,7 @@ defmodule Jido.AI.Runner.GEPA.Reflection.PromptBuilder do
   end
 
   defp format_success_indicators(success_indicators) do
-    if length(success_indicators) == 0 do
+    if Enum.empty?(success_indicators) do
       "None identified."
     else
       success_indicators
