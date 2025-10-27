@@ -142,24 +142,19 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
   def evaluate_prompt(prompt, opts) when is_binary(prompt) and is_list(opts) do
     config = build_config!(opts)
 
-    Logger.debug("Evaluating prompt",
-      prompt_length: String.length(prompt),
-      timeout: config.timeout
-    )
+    Logger.debug("Evaluating prompt (length: #{String.length(prompt)}, timeout: #{config.timeout})")
 
     case spawn_and_evaluate(prompt, config) do
       {:ok, result} ->
-        Logger.debug("Prompt evaluation succeeded",
-          fitness: result.fitness,
-          duration_ms: result.metrics[:duration_ms]
+        Logger.debug(
+          "Prompt evaluation succeeded (fitness: #{result.fitness}, duration: #{result.metrics[:duration_ms]}ms)"
         )
 
         {:ok, result}
 
       {:error, reason} = error ->
-        Logger.warning("Prompt evaluation failed",
-          reason: reason,
-          prompt_preview: String.slice(prompt, 0..50)
+        Logger.warning(
+          "Prompt evaluation failed: #{inspect(reason)} - #{String.slice(prompt, 0..50)}"
         )
 
         error
@@ -191,10 +186,8 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
   def evaluate_batch(prompts, opts) when is_list(prompts) and is_list(opts) do
     config = build_config!(opts)
 
-    Logger.info("Starting batch evaluation",
-      prompt_count: length(prompts),
-      parallelism: config.parallelism,
-      timeout: config.timeout
+    Logger.info(
+      "Starting batch evaluation (#{length(prompts)} prompts, parallelism: #{config.parallelism}, timeout: #{config.timeout})"
     )
 
     start_time = System.monotonic_time(:millisecond)
@@ -218,12 +211,11 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
       end)
 
     duration_ms = System.monotonic_time(:millisecond) - start_time
+    successful = Enum.count(results, &is_nil(&1.error))
+    failed = Enum.count(results, &(not is_nil(&1.error)))
 
-    Logger.info("Batch evaluation complete",
-      total: length(prompts),
-      successful: Enum.count(results, &is_nil(&1.error)),
-      failed: Enum.count(results, &(not is_nil(&1.error))),
-      duration_ms: duration_ms
+    Logger.info(
+      "Batch evaluation complete (#{length(prompts)} total, #{successful} successful, #{failed} failed, #{duration_ms}ms)"
     )
 
     results
@@ -327,15 +319,15 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
   @doc false
   @spec spawn_evaluation_agent(keyword()) :: {:ok, pid()} | {:error, term()}
   defp spawn_evaluation_agent(agent_config) do
-    Logger.debug("Spawning evaluation agent", config: agent_config)
+    Logger.debug("Spawning evaluation agent")
 
     case Server.start_link(agent_config) do
       {:ok, pid} ->
-        Logger.debug("Evaluation agent spawned", pid: pid)
+        Logger.debug("Evaluation agent spawned: #{inspect(pid)}")
         {:ok, pid}
 
       {:error, reason} = error ->
-        Logger.error("Failed to spawn evaluation agent", reason: reason)
+        Logger.error("Failed to spawn evaluation agent: #{inspect(reason)}")
         error
     end
   end
@@ -343,7 +335,7 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
   @doc false
   @spec execute_evaluation(pid(), prompt(), EvaluationConfig.t()) :: EvaluationResult.t()
   defp execute_evaluation(agent_pid, prompt, %EvaluationConfig{} = config) do
-    Logger.debug("Executing evaluation", agent: agent_pid, timeout: config.timeout)
+    Logger.debug("Executing evaluation (agent: #{inspect(agent_pid)}, timeout: #{config.timeout})")
 
     # Start trajectory collection
     trajectory =
@@ -399,7 +391,7 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
         parse_evaluation_response(prompt, response, config, trajectory)
 
       {:error, :timeout} ->
-        Logger.warning("Evaluation timeout", agent: agent_pid)
+        Logger.warning("Evaluation timeout (agent: #{inspect(agent_pid)})")
 
         # Record timeout
         trajectory =
@@ -425,7 +417,7 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
         }
 
       {:error, reason} ->
-        Logger.warning("Evaluation failed", agent: agent_pid, reason: reason)
+        Logger.warning("Evaluation failed (agent: #{inspect(agent_pid)}, reason: #{inspect(reason)})")
 
         # Record failure
         trajectory =
@@ -603,12 +595,8 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
         }
       )
 
-    Logger.debug("Collected evaluation metrics",
-      trajectory_id: trajectory.id,
-      success_rate: success_rate,
-      quality_score: quality_score,
-      accuracy: accuracy,
-      duration_ms: trajectory.duration_ms
+    Logger.debug(
+      "Collected evaluation metrics (#{trajectory.id}: success_rate=#{success_rate}, quality=#{quality_score}, accuracy=#{accuracy}, duration=#{trajectory.duration_ms}ms)"
     )
 
     metrics
@@ -672,7 +660,7 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
   @spec cleanup_agent(pid()) :: :ok
   defp cleanup_agent(agent_pid) do
     if Process.alive?(agent_pid) do
-      Logger.debug("Cleaning up evaluation agent", pid: agent_pid)
+      Logger.debug("Cleaning up evaluation agent: #{inspect(agent_pid)}")
 
       try do
         # Unlink before stopping to prevent EXIT signal from killing calling process
@@ -681,7 +669,7 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
         GenServer.stop(agent_pid, :normal, 1_000)
       catch
         :exit, reason ->
-          Logger.debug("Agent cleanup exit", reason: reason)
+          Logger.debug("Agent cleanup exit: #{inspect(reason)}")
           :ok
       end
     end
