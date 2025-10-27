@@ -197,10 +197,7 @@ defmodule Jido.AI.Runner.GEPA.Reflector do
     with {:ok, request} <- build_reflection_request(trajectory_analysis, opts),
          {:ok, response} <- execute_reflection(request, opts),
          {:ok, parsed} <- parse_reflection_response(response, opts) do
-      Logger.debug("Reflection completed successfully",
-        suggestions: length(parsed.suggestions),
-        confidence: parsed.confidence
-      )
+      Logger.debug("Reflection completed successfully (suggestions: #{length(parsed.suggestions)}, confidence: #{parsed.confidence})")
 
       {:ok, parsed}
     else
@@ -457,14 +454,14 @@ defmodule Jido.AI.Runner.GEPA.Reflector do
         |> Enum.find("", &is_binary/1)
 
       _ ->
-        Logger.warning("Could not extract content from signal", signal_data: signal.data)
+        Logger.warning("Could not extract content from signal (signal_data: #{inspect(signal.data)})")
         ""
     end
   end
 
   defp cleanup_agent(agent_pid) do
     if Process.alive?(agent_pid) do
-      Logger.debug("Cleaning up reflection agent", pid: agent_pid)
+      Logger.debug("Cleaning up reflection agent (pid: #{inspect(agent_pid)})")
 
       try do
         Process.unlink(agent_pid)

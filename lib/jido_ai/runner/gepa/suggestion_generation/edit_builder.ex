@@ -58,10 +58,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditBuilder do
   @spec build_edits(Suggestion.t(), PromptStructure.t(), keyword()) ::
           {:ok, list(PromptEdit.t())} | {:error, term()}
   def build_edits(%Suggestion{} = suggestion, %PromptStructure{} = structure, opts \\ []) do
-    Logger.debug("Building edits for suggestion",
-      type: suggestion.type,
-      category: suggestion.category
-    )
+    Logger.debug("Building edits for suggestion (type: #{suggestion.type}, category: #{suggestion.category})")
 
     case suggestion.type do
       :add -> build_addition_edits(suggestion, structure, opts)
