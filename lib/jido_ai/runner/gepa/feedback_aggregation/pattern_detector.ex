@@ -67,7 +67,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
     min_frequency = Keyword.get(opts, :min_frequency, @min_frequency_threshold)
     require_significance = Keyword.get(opts, :require_significance, true)
 
-    Logger.debug("Detecting failure patterns",
+    Logger.debug("Detecting failure patterns (
       evaluations: collection.total_evaluations,
       min_frequency: min_frequency
     )
@@ -94,7 +94,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
       end)
       |> Enum.sort_by(& &1.frequency, :desc)
 
-    Logger.debug("Failure patterns detected", count: length(patterns))
+    Logger.debug("Failure patterns detected (count: #{length(patterns)})")
 
     {:ok, patterns}
   end
@@ -120,7 +120,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
   def detect_suggestion_patterns(%FeedbackCollection{} = collection, opts \\ []) do
     min_frequency = Keyword.get(opts, :min_frequency, @min_frequency_threshold)
 
-    Logger.debug("Detecting suggestion patterns",
+    Logger.debug("Detecting suggestion patterns (
       suggestions: length(collection.suggestions),
       min_frequency: min_frequency
     )
@@ -139,7 +139,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
       |> Enum.filter(&(&1.frequency >= min_frequency))
       |> Enum.sort_by(& &1.aggregate_impact, :desc)
 
-    Logger.debug("Suggestion patterns detected", count: length(patterns))
+    Logger.debug("Suggestion patterns detected (count: #{length(patterns)})")
 
     {:ok, patterns}
   end

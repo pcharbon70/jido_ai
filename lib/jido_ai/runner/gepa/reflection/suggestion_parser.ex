@@ -243,7 +243,7 @@ defmodule Jido.AI.Runner.GEPA.Reflection.SuggestionParser do
       }
     else
       _ ->
-        Logger.debug("Failed to parse suggestion", data: data)
+        Logger.debug("Failed to parse suggestion (data: #{inspect(data)})")
         nil
     end
   end

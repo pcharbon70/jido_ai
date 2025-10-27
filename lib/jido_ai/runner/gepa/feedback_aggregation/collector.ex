@@ -50,7 +50,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Collector do
   @spec collect_from_reflections([Reflector.ParsedReflection.t()], keyword()) ::
           {:ok, FeedbackCollection.t()} | {:error, term()}
   def collect_from_reflections(reflections, opts \\ []) when is_list(reflections) do
-    Logger.debug("Collecting feedback from reflections", count: length(reflections))
+    Logger.debug("Collecting feedback from reflections (count: #{length(reflections)})")
 
     evaluation_ids = Keyword.get(opts, :evaluation_ids, generate_evaluation_ids(reflections))
 
@@ -77,10 +77,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Collector do
         }
       }
 
-      Logger.debug("Collection complete",
-        unique_suggestions: length(collected_suggestions),
-        total_evaluations: length(reflections)
-      )
+      Logger.debug("Collection complete (unique_suggestions: #{length(collected_suggestions)}, total_evaluations: #{length(reflections)})")
 
       {:ok, collection}
     end
@@ -105,7 +102,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Collector do
           {:ok, FeedbackCollection.t()} | {:error, term()}
   def add_edit_plans(%FeedbackCollection{} = collection, edit_plans)
       when is_list(edit_plans) do
-    Logger.debug("Enriching collection with edit plans", edit_plan_count: length(edit_plans))
+    Logger.debug("Enriching collection with edit plans (edit_plan_count: #{length(edit_plans)})")
 
     # Build a map of suggestion -> impact scores from edit plans
     suggestion_to_scores = build_impact_score_map(edit_plans)
@@ -146,7 +143,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Collector do
   @spec merge_collections([FeedbackCollection.t()]) ::
           {:ok, FeedbackCollection.t()} | {:error, term()}
   def merge_collections(collections) when is_list(collections) do
-    Logger.debug("Merging collections", count: length(collections))
+    Logger.debug("Merging collections (count: #{length(collections)})")
 
     merged_suggestions =
       collections

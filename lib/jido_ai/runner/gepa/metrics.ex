@@ -186,11 +186,7 @@ defmodule Jido.AI.Runner.GEPA.Metrics do
         metrics.task_ids
       end
 
-    Logger.debug("Added metric",
-      type: type,
-      value: value,
-      task_id: task_id
-    )
+    Logger.debug("Added metric (type: #{type}, value: #{value}, task_id: #{inspect(task_id)})")
 
     %{metrics | values: updated_values, task_ids: updated_task_ids}
   end
@@ -280,10 +276,7 @@ defmodule Jido.AI.Runner.GEPA.Metrics do
       |> Enum.map(& &1.value)
 
     if length(values) < 2 do
-      Logger.warning("Insufficient data for confidence interval",
-        type: type,
-        count: length(values)
-      )
+      Logger.warning("Insufficient data for confidence interval (type: #{type}, count: #{length(values)})")
 
       nil
     else
