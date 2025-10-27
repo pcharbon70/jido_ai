@@ -108,11 +108,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
              clusters,
              weighted
            ) do
-      Logger.info("Feedback aggregation complete",
-        total_evaluations: collection.total_evaluations,
-        unique_suggestions: aggregated.total_unique_suggestions,
-        high_confidence: length(aggregated.high_confidence)
-      )
+      Logger.info("Feedback aggregation complete (total_evaluations: #{collection.total_evaluations}, unique_suggestions: #{aggregated.total_unique_suggestions}, high_confidence: #{length(aggregated.high_confidence)})")
 
       {:ok, aggregated}
     else
@@ -151,7 +147,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
         new_edit_plan \\ nil,
         opts \\ []
       ) do
-    Logger.debug("Incremental aggregation", existing_evals: existing.collection.total_evaluations)
+    Logger.debug("Incremental aggregation (existing_evals: #{existing.collection.total_evaluations})")
 
     # Merge new reflection into existing collection
     all_reflections = [new_reflection | existing.collection.reflections]
@@ -184,7 +180,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
   end
 
   defp collect_feedback(reflections, opts) do
-    Logger.debug("Stage 1: Collecting feedback", reflections: length(reflections))
+    Logger.debug("Stage 1: Collecting feedback (reflections: #{length(reflections)})")
 
     collector_opts =
       case Keyword.get(opts, :evaluation_ids) do
@@ -205,7 +201,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
         {:ok, collection}
 
       edit_plans when is_list(edit_plans) ->
-        Logger.debug("Stage 2: Enriching with edit plans", plans: length(edit_plans))
+        Logger.debug("Stage 2: Enriching with edit plans (plans: #{length(edit_plans)})")
         Collector.add_edit_plans(collection, edit_plans)
     end
   end
