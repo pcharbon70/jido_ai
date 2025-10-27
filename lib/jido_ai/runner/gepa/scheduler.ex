@@ -213,10 +213,7 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
 
   @impl true
   def init(%Config{} = config) do
-    Logger.info("Initializing GEPA Scheduler",
-      max_concurrent: config.max_concurrent,
-      max_queue_size: config.max_queue_size
-    )
+    Logger.info("Initializing GEPA Scheduler (max_concurrent: #{config.max_concurrent}, max_queue_size: #{config.max_queue_size})")
 
     state = %State{
       config: config,
@@ -272,10 +269,7 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
             {:reply, {:ok, task_id}, final_state}
           else
             :error ->
-              Logger.warning("Invalid task_spec missing required keys",
-                task_spec: task_spec,
-                required: [:candidate_id, :evaluator]
-              )
+              Logger.warning("Invalid task_spec missing required keys (task_spec: #{inspect(task_spec)}, required: #{inspect([:candidate_id, :evaluator])})")
 
               {:reply, {:error, :invalid_task_spec}, state}
           end
@@ -346,7 +340,7 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
     # Find the running task
     case Map.fetch(state.running_tasks, task_id) do
       {:ok, task} ->
-        Logger.debug("Task completed", task_id: task_id, duration_ms: task_duration(task))
+        Logger.debug("Task completed (task_id: #{task_id}, duration_ms: #{task_duration(task)})")
 
         # Update task with result
         completed_task = %{
@@ -370,7 +364,7 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
         {:noreply, final_state}
 
       :error ->
-        Logger.warning("Received completion for unknown task", task_id: task_id)
+        Logger.warning("Received completion for unknown task (task_id: #{task_id})")
         {:noreply, state}
     end
   end
@@ -380,7 +374,7 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
     # Find the running task
     case Map.fetch(state.running_tasks, task_id) do
       {:ok, task} ->
-        Logger.warning("Task failed", task_id: task_id, error: inspect(error))
+        Logger.warning("Task failed (task_id: #{task_id}, error: #{inspect(error)})")
 
         # Update task with error
         failed_task = %{
@@ -404,7 +398,7 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
         {:noreply, final_state}
 
       :error ->
-        Logger.warning("Received failure for unknown task", task_id: task_id)
+        Logger.warning("Received failure for unknown task (task_id: #{task_id})")
         {:noreply, state}
     end
   end
