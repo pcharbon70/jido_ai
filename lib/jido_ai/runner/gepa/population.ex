@@ -65,6 +65,17 @@ defmodule Jido.AI.Runner.GEPA.Population do
 
     Represents a single prompt variant with its fitness evaluation,
     generation information, and metadata for tracking lineage and characteristics.
+
+    ## Multi-Objective Support (Stage 2)
+
+    Starting in Stage 2, candidates support multi-objective optimization with:
+    - `objectives`: Raw objective values (accuracy, latency, cost, robustness)
+    - `normalized_objectives`: Normalized values in [0, 1] for fair comparison
+    - `pareto_rank`: Front number in non-dominated sorting (0 = best front)
+    - `crowding_distance`: Density estimate for diversity preservation
+
+    The `fitness` field is maintained for backward compatibility and can be
+    computed as a weighted aggregate of normalized objectives.
     """
 
     field(:id, String.t(), enforce: true)
@@ -75,6 +86,19 @@ defmodule Jido.AI.Runner.GEPA.Population do
     field(:metadata, map(), default: %{})
     field(:created_at, integer(), enforce: true)
     field(:evaluated_at, integer() | nil)
+
+    # Multi-objective fields (Stage 2: Section 2.1)
+    field(:objectives, map() | nil, default: nil)
+    # Example: %{accuracy: 0.90, latency: 1.5, cost: 0.02, robustness: 0.85}
+
+    field(:normalized_objectives, map() | nil, default: nil)
+    # Normalized to [0, 1] for fair comparison, with minimization objectives inverted
+
+    field(:pareto_rank, non_neg_integer() | nil, default: nil)
+    # Front number from non-dominated sorting (0 = best/non-dominated front)
+
+    field(:crowding_distance, float() | nil, default: nil)
+    # Density estimate for maintaining diversity (higher = more isolated = more valuable)
   end
 
   typedstruct do
