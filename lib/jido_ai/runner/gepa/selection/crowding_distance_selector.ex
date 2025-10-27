@@ -374,7 +374,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
   end
 
   @spec validate_count(pos_integer(), non_neg_integer()) :: :ok | {:error, term()}
-  defp validate_count(count, pop_size) when count < 1 do
+  defp validate_count(count, _pop_size) when count < 1 do
     {:error, {:invalid_count, count}}
   end
   defp validate_count(count, pop_size) when count > pop_size do
@@ -383,7 +383,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
   defp validate_count(_count, _pop_size), do: :ok
 
   @spec validate_target_size(pos_integer(), non_neg_integer()) :: :ok | {:error, term()}
-  defp validate_target_size(target, pop_size) when target < 1 do
+  defp validate_target_size(target, _pop_size) when target < 1 do
     {:error, {:invalid_target_size, target}}
   end
   defp validate_target_size(target, pop_size) when target > pop_size do

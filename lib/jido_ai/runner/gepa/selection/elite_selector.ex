@@ -386,7 +386,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelector do
   end
 
   @spec assign_selection_metrics(list(Candidate.t()), map()) :: list(Candidate.t())
-  defp assign_selection_metrics(population, fronts) do
+  defp assign_selection_metrics(_population, fronts) do
     # Assign ranks
     population_with_ranks =
       fronts
