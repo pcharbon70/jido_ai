@@ -98,7 +98,6 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
          {:ok, reference_point} <- fetch_required(opts, :reference_point),
          :ok <- validate_objectives(objectives, objective_directions),
          :ok <- validate_reference_point(reference_point, objectives) do
-
       now = System.monotonic_time(:millisecond)
 
       frontier = %Frontier{
@@ -140,18 +139,24 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
 
       iex> {:ok, frontier} = FrontierManager.add_solution(frontier, candidate)
   """
-  @spec add_solution(Frontier.t(), Candidate.t(), keyword()) :: {:ok, Frontier.t()} | {:error, term()}
+  @spec add_solution(Frontier.t(), Candidate.t(), keyword()) ::
+          {:ok, Frontier.t()} | {:error, term()}
   def add_solution(frontier, candidate, opts \\ [])
 
-  def add_solution(%Frontier{} = _frontier, %Candidate{normalized_objectives: nil} = _candidate, _opts) do
+  def add_solution(
+        %Frontier{} = _frontier,
+        %Candidate{normalized_objectives: nil} = _candidate,
+        _opts
+      ) do
     {:error, :candidate_missing_normalized_objectives}
   end
 
   def add_solution(%Frontier{} = frontier, %Candidate{} = candidate, opts) do
     # Check if candidate is dominated by any existing solution
-    dominated_by = Enum.filter(frontier.solutions, fn existing ->
-      DominanceComparator.dominates?(existing, candidate)
-    end)
+    dominated_by =
+      Enum.filter(frontier.solutions, fn existing ->
+        DominanceComparator.dominates?(existing, candidate)
+      end)
 
     if length(dominated_by) > 0 do
       # Candidate is dominated, don't add but still return success
@@ -159,20 +164,24 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
       {:ok, frontier}
     else
       # Remove solutions dominated by candidate
-      solutions_to_keep = Enum.reject(frontier.solutions, fn existing ->
-        DominanceComparator.dominates?(candidate, existing)
-      end)
+      solutions_to_keep =
+        Enum.reject(frontier.solutions, fn existing ->
+          DominanceComparator.dominates?(candidate, existing)
+        end)
 
       # Add candidate
       new_solutions = [candidate | solutions_to_keep]
 
-      Logger.debug("Added candidate #{candidate.id} to frontier (#{length(new_solutions)} solutions)")
+      Logger.debug(
+        "Added candidate #{candidate.id} to frontier (#{length(new_solutions)} solutions)"
+      )
 
       # Update frontier
       # TODO: Calculate hypervolume once Phase 4 (HypervolumeCalculator) is implemented
-      updated_frontier = %{frontier |
-        solutions: new_solutions,
-        updated_at: System.monotonic_time(:millisecond)
+      updated_frontier = %{
+        frontier
+        | solutions: new_solutions,
+          updated_at: System.monotonic_time(:millisecond)
       }
 
       # Check if trimming needed
@@ -214,9 +223,10 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
         new_solutions = Enum.reject(frontier.solutions, fn c -> c.id == candidate_id end)
 
         # TODO: Recalculate hypervolume once Phase 4 is implemented
-        updated_frontier = %{frontier |
-          solutions: new_solutions,
-          updated_at: System.monotonic_time(:millisecond)
+        updated_frontier = %{
+          frontier
+          | solutions: new_solutions,
+            updated_at: System.monotonic_time(:millisecond)
         }
 
         Logger.debug("Removed candidate #{candidate_id} from frontier")
@@ -256,24 +266,28 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
 
       # Sort by crowding distance (keep highest)
       # Boundary solutions (infinite distance) are kept first
-      sorted_solutions = Enum.sort_by(frontier.solutions, fn solution ->
-        case Map.get(distances, solution.id) do
-          :infinity -> {0, :infinity}  # Keep boundaries first
-          dist when is_float(dist) -> {1, -dist}  # Then by decreasing distance
-          _ -> {2, 0}  # Fallback for missing distances
-        end
-      end)
+      sorted_solutions =
+        Enum.sort_by(frontier.solutions, fn solution ->
+          case Map.get(distances, solution.id) do
+            # Keep boundaries first
+            :infinity -> {0, :infinity}
+            # Then by decreasing distance
+            dist when is_float(dist) -> {1, -dist}
+            # Fallback for missing distances
+            _ -> {2, 0}
+          end
+        end)
 
       # Keep top max_size solutions
       trimmed_solutions = Enum.take(sorted_solutions, max_size)
 
-      Logger.debug("Trimmed frontier from #{length(frontier.solutions)} to #{length(trimmed_solutions)} solutions")
+      Logger.debug(
+        "Trimmed frontier from #{length(frontier.solutions)} to #{length(trimmed_solutions)} solutions"
+      )
 
       # TODO: Recalculate hypervolume once Phase 4 is implemented
-      {:ok, %{frontier |
-        solutions: trimmed_solutions,
-        updated_at: System.monotonic_time(:millisecond)
-      }}
+      {:ok,
+       %{frontier | solutions: trimmed_solutions, updated_at: System.monotonic_time(:millisecond)}}
     end
   end
 
@@ -309,21 +323,22 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
       # Trim archive if too large
       max_archive_size = Keyword.get(opts, :max_archive_size, @default_max_archive_size)
 
-      trimmed_archive = if length(new_archive) > max_archive_size do
-        # Keep best solutions by aggregate fitness
-        new_archive
-        |> Enum.sort_by(& &1.fitness || 0.0, :desc)
-        |> Enum.take(max_archive_size)
-      else
-        new_archive
-      end
+      trimmed_archive =
+        if length(new_archive) > max_archive_size do
+          # Keep best solutions by aggregate fitness
+          new_archive
+          |> Enum.sort_by(&(&1.fitness || 0.0), :desc)
+          |> Enum.take(max_archive_size)
+        else
+          new_archive
+        end
 
-      Logger.debug("Archived candidate #{candidate.id} (archive size: #{length(trimmed_archive)})")
+      Logger.debug(
+        "Archived candidate #{candidate.id} (archive size: #{length(trimmed_archive)})"
+      )
 
-      {:ok, %{frontier |
-        archive: trimmed_archive,
-        updated_at: System.monotonic_time(:millisecond)
-      }}
+      {:ok,
+       %{frontier | archive: trimmed_archive, updated_at: System.monotonic_time(:millisecond)}}
     end
   end
 
@@ -401,17 +416,16 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
       fronts = DominanceComparator.fast_non_dominated_sort(frontier.solutions)
 
       # Convert fronts from %{rank => [candidates]} to %{rank => [ids]}
-      fronts_with_ids = fronts
-      |> Enum.map(fn {rank, candidates} ->
-        ids = Enum.map(candidates, & &1.id)
-        {rank, ids}
-      end)
-      |> Map.new()
+      fronts_with_ids =
+        fronts
+        |> Enum.map(fn {rank, candidates} ->
+          ids = Enum.map(candidates, & &1.id)
+          {rank, ids}
+        end)
+        |> Map.new()
 
-      {:ok, %{frontier |
-        fronts: fronts_with_ids,
-        updated_at: System.monotonic_time(:millisecond)
-      }}
+      {:ok,
+       %{frontier | fronts: fronts_with_ids, updated_at: System.monotonic_time(:millisecond)}}
     end
   end
 
@@ -426,11 +440,13 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
   end
 
   @spec validate_objectives(list(atom()), map()) :: :ok | {:error, term()}
-  defp validate_objectives(objectives, directions) when is_list(objectives) and is_map(directions) do
+  defp validate_objectives(objectives, directions)
+       when is_list(objectives) and is_map(directions) do
     if Enum.all?(objectives, fn obj -> Map.has_key?(directions, obj) end) do
       # Validate direction values
-      invalid_directions = directions
-      |> Enum.filter(fn {_obj, dir} -> dir not in [:maximize, :minimize] end)
+      invalid_directions =
+        directions
+        |> Enum.filter(fn {_obj, dir} -> dir not in [:maximize, :minimize] end)
 
       if Enum.empty?(invalid_directions) do
         :ok
@@ -447,11 +463,13 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
   end
 
   @spec validate_reference_point(map(), list(atom())) :: :ok | {:error, term()}
-  defp validate_reference_point(reference, objectives) when is_map(reference) and is_list(objectives) do
+  defp validate_reference_point(reference, objectives)
+       when is_map(reference) and is_list(objectives) do
     if Enum.all?(objectives, fn obj -> Map.has_key?(reference, obj) end) do
       # Validate all reference values are numeric
-      non_numeric = reference
-      |> Enum.filter(fn {_obj, val} -> not is_number(val) end)
+      non_numeric =
+        reference
+        |> Enum.filter(fn {_obj, val} -> not is_number(val) end)
 
       if Enum.empty?(non_numeric) do
         :ok

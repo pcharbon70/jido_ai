@@ -15,7 +15,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
       ]
 
       assert {:error, {:missing_pareto_rank, "c1"}} =
-        EliteSelector.select_elites(population)
+               EliteSelector.select_elites(population)
     end
 
     test "returns error when population lacks crowding_distance" do
@@ -24,7 +24,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
       ]
 
       assert {:error, {:missing_crowding_distance, "c1"}} =
-        EliteSelector.select_elites(population)
+               EliteSelector.select_elites(population)
     end
   end
 
@@ -34,7 +34,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
 
       {:ok, elites} = EliteSelector.select_elites(population)
 
-      assert length(elites) == 15  # 15% of 100
+      # 15% of 100
+      assert length(elites) == 15
     end
 
     test "selects custom ratio of population" do
@@ -42,17 +43,20 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
 
       {:ok, elites} = EliteSelector.select_elites(population, elite_ratio: 0.20)
 
-      assert length(elites) == 20  # 20% of 100
+      # 20% of 100
+      assert length(elites) == 20
     end
 
     test "respects min_elites even with low ratio" do
       population = create_population_with_metrics(10)
 
-      {:ok, elites} = EliteSelector.select_elites(
-        population,
-        elite_ratio: 0.05,  # Would be 0.5 -> 0
-        min_elites: 3
-      )
+      {:ok, elites} =
+        EliteSelector.select_elites(
+          population,
+          # Would be 0.5 -> 0
+          elite_ratio: 0.05,
+          min_elites: 3
+        )
 
       assert length(elites) == 3
     end
@@ -70,11 +74,14 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
     test "elite_count overrides elite_ratio" do
       population = create_population_with_metrics(100)
 
-      {:ok, elites} = EliteSelector.select_elites(
-        population,
-        elite_ratio: 0.20,  # Would select 20
-        elite_count: 30     # But this takes precedence
-      )
+      {:ok, elites} =
+        EliteSelector.select_elites(
+          population,
+          # Would select 20
+          elite_ratio: 0.20,
+          # But this takes precedence
+          elite_count: 30
+        )
 
       assert length(elites) == 30
     end
@@ -134,8 +141,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
       assert "c4" in elite_ids
       assert "c2" in elite_ids
       assert "c3" in elite_ids
-      refute "c1" in elite_ids  # 0.3
-      refute "c5" in elite_ids  # 0.4
+      # 0.3
+      refute "c1" in elite_ids
+      # 0.4
+      refute "c5" in elite_ids
     end
 
     test "boundary solutions with infinite distance always selected first" do
@@ -169,8 +178,9 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
 
       {:ok, elites} = EliteSelector.select_elites(population, elite_count: 4)
 
-      front_1_ids = Enum.filter(elites, fn e -> e.pareto_rank == 1 end)
-                    |> Enum.map(& &1.id)
+      front_1_ids =
+        Enum.filter(elites, fn e -> e.pareto_rank == 1 end)
+        |> Enum.map(& &1.id)
 
       # All 3 Front 1 candidates should be included
       assert length(front_1_ids) == 3
@@ -189,7 +199,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
       population = [
         create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.8}),
         create_candidate("c2", normalized_objectives: %{accuracy: 0.8, latency: 0.9}),
-        create_candidate("c3", normalized_objectives: %{accuracy: 0.7, latency: 0.7})  # Dominated
+        # Dominated
+        create_candidate("c3", normalized_objectives: %{accuracy: 0.7, latency: 0.7})
       ]
 
       {:ok, front_1} = EliteSelector.select_pareto_front_1(population)
@@ -232,7 +243,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
       population = create_population_with_metrics(10)
 
       assert {:error, {:missing_required_option, :elite_count}} =
-        EliteSelector.select_elites_preserve_frontier(population, [])
+               EliteSelector.select_elites_preserve_frontier(population, [])
     end
 
     test "includes all Front 1 when smaller than elite_count" do
@@ -248,17 +259,19 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
         create_candidate("f2_c3", normalized_objectives: %{accuracy: 0.82, latency: 0.83})
       ]
 
-      {:ok, elites} = EliteSelector.select_elites_preserve_frontier(
-        population,
-        elite_count: 5
-      )
+      {:ok, elites} =
+        EliteSelector.select_elites_preserve_frontier(
+          population,
+          elite_count: 5
+        )
 
       assert length(elites) == 5
 
       # Count Front 1 members in elites
-      front_1_count = Enum.count(elites, fn e ->
-        String.starts_with?(e.id, "f1_")
-      end)
+      front_1_count =
+        Enum.count(elites, fn e ->
+          String.starts_with?(e.id, "f1_")
+        end)
 
       # All 3 Front 1 candidates must be included
       assert front_1_count == 3
@@ -266,19 +279,21 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
 
     test "trims Front 1 by crowding distance when larger than elite_count" do
       # Create large Front 1
-      front_1_candidates = Enum.map(1..10, fn i ->
-        create_candidate("f1_c#{i}",
-          normalized_objectives: %{
-            accuracy: 0.85 + (i * 0.01),
-            latency: 0.85 - (i * 0.008)
-          }
-        )
-      end)
+      front_1_candidates =
+        Enum.map(1..10, fn i ->
+          create_candidate("f1_c#{i}",
+            normalized_objectives: %{
+              accuracy: 0.85 + i * 0.01,
+              latency: 0.85 - i * 0.008
+            }
+          )
+        end)
 
-      {:ok, elites} = EliteSelector.select_elites_preserve_frontier(
-        front_1_candidates,
-        elite_count: 6
-      )
+      {:ok, elites} =
+        EliteSelector.select_elites_preserve_frontier(
+          front_1_candidates,
+          elite_count: 6
+        )
 
       assert length(elites) == 6
 
@@ -302,10 +317,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
         create_candidate("f2_c5", normalized_objectives: %{accuracy: 0.81, latency: 0.86})
       ]
 
-      {:ok, elites} = EliteSelector.select_elites_preserve_frontier(
-        population,
-        elite_count: 5
-      )
+      {:ok, elites} =
+        EliteSelector.select_elites_preserve_frontier(
+          population,
+          elite_count: 5
+        )
 
       assert length(elites) == 5
 
@@ -326,10 +342,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
         create_candidate("f2_c1", normalized_objectives: %{accuracy: 0.8, latency: 0.8})
       ]
 
-      {:ok, elites} = EliteSelector.select_elites_preserve_frontier(
-        population,
-        elite_count: 3
-      )
+      {:ok, elites} =
+        EliteSelector.select_elites_preserve_frontier(
+          population,
+          elite_count: 3
+        )
 
       assert length(elites) == 3
       # All should be Front 1
@@ -342,29 +359,43 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
       population = create_population_with_metrics(10)
 
       assert {:error, {:missing_required_option, :elite_count}} =
-        EliteSelector.select_diverse_elites(population, [])
+               EliteSelector.select_diverse_elites(population, [])
     end
 
     test "avoids selecting near-duplicate candidates" do
       population = [
         # Very similar objectives (within default 0.01 threshold)
-        create_candidate_with_metrics("c1", rank: 1, distance: 0.9,
-          objectives: %{accuracy: 0.900, latency: 0.800}),
-        create_candidate_with_metrics("c2", rank: 1, distance: 0.8,
-          objectives: %{accuracy: 0.902, latency: 0.801}),  # Very close to c1
+        create_candidate_with_metrics("c1",
+          rank: 1,
+          distance: 0.9,
+          objectives: %{accuracy: 0.900, latency: 0.800}
+        ),
+        create_candidate_with_metrics("c2",
+          rank: 1,
+          distance: 0.8,
+          # Very close to c1
+          objectives: %{accuracy: 0.902, latency: 0.801}
+        ),
 
         # Different objectives
-        create_candidate_with_metrics("c3", rank: 1, distance: 0.7,
-          objectives: %{accuracy: 0.850, latency: 0.850}),
-        create_candidate_with_metrics("c4", rank: 1, distance: 0.6,
-          objectives: %{accuracy: 0.800, latency: 0.900})
+        create_candidate_with_metrics("c3",
+          rank: 1,
+          distance: 0.7,
+          objectives: %{accuracy: 0.850, latency: 0.850}
+        ),
+        create_candidate_with_metrics("c4",
+          rank: 1,
+          distance: 0.6,
+          objectives: %{accuracy: 0.800, latency: 0.900}
+        )
       ]
 
-      {:ok, elites} = EliteSelector.select_diverse_elites(
-        population,
-        elite_count: 3,
-        similarity_threshold: 0.01
-      )
+      {:ok, elites} =
+        EliteSelector.select_diverse_elites(
+          population,
+          elite_count: 3,
+          similarity_threshold: 0.01
+        )
 
       elite_ids = Enum.map(elites, & &1.id)
 
@@ -379,34 +410,46 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
 
     test "uses custom similarity threshold" do
       population = [
-        create_candidate_with_metrics("c1", rank: 1, distance: 0.9,
-          objectives: %{accuracy: 0.900, latency: 0.800}),
-        create_candidate_with_metrics("c2", rank: 1, distance: 0.8,
-          objectives: %{accuracy: 0.950, latency: 0.800}),  # 0.05 distance from c1
-
-        create_candidate_with_metrics("c3", rank: 1, distance: 0.7,
-          objectives: %{accuracy: 0.800, latency: 0.900})
+        create_candidate_with_metrics("c1",
+          rank: 1,
+          distance: 0.9,
+          objectives: %{accuracy: 0.900, latency: 0.800}
+        ),
+        create_candidate_with_metrics("c2",
+          rank: 1,
+          distance: 0.8,
+          # 0.05 distance from c1
+          objectives: %{accuracy: 0.950, latency: 0.800}
+        ),
+        create_candidate_with_metrics("c3",
+          rank: 1,
+          distance: 0.7,
+          objectives: %{accuracy: 0.800, latency: 0.900}
+        )
       ]
 
       # With strict threshold 0.03: c2 is diverse enough (0.05 > 0.03), so all 3 selected
-      {:ok, elites_strict} = EliteSelector.select_diverse_elites(
-        population,
-        elite_count: 3,
-        similarity_threshold: 0.03
-      )
+      {:ok, elites_strict} =
+        EliteSelector.select_diverse_elites(
+          population,
+          elite_count: 3,
+          similarity_threshold: 0.03
+        )
 
       elite_ids_strict = Enum.map(elites_strict, & &1.id)
       assert length(elites_strict) == 3
       assert "c1" in elite_ids_strict
-      assert "c2" in elite_ids_strict  # 0.05 > 0.03, so diverse enough
+      # 0.05 > 0.03, so diverse enough
+      assert "c2" in elite_ids_strict
       assert "c3" in elite_ids_strict
 
       # With loose threshold 0.1: c2 is too similar (0.05 < 0.1), so only c1 and c3 selected
-      {:ok, elites_loose} = EliteSelector.select_diverse_elites(
-        population,
-        elite_count: 3,
-        similarity_threshold: 0.1
-      )
+      {:ok, elites_loose} =
+        EliteSelector.select_diverse_elites(
+          population,
+          elite_count: 3,
+          similarity_threshold: 0.1
+        )
 
       elite_ids_loose = Enum.map(elites_loose, & &1.id)
       # c1 selected first (highest distance in rank 1)
@@ -422,23 +465,36 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
     test "prioritizes by rank, then distance, then generation" do
       population = [
         # Lower rank, lower distance, newer
-        create_candidate_with_metrics("c1", rank: 1, distance: 0.5, generation: 5,
-          objectives: %{accuracy: 0.90, latency: 0.80}),
+        create_candidate_with_metrics("c1",
+          rank: 1,
+          distance: 0.5,
+          generation: 5,
+          objectives: %{accuracy: 0.90, latency: 0.80}
+        ),
 
         # Higher rank, higher distance, older
-        create_candidate_with_metrics("c2", rank: 2, distance: 0.9, generation: 1,
-          objectives: %{accuracy: 0.85, latency: 0.85}),
+        create_candidate_with_metrics("c2",
+          rank: 2,
+          distance: 0.9,
+          generation: 1,
+          objectives: %{accuracy: 0.85, latency: 0.85}
+        ),
 
         # Same rank as c1, higher distance, older
-        create_candidate_with_metrics("c3", rank: 1, distance: 0.7, generation: 2,
-          objectives: %{accuracy: 0.80, latency: 0.90})
+        create_candidate_with_metrics("c3",
+          rank: 1,
+          distance: 0.7,
+          generation: 2,
+          objectives: %{accuracy: 0.80, latency: 0.90}
+        )
       ]
 
-      {:ok, elites} = EliteSelector.select_diverse_elites(
-        population,
-        elite_count: 2,
-        similarity_threshold: 0.01
-      )
+      {:ok, elites} =
+        EliteSelector.select_diverse_elites(
+          population,
+          elite_count: 2,
+          similarity_threshold: 0.01
+        )
 
       elite_ids = Enum.map(elites, & &1.id)
 
@@ -452,16 +508,21 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelectorTest do
 
     test "handles case where fewer diverse candidates than requested" do
       # All candidates very similar
-      population = Enum.map(1..10, fn i ->
-        create_candidate_with_metrics("c#{i}", rank: 1, distance: 0.5,
-          objectives: %{accuracy: 0.900 + (i * 0.001), latency: 0.800})
-      end)
+      population =
+        Enum.map(1..10, fn i ->
+          create_candidate_with_metrics("c#{i}",
+            rank: 1,
+            distance: 0.5,
+            objectives: %{accuracy: 0.900 + i * 0.001, latency: 0.800}
+          )
+        end)
 
-      {:ok, elites} = EliteSelector.select_diverse_elites(
-        population,
-        elite_count: 10,
-        similarity_threshold: 0.01
-      )
+      {:ok, elites} =
+        EliteSelector.select_diverse_elites(
+          population,
+          elite_count: 10,
+          similarity_threshold: 0.01
+        )
 
       # With threshold 0.01 and step 0.001, only ~10 candidates fit
       # But most will be filtered as duplicates

@@ -350,6 +350,7 @@ defmodule Jido.AI.Runner.GEPA.MutationScheduler do
   defp exponential_decay_rate(scheduler, current_gen, max_gen) do
     progress = current_gen / max(max_gen, 1)
     decay_rate = 3.0
+
     scheduler.min_rate +
       (scheduler.max_rate - scheduler.min_rate) * :math.exp(-decay_rate * progress)
   end

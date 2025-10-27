@@ -24,45 +24,45 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       solutions = [make_candidate("c1", %{accuracy: 0.8})]
 
       assert {:error, {:missing_required_option, :reference_point}} =
-        HypervolumeCalculator.calculate(solutions, objectives: [:accuracy])
+               HypervolumeCalculator.calculate(solutions, objectives: [:accuracy])
     end
 
     test "returns error when objectives is missing" do
       solutions = [make_candidate("c1", %{accuracy: 0.8})]
 
       assert {:error, {:missing_required_option, :objectives}} =
-        HypervolumeCalculator.calculate(solutions, reference_point: %{accuracy: 0.0})
+               HypervolumeCalculator.calculate(solutions, reference_point: %{accuracy: 0.0})
     end
 
     test "returns error when reference_point has non-numeric values" do
       solutions = [make_candidate("c1", %{accuracy: 0.8})]
 
       assert {:error, {:non_numeric_reference_values, _}} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: "invalid"},
-          objectives: [:accuracy]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: "invalid"},
+                 objectives: [:accuracy]
+               )
     end
 
     test "returns error when reference_point is missing objective" do
       solutions = [make_candidate("c1", %{accuracy: 0.8, latency: 0.5})]
 
       assert {:error, :missing_reference_value} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0},
-          objectives: [:accuracy, :latency]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0},
+                 objectives: [:accuracy, :latency]
+               )
     end
 
     test "returns 0.0 for empty solution set" do
       assert {:ok, 0.0} =
-        HypervolumeCalculator.calculate(
-          [],
-          reference_point: %{accuracy: 0.0},
-          objectives: [:accuracy]
-        )
+               HypervolumeCalculator.calculate(
+                 [],
+                 reference_point: %{accuracy: 0.0},
+                 objectives: [:accuracy]
+               )
     end
 
     test "filters out solutions without normalized_objectives" do
@@ -79,11 +79,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0},
-          objectives: [:accuracy]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0},
+                 objectives: [:accuracy]
+               )
 
       assert hv > 0.0
     end
@@ -98,11 +98,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0},
-          objectives: [:accuracy]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0},
+                 objectives: [:accuracy]
+               )
 
       # Max value is 0.8, reference is 0.0, so HV = 0.8
       assert_in_delta hv, 0.8, 0.001
@@ -112,11 +112,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       solutions = [make_candidate("c1", %{accuracy: 0.8})]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.5},
-          objectives: [:accuracy]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.5},
+                 objectives: [:accuracy]
+               )
 
       # HV = 0.8 - 0.5 = 0.3
       assert_in_delta hv, 0.3, 0.001
@@ -126,22 +126,22 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       solutions = [make_candidate("c1", %{accuracy: 0.5})]
 
       assert {:ok, 0.0} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.5},
-          objectives: [:accuracy]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.5},
+                 objectives: [:accuracy]
+               )
     end
 
     test "returns 0 when solution is dominated by reference point" do
       solutions = [make_candidate("c1", %{accuracy: 0.3})]
 
       assert {:ok, 0.0} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.5},
-          objectives: [:accuracy]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.5},
+                 objectives: [:accuracy]
+               )
     end
   end
 
@@ -154,11 +154,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0, latency: 0.0},
-          objectives: [:accuracy, :latency]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0, latency: 0.0},
+                 objectives: [:accuracy, :latency]
+               )
 
       # Hypervolume should be positive
       assert hv > 0.0
@@ -174,11 +174,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0, latency: 0.0},
-          objectives: [:accuracy, :latency]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0, latency: 0.0},
+                 objectives: [:accuracy, :latency]
+               )
 
       # HV = (1.0 - 0.0) * (0.5 - 0.0) + (0.5 - 0.0) * (1.0 - 0.5)
       #    = 1.0 * 0.5 + 0.5 * 0.5
@@ -191,15 +191,16 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       solutions = [
         make_candidate("c1", %{accuracy: 0.9, latency: 0.6}),
         make_candidate("c2", %{accuracy: 0.8, latency: 0.8}),
-        make_candidate("c3", %{accuracy: 0.7, latency: 0.7})  # Dominated by c2
+        # Dominated by c2
+        make_candidate("c3", %{accuracy: 0.7, latency: 0.7})
       ]
 
       assert {:ok, hv_with_dominated} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0, latency: 0.0},
-          objectives: [:accuracy, :latency]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0, latency: 0.0},
+                 objectives: [:accuracy, :latency]
+               )
 
       # Remove dominated solution
       non_dominated = [
@@ -208,11 +209,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv_without_dominated} =
-        HypervolumeCalculator.calculate(
-          non_dominated,
-          reference_point: %{accuracy: 0.0, latency: 0.0},
-          objectives: [:accuracy, :latency]
-        )
+               HypervolumeCalculator.calculate(
+                 non_dominated,
+                 reference_point: %{accuracy: 0.0, latency: 0.0},
+                 objectives: [:accuracy, :latency]
+               )
 
       # Hypervolume should be the same
       assert_in_delta hv_with_dominated, hv_without_dominated, 0.001
@@ -224,11 +225,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.5, latency: 0.5},
-          objectives: [:accuracy, :latency]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.5, latency: 0.5},
+                 objectives: [:accuracy, :latency]
+               )
 
       # HV = (0.9 - 0.5) * (0.8 - 0.5) = 0.4 * 0.3 = 0.12
       assert_in_delta hv, 0.12, 0.001
@@ -240,11 +241,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, 0.0} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.5, latency: 0.5},
-          objectives: [:accuracy, :latency]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.5, latency: 0.5},
+                 objectives: [:accuracy, :latency]
+               )
     end
   end
 
@@ -257,11 +258,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0},
-          objectives: [:accuracy, :latency, :cost]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0},
+                 objectives: [:accuracy, :latency, :cost]
+               )
 
       # Hypervolume should be positive
       assert hv > 0.0
@@ -275,11 +276,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0},
-          objectives: [:accuracy, :latency, :cost]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0},
+                 objectives: [:accuracy, :latency, :cost]
+               )
 
       # HV = 0.8 * 0.7 * 0.6 = 0.336
       assert_in_delta hv, 0.336, 0.001
@@ -290,15 +291,16 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       solutions = [
         make_candidate("c1", %{accuracy: 0.9, latency: 0.9, cost: 0.9}),
         make_candidate("c2", %{accuracy: 0.8, latency: 0.7, cost: 0.6}),
-        make_candidate("c3", %{accuracy: 0.7, latency: 0.6, cost: 0.5})  # Dominated by c2
+        # Dominated by c2
+        make_candidate("c3", %{accuracy: 0.7, latency: 0.6, cost: 0.5})
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0},
-          objectives: [:accuracy, :latency, :cost]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0},
+                 objectives: [:accuracy, :latency, :cost]
+               )
 
       # Dominated solution shouldn't affect hypervolume
       assert hv > 0.0
@@ -314,11 +316,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0, robustness: 0.0},
-          objectives: [:accuracy, :latency, :cost, :robustness]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0, robustness: 0.0},
+                 objectives: [:accuracy, :latency, :cost, :robustness]
+               )
 
       # Hypervolume should be positive
       assert hv > 0.0
@@ -332,11 +334,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, hv} =
-        HypervolumeCalculator.calculate(
-          solutions,
-          reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0, robustness: 0.0},
-          objectives: [:accuracy, :latency, :cost, :robustness]
-        )
+               HypervolumeCalculator.calculate(
+                 solutions,
+                 reference_point: %{accuracy: 0.0, latency: 0.0, cost: 0.0, robustness: 0.0},
+                 objectives: [:accuracy, :latency, :cost, :robustness]
+               )
 
       # HV = 0.8 * 0.7 * 0.6 * 0.5 = 0.168
       assert_in_delta hv, 0.168, 0.001
@@ -350,11 +352,12 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
         make_candidate("c2", %{accuracy: 0.6})
       ]
 
-      contributions = HypervolumeCalculator.contribution(
-        solutions,
-        reference_point: %{accuracy: 0.0},
-        objectives: [:accuracy]
-      )
+      contributions =
+        HypervolumeCalculator.contribution(
+          solutions,
+          reference_point: %{accuracy: 0.0},
+          objectives: [:accuracy]
+        )
 
       assert is_map(contributions)
       assert Map.has_key?(contributions, "c1")
@@ -370,11 +373,12 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
         make_candidate("c2", %{accuracy: 0.6, latency: 0.9})
       ]
 
-      contributions = HypervolumeCalculator.contribution(
-        solutions,
-        reference_point: %{accuracy: 0.0, latency: 0.0},
-        objectives: [:accuracy, :latency]
-      )
+      contributions =
+        HypervolumeCalculator.contribution(
+          solutions,
+          reference_point: %{accuracy: 0.0, latency: 0.0},
+          objectives: [:accuracy, :latency]
+        )
 
       assert Map.has_key?(contributions, "c1")
       assert Map.has_key?(contributions, "c2")
@@ -384,11 +388,12 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       assert contributions["c2"] > 0.0
 
       # Verify hypervolume calculation is reasonable
-      {:ok, total_hv} = HypervolumeCalculator.calculate(
-        solutions,
-        reference_point: %{accuracy: 0.0, latency: 0.0},
-        objectives: [:accuracy, :latency]
-      )
+      {:ok, total_hv} =
+        HypervolumeCalculator.calculate(
+          solutions,
+          reference_point: %{accuracy: 0.0, latency: 0.0},
+          objectives: [:accuracy, :latency]
+        )
 
       # For non-dominated solutions with overlap, sum of exclusive contributions
       # will be less than total HV due to shared dominated regions
@@ -402,14 +407,16 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       solutions = [
         make_candidate("c1", %{accuracy: 0.9, latency: 0.6}),
         make_candidate("c2", %{accuracy: 0.8, latency: 0.8}),
-        make_candidate("c3", %{accuracy: 0.7, latency: 0.7})  # Dominated
+        # Dominated
+        make_candidate("c3", %{accuracy: 0.7, latency: 0.7})
       ]
 
-      contributions = HypervolumeCalculator.contribution(
-        solutions,
-        reference_point: %{accuracy: 0.0, latency: 0.0},
-        objectives: [:accuracy, :latency]
-      )
+      contributions =
+        HypervolumeCalculator.contribution(
+          solutions,
+          reference_point: %{accuracy: 0.0, latency: 0.0},
+          objectives: [:accuracy, :latency]
+        )
 
       # Dominated solution should have zero or near-zero contribution
       assert contributions["c3"] < 0.01
@@ -419,20 +426,22 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       solutions = [make_candidate("c1", %{accuracy: 0.8})]
 
       # Missing required option
-      contributions = HypervolumeCalculator.contribution(
-        solutions,
-        objectives: [:accuracy]
-      )
+      contributions =
+        HypervolumeCalculator.contribution(
+          solutions,
+          objectives: [:accuracy]
+        )
 
       assert contributions == %{"c1" => 0.0}
     end
 
     test "handles empty solution set" do
-      contributions = HypervolumeCalculator.contribution(
-        [],
-        reference_point: %{accuracy: 0.0},
-        objectives: [:accuracy]
-      )
+      contributions =
+        HypervolumeCalculator.contribution(
+          [],
+          reference_point: %{accuracy: 0.0},
+          objectives: [:accuracy]
+        )
 
       assert contributions == %{}
     end
@@ -446,12 +455,13 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
         make_candidate("c3", %{accuracy: 0.8, latency: 0.7})
       ]
 
-      reference = HypervolumeCalculator.auto_reference_point(
-        candidates,
-        objectives: [:accuracy, :latency],
-        objective_directions: %{accuracy: :maximize, latency: :minimize},
-        margin: 0.1
-      )
+      reference =
+        HypervolumeCalculator.auto_reference_point(
+          candidates,
+          objectives: [:accuracy, :latency],
+          objective_directions: %{accuracy: :maximize, latency: :minimize},
+          margin: 0.1
+        )
 
       assert is_map(reference)
       assert Map.has_key?(reference, :accuracy)
@@ -469,22 +479,24 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
         make_candidate("c1", %{accuracy: 0.8})
       ]
 
-      reference = HypervolumeCalculator.auto_reference_point(
-        candidates,
-        objectives: [:accuracy],
-        objective_directions: %{accuracy: :maximize}
-      )
+      reference =
+        HypervolumeCalculator.auto_reference_point(
+          candidates,
+          objectives: [:accuracy],
+          objective_directions: %{accuracy: :maximize}
+        )
 
       # Default margin is 0.1, so reference should be 0.8 - 0.1 = 0.7
       assert_in_delta reference[:accuracy], 0.7, 0.01
     end
 
     test "returns zero reference point for empty candidates" do
-      reference = HypervolumeCalculator.auto_reference_point(
-        [],
-        objectives: [:accuracy, :latency],
-        objective_directions: %{accuracy: :maximize, latency: :minimize}
-      )
+      reference =
+        HypervolumeCalculator.auto_reference_point(
+          [],
+          objectives: [:accuracy, :latency],
+          objective_directions: %{accuracy: :maximize, latency: :minimize}
+        )
 
       assert reference == %{accuracy: 0.0, latency: 0.0}
     end
@@ -502,12 +514,13 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
         }
       ]
 
-      reference = HypervolumeCalculator.auto_reference_point(
-        candidates,
-        objectives: [:accuracy],
-        objective_directions: %{accuracy: :maximize},
-        margin: 0.1
-      )
+      reference =
+        HypervolumeCalculator.auto_reference_point(
+          candidates,
+          objectives: [:accuracy],
+          objective_directions: %{accuracy: :maximize},
+          margin: 0.1
+        )
 
       # Should use only c1's value
       assert_in_delta reference[:accuracy], 0.7, 0.01
@@ -515,15 +528,17 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
 
     test "ensures reference point is non-negative" do
       candidates = [
-        make_candidate("c1", %{accuracy: 0.05})  # Very small value
+        # Very small value
+        make_candidate("c1", %{accuracy: 0.05})
       ]
 
-      reference = HypervolumeCalculator.auto_reference_point(
-        candidates,
-        objectives: [:accuracy],
-        objective_directions: %{accuracy: :maximize},
-        margin: 0.1
-      )
+      reference =
+        HypervolumeCalculator.auto_reference_point(
+          candidates,
+          objectives: [:accuracy],
+          objective_directions: %{accuracy: :maximize},
+          margin: 0.1
+        )
 
       # 0.05 - 0.1 would be -0.05, but should be clamped to 0.0
       assert reference[:accuracy] >= 0.0
@@ -554,7 +569,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, ratio, current_hv} =
-        HypervolumeCalculator.improvement(current_frontier, previous_frontier, opts)
+               HypervolumeCalculator.improvement(current_frontier, previous_frontier, opts)
 
       # Current should be better than previous
       assert ratio > 1.0
@@ -574,7 +589,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, ratio, _hv} =
-        HypervolumeCalculator.improvement(frontier, frontier, opts)
+               HypervolumeCalculator.improvement(frontier, frontier, opts)
 
       assert_in_delta ratio, 1.0, 0.01
     end
@@ -592,7 +607,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, ratio, _hv} =
-        HypervolumeCalculator.improvement(current_frontier, previous_frontier, opts)
+               HypervolumeCalculator.improvement(current_frontier, previous_frontier, opts)
 
       assert ratio == :infinity
     end
@@ -606,7 +621,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       ]
 
       assert {:ok, ratio, _hv} =
-        HypervolumeCalculator.improvement(frontier, frontier, opts)
+               HypervolumeCalculator.improvement(frontier, frontier, opts)
 
       assert ratio == 1.0
     end
@@ -626,9 +641,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       {:ok, initial_hv} = HypervolumeCalculator.calculate(initial, opts)
 
       # Add non-dominated solution
-      improved = initial ++ [
-        make_candidate("c2", %{accuracy: 0.6, latency: 0.8})
-      ]
+      improved =
+        initial ++
+          [
+            make_candidate("c2", %{accuracy: 0.6, latency: 0.8})
+          ]
 
       {:ok, improved_hv} = HypervolumeCalculator.calculate(improved, opts)
 
@@ -648,9 +665,12 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
       {:ok, initial_hv} = HypervolumeCalculator.calculate(initial, opts)
 
       # Add dominated solution
-      with_dominated = initial ++ [
-        make_candidate("c2", %{accuracy: 0.5, latency: 0.5})  # Dominated
-      ]
+      with_dominated =
+        initial ++
+          [
+            # Dominated
+            make_candidate("c2", %{accuracy: 0.5, latency: 0.5})
+          ]
 
       {:ok, dominated_hv} = HypervolumeCalculator.calculate(with_dominated, opts)
 
@@ -679,6 +699,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculatorTest do
 
       # All contributions should be non-negative
       assert Enum.all?(contributions, fn {_id, contrib} -> contrib >= 0.0 end)
+
       # At least some contributions should be positive (though some may be 0 for dominated solutions)
       # Note: For high-dimensional spaces, contribution calculation is complex
       assert is_map(contributions)

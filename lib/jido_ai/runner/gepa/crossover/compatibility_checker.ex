@@ -209,7 +209,8 @@ defmodule JidoAI.Runner.GEPA.Crossover.CompatibilityChecker do
     duplicate_penalty = if :duplicate_content in issues, do: 0.2, else: 0.0
     semantic_penalty = if :semantic_mismatch in issues, do: 0.1, else: 0.0
 
-    total_penalty = contradiction_penalty + structure_penalty + duplicate_penalty + semantic_penalty
+    total_penalty =
+      contradiction_penalty + structure_penalty + duplicate_penalty + semantic_penalty
 
     # Calculate final score
     base_score = segment_overlap * 0.4 + diversity * 0.4

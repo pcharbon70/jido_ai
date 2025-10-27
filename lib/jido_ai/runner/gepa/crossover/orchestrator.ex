@@ -30,6 +30,7 @@ defmodule JidoAI.Runner.GEPA.Crossover.Orchestrator do
   """
 
   alias JidoAI.Runner.GEPA.Crossover
+
   alias JidoAI.Runner.GEPA.Crossover.{
     Segmenter,
     CompatibilityChecker,
@@ -76,14 +77,15 @@ defmodule JidoAI.Runner.GEPA.Crossover.Orchestrator do
          {:ok, strategy} <- select_strategy(compatibility, config),
          {:ok, offspring} <- execute_crossover(segmented_a, segmented_b, strategy, config),
          {:ok, validated_offspring} <- maybe_validate(offspring, config) do
-      result = build_result(
-        [prompt_a, prompt_b],
-        validated_offspring,
-        strategy,
-        segmented_a,
-        segmented_b,
-        config
-      )
+      result =
+        build_result(
+          [prompt_a, prompt_b],
+          validated_offspring,
+          strategy,
+          segmented_a,
+          segmented_b,
+          config
+        )
 
       {:ok, result}
     else
@@ -125,14 +127,15 @@ defmodule JidoAI.Runner.GEPA.Crossover.Orchestrator do
          {:ok, strategy} <- select_strategy(compatibility, config),
          {:ok, offspring} <- execute_crossover(segmented_a, segmented_b, strategy, config),
          {:ok, validated_offspring} <- maybe_validate(offspring, config) do
-      result = build_result(
-        [segmented_a.raw_text, segmented_b.raw_text],
-        validated_offspring,
-        strategy,
-        segmented_a,
-        segmented_b,
-        config
-      )
+      result =
+        build_result(
+          [segmented_a.raw_text, segmented_b.raw_text],
+          validated_offspring,
+          strategy,
+          segmented_a,
+          segmented_b,
+          config
+        )
 
       {:ok, result}
     end

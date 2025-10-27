@@ -51,8 +51,11 @@ defmodule JidoAI.Runner.GEPA.Crossover.ExchangerTest do
 
   describe "two_point/3" do
     test "produces two offspring from two-point crossover" do
-      prompt_a = "First step is simple. Second step is harder. Third step is complex. Fourth step is final."
-      prompt_b = "Alpha phase begins. Beta phase continues. Gamma phase advances. Delta phase ends."
+      prompt_a =
+        "First step is simple. Second step is harder. Third step is complex. Fourth step is final."
+
+      prompt_b =
+        "Alpha phase begins. Beta phase continues. Gamma phase advances. Delta phase ends."
 
       {:ok, seg_a} = Segmenter.segment(prompt_a)
       {:ok, seg_b} = Segmenter.segment(prompt_b)

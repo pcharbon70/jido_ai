@@ -84,7 +84,9 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluatorTest do
         %{success: true}
       ]
 
-      assert {:ok, objectives} = MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy])
+      assert {:ok, objectives} =
+               MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy])
+
       assert objectives.accuracy == 1.0
     end
 
@@ -96,7 +98,9 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluatorTest do
         %{success: false}
       ]
 
-      assert {:ok, objectives} = MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy])
+      assert {:ok, objectives} =
+               MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy])
+
       assert objectives.accuracy == 0.5
     end
 
@@ -106,7 +110,9 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluatorTest do
         %{success: false}
       ]
 
-      assert {:ok, objectives} = MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy])
+      assert {:ok, objectives} =
+               MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy])
+
       assert objectives.accuracy == 0.0
     end
 
@@ -116,7 +122,9 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluatorTest do
         %{duration_ms: 200}
       ]
 
-      assert {:ok, objectives} = MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy])
+      assert {:ok, objectives} =
+               MultiObjectiveEvaluator.evaluate(results, objectives: [:accuracy])
+
       # Should default to false
       assert objectives.accuracy == 0.0
     end
@@ -168,7 +176,10 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluatorTest do
       pricing = %{cost_per_1k_tokens: 0.03}
 
       assert {:ok, objectives} =
-               MultiObjectiveEvaluator.evaluate(results, objectives: [:cost], model_pricing: pricing)
+               MultiObjectiveEvaluator.evaluate(results,
+                 objectives: [:cost],
+                 model_pricing: pricing
+               )
 
       # Total: (100+50) + (200+100) = 450 tokens
       # Cost: 450 * 0.03 / 1000 = 0.0135
@@ -196,7 +207,10 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluatorTest do
       pricing = %{cost_per_1k_tokens: 0.03}
 
       assert {:ok, objectives} =
-               MultiObjectiveEvaluator.evaluate(results, objectives: [:cost], model_pricing: pricing)
+               MultiObjectiveEvaluator.evaluate(results,
+                 objectives: [:cost],
+                 model_pricing: pricing
+               )
 
       # 579 * 0.03 / 1000 = 0.01737 -> rounded to 0.0174
       assert objectives.cost == 0.0174

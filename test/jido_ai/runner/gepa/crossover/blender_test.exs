@@ -27,6 +27,7 @@ defmodule JidoAI.Runner.GEPA.Crossover.BlenderTest do
 
       assert {:ok, blended} = Blender.blend_segments([seg1, seg2])
       assert blended.type == :instruction
+
       assert String.contains?(blended.content, "step by step") or
                String.contains?(blended.content, "work")
     end

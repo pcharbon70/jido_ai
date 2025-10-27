@@ -126,10 +126,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharing do
     shared_population =
       Enum.map(population, fn candidate ->
         # Calculate niche count
-        nc = niche_count(candidate, population,
-          niche_radius: niche_radius,
-          sharing_alpha: sharing_alpha
-        )
+        nc =
+          niche_count(candidate, population,
+            niche_radius: niche_radius,
+            sharing_alpha: sharing_alpha
+          )
 
         # Calculate shared fitness
         raw_fitness = candidate.fitness || 0.0
@@ -322,11 +323,17 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharing do
 
     if diversity < threshold do
       # Low diversity: apply sharing
-      Logger.debug("Applying fitness sharing (diversity: #{Float.round(diversity, 3)} < #{threshold})")
+      Logger.debug(
+        "Applying fitness sharing (diversity: #{Float.round(diversity, 3)} < #{threshold})"
+      )
+
       apply_sharing(population, opts)
     else
       # Good diversity: skip sharing
-      Logger.debug("Skipping fitness sharing (diversity: #{Float.round(diversity, 3)} >= #{threshold})")
+      Logger.debug(
+        "Skipping fitness sharing (diversity: #{Float.round(diversity, 3)} >= #{threshold})"
+      )
+
       {:ok, population, :skipped}
     end
   end
@@ -348,17 +355,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharing do
     a_objs = candidate_a.normalized_objectives || %{}
     b_objs = candidate_b.normalized_objectives || %{}
 
-    objectives = Map.keys(a_objs) ++ Map.keys(b_objs) |> Enum.uniq()
+    objectives = (Map.keys(a_objs) ++ Map.keys(b_objs)) |> Enum.uniq()
 
     if Enum.empty?(objectives) do
       0.0
     else
-      sum_squared_diffs = Enum.reduce(objectives, 0.0, fn obj, acc ->
-        a_val = Map.get(a_objs, obj, 0.0)
-        b_val = Map.get(b_objs, obj, 0.0)
-        diff = a_val - b_val
-        acc + (diff * diff)
-      end)
+      sum_squared_diffs =
+        Enum.reduce(objectives, 0.0, fn obj, acc ->
+          a_val = Map.get(a_objs, obj, 0.0)
+          b_val = Map.get(b_objs, obj, 0.0)
+          diff = a_val - b_val
+          acc + diff * diff
+        end)
 
       :math.sqrt(sum_squared_diffs)
     end
@@ -369,13 +377,15 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharing do
     # Calculate diagonal of bounding box in normalized objective space
     first_candidate = List.first(population)
 
-    objectives = case first_candidate.normalized_objectives do
-      nil -> []
-      obj_map -> Map.keys(obj_map)
-    end
+    objectives =
+      case first_candidate.normalized_objectives do
+        nil -> []
+        obj_map -> Map.keys(obj_map)
+      end
 
     if Enum.empty?(objectives) do
-      1.0  # Default diagonal
+      # Default diagonal
+      1.0
     else
       # For normalized objectives in [0, 1], diagonal = sqrt(num_objectives)
       :math.sqrt(length(objectives))
@@ -416,9 +426,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharing do
     sample_size = min(50, length(population))
     sampled = Enum.take_random(population, sample_size)
 
-    distances = for a <- sampled, b <- sampled, a.id != b.id do
-      objective_distance(a, b)
-    end
+    distances =
+      for a <- sampled, b <- sampled, a.id != b.id do
+        objective_distance(a, b)
+      end
 
     if Enum.empty?(distances) do
       0.0
@@ -430,9 +441,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharing do
   @spec population_diversity(list(Candidate.t()), atom()) :: float()
   defp population_diversity(population, :crowding) do
     # Use crowding distance as diversity metric
-    distances = population
-    |> Enum.map(fn c -> c.crowding_distance || 0.0 end)
-    |> Enum.filter(fn d -> is_number(d) and d != :infinity end)
+    distances =
+      population
+      |> Enum.map(fn c -> c.crowding_distance || 0.0 end)
+      |> Enum.filter(fn d -> is_number(d) and d != :infinity end)
 
     if Enum.empty?(distances) do
       0.0

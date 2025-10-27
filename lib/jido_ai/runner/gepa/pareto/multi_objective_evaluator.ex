@@ -108,7 +108,9 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluator do
   def evaluate(trajectory_results, opts) when is_list(trajectory_results) do
     objectives_to_eval = Keyword.get(opts, :objectives, @standard_objectives)
     custom_objectives = Keyword.get(opts, :custom_objectives, %{})
-    model_pricing = Keyword.get(opts, :model_pricing, %{cost_per_1k_tokens: @default_cost_per_1k_tokens})
+
+    model_pricing =
+      Keyword.get(opts, :model_pricing, %{cost_per_1k_tokens: @default_cost_per_1k_tokens})
 
     try do
       objectives =
@@ -187,9 +189,10 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluator do
   """
   @spec measure_accuracy(list(map())) :: float()
   defp measure_accuracy(trajectory_results) do
-    successes = Enum.count(trajectory_results, fn result ->
-      Map.get(result, :success, false)
-    end)
+    successes =
+      Enum.count(trajectory_results, fn result ->
+        Map.get(result, :success, false)
+      end)
 
     total = max(length(trajectory_results), 1)
     Float.round(successes / total, 4)

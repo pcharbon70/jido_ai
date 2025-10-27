@@ -167,7 +167,8 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Metrics do
 
   # Private functions
 
-  defp calculate_pairwise_diversity(%SimilarityMatrix{scores: scores}) when map_size(scores) == 0 do
+  defp calculate_pairwise_diversity(%SimilarityMatrix{scores: scores})
+       when map_size(scores) == 0 do
     1.0
   end
 
@@ -252,7 +253,10 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Metrics do
     end
   end
 
-  defp calculate_clustering_coefficient(%SimilarityMatrix{scores: scores, prompt_ids: ids}, threshold) do
+  defp calculate_clustering_coefficient(
+         %SimilarityMatrix{scores: scores, prompt_ids: ids},
+         threshold
+       ) do
     # How clustered: proportion of high-similarity connections
     n = length(ids)
 

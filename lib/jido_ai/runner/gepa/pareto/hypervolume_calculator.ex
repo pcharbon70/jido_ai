@@ -91,11 +91,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
          {:ok, objectives} <- fetch_required(opts, :objectives),
          :ok <- validate_solutions(solutions),
          :ok <- validate_reference_point(reference_point, objectives) do
-
       # Filter solutions without normalized objectives
-      valid_solutions = Enum.filter(solutions, fn s ->
-        s.normalized_objectives != nil
-      end)
+      valid_solutions =
+        Enum.filter(solutions, fn s ->
+          s.normalized_objectives != nil
+        end)
 
       if Enum.empty?(valid_solutions) do
         {:ok, 0.0}
@@ -201,9 +201,10 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
     margin = Keyword.get(opts, :margin, 0.1)
 
     # Filter candidates with normalized objectives
-    valid_candidates = Enum.filter(candidates, fn c ->
-      c.normalized_objectives != nil
-    end)
+    valid_candidates =
+      Enum.filter(candidates, fn c ->
+        c.normalized_objectives != nil
+      end)
 
     if Enum.empty?(valid_candidates) do
       # Default reference point if no valid candidates
@@ -211,9 +212,10 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
     else
       # Find nadir point (worst value in each objective)
       Enum.map(objectives, fn obj ->
-        values = Enum.map(valid_candidates, fn c ->
-          Map.get(c.normalized_objectives, obj, 0.0)
-        end)
+        values =
+          Enum.map(valid_candidates, fn c ->
+            Map.get(c.normalized_objectives, obj, 0.0)
+          end)
 
         # In normalized space, all objectives are transformed to maximization
         # Reference point should be below minimum values
@@ -249,12 +251,12 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
   def improvement(current_frontier, previous_frontier, opts) do
     with {:ok, current_hv} <- calculate(current_frontier.solutions, opts),
          {:ok, previous_hv} <- calculate(previous_frontier.solutions, opts) do
-
-      ratio = if previous_hv > 0.0 do
-        current_hv / previous_hv
-      else
-        if current_hv > 0.0, do: :infinity, else: 1.0
-      end
+      ratio =
+        if previous_hv > 0.0 do
+          current_hv / previous_hv
+        else
+          if current_hv > 0.0, do: :infinity, else: 1.0
+        end
 
       rounded_ratio = if ratio == :infinity, do: :infinity, else: Float.round(ratio, 4)
       {:ok, rounded_ratio, Float.round(current_hv, 6)}
@@ -269,9 +271,10 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
     ref_val = Map.get(reference_point, obj, 0.0)
 
     # Find maximum value in the objective
-    max_val = solutions
-    |> Enum.map(fn s -> Map.get(s.normalized_objectives, obj, 0.0) end)
-    |> Enum.max()
+    max_val =
+      solutions
+      |> Enum.map(fn s -> Map.get(s.normalized_objectives, obj, 0.0) end)
+      |> Enum.max()
 
     hv = max(0.0, max_val - ref_val)
     {:ok, Float.round(hv, 6)}
@@ -284,29 +287,31 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
     ref_y = Map.get(reference_point, obj2, 0.0)
 
     # Sort by first objective (descending for maximization)
-    sorted = Enum.sort_by(solutions, fn s ->
-      -Map.get(s.normalized_objectives, obj1, 0.0)
-    end)
+    sorted =
+      Enum.sort_by(solutions, fn s ->
+        -Map.get(s.normalized_objectives, obj1, 0.0)
+      end)
 
     # Sweep line algorithm: track maximum y seen so far
-    {hypervolume, _} = Enum.reduce(sorted, {0.0, ref_y}, fn solution, {hv, max_y_so_far} ->
-      x = Map.get(solution.normalized_objectives, obj1, 0.0)
-      y = Map.get(solution.normalized_objectives, obj2, 0.0)
+    {hypervolume, _} =
+      Enum.reduce(sorted, {0.0, ref_y}, fn solution, {hv, max_y_so_far} ->
+        x = Map.get(solution.normalized_objectives, obj1, 0.0)
+        y = Map.get(solution.normalized_objectives, obj2, 0.0)
 
-      # Only add area if this solution improves on the current maximum y
-      if y > max_y_so_far do
-        # Width: from current x to reference x
-        # Height: from new y to previous maximum y
-        width = max(0.0, x - ref_x)
-        height = max(0.0, y - max_y_so_far)
-        area = width * height
+        # Only add area if this solution improves on the current maximum y
+        if y > max_y_so_far do
+          # Width: from current x to reference x
+          # Height: from new y to previous maximum y
+          width = max(0.0, x - ref_x)
+          height = max(0.0, y - max_y_so_far)
+          area = width * height
 
-        {hv + area, y}
-      else
-        # This solution is dominated in obj2, contributes no new area
-        {hv, max_y_so_far}
-      end
-    end)
+          {hv + area, y}
+        else
+          # This solution is dominated in obj2, contributes no new area
+          {hv, max_y_so_far}
+        end
+      end)
 
     {:ok, Float.round(hypervolume, 6)}
   end
@@ -331,9 +336,10 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
   defp wfg_recursive(solutions, reference, [objective], _depth) do
     # Base case: single objective remaining
     # Find maximum value and calculate 1D hypervolume
-    max_val = solutions
-    |> Enum.map(fn s -> Map.get(s.normalized_objectives, objective, 0.0) end)
-    |> Enum.max()
+    max_val =
+      solutions
+      |> Enum.map(fn s -> Map.get(s.normalized_objectives, objective, 0.0) end)
+      |> Enum.max()
 
     ref_val = Map.get(reference, objective, 0.0)
     max(0.0, max_val - ref_val)
@@ -344,40 +350,45 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
     ref_val = Map.get(reference, current_obj, 0.0)
 
     # Sort by current objective (descending)
-    sorted = Enum.sort_by(solutions, fn s ->
-      -Map.get(s.normalized_objectives, current_obj, 0.0)
-    end)
+    sorted =
+      Enum.sort_by(solutions, fn s ->
+        -Map.get(s.normalized_objectives, current_obj, 0.0)
+      end)
 
     # Use inclusion-exclusion principle
     # Process solutions from best to worst in current objective
-    {hv, _prev_val} = Enum.reduce(sorted, {0.0, ref_val}, fn solution, {acc_hv, prev_val} ->
-      sol_val = Map.get(solution.normalized_objectives, current_obj, 0.0)
+    {hv, _prev_val} =
+      Enum.reduce(sorted, {0.0, ref_val}, fn solution, {acc_hv, prev_val} ->
+        sol_val = Map.get(solution.normalized_objectives, current_obj, 0.0)
 
-      if sol_val <= prev_val do
-        # Already covered by a previous solution
-        {acc_hv, prev_val}
-      else
-        # This solution contributes new area
-        slice_width = sol_val - prev_val
-
-        # Find all solutions that could contribute in remaining dimensions
-        # These are solutions whose current_obj value is >= sol_val
-        # (they extend from this slice onwards)
-        slice_solutions = Enum.filter(sorted, fn s ->
-          Map.get(s.normalized_objectives, current_obj, 0.0) >= sol_val
-        end)
-
-        # Recursively calculate hypervolume in remaining dimensions
-        slice_hv = if length(remaining_objs) > 0 do
-          wfg_recursive(slice_solutions, reference, objectives, depth + 1)
+        if sol_val <= prev_val do
+          # Already covered by a previous solution
+          {acc_hv, prev_val}
         else
-          1.0  # No more dimensions, unit hypervolume
-        end
+          # This solution contributes new area
+          slice_width = sol_val - prev_val
 
-        contrib = slice_width * slice_hv
-        {acc_hv + contrib, sol_val}
-      end
-    end)
+          # Find all solutions that could contribute in remaining dimensions
+          # These are solutions whose current_obj value is >= sol_val
+          # (they extend from this slice onwards)
+          slice_solutions =
+            Enum.filter(sorted, fn s ->
+              Map.get(s.normalized_objectives, current_obj, 0.0) >= sol_val
+            end)
+
+          # Recursively calculate hypervolume in remaining dimensions
+          slice_hv =
+            if length(remaining_objs) > 0 do
+              wfg_recursive(slice_solutions, reference, objectives, depth + 1)
+            else
+              # No more dimensions, unit hypervolume
+              1.0
+            end
+
+          contrib = slice_width * slice_hv
+          {acc_hv + contrib, sol_val}
+        end
+      end)
 
     hv
   end
@@ -397,11 +408,13 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
   defp validate_solutions(_), do: {:error, :invalid_solutions_format}
 
   @spec validate_reference_point(map(), list(atom())) :: :ok | {:error, term()}
-  defp validate_reference_point(reference, objectives) when is_map(reference) and is_list(objectives) do
+  defp validate_reference_point(reference, objectives)
+       when is_map(reference) and is_list(objectives) do
     if Enum.all?(objectives, fn obj -> Map.has_key?(reference, obj) end) do
       # Validate all values are numeric
-      non_numeric = reference
-      |> Enum.filter(fn {_obj, val} -> not is_number(val) end)
+      non_numeric =
+        reference
+        |> Enum.filter(fn {_obj, val} -> not is_number(val) end)
 
       if Enum.empty?(non_numeric) do
         :ok

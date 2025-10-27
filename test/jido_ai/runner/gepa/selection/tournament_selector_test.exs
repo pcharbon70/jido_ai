@@ -10,12 +10,15 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
     end
 
     test "returns error for invalid population format" do
-      assert {:error, :invalid_population_format} = TournamentSelector.select("not a list", count: 5)
+      assert {:error, :invalid_population_format} =
+               TournamentSelector.select("not a list", count: 5)
     end
 
     test "returns error for missing count option" do
       population = create_population(10)
-      assert {:error, {:missing_required_option, :count}} = TournamentSelector.select(population, [])
+
+      assert {:error, {:missing_required_option, :count}} =
+               TournamentSelector.select(population, [])
     end
 
     test "returns error for invalid count" do
@@ -29,7 +32,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
         create_candidate("c1", crowding_distance: 0.5, pareto_rank: nil)
       ]
 
-      assert {:error, :candidates_missing_ranking} = TournamentSelector.select(population, count: 1)
+      assert {:error, :candidates_missing_ranking} =
+               TournamentSelector.select(population, count: 1)
     end
 
     test "returns error for candidates missing crowding_distance" do
@@ -37,28 +41,29 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
         create_candidate("c1", pareto_rank: 1, crowding_distance: nil)
       ]
 
-      assert {:error, :candidates_missing_ranking} = TournamentSelector.select(population, count: 1)
+      assert {:error, :candidates_missing_ranking} =
+               TournamentSelector.select(population, count: 1)
     end
 
     test "returns error for tournament size less than 2" do
       population = create_population(10)
 
       assert {:error, {:invalid_tournament_size, 1, 10}} =
-        TournamentSelector.select(population, count: 5, tournament_size: 1)
+               TournamentSelector.select(population, count: 5, tournament_size: 1)
     end
 
     test "returns error for tournament size greater than population" do
       population = create_population(10)
 
       assert {:error, {:invalid_tournament_size, 15, 10}} =
-        TournamentSelector.select(population, count: 5, tournament_size: 15)
+               TournamentSelector.select(population, count: 5, tournament_size: 15)
     end
 
     test "returns error for invalid strategy" do
       population = create_population(10)
 
       assert {:error, {:invalid_strategy, :invalid}} =
-        TournamentSelector.select(population, count: 5, strategy: :invalid)
+               TournamentSelector.select(population, count: 5, strategy: :invalid)
     end
   end
 
@@ -93,9 +98,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
       {:ok, parents} = TournamentSelector.select(population, count: 100, tournament_size: 3)
 
       # Count selections by rank
-      rank_counts = parents
-      |> Enum.group_by(& &1.pareto_rank)
-      |> Map.new(fn {rank, candidates} -> {rank, length(candidates)} end)
+      rank_counts =
+        parents
+        |> Enum.group_by(& &1.pareto_rank)
+        |> Map.new(fn {rank, candidates} -> {rank, length(candidates)} end)
 
       rank1_count = Map.get(rank_counts, 1, 0)
       rank2_count = Map.get(rank_counts, 2, 0)
@@ -118,9 +124,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
       {:ok, parents} = TournamentSelector.select(population, count: 100, tournament_size: 2)
 
       # Count selections
-      selection_counts = parents
-      |> Enum.group_by(& &1.id)
-      |> Map.new(fn {id, candidates} -> {id, length(candidates)} end)
+      selection_counts =
+        parents
+        |> Enum.group_by(& &1.id)
+        |> Map.new(fn {id, candidates} -> {id, length(candidates)} end)
 
       c1_count = Map.get(selection_counts, "c1", 0)
       c2_count = Map.get(selection_counts, "c2", 0)
@@ -160,7 +167,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
       {:ok, parents} = TournamentSelector.select(population, count: 50, tournament_size: 2)
 
       boundary_count = Enum.count(parents, fn p -> p.id == "c1" end)
-      assert boundary_count > 25  # Should win majority
+      # Should win majority
+      assert boundary_count > 25
     end
 
     test "works with default tournament size of 3" do
@@ -175,11 +183,13 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
     test "selects requested number of parents" do
       population = create_population(20)
 
-      assert {:ok, parents} = TournamentSelector.select(
-        population,
-        count: 10,
-        strategy: :diversity
-      )
+      assert {:ok, parents} =
+               TournamentSelector.select(
+                 population,
+                 count: 10,
+                 strategy: :diversity
+               )
+
       assert length(parents) == 10
     end
 
@@ -193,17 +203,19 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
       ]
 
       # Run many selections
-      {:ok, parents} = TournamentSelector.select(
-        population,
-        count: 100,
-        tournament_size: 2,
-        strategy: :diversity
-      )
+      {:ok, parents} =
+        TournamentSelector.select(
+          population,
+          count: 100,
+          tournament_size: 2,
+          strategy: :diversity
+        )
 
       # Count selections
-      selection_counts = parents
-      |> Enum.group_by(& &1.id)
-      |> Map.new(fn {id, candidates} -> {id, length(candidates)} end)
+      selection_counts =
+        parents
+        |> Enum.group_by(& &1.id)
+        |> Map.new(fn {id, candidates} -> {id, length(candidates)} end)
 
       c1_count = Map.get(selection_counts, "c1", 0)
       c2_count = Map.get(selection_counts, "c2", 0)
@@ -219,15 +231,17 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
         create_candidate("c3", pareto_rank: 1, crowding_distance: 0.5)
       ]
 
-      {:ok, parents} = TournamentSelector.select(
-        population,
-        count: 50,
-        tournament_size: 2,
-        strategy: :diversity
-      )
+      {:ok, parents} =
+        TournamentSelector.select(
+          population,
+          count: 50,
+          tournament_size: 2,
+          strategy: :diversity
+        )
 
       boundary_count = Enum.count(parents, fn p -> p.id == "boundary" end)
-      assert boundary_count > 30  # Should strongly favor boundary
+      # Should strongly favor boundary
+      assert boundary_count > 30
     end
 
     test "uses rank as tiebreaker when distances equal" do
@@ -237,16 +251,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
         create_candidate("c3", pareto_rank: 3, crowding_distance: 0.5)
       ]
 
-      {:ok, parents} = TournamentSelector.select(
-        population,
-        count: 100,
-        tournament_size: 2,
-        strategy: :diversity
-      )
+      {:ok, parents} =
+        TournamentSelector.select(
+          population,
+          count: 100,
+          tournament_size: 2,
+          strategy: :diversity
+        )
 
-      rank_counts = parents
-      |> Enum.group_by(& &1.pareto_rank)
-      |> Map.new(fn {rank, candidates} -> {rank, length(candidates)} end)
+      rank_counts =
+        parents
+        |> Enum.group_by(& &1.pareto_rank)
+        |> Map.new(fn {rank, candidates} -> {rank, length(candidates)} end)
 
       rank1_count = Map.get(rank_counts, 1, 0)
       rank2_count = Map.get(rank_counts, 2, 0)
@@ -261,55 +277,57 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
       population = create_population(10)
 
       assert {:error, {:invalid_min_tournament_size, 1}} =
-        TournamentSelector.select(
-          population,
-          count: 5,
-          strategy: :adaptive,
-          min_tournament_size: 1,
-          max_tournament_size: 5
-        )
+               TournamentSelector.select(
+                 population,
+                 count: 5,
+                 strategy: :adaptive,
+                 min_tournament_size: 1,
+                 max_tournament_size: 5
+               )
     end
 
     test "returns error for max_tournament_size greater than population" do
       population = create_population(10)
 
       assert {:error, {:invalid_max_tournament_size, 15, 10}} =
-        TournamentSelector.select(
-          population,
-          count: 5,
-          strategy: :adaptive,
-          min_tournament_size: 2,
-          max_tournament_size: 15
-        )
+               TournamentSelector.select(
+                 population,
+                 count: 5,
+                 strategy: :adaptive,
+                 min_tournament_size: 2,
+                 max_tournament_size: 15
+               )
     end
 
     test "returns error when min > max" do
       population = create_population(10)
 
       assert {:error, {:min_greater_than_max, 7, 3}} =
-        TournamentSelector.select(
-          population,
-          count: 5,
-          strategy: :adaptive,
-          min_tournament_size: 7,
-          max_tournament_size: 3
-        )
+               TournamentSelector.select(
+                 population,
+                 count: 5,
+                 strategy: :adaptive,
+                 min_tournament_size: 7,
+                 max_tournament_size: 3
+               )
     end
 
     test "uses minimum size for low diversity populations" do
       # Create low diversity population (all similar crowding distances)
-      population = Enum.map(1..20, fn i ->
-        create_candidate("c#{i}", pareto_rank: 1, crowding_distance: 0.5)
-      end)
+      population =
+        Enum.map(1..20, fn i ->
+          create_candidate("c#{i}", pareto_rank: 1, crowding_distance: 0.5)
+        end)
 
-      assert {:ok, parents} = TournamentSelector.select(
-        population,
-        count: 10,
-        strategy: :adaptive,
-        min_tournament_size: 2,
-        max_tournament_size: 7,
-        diversity_threshold: 0.5
-      )
+      assert {:ok, parents} =
+               TournamentSelector.select(
+                 population,
+                 count: 10,
+                 strategy: :adaptive,
+                 min_tournament_size: 2,
+                 max_tournament_size: 7,
+                 diversity_threshold: 0.5
+               )
 
       assert length(parents) == 10
       # Can't directly test tournament size, but should complete successfully
@@ -317,18 +335,20 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
 
     test "uses larger size for high diversity populations" do
       # Create high diversity population (varied crowding distances)
-      population = Enum.map(1..20, fn i ->
-        create_candidate("c#{i}", pareto_rank: 1, crowding_distance: i * 0.05)
-      end)
+      population =
+        Enum.map(1..20, fn i ->
+          create_candidate("c#{i}", pareto_rank: 1, crowding_distance: i * 0.05)
+        end)
 
-      assert {:ok, parents} = TournamentSelector.select(
-        population,
-        count: 10,
-        strategy: :adaptive,
-        min_tournament_size: 2,
-        max_tournament_size: 7,
-        diversity_threshold: 0.3
-      )
+      assert {:ok, parents} =
+               TournamentSelector.select(
+                 population,
+                 count: 10,
+                 strategy: :adaptive,
+                 min_tournament_size: 2,
+                 max_tournament_size: 7,
+                 diversity_threshold: 0.3
+               )
 
       assert length(parents) == 10
     end
@@ -336,11 +356,12 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
     test "uses default values for adaptive parameters" do
       population = create_population(20)
 
-      assert {:ok, parents} = TournamentSelector.select(
-        population,
-        count: 10,
-        strategy: :adaptive
-      )
+      assert {:ok, parents} =
+               TournamentSelector.select(
+                 population,
+                 count: 10,
+                 strategy: :adaptive
+               )
 
       assert length(parents) == 10
     end
@@ -359,11 +380,12 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
     test "returns single winner from tournament" do
       population = create_population(10)
 
-      winner = TournamentSelector.run_tournament(
-        population,
-        3,
-        &TournamentSelector.pareto_compare/2
-      )
+      winner =
+        TournamentSelector.run_tournament(
+          population,
+          3,
+          &TournamentSelector.pareto_compare/2
+        )
 
       assert is_struct(winner, Candidate)
       assert winner in population
@@ -377,13 +399,14 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
       ]
 
       # Run tournament multiple times
-      winners = Enum.map(1..20, fn _ ->
-        TournamentSelector.run_tournament(
-          population,
-          3,
-          &TournamentSelector.pareto_compare/2
-        )
-      end)
+      winners =
+        Enum.map(1..20, fn _ ->
+          TournamentSelector.run_tournament(
+            population,
+            3,
+            &TournamentSelector.pareto_compare/2
+          )
+        end)
 
       # With tournament size 3 covering all candidates, rank 1 should always win
       assert Enum.all?(winners, fn w -> w.pareto_rank == 1 end)
@@ -511,9 +534,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
     end
 
     test "returns 0.0 for uniform distances" do
-      population = Enum.map(1..10, fn i ->
-        create_candidate("c#{i}", pareto_rank: 1, crowding_distance: 0.5)
-      end)
+      population =
+        Enum.map(1..10, fn i ->
+          create_candidate("c#{i}", pareto_rank: 1, crowding_distance: 0.5)
+        end)
 
       diversity = TournamentSelector.population_diversity(population)
       assert diversity == 0.0
@@ -521,9 +545,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
 
     test "returns higher value for varied distances" do
       # Create population with varied crowding distances
-      population = Enum.map(1..10, fn i ->
-        create_candidate("c#{i}", pareto_rank: 1, crowding_distance: i * 0.1)
-      end)
+      population =
+        Enum.map(1..10, fn i ->
+          create_candidate("c#{i}", pareto_rank: 1, crowding_distance: i * 0.1)
+        end)
 
       diversity = TournamentSelector.population_diversity(population)
       assert diversity > 0.0
@@ -614,7 +639,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
       crowding_distance: Keyword.get(opts, :crowding_distance, 0.5),
       fitness: Keyword.get(opts, :fitness, 0.8),
       objectives: Keyword.get(opts, :objectives, %{accuracy: 0.8, latency: 100}),
-      normalized_objectives: Keyword.get(opts, :normalized_objectives, %{accuracy: 0.8, latency: 0.6})
+      normalized_objectives:
+        Keyword.get(opts, :normalized_objectives, %{accuracy: 0.8, latency: 0.6})
     }
   end
 
@@ -631,6 +657,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
     # Create population with gradual rank distribution
     Enum.map(1..size, fn i ->
       rank = div(i - 1, div(size, 5)) + 1
+
       create_candidate("candidate_#{i}",
         pareto_rank: rank,
         crowding_distance: :rand.uniform()
@@ -653,7 +680,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
     Enum.map(1..size, fn i ->
       create_candidate("candidate_#{i}",
         pareto_rank: rem(i, 3) + 1,
-        crowding_distance: (i / size)
+        crowding_distance: i / size
       )
     end)
   end

@@ -11,11 +11,12 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     end
 
     test "assigns crowding distances to single-front population" do
-      population = create_population_with_ranks([
-        {"c1", 1, %{accuracy: 0.9, latency: 0.8}},
-        {"c2", 1, %{accuracy: 0.8, latency: 0.9}},
-        {"c3", 1, %{accuracy: 0.85, latency: 0.85}}
-      ])
+      population =
+        create_population_with_ranks([
+          {"c1", 1, %{accuracy: 0.9, latency: 0.8}},
+          {"c2", 1, %{accuracy: 0.8, latency: 0.9}},
+          {"c3", 1, %{accuracy: 0.85, latency: 0.85}}
+        ])
 
       assert {:ok, result} = CrowdingDistanceSelector.assign_crowding_distances(population)
 
@@ -23,19 +24,23 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
       assert Enum.all?(result, fn c -> c.crowding_distance != nil end)
 
       # Boundary solutions should have infinite distance
-      boundary_distances = Enum.filter(result, fn c ->
-        c.crowding_distance == :infinity
-      end)
-      assert length(boundary_distances) == 2  # Min and max in each objective
+      boundary_distances =
+        Enum.filter(result, fn c ->
+          c.crowding_distance == :infinity
+        end)
+
+      # Min and max in each objective
+      assert length(boundary_distances) == 2
     end
 
     test "assigns crowding distances to multi-front population" do
-      population = create_population_with_ranks([
-        {"c1", 1, %{accuracy: 0.9, latency: 0.8}},
-        {"c2", 1, %{accuracy: 0.8, latency: 0.9}},
-        {"c3", 2, %{accuracy: 0.7, latency: 0.7}},
-        {"c4", 2, %{accuracy: 0.6, latency: 0.8}}
-      ])
+      population =
+        create_population_with_ranks([
+          {"c1", 1, %{accuracy: 0.9, latency: 0.8}},
+          {"c2", 1, %{accuracy: 0.8, latency: 0.9}},
+          {"c3", 2, %{accuracy: 0.7, latency: 0.7}},
+          {"c4", 2, %{accuracy: 0.6, latency: 0.8}}
+        ])
 
       assert {:ok, result} = CrowdingDistanceSelector.assign_crowding_distances(population)
 
@@ -52,10 +57,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     end
 
     test "handles population with <= 2 candidates per front" do
-      population = create_population_with_ranks([
-        {"c1", 1, %{accuracy: 0.9, latency: 0.8}},
-        {"c2", 1, %{accuracy: 0.8, latency: 0.9}}
-      ])
+      population =
+        create_population_with_ranks([
+          {"c1", 1, %{accuracy: 0.9, latency: 0.8}},
+          {"c2", 1, %{accuracy: 0.8, latency: 0.9}}
+        ])
 
       assert {:ok, result} = CrowdingDistanceSelector.assign_crowding_distances(population)
 
@@ -69,15 +75,16 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
       ]
 
       assert {:error, {:missing_pareto_rank, "c1"}} =
-        CrowdingDistanceSelector.assign_crowding_distances(population)
+               CrowdingDistanceSelector.assign_crowding_distances(population)
     end
 
     test "calls DominanceComparator.crowding_distance for each front" do
-      population = create_population_with_ranks([
-        {"c1", 1, %{accuracy: 0.9, latency: 0.8}},
-        {"c2", 1, %{accuracy: 0.8, latency: 0.9}},
-        {"c3", 1, %{accuracy: 0.85, latency: 0.85}}
-      ])
+      population =
+        create_population_with_ranks([
+          {"c1", 1, %{accuracy: 0.9, latency: 0.8}},
+          {"c2", 1, %{accuracy: 0.8, latency: 0.9}},
+          {"c3", 1, %{accuracy: 0.85, latency: 0.85}}
+        ])
 
       {:ok, result} = CrowdingDistanceSelector.assign_crowding_distances(population)
 
@@ -96,19 +103,20 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
       population = create_population_with_distances([])
 
       assert {:error, {:missing_required_option, :count}} =
-        CrowdingDistanceSelector.select_by_crowding_distance(population, [])
+               CrowdingDistanceSelector.select_by_crowding_distance(population, [])
     end
 
     test "returns error for invalid count" do
-      population = create_population_with_distances([
-        {"c1", 1, 0.5, %{accuracy: 0.9}}
-      ])
+      population =
+        create_population_with_distances([
+          {"c1", 1, 0.5, %{accuracy: 0.9}}
+        ])
 
       assert {:error, {:invalid_count, 0}} =
-        CrowdingDistanceSelector.select_by_crowding_distance(population, count: 0)
+               CrowdingDistanceSelector.select_by_crowding_distance(population, count: 0)
 
       assert {:error, {:count_exceeds_population, 5, 1}} =
-        CrowdingDistanceSelector.select_by_crowding_distance(population, count: 5)
+               CrowdingDistanceSelector.select_by_crowding_distance(population, count: 5)
     end
 
     test "returns error for population without pareto_rank" do
@@ -117,7 +125,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
       ]
 
       assert {:error, {:missing_pareto_rank, "c1"}} =
-        CrowdingDistanceSelector.select_by_crowding_distance(population, count: 1)
+               CrowdingDistanceSelector.select_by_crowding_distance(population, count: 1)
     end
 
     test "returns error for population without crowding_distance" do
@@ -126,21 +134,25 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
       ]
 
       assert {:error, {:missing_crowding_distance, "c1"}} =
-        CrowdingDistanceSelector.select_by_crowding_distance(population, count: 1)
+               CrowdingDistanceSelector.select_by_crowding_distance(population, count: 1)
     end
 
     test "selects candidates by rank first, distance second" do
-      population = create_population_with_distances([
-        {"c1", 1, 0.3, %{accuracy: 0.9}},
-        {"c2", 1, 0.8, %{accuracy: 0.85}},  # Same rank, higher distance
-        {"c3", 2, 0.9, %{accuracy: 0.7}},   # Worse rank, highest distance
-        {"c4", 2, 0.2, %{accuracy: 0.65}}
-      ])
+      population =
+        create_population_with_distances([
+          {"c1", 1, 0.3, %{accuracy: 0.9}},
+          # Same rank, higher distance
+          {"c2", 1, 0.8, %{accuracy: 0.85}},
+          # Worse rank, highest distance
+          {"c3", 2, 0.9, %{accuracy: 0.7}},
+          {"c4", 2, 0.2, %{accuracy: 0.65}}
+        ])
 
-      {:ok, survivors} = CrowdingDistanceSelector.select_by_crowding_distance(
-        population,
-        count: 3
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.select_by_crowding_distance(
+          population,
+          count: 3
+        )
 
       ids = Enum.map(survivors, & &1.id)
 
@@ -152,16 +164,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     end
 
     test "within same rank, selects by crowding distance (highest first)" do
-      population = create_population_with_distances([
-        {"c1", 1, 0.3, %{accuracy: 0.9}},
-        {"c2", 1, 0.8, %{accuracy: 0.85}},
-        {"c3", 1, 0.5, %{accuracy: 0.88}}
-      ])
+      population =
+        create_population_with_distances([
+          {"c1", 1, 0.3, %{accuracy: 0.9}},
+          {"c2", 1, 0.8, %{accuracy: 0.85}},
+          {"c3", 1, 0.5, %{accuracy: 0.88}}
+        ])
 
-      {:ok, survivors} = CrowdingDistanceSelector.select_by_crowding_distance(
-        population,
-        count: 2
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.select_by_crowding_distance(
+          population,
+          count: 2
+        )
 
       ids = Enum.map(survivors, & &1.id)
 
@@ -172,17 +186,21 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     end
 
     test "boundary solutions with infinite distance always selected first" do
-      population = create_population_with_distances([
-        {"c1", 1, :infinity, %{accuracy: 0.9}},  # Boundary
-        {"c2", 1, 0.8, %{accuracy: 0.85}},
-        {"c3", 1, :infinity, %{accuracy: 0.8}},  # Boundary
-        {"c4", 1, 0.6, %{accuracy: 0.88}}
-      ])
+      population =
+        create_population_with_distances([
+          # Boundary
+          {"c1", 1, :infinity, %{accuracy: 0.9}},
+          {"c2", 1, 0.8, %{accuracy: 0.85}},
+          # Boundary
+          {"c3", 1, :infinity, %{accuracy: 0.8}},
+          {"c4", 1, 0.6, %{accuracy: 0.88}}
+        ])
 
-      {:ok, survivors} = CrowdingDistanceSelector.select_by_crowding_distance(
-        population,
-        count: 3
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.select_by_crowding_distance(
+          population,
+          count: 3
+        )
 
       ids = Enum.map(survivors, & &1.id)
 
@@ -195,18 +213,20 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     end
 
     test "selects exact count specified" do
-      population = create_population_with_distances([
-        {"c1", 1, 0.8, %{accuracy: 0.9}},
-        {"c2", 1, 0.7, %{accuracy: 0.85}},
-        {"c3", 1, 0.6, %{accuracy: 0.88}},
-        {"c4", 1, 0.5, %{accuracy: 0.82}},
-        {"c5", 1, 0.4, %{accuracy: 0.87}}
-      ])
+      population =
+        create_population_with_distances([
+          {"c1", 1, 0.8, %{accuracy: 0.9}},
+          {"c2", 1, 0.7, %{accuracy: 0.85}},
+          {"c3", 1, 0.6, %{accuracy: 0.88}},
+          {"c4", 1, 0.5, %{accuracy: 0.82}},
+          {"c5", 1, 0.4, %{accuracy: 0.87}}
+        ])
 
-      {:ok, survivors} = CrowdingDistanceSelector.select_by_crowding_distance(
-        population,
-        count: 3
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.select_by_crowding_distance(
+          population,
+          count: 3
+        )
 
       assert length(survivors) == 3
     end
@@ -217,32 +237,37 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
       population = []
 
       assert {:error, {:missing_required_option, :target_size}} =
-        CrowdingDistanceSelector.environmental_selection(population, [])
+               CrowdingDistanceSelector.environmental_selection(population, [])
     end
 
     test "returns error for invalid target_size" do
       population = create_candidates_for_environmental_selection(5)
 
       assert {:error, {:invalid_target_size, 0}} =
-        CrowdingDistanceSelector.environmental_selection(population, target_size: 0)
+               CrowdingDistanceSelector.environmental_selection(population, target_size: 0)
 
       assert {:error, {:target_exceeds_population, 10, 5}} =
-        CrowdingDistanceSelector.environmental_selection(population, target_size: 10)
+               CrowdingDistanceSelector.environmental_selection(population, target_size: 10)
     end
 
     test "performs non-dominated sorting and assigns crowding distances" do
       # Create population where some dominate others
       population = [
-        create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.9}),  # Best
-        create_candidate("c2", normalized_objectives: %{accuracy: 0.8, latency: 0.8}),  # Front 2
-        create_candidate("c3", normalized_objectives: %{accuracy: 0.85, latency: 0.7}), # Front 1
-        create_candidate("c4", normalized_objectives: %{accuracy: 0.7, latency: 0.85})  # Front 1
+        # Best
+        create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.9}),
+        # Front 2
+        create_candidate("c2", normalized_objectives: %{accuracy: 0.8, latency: 0.8}),
+        # Front 1
+        create_candidate("c3", normalized_objectives: %{accuracy: 0.85, latency: 0.7}),
+        # Front 1
+        create_candidate("c4", normalized_objectives: %{accuracy: 0.7, latency: 0.85})
       ]
 
-      {:ok, survivors} = CrowdingDistanceSelector.environmental_selection(
-        population,
-        target_size: 3
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.environmental_selection(
+          population,
+          target_size: 3
+        )
 
       assert length(survivors) == 3
 
@@ -270,10 +295,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
         create_candidate("c10", normalized_objectives: %{accuracy: 0.73, latency: 0.71})
       ]
 
-      {:ok, survivors} = CrowdingDistanceSelector.environmental_selection(
-        population,
-        target_size: 7
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.environmental_selection(
+          population,
+          target_size: 7
+        )
 
       assert length(survivors) == 7
 
@@ -306,10 +332,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
 
       population = front_1 ++ front_2
 
-      {:ok, survivors} = CrowdingDistanceSelector.environmental_selection(
-        population,
-        target_size: 5
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.environmental_selection(
+          population,
+          target_size: 5
+        )
 
       assert length(survivors) == 5
 
@@ -330,10 +357,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     test "handles target_size equal to population size" do
       population = create_candidates_for_environmental_selection(10)
 
-      {:ok, survivors} = CrowdingDistanceSelector.environmental_selection(
-        population,
-        target_size: 10
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.environmental_selection(
+          population,
+          target_size: 10
+        )
 
       assert length(survivors) == 10
     end
@@ -341,26 +369,40 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     test "preserves boundary solutions during trimming" do
       # Create a front where we can identify boundary solutions
       candidates = [
-        create_candidate("boundary_min_acc", normalized_objectives: %{accuracy: 0.6, latency: 0.9}),  # Min accuracy
-        create_candidate("boundary_max_acc", normalized_objectives: %{accuracy: 0.95, latency: 0.7}), # Max accuracy
-        create_candidate("boundary_min_lat", normalized_objectives: %{accuracy: 0.85, latency: 0.65}), # Min latency
-        create_candidate("boundary_max_lat", normalized_objectives: %{accuracy: 0.75, latency: 0.95}), # Max latency
+        # Min accuracy
+        create_candidate("boundary_min_acc",
+          normalized_objectives: %{accuracy: 0.6, latency: 0.9}
+        ),
+        # Max accuracy
+        create_candidate("boundary_max_acc",
+          normalized_objectives: %{accuracy: 0.95, latency: 0.7}
+        ),
+        # Min latency
+        create_candidate("boundary_min_lat",
+          normalized_objectives: %{accuracy: 0.85, latency: 0.65}
+        ),
+        # Max latency
+        create_candidate("boundary_max_lat",
+          normalized_objectives: %{accuracy: 0.75, latency: 0.95}
+        ),
         create_candidate("middle_1", normalized_objectives: %{accuracy: 0.8, latency: 0.8}),
         create_candidate("middle_2", normalized_objectives: %{accuracy: 0.82, latency: 0.78})
       ]
 
-      {:ok, survivors} = CrowdingDistanceSelector.environmental_selection(
-        candidates,
-        target_size: 5
-      )
+      {:ok, survivors} =
+        CrowdingDistanceSelector.environmental_selection(
+          candidates,
+          target_size: 5
+        )
 
       survivor_ids = Enum.map(survivors, & &1.id)
 
       # Boundary solutions should have been preserved
       # (They get infinite crowding distance)
-      boundary_count = Enum.count(survivor_ids, fn id ->
-        String.starts_with?(id, "boundary_")
-      end)
+      boundary_count =
+        Enum.count(survivor_ids, fn id ->
+          String.starts_with?(id, "boundary_")
+        end)
 
       # At least some boundaries should be preserved
       assert boundary_count >= 2
@@ -383,24 +425,32 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     test "identifies min and max for single objective" do
       population = [
         create_candidate("c1", normalized_objectives: %{accuracy: 0.5}),
-        create_candidate("c2", normalized_objectives: %{accuracy: 0.9}),  # Max
-        create_candidate("c3", normalized_objectives: %{accuracy: 0.3}),  # Min
+        # Max
+        create_candidate("c2", normalized_objectives: %{accuracy: 0.9}),
+        # Min
+        create_candidate("c3", normalized_objectives: %{accuracy: 0.3}),
         create_candidate("c4", normalized_objectives: %{accuracy: 0.7})
       ]
 
       boundary_ids = CrowdingDistanceSelector.identify_boundary_solutions(population)
 
-      assert "c2" in boundary_ids  # Max
-      assert "c3" in boundary_ids  # Min
+      # Max
+      assert "c2" in boundary_ids
+      # Min
+      assert "c3" in boundary_ids
       assert length(boundary_ids) == 2
     end
 
     test "identifies min and max for each objective" do
       population = [
-        create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.3}),  # Max acc, min lat
-        create_candidate("c2", normalized_objectives: %{accuracy: 0.3, latency: 0.9}),  # Min acc, max lat
-        create_candidate("c3", normalized_objectives: %{accuracy: 0.6, latency: 0.6}),  # Middle
-        create_candidate("c4", normalized_objectives: %{accuracy: 0.7, latency: 0.5})   # Middle
+        # Max acc, min lat
+        create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.3}),
+        # Min acc, max lat
+        create_candidate("c2", normalized_objectives: %{accuracy: 0.3, latency: 0.9}),
+        # Middle
+        create_candidate("c3", normalized_objectives: %{accuracy: 0.6, latency: 0.6}),
+        # Middle
+        create_candidate("c4", normalized_objectives: %{accuracy: 0.7, latency: 0.5})
       ]
 
       boundary_ids = CrowdingDistanceSelector.identify_boundary_solutions(population)
@@ -418,11 +468,16 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
 
     test "identifies boundaries for 3 objectives" do
       population = [
-        create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.5, cost: 0.5}),  # Max acc
-        create_candidate("c2", normalized_objectives: %{accuracy: 0.3, latency: 0.9, cost: 0.5}),  # Min acc, max lat
-        create_candidate("c3", normalized_objectives: %{accuracy: 0.6, latency: 0.3, cost: 0.9}),  # Min lat, max cost
-        create_candidate("c4", normalized_objectives: %{accuracy: 0.5, latency: 0.5, cost: 0.2}),  # Min cost
-        create_candidate("c5", normalized_objectives: %{accuracy: 0.7, latency: 0.7, cost: 0.6})   # Middle
+        # Max acc
+        create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.5, cost: 0.5}),
+        # Min acc, max lat
+        create_candidate("c2", normalized_objectives: %{accuracy: 0.3, latency: 0.9, cost: 0.5}),
+        # Min lat, max cost
+        create_candidate("c3", normalized_objectives: %{accuracy: 0.6, latency: 0.3, cost: 0.9}),
+        # Min cost
+        create_candidate("c4", normalized_objectives: %{accuracy: 0.5, latency: 0.5, cost: 0.2}),
+        # Middle
+        create_candidate("c5", normalized_objectives: %{accuracy: 0.7, latency: 0.7, cost: 0.6})
       ]
 
       boundary_ids = CrowdingDistanceSelector.identify_boundary_solutions(population)
@@ -439,8 +494,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
 
     test "handles case where same candidate is boundary in multiple objectives" do
       population = [
-        create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.9}),  # Max in both
-        create_candidate("c2", normalized_objectives: %{accuracy: 0.1, latency: 0.1}),  # Min in both
+        # Max in both
+        create_candidate("c1", normalized_objectives: %{accuracy: 0.9, latency: 0.9}),
+        # Min in both
+        create_candidate("c2", normalized_objectives: %{accuracy: 0.1, latency: 0.1}),
         create_candidate("c3", normalized_objectives: %{accuracy: 0.5, latency: 0.5})
       ]
 
@@ -507,8 +564,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelectorTest do
     Enum.map(1..count, fn i ->
       create_candidate("c#{i}",
         normalized_objectives: %{
-          accuracy: 0.5 + (i * 0.03),
-          latency: 0.5 + (:rand.uniform() * 0.3)
+          accuracy: 0.5 + i * 0.03,
+          latency: 0.5 + :rand.uniform() * 0.3
         }
       )
     end)

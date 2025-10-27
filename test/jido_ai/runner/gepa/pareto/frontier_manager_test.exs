@@ -61,7 +61,9 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
 
     test "returns error when objective_directions missing" do
       config = Keyword.delete(standard_config(), :objective_directions)
-      assert {:error, {:missing_required_option, :objective_directions}} = FrontierManager.new(config)
+
+      assert {:error, {:missing_required_option, :objective_directions}} =
+               FrontierManager.new(config)
     end
 
     test "returns error when reference_point missing" do
@@ -70,29 +72,33 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
     end
 
     test "returns error when objective lacks direction" do
-      config = standard_config()
-      |> Keyword.put(:objectives, [:accuracy, :latency, :cost])
+      config =
+        standard_config()
+        |> Keyword.put(:objectives, [:accuracy, :latency, :cost])
 
       assert {:error, :missing_objective_direction} = FrontierManager.new(config)
     end
 
     test "returns error when objective lacks reference value" do
-      config = standard_config()
-      |> Keyword.put(:reference_point, %{accuracy: 0.0})
+      config =
+        standard_config()
+        |> Keyword.put(:reference_point, %{accuracy: 0.0})
 
       assert {:error, :missing_reference_value} = FrontierManager.new(config)
     end
 
     test "returns error for invalid objective direction" do
-      config = standard_config()
-      |> Keyword.put(:objective_directions, %{accuracy: :invalid, latency: :minimize})
+      config =
+        standard_config()
+        |> Keyword.put(:objective_directions, %{accuracy: :invalid, latency: :minimize})
 
       assert {:error, {:invalid_objective_directions, _}} = FrontierManager.new(config)
     end
 
     test "returns error for non-numeric reference value" do
-      config = standard_config()
-      |> Keyword.put(:reference_point, %{accuracy: "not a number", latency: 10.0})
+      config =
+        standard_config()
+        |> Keyword.put(:reference_point, %{accuracy: "not a number", latency: 10.0})
 
       assert {:error, {:non_numeric_reference_values, _}} = FrontierManager.new(config)
     end
@@ -178,25 +184,27 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
       }
 
       assert {:error, :candidate_missing_normalized_objectives} =
-        FrontierManager.add_solution(frontier, candidate)
+               FrontierManager.add_solution(frontier, candidate)
     end
 
     test "triggers trimming when frontier exceeds max_size" do
       {:ok, frontier} = FrontierManager.new(standard_config())
 
       # Create 10 non-dominated solutions in a trade-off pattern
-      candidates = for i <- 1..10 do
-        make_candidate("c#{i}", %{
-          accuracy: 0.5 + i * 0.04,
-          latency: 0.95 - i * 0.04
-        })
-      end
+      candidates =
+        for i <- 1..10 do
+          make_candidate("c#{i}", %{
+            accuracy: 0.5 + i * 0.04,
+            latency: 0.95 - i * 0.04
+          })
+        end
 
       # Add all candidates
-      frontier = Enum.reduce(candidates, frontier, fn candidate, f ->
-        {:ok, updated} = FrontierManager.add_solution(f, candidate)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn candidate, f ->
+          {:ok, updated} = FrontierManager.add_solution(f, candidate)
+          updated
+        end)
 
       assert length(frontier.solutions) == 10
 
@@ -213,7 +221,8 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
       {:ok, frontier} = FrontierManager.new(standard_config())
       initial_timestamp = frontier.updated_at
 
-      Process.sleep(2)  # Ensure time passes
+      # Ensure time passes
+      Process.sleep(2)
 
       candidate = make_candidate("a", %{accuracy: 0.8, latency: 0.7})
       {:ok, updated} = FrontierManager.add_solution(frontier, candidate)
@@ -267,10 +276,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
         make_candidate("b", %{accuracy: 0.7, latency: 0.8})
       ]
 
-      frontier = Enum.reduce(candidates, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.add_solution(f, c)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.add_solution(f, c)
+          updated
+        end)
 
       {:ok, trimmed} = FrontierManager.trim(frontier, max_size: 10)
       assert length(trimmed.solutions) == 2
@@ -280,17 +290,19 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
       {:ok, frontier} = FrontierManager.new(standard_config())
 
       # Create 20 non-dominated solutions
-      candidates = for i <- 1..20 do
-        make_candidate("c#{i}", %{
-          accuracy: 0.5 + i * 0.02,
-          latency: 0.95 - i * 0.02
-        })
-      end
+      candidates =
+        for i <- 1..20 do
+          make_candidate("c#{i}", %{
+            accuracy: 0.5 + i * 0.02,
+            latency: 0.95 - i * 0.02
+          })
+        end
 
-      frontier = Enum.reduce(candidates, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.add_solution(f, c)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.add_solution(f, c)
+          updated
+        end)
 
       assert length(frontier.solutions) == 20
 
@@ -303,17 +315,20 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
 
       # Create solutions where first and last are boundaries
       candidates = [
-        make_candidate("boundary_1", %{accuracy: 1.0, latency: 0.1}),  # Best accuracy
+        # Best accuracy
+        make_candidate("boundary_1", %{accuracy: 1.0, latency: 0.1}),
         make_candidate("middle_1", %{accuracy: 0.7, latency: 0.5}),
         make_candidate("middle_2", %{accuracy: 0.6, latency: 0.6}),
         make_candidate("middle_3", %{accuracy: 0.5, latency: 0.7}),
-        make_candidate("boundary_2", %{accuracy: 0.3, latency: 0.9})   # Best latency
+        # Best latency
+        make_candidate("boundary_2", %{accuracy: 0.3, latency: 0.9})
       ]
 
-      frontier = Enum.reduce(candidates, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.add_solution(f, c)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.add_solution(f, c)
+          updated
+        end)
 
       {:ok, trimmed} = FrontierManager.trim(frontier, max_size: 3)
 
@@ -327,17 +342,19 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
       {:ok, frontier} = FrontierManager.new(standard_config())
 
       # Create more than default (100) solutions
-      candidates = for i <- 1..105 do
-        make_candidate("c#{i}", %{
-          accuracy: 0.5 + i * 0.004,
-          latency: 0.95 - i * 0.004
-        })
-      end
+      candidates =
+        for i <- 1..105 do
+          make_candidate("c#{i}", %{
+            accuracy: 0.5 + i * 0.004,
+            latency: 0.95 - i * 0.004
+          })
+        end
 
-      frontier = Enum.reduce(candidates, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.add_solution(f, c)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.add_solution(f, c)
+          updated
+        end)
 
       {:ok, trimmed} = FrontierManager.trim(frontier)
       assert length(trimmed.solutions) == 100
@@ -381,15 +398,17 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
       {:ok, frontier} = FrontierManager.new(standard_config())
 
       # Create 15 candidates with varying fitness
-      candidates = for i <- 1..15 do
-        make_candidate("c#{i}", %{accuracy: i * 0.06, latency: 0.5})
-      end
+      candidates =
+        for i <- 1..15 do
+          make_candidate("c#{i}", %{accuracy: i * 0.06, latency: 0.5})
+        end
 
       # Archive all with max_archive_size=10
-      frontier = Enum.reduce(candidates, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.archive_solution(f, c, max_archive_size: 10)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.archive_solution(f, c, max_archive_size: 10)
+          updated
+        end)
 
       # Should be trimmed to 10, keeping highest fitness
       assert length(frontier.archive) == 10
@@ -419,10 +438,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
         make_candidate("b", %{accuracy: 0.7, latency: 0.8})
       ]
 
-      frontier = Enum.reduce(candidates, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.add_solution(f, c)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.add_solution(f, c)
+          updated
+        end)
 
       pareto_optimal = FrontierManager.get_pareto_optimal(frontier)
 
@@ -446,10 +466,11 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
         make_candidate("b", %{accuracy: 0.7, latency: 0.8})
       ]
 
-      frontier = Enum.reduce(candidates, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.add_solution(f, c)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.add_solution(f, c)
+          updated
+        end)
 
       # Manually set fronts for testing
       frontier = %{frontier | fronts: %{1 => ["a"], 2 => ["b"]}}
@@ -471,9 +492,12 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
 
       # Create solutions where some dominate others
       candidates = [
-        make_candidate("a", %{accuracy: 0.9, latency: 0.9}),  # Best (Front 1)
-        make_candidate("b", %{accuracy: 0.95, latency: 0.5}), # Best (Front 1, trade-off)
-        make_candidate("c", %{accuracy: 0.7, latency: 0.7})   # Dominated (Front 2)
+        # Best (Front 1)
+        make_candidate("a", %{accuracy: 0.9, latency: 0.9}),
+        # Best (Front 1, trade-off)
+        make_candidate("b", %{accuracy: 0.95, latency: 0.5}),
+        # Dominated (Front 2)
+        make_candidate("c", %{accuracy: 0.7, latency: 0.7})
       ]
 
       # Add candidates manually to test update_fronts
@@ -523,18 +547,20 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
         make_candidate("c", %{accuracy: 0.7, latency: 0.85})
       ]
 
-      frontier = Enum.reduce(candidates, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.add_solution(f, c)
-        updated
-      end)
+      frontier =
+        Enum.reduce(candidates, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.add_solution(f, c)
+          updated
+        end)
 
       assert length(frontier.solutions) == 3
 
       # Archive all solutions
-      frontier = Enum.reduce(frontier.solutions, frontier, fn c, f ->
-        {:ok, updated} = FrontierManager.archive_solution(f, c)
-        updated
-      end)
+      frontier =
+        Enum.reduce(frontier.solutions, frontier, fn c, f ->
+          {:ok, updated} = FrontierManager.archive_solution(f, c)
+          updated
+        end)
 
       assert length(frontier.archive) == 3
 

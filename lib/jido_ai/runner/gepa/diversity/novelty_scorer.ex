@@ -252,7 +252,9 @@ defmodule Jido.AI.Runner.GEPA.Diversity.NoveltyScorer do
 
     has_example = if String.contains?(String.downcase(text), "example"), do: 1.0, else: 0.0
     has_step = if String.contains?(String.downcase(text), "step"), do: 1.0, else: 0.0
-    has_constraints = if String.contains?(String.downcase(text), ["must", "should", "don't"]), do: 1.0, else: 0.0
+
+    has_constraints =
+      if String.contains?(String.downcase(text), ["must", "should", "don't"]), do: 1.0, else: 0.0
 
     [
       # Length feature

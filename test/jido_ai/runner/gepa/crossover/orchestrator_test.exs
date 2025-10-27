@@ -8,7 +8,8 @@ defmodule JidoAI.Runner.GEPA.Crossover.OrchestratorTest do
       prompt_a = "Solve this math problem step by step. Show all work."
       prompt_b = "Calculate the answer carefully. Explain your reasoning."
 
-      assert {:ok, %CrossoverResult{} = result} = Orchestrator.perform_crossover(prompt_a, prompt_b)
+      assert {:ok, %CrossoverResult{} = result} =
+               Orchestrator.perform_crossover(prompt_a, prompt_b)
 
       assert length(result.offspring_prompts) > 0
       assert result.validated

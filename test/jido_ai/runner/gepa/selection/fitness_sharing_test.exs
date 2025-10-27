@@ -10,10 +10,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "single candidate gets niche count of 1.0 (shares with self)" do
-      candidate = create_candidate("c1",
-        fitness: 10.0,
-        normalized_objectives: %{accuracy: 0.8, latency: 0.3}
-      )
+      candidate =
+        create_candidate("c1",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.8, latency: 0.3}
+        )
 
       {:ok, [shared]} = FitnessSharing.apply_sharing([candidate])
 
@@ -27,9 +28,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "identical candidates share fitness equally" do
       # Three identical candidates at same location
       candidates = [
-        create_candidate("c1", fitness: 9.0, normalized_objectives: %{accuracy: 0.5, latency: 0.5}),
-        create_candidate("c2", fitness: 9.0, normalized_objectives: %{accuracy: 0.5, latency: 0.5}),
-        create_candidate("c3", fitness: 9.0, normalized_objectives: %{accuracy: 0.5, latency: 0.5})
+        create_candidate("c1",
+          fitness: 9.0,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        ),
+        create_candidate("c2",
+          fitness: 9.0,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        ),
+        create_candidate("c3",
+          fitness: 9.0,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        )
       ]
 
       {:ok, shared_pop} = FitnessSharing.apply_sharing(candidates, niche_radius: 0.1)
@@ -44,8 +54,14 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "isolated candidates maintain high fitness" do
       # Candidates far apart in objective space
       candidates = [
-        create_candidate("c1", fitness: 10.0, normalized_objectives: %{accuracy: 0.0, latency: 0.0}),
-        create_candidate("c2", fitness: 8.0, normalized_objectives: %{accuracy: 1.0, latency: 1.0})
+        create_candidate("c1",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.0, latency: 0.0}
+        ),
+        create_candidate("c2",
+          fitness: 8.0,
+          normalized_objectives: %{accuracy: 1.0, latency: 1.0}
+        )
       ]
 
       {:ok, shared_pop} = FitnessSharing.apply_sharing(candidates, niche_radius: 0.1)
@@ -65,9 +81,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "crowded candidates get penalized fitness" do
       # Three candidates close together
       candidates = [
-        create_candidate("c1", fitness: 10.0, normalized_objectives: %{accuracy: 0.5, latency: 0.5}),
-        create_candidate("c2", fitness: 10.0, normalized_objectives: %{accuracy: 0.51, latency: 0.51}),
-        create_candidate("c3", fitness: 10.0, normalized_objectives: %{accuracy: 0.52, latency: 0.52})
+        create_candidate("c1",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        ),
+        create_candidate("c2",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.51, latency: 0.51}
+        ),
+        create_candidate("c3",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.52, latency: 0.52}
+        )
       ]
 
       {:ok, shared_pop} = FitnessSharing.apply_sharing(candidates, niche_radius: 0.1)
@@ -82,10 +107,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "preserves raw fitness in metadata by default" do
-      candidate = create_candidate("c1",
-        fitness: 15.0,
-        normalized_objectives: %{accuracy: 0.7, latency: 0.4}
-      )
+      candidate =
+        create_candidate("c1",
+          fitness: 15.0,
+          normalized_objectives: %{accuracy: 0.7, latency: 0.4}
+        )
 
       {:ok, [shared]} = FitnessSharing.apply_sharing([candidate])
 
@@ -94,10 +120,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "skips metadata preservation when preserve_raw_fitness: false" do
-      candidate = create_candidate("c1",
-        fitness: 15.0,
-        normalized_objectives: %{accuracy: 0.7, latency: 0.4}
-      )
+      candidate =
+        create_candidate("c1",
+          fitness: 15.0,
+          normalized_objectives: %{accuracy: 0.7, latency: 0.4}
+        )
 
       {:ok, [shared]} = FitnessSharing.apply_sharing([candidate], preserve_raw_fitness: false)
 
@@ -108,8 +135,14 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "respects niche_radius parameter" do
       # Two candidates with moderate distance
       candidates = [
-        create_candidate("c1", fitness: 10.0, normalized_objectives: %{accuracy: 0.5, latency: 0.5}),
-        create_candidate("c2", fitness: 10.0, normalized_objectives: %{accuracy: 0.6, latency: 0.6})
+        create_candidate("c1",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        ),
+        create_candidate("c2",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.6, latency: 0.6}
+        )
       ]
 
       # Distance = sqrt((0.1)^2 + (0.1)^2) ≈ 0.141
@@ -117,12 +150,14 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
       # Small radius: candidates don't share niche
       {:ok, shared_small} = FitnessSharing.apply_sharing(candidates, niche_radius: 0.1)
       c1_small = Enum.find(shared_small, fn c -> c.id == "c1" end)
-      assert c1_small.metadata.niche_count == 1.0  # Only itself
+      # Only itself
+      assert c1_small.metadata.niche_count == 1.0
 
       # Large radius: candidates share niche
       {:ok, shared_large} = FitnessSharing.apply_sharing(candidates, niche_radius: 0.2)
       c1_large = Enum.find(shared_large, fn c -> c.id == "c1" end)
-      assert c1_large.metadata.niche_count > 1.0  # Shares with c2
+      # Shares with c2
+      assert c1_large.metadata.niche_count > 1.0
     end
 
     test "respects sharing_alpha parameter" do
@@ -132,22 +167,32 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
       # α=1: sh = 1 - 0.5 = 0.5
       # α=2: sh = 1 - 0.25 = 0.75 (higher)
       candidates = [
-        create_candidate("c1", fitness: 10.0, normalized_objectives: %{accuracy: 0.5, latency: 0.5}),
-        create_candidate("c2", fitness: 10.0, normalized_objectives: %{accuracy: 0.55, latency: 0.55})
+        create_candidate("c1",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        ),
+        create_candidate("c2",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.55, latency: 0.55}
+        )
       ]
 
       # Alpha = 1.0 (linear)
-      {:ok, shared_linear} = FitnessSharing.apply_sharing(candidates,
-        niche_radius: 0.2,
-        sharing_alpha: 1.0
-      )
+      {:ok, shared_linear} =
+        FitnessSharing.apply_sharing(candidates,
+          niche_radius: 0.2,
+          sharing_alpha: 1.0
+        )
+
       c1_linear = Enum.find(shared_linear, fn c -> c.id == "c1" end)
 
       # Alpha = 2.0 (quadratic - MORE sharing for same distance when d/r < 1)
-      {:ok, shared_quadratic} = FitnessSharing.apply_sharing(candidates,
-        niche_radius: 0.2,
-        sharing_alpha: 2.0
-      )
+      {:ok, shared_quadratic} =
+        FitnessSharing.apply_sharing(candidates,
+          niche_radius: 0.2,
+          sharing_alpha: 2.0
+        )
+
       c1_quadratic = Enum.find(shared_quadratic, fn c -> c.id == "c1" end)
 
       # Quadratic alpha should result in higher niche count (more sharing)
@@ -155,10 +200,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "handles candidates with nil fitness gracefully" do
-      candidate = create_candidate("c1",
-        fitness: nil,
-        normalized_objectives: %{accuracy: 0.5, latency: 0.5}
-      )
+      candidate =
+        create_candidate("c1",
+          fitness: nil,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        )
 
       {:ok, [shared]} = FitnessSharing.apply_sharing([candidate])
 
@@ -170,12 +216,15 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
 
   describe "niche_count/3" do
     test "isolated candidate has niche count of 1.0" do
-      candidate = create_candidate("c1",
-        normalized_objectives: %{accuracy: 0.0, latency: 0.0}
-      )
-      other = create_candidate("c2",
-        normalized_objectives: %{accuracy: 1.0, latency: 1.0}
-      )
+      candidate =
+        create_candidate("c1",
+          normalized_objectives: %{accuracy: 0.0, latency: 0.0}
+        )
+
+      other =
+        create_candidate("c2",
+          normalized_objectives: %{accuracy: 1.0, latency: 1.0}
+        )
 
       population = [candidate, other]
 
@@ -186,9 +235,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "candidate in crowded region has high niche count" do
-      candidate = create_candidate("c1",
-        normalized_objectives: %{accuracy: 0.5, latency: 0.5}
-      )
+      candidate =
+        create_candidate("c1",
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        )
 
       # Four nearby candidates
       population = [
@@ -206,9 +256,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "minimum niche count is 1.0 (candidate shares with itself)" do
-      candidate = create_candidate("c1",
-        normalized_objectives: %{accuracy: 0.5, latency: 0.5}
-      )
+      candidate =
+        create_candidate("c1",
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        )
 
       # Even with empty neighborhood, counts itself
       count = FitnessSharing.niche_count(candidate, [candidate], niche_radius: 0.1)
@@ -217,20 +268,26 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "niche count includes partial sharing" do
-      candidate = create_candidate("c1",
-        normalized_objectives: %{accuracy: 0.5, latency: 0.5}
-      )
+      candidate =
+        create_candidate("c1",
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        )
+
       # Candidate at half the niche radius distance
-      neighbor = create_candidate("c2",
-        normalized_objectives: %{accuracy: 0.55, latency: 0.5}  # distance = 0.05
-      )
+      neighbor =
+        create_candidate("c2",
+          # distance = 0.05
+          normalized_objectives: %{accuracy: 0.55, latency: 0.5}
+        )
 
       population = [candidate, neighbor]
 
-      count = FitnessSharing.niche_count(candidate, population,
-        niche_radius: 0.1,  # Distance 0.05 < 0.1
-        sharing_alpha: 1.0
-      )
+      count =
+        FitnessSharing.niche_count(candidate, population,
+          # Distance 0.05 < 0.1
+          niche_radius: 0.1,
+          sharing_alpha: 1.0
+        )
 
       # sh(0.05) = 1 - (0.05 / 0.1)^1 = 1 - 0.5 = 0.5
       # Total: 1.0 (self) + 0.5 (neighbor) = 1.5
@@ -238,26 +295,31 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "respects sharing_alpha in niche count calculation" do
-      candidate = create_candidate("c1",
-        normalized_objectives: %{accuracy: 0.5, latency: 0.5}
-      )
-      neighbor = create_candidate("c2",
-        normalized_objectives: %{accuracy: 0.55, latency: 0.5}
-      )
+      candidate =
+        create_candidate("c1",
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        )
+
+      neighbor =
+        create_candidate("c2",
+          normalized_objectives: %{accuracy: 0.55, latency: 0.5}
+        )
 
       population = [candidate, neighbor]
 
       # Linear sharing (alpha = 1.0)
-      count_linear = FitnessSharing.niche_count(candidate, population,
-        niche_radius: 0.1,
-        sharing_alpha: 1.0
-      )
+      count_linear =
+        FitnessSharing.niche_count(candidate, population,
+          niche_radius: 0.1,
+          sharing_alpha: 1.0
+        )
 
       # Quadratic sharing (alpha = 2.0)
-      count_quadratic = FitnessSharing.niche_count(candidate, population,
-        niche_radius: 0.1,
-        sharing_alpha: 2.0
-      )
+      count_quadratic =
+        FitnessSharing.niche_count(candidate, population,
+          niche_radius: 0.1,
+          sharing_alpha: 2.0
+        )
 
       # sh(d) = 1 - (d/r)^α
       # For d=0.05, r=0.1: d/r = 0.5
@@ -283,16 +345,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "empty population returns default radius" do
       radius = FitnessSharing.calculate_niche_radius([])
 
-      assert radius == 0.1  # @default_niche_radius
+      # @default_niche_radius
+      assert radius == 0.1
     end
 
     test "fixed strategy returns specified radius" do
       population = create_test_population(10)
 
-      radius = FitnessSharing.calculate_niche_radius(population,
-        strategy: :fixed,
-        radius: 0.25
-      )
+      radius =
+        FitnessSharing.calculate_niche_radius(population,
+          strategy: :fixed,
+          radius: 0.25
+        )
 
       assert radius == 0.25
     end
@@ -300,9 +364,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "fixed strategy returns default when radius not provided" do
       population = create_test_population(10)
 
-      radius = FitnessSharing.calculate_niche_radius(population,
-        strategy: :fixed
-      )
+      radius =
+        FitnessSharing.calculate_niche_radius(population,
+          strategy: :fixed
+        )
 
       assert radius == 0.1
     end
@@ -311,15 +376,17 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
       small_pop = create_test_population(10)
       large_pop = create_test_population(100)
 
-      radius_small = FitnessSharing.calculate_niche_radius(small_pop,
-        strategy: :population_based,
-        base_radius: 0.3
-      )
+      radius_small =
+        FitnessSharing.calculate_niche_radius(small_pop,
+          strategy: :population_based,
+          base_radius: 0.3
+        )
 
-      radius_large = FitnessSharing.calculate_niche_radius(large_pop,
-        strategy: :population_based,
-        base_radius: 0.3
-      )
+      radius_large =
+        FitnessSharing.calculate_niche_radius(large_pop,
+          strategy: :population_based,
+          base_radius: 0.3
+        )
 
       # Larger population should have smaller radius
       # radius = base_radius / sqrt(pop_size)
@@ -337,10 +404,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
         create_candidate("c2", normalized_objectives: %{accuracy: 1.0, latency: 1.0})
       ]
 
-      radius = FitnessSharing.calculate_niche_radius(population,
-        strategy: :objective_range,
-        fraction: 0.1
-      )
+      radius =
+        FitnessSharing.calculate_niche_radius(population,
+          strategy: :objective_range,
+          fraction: 0.1
+        )
 
       # Diagonal for 2D normalized space = sqrt(2) ≈ 1.414
       # 10% of diagonal ≈ 0.141
@@ -350,53 +418,62 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "objective_range strategy scales with fraction" do
       population = create_test_population(20)
 
-      radius_small = FitnessSharing.calculate_niche_radius(population,
-        strategy: :objective_range,
-        fraction: 0.05
-      )
+      radius_small =
+        FitnessSharing.calculate_niche_radius(population,
+          strategy: :objective_range,
+          fraction: 0.05
+        )
 
-      radius_large = FitnessSharing.calculate_niche_radius(population,
-        strategy: :objective_range,
-        fraction: 0.20
-      )
+      radius_large =
+        FitnessSharing.calculate_niche_radius(population,
+          strategy: :objective_range,
+          fraction: 0.20
+        )
 
       # Larger fraction = larger radius
       assert radius_large > radius_small
-      assert radius_large / radius_small == 4.0  # 0.20 / 0.05
+      # 0.20 / 0.05
+      assert radius_large / radius_small == 4.0
     end
 
     test "adaptive strategy adjusts to population diversity" do
       # Create very clustered population (low diversity)
-      clustered = Enum.map(1..20, fn i ->
-        create_candidate("c#{i}",
-          normalized_objectives: %{accuracy: 0.5 + i * 0.001, latency: 0.5 + i * 0.001}
-        )
-      end)
+      clustered =
+        Enum.map(1..20, fn i ->
+          create_candidate("c#{i}",
+            normalized_objectives: %{accuracy: 0.5 + i * 0.001, latency: 0.5 + i * 0.001}
+          )
+        end)
 
       # Create spread out population (high diversity)
-      spread = Enum.map(1..20, fn i ->
-        create_candidate("c#{i}",
-          normalized_objectives: %{accuracy: i * 0.05, latency: i * 0.05}
+      spread =
+        Enum.map(1..20, fn i ->
+          create_candidate("c#{i}",
+            normalized_objectives: %{accuracy: i * 0.05, latency: i * 0.05}
+          )
+        end)
+
+      radius_clustered =
+        FitnessSharing.calculate_niche_radius(clustered,
+          strategy: :adaptive,
+          target_diversity: 0.3
         )
-      end)
 
-      radius_clustered = FitnessSharing.calculate_niche_radius(clustered,
-        strategy: :adaptive,
-        target_diversity: 0.3
-      )
-
-      radius_spread = FitnessSharing.calculate_niche_radius(spread,
-        strategy: :adaptive,
-        target_diversity: 0.3
-      )
+      radius_spread =
+        FitnessSharing.calculate_niche_radius(spread,
+          strategy: :adaptive,
+          target_diversity: 0.3
+        )
 
       # Adaptive logic:
       # - Clustered population has very small avg_distance, gets minimum radius (capped at 0.1)
       # - Spread population has large avg_distance, gets radius proportional to spacing (avg * 0.5)
       # Result: spread gets LARGER radius because it's proportional to actual spacing
       # This is correct: clustered candidates are so close that even small radius captures all neighbors
-      assert radius_clustered == 0.1  # Minimum/default radius
-      assert radius_spread > radius_clustered  # Proportional to larger spacing
+      # Minimum/default radius
+      assert radius_clustered == 0.1
+      # Proportional to larger spacing
+      assert radius_spread > radius_clustered
     end
 
     test "handles population with no normalized_objectives" do
@@ -405,9 +482,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
         create_candidate("c2", normalized_objectives: nil)
       ]
 
-      radius = FitnessSharing.calculate_niche_radius(population,
-        strategy: :objective_range
-      )
+      radius =
+        FitnessSharing.calculate_niche_radius(population,
+          strategy: :objective_range
+        )
 
       # Should return default diagonal (1.0) * fraction (0.1) = 0.1
       assert radius == 0.1
@@ -422,19 +500,22 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "applies sharing when diversity is low" do
       # Create clustered population (low diversity)
       # All candidates have low crowding distance
-      population = Enum.map(1..10, fn i ->
-        create_candidate("c#{i}",
-          fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.5, latency: 0.5},
-          crowding_distance: 0.1  # Low diversity
-        )
-      end)
+      population =
+        Enum.map(1..10, fn i ->
+          create_candidate("c#{i}",
+            fitness: 10.0,
+            normalized_objectives: %{accuracy: 0.5, latency: 0.5},
+            # Low diversity
+            crowding_distance: 0.1
+          )
+        end)
 
-      result = FitnessSharing.adaptive_apply_sharing(population,
-        diversity_threshold: 0.3,
-        diversity_metric: :crowding,
-        niche_radius: 0.1
-      )
+      result =
+        FitnessSharing.adaptive_apply_sharing(population,
+          diversity_threshold: 0.3,
+          diversity_metric: :crowding,
+          niche_radius: 0.1
+        )
 
       # Diversity = avg crowding = 0.1 < 0.3, so sharing should be applied
       assert {:ok, shared_pop} = result
@@ -449,19 +530,22 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "skips sharing when diversity is high" do
       # Create diverse population
       # High crowding distances
-      population = Enum.map(1..10, fn i ->
-        create_candidate("c#{i}",
-          fitness: 10.0,
-          normalized_objectives: %{accuracy: i * 0.1, latency: i * 0.1},
-          crowding_distance: 1.0  # High diversity
-        )
-      end)
+      population =
+        Enum.map(1..10, fn i ->
+          create_candidate("c#{i}",
+            fitness: 10.0,
+            normalized_objectives: %{accuracy: i * 0.1, latency: i * 0.1},
+            # High diversity
+            crowding_distance: 1.0
+          )
+        end)
 
-      result = FitnessSharing.adaptive_apply_sharing(population,
-        diversity_threshold: 0.3,
-        diversity_metric: :crowding,
-        niche_radius: 0.1
-      )
+      result =
+        FitnessSharing.adaptive_apply_sharing(population,
+          diversity_threshold: 0.3,
+          diversity_metric: :crowding,
+          niche_radius: 0.1
+        )
 
       # Diversity = avg crowding = 1.0 >= 0.3, so sharing should be skipped
       assert {:ok, returned_pop, :skipped} = result
@@ -472,43 +556,53 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     end
 
     test "respects diversity_threshold parameter" do
-      population = Enum.map(1..10, fn i ->
-        create_candidate("c#{i}",
-          normalized_objectives: %{accuracy: i * 0.05, latency: i * 0.05},
-          crowding_distance: 0.5
-        )
-      end)
+      population =
+        Enum.map(1..10, fn i ->
+          create_candidate("c#{i}",
+            normalized_objectives: %{accuracy: i * 0.05, latency: i * 0.05},
+            crowding_distance: 0.5
+          )
+        end)
 
       # Low threshold - sharing should be skipped
-      {:ok, _, status_low} = FitnessSharing.adaptive_apply_sharing(population,
-        diversity_threshold: 0.3,
-        diversity_metric: :crowding
-      )
-      assert status_low == :skipped  # 0.5 >= 0.3
+      {:ok, _, status_low} =
+        FitnessSharing.adaptive_apply_sharing(population,
+          diversity_threshold: 0.3,
+          diversity_metric: :crowding
+        )
+
+      # 0.5 >= 0.3
+      assert status_low == :skipped
 
       # High threshold - sharing should be applied
-      result_high = FitnessSharing.adaptive_apply_sharing(population,
-        diversity_threshold: 0.8,
-        diversity_metric: :crowding
-      )
-      assert {:ok, _shared_pop} = result_high  # 0.5 < 0.8
+      result_high =
+        FitnessSharing.adaptive_apply_sharing(population,
+          diversity_threshold: 0.8,
+          diversity_metric: :crowding
+        )
+
+      # 0.5 < 0.8
+      assert {:ok, _shared_pop} = result_high
       refute match?({:ok, _, :skipped}, result_high)
     end
 
     test "uses pairwise_distance diversity metric" do
       # Create population where pairwise distance is low
-      clustered = Enum.map(1..10, fn i ->
-        create_candidate("c#{i}",
-          normalized_objectives: %{accuracy: 0.5 + i * 0.01, latency: 0.5 + i * 0.01},
-          crowding_distance: 999.0  # Irrelevant for pairwise metric
-        )
-      end)
+      clustered =
+        Enum.map(1..10, fn i ->
+          create_candidate("c#{i}",
+            normalized_objectives: %{accuracy: 0.5 + i * 0.01, latency: 0.5 + i * 0.01},
+            # Irrelevant for pairwise metric
+            crowding_distance: 999.0
+          )
+        end)
 
-      result = FitnessSharing.adaptive_apply_sharing(clustered,
-        diversity_threshold: 0.3,
-        diversity_metric: :pairwise_distance,
-        niche_radius: 0.1
-      )
+      result =
+        FitnessSharing.adaptive_apply_sharing(clustered,
+          diversity_threshold: 0.3,
+          diversity_metric: :pairwise_distance,
+          niche_radius: 0.1
+        )
 
       # Low pairwise distance should trigger sharing
       assert {:ok, _shared_pop} = result
@@ -524,29 +618,32 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
 
       # Should filter out infinity and calculate avg of finite distances
       # Avg = (0.5 + 0.3) / 2 = 0.4
-      {:ok, _, status} = FitnessSharing.adaptive_apply_sharing(population,
-        diversity_threshold: 0.35,
-        diversity_metric: :crowding
-      )
+      {:ok, _, status} =
+        FitnessSharing.adaptive_apply_sharing(population,
+          diversity_threshold: 0.35,
+          diversity_metric: :crowding
+        )
 
       # 0.4 >= 0.35, so sharing should be skipped
       assert status == :skipped
     end
 
     test "passes through sharing options when applying" do
-      population = Enum.map(1..5, fn i ->
-        create_candidate("c#{i}",
-          fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.5, latency: 0.5},
-          crowding_distance: 0.1
-        )
-      end)
+      population =
+        Enum.map(1..5, fn i ->
+          create_candidate("c#{i}",
+            fitness: 10.0,
+            normalized_objectives: %{accuracy: 0.5, latency: 0.5},
+            crowding_distance: 0.1
+          )
+        end)
 
-      {:ok, shared_pop} = FitnessSharing.adaptive_apply_sharing(population,
-        diversity_threshold: 0.3,
-        niche_radius: 0.15,
-        sharing_alpha: 2.0
-      )
+      {:ok, shared_pop} =
+        FitnessSharing.adaptive_apply_sharing(population,
+          diversity_threshold: 0.3,
+          niche_radius: 0.15,
+          sharing_alpha: 2.0
+        )
 
       # Verify custom parameters were used (check niche count values)
       # With custom niche_radius and alpha, results should differ from defaults
@@ -557,19 +654,21 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
   describe "integration scenarios" do
     test "fitness sharing promotes niche formation" do
       # Create population with two distinct niches
-      niche_1 = Enum.map(1..5, fn i ->
-        create_candidate("n1_#{i}",
-          fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.2 + i * 0.01, latency: 0.2 + i * 0.01}
-        )
-      end)
+      niche_1 =
+        Enum.map(1..5, fn i ->
+          create_candidate("n1_#{i}",
+            fitness: 10.0,
+            normalized_objectives: %{accuracy: 0.2 + i * 0.01, latency: 0.2 + i * 0.01}
+          )
+        end)
 
-      niche_2 = Enum.map(1..5, fn i ->
-        create_candidate("n2_#{i}",
-          fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.8 + i * 0.01, latency: 0.8 + i * 0.01}
-        )
-      end)
+      niche_2 =
+        Enum.map(1..5, fn i ->
+          create_candidate("n2_#{i}",
+            fitness: 10.0,
+            normalized_objectives: %{accuracy: 0.8 + i * 0.01, latency: 0.8 + i * 0.01}
+          )
+        end)
 
       population = niche_1 ++ niche_2
 
@@ -592,22 +691,36 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
       # Create population with extreme solutions and clustered middle
       population = [
         # Boundary: min accuracy
-        create_candidate("boundary_min", fitness: 8.0,
-          normalized_objectives: %{accuracy: 0.0, latency: 0.5}),
+        create_candidate("boundary_min",
+          fitness: 8.0,
+          normalized_objectives: %{accuracy: 0.0, latency: 0.5}
+        ),
         # Boundary: max accuracy
-        create_candidate("boundary_max", fitness: 8.0,
-          normalized_objectives: %{accuracy: 1.0, latency: 0.5}),
+        create_candidate("boundary_max",
+          fitness: 8.0,
+          normalized_objectives: %{accuracy: 1.0, latency: 0.5}
+        ),
         # Clustered middle (5 candidates)
-        create_candidate("mid_1", fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.5, latency: 0.5}),
-        create_candidate("mid_2", fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.51, latency: 0.51}),
-        create_candidate("mid_3", fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.52, latency: 0.52}),
-        create_candidate("mid_4", fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.53, latency: 0.53}),
-        create_candidate("mid_5", fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.54, latency: 0.54})
+        create_candidate("mid_1",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5}
+        ),
+        create_candidate("mid_2",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.51, latency: 0.51}
+        ),
+        create_candidate("mid_3",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.52, latency: 0.52}
+        ),
+        create_candidate("mid_4",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.53, latency: 0.53}
+        ),
+        create_candidate("mid_5",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.54, latency: 0.54}
+        )
       ]
 
       {:ok, shared_pop} = FitnessSharing.apply_sharing(population, niche_radius: 0.1)
@@ -634,10 +747,14 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
     test "sharing works with different objective counts" do
       # Test with 3 objectives
       population = [
-        create_candidate("c1", fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.5, latency: 0.5, cost: 0.5}),
-        create_candidate("c2", fitness: 10.0,
-          normalized_objectives: %{accuracy: 0.51, latency: 0.51, cost: 0.51})
+        create_candidate("c1",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.5, latency: 0.5, cost: 0.5}
+        ),
+        create_candidate("c2",
+          fitness: 10.0,
+          normalized_objectives: %{accuracy: 0.51, latency: 0.51, cost: 0.51}
+        )
       ]
 
       {:ok, shared_pop} = FitnessSharing.apply_sharing(population, niche_radius: 0.1)
@@ -650,14 +767,17 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
 
     test "combining sharing with elite selection maintains diversity" do
       # Create diverse population
-      population = Enum.map(1..20, fn i ->
-        create_candidate("c#{i}",
-          fitness: 10.0 - i * 0.1,  # Varying fitness
-          normalized_objectives: %{accuracy: i * 0.05, latency: (20 - i) * 0.05},
-          pareto_rank: if(i <= 5, do: 1, else: 2),  # Front 1 has 5 members
-          crowding_distance: if(rem(i, 2) == 0, do: 1.0, else: 0.5)
-        )
-      end)
+      population =
+        Enum.map(1..20, fn i ->
+          create_candidate("c#{i}",
+            # Varying fitness
+            fitness: 10.0 - i * 0.1,
+            normalized_objectives: %{accuracy: i * 0.05, latency: (20 - i) * 0.05},
+            # Front 1 has 5 members
+            pareto_rank: if(i <= 5, do: 1, else: 2),
+            crowding_distance: if(rem(i, 2) == 0, do: 1.0, else: 0.5)
+          )
+        end)
 
       # Apply sharing
       {:ok, shared_pop} = FitnessSharing.apply_sharing(population, niche_radius: 0.1)
@@ -667,9 +787,9 @@ defmodule Jido.AI.Runner.GEPA.Selection.FitnessSharingTest do
 
       # Metadata should be preserved for elite selection to use
       assert Enum.all?(shared_pop, fn c ->
-        Map.has_key?(c.metadata, :raw_fitness) and
-        Map.has_key?(c.metadata, :niche_count)
-      end)
+               Map.has_key?(c.metadata, :raw_fitness) and
+                 Map.has_key?(c.metadata, :niche_count)
+             end)
     end
   end
 

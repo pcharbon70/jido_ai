@@ -54,7 +54,8 @@ defmodule Jido.AI.Runner.GEPA.Diversity.SimilarityDetectorTest do
 
       assert {:ok, matrix} = SimilarityDetector.build_matrix(prompts)
       assert length(matrix.prompt_ids) == 1
-      assert map_size(matrix.scores) == 0  # No pairs to compare
+      # No pairs to compare
+      assert map_size(matrix.scores) == 0
     end
   end
 
@@ -81,7 +82,8 @@ defmodule Jido.AI.Runner.GEPA.Diversity.SimilarityDetectorTest do
     test "finds near-duplicate prompts" do
       prompts = [
         "Solve this problem",
-        "Solve this problem.",  # Very similar
+        # Very similar
+        "Solve this problem.",
         "Calculate something else"
       ]
 

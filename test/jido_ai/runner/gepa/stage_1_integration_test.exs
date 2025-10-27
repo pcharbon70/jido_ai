@@ -103,7 +103,8 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
     test "handles task distribution configuration" do
       config = [
         population_size: 10,
-        parallelism: 3,  # Low parallelism
+        # Low parallelism
+        parallelism: 3,
         seed_prompts: Enum.map(1..10, &"Prompt #{&1}"),
         task: %{type: :test}
       ]
@@ -214,10 +215,11 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       }
 
       # Generate edits
-      {:ok, edit_plan} = SuggestionGenerator.generate_edit_plan(
-        reflection,
-        original_prompt: "Test prompt"
-      )
+      {:ok, edit_plan} =
+        SuggestionGenerator.generate_edit_plan(
+          reflection,
+          original_prompt: "Test prompt"
+        )
 
       assert %Jido.AI.Runner.GEPA.SuggestionGeneration.EditPlan{} = edit_plan
       # Edits may or may not be generated depending on prompt structure
@@ -256,30 +258,35 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       scheduler = MutationScheduler.new(strategy: :adaptive, base_rate: 0.15)
 
       # Early generation
-      {:ok, early_rate, scheduler} = MutationScheduler.next_rate(
-        scheduler,
-        current_generation: 1,
-        max_generations: 50,
-        best_fitness: 0.5
-      )
+      {:ok, early_rate, scheduler} =
+        MutationScheduler.next_rate(
+          scheduler,
+          current_generation: 1,
+          max_generations: 50,
+          best_fitness: 0.5
+        )
 
       # Later generation with improvement
-      scheduler = Enum.reduce(2..10, scheduler, fn gen, sch ->
-        {:ok, _rate, updated} = MutationScheduler.next_rate(
-          sch,
-          current_generation: gen,
-          max_generations: 50,
-          best_fitness: 0.5 + gen * 0.03
-        )
-        updated
-      end)
+      scheduler =
+        Enum.reduce(2..10, scheduler, fn gen, sch ->
+          {:ok, _rate, updated} =
+            MutationScheduler.next_rate(
+              sch,
+              current_generation: gen,
+              max_generations: 50,
+              best_fitness: 0.5 + gen * 0.03
+            )
 
-      {:ok, late_rate, _} = MutationScheduler.next_rate(
-        scheduler,
-        current_generation: 11,
-        max_generations: 50,
-        best_fitness: 0.9
-      )
+          updated
+        end)
+
+      {:ok, late_rate, _} =
+        MutationScheduler.next_rate(
+          scheduler,
+          current_generation: 11,
+          max_generations: 50,
+          best_fitness: 0.9
+        )
 
       # With improvement, should reduce exploration
       assert is_float(early_rate)
@@ -328,14 +335,21 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       assert %Population{} = population
 
       # Add seed prompts as candidates
-      {:ok, population} = Population.add_candidate(population, %{prompt: "Prompt A", fitness: 0.7})
-      {:ok, population} = Population.add_candidate(population, %{prompt: "Prompt B", fitness: 0.8})
-      {:ok, population} = Population.add_candidate(population, %{prompt: "Prompt C", fitness: 0.6})
+      {:ok, population} =
+        Population.add_candidate(population, %{prompt: "Prompt A", fitness: 0.7})
+
+      {:ok, population} =
+        Population.add_candidate(population, %{prompt: "Prompt B", fitness: 0.8})
+
+      {:ok, population} =
+        Population.add_candidate(population, %{prompt: "Prompt C", fitness: 0.6})
 
       assert length(population.candidate_ids) == 3
 
       # Can add more members
-      {:ok, population} = Population.add_candidate(population, %{prompt: "Prompt D", fitness: 0.9})
+      {:ok, population} =
+        Population.add_candidate(population, %{prompt: "Prompt D", fitness: 0.9})
+
       assert length(population.candidate_ids) == 4
 
       # Can select top performers
@@ -347,16 +361,18 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       scheduler = MutationScheduler.new(strategy: :adaptive)
 
       # Simulate multiple generations
-      {rates, _final_scheduler} = Enum.map_reduce(0..10, scheduler, fn gen, sch ->
-        {:ok, rate, updated} = MutationScheduler.next_rate(
-          sch,
-          current_generation: gen,
-          max_generations: 20,
-          best_fitness: 0.5 + gen * 0.02
-        )
+      {rates, _final_scheduler} =
+        Enum.map_reduce(0..10, scheduler, fn gen, sch ->
+          {:ok, rate, updated} =
+            MutationScheduler.next_rate(
+              sch,
+              current_generation: gen,
+              max_generations: 20,
+              best_fitness: 0.5 + gen * 0.02
+            )
 
-        {rate, updated}
-      end)
+          {rate, updated}
+        end)
 
       # All rates should be valid
       assert Enum.all?(rates, fn r -> r >= 0.05 and r <= 0.5 end)
@@ -375,10 +391,11 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       assert %Diversity.DiversityMetrics{} = initial_diversity
 
       # Perform crossover
-      {:ok, result} = Crossover.Orchestrator.perform_crossover(
-        Enum.at(population, 0),
-        Enum.at(population, 1)
-      )
+      {:ok, result} =
+        Crossover.Orchestrator.perform_crossover(
+          Enum.at(population, 0),
+          Enum.at(population, 1)
+        )
 
       # Add offspring to population
       new_pop = population ++ result.offspring_prompts
@@ -413,10 +430,11 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       }
 
       # Generate mutations
-      {:ok, edit_plan} = SuggestionGenerator.generate_edit_plan(
-        reflection,
-        original_prompt: "Solve this problem"
-      )
+      {:ok, edit_plan} =
+        SuggestionGenerator.generate_edit_plan(
+          reflection,
+          original_prompt: "Solve this problem"
+        )
 
       # Should produce valid edit plan
       assert %Jido.AI.Runner.GEPA.SuggestionGeneration.EditPlan{} = edit_plan
@@ -433,9 +451,14 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       {:ok, population} = Population.new(size: 10)
 
       # Add seed prompts
-      {:ok, population} = Population.add_candidate(population, %{prompt: Enum.at(seeds, 0), fitness: 0.5})
-      {:ok, population} = Population.add_candidate(population, %{prompt: Enum.at(seeds, 1), fitness: 0.6})
-      {:ok, population} = Population.add_candidate(population, %{prompt: Enum.at(seeds, 2), fitness: 0.55})
+      {:ok, population} =
+        Population.add_candidate(population, %{prompt: Enum.at(seeds, 0), fitness: 0.5})
+
+      {:ok, population} =
+        Population.add_candidate(population, %{prompt: Enum.at(seeds, 1), fitness: 0.6})
+
+      {:ok, population} =
+        Population.add_candidate(population, %{prompt: Enum.at(seeds, 2), fitness: 0.55})
 
       assert length(population.candidate_ids) == 3
 
@@ -443,12 +466,13 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       scheduler = MutationScheduler.new(strategy: :adaptive)
 
       # 3. Get mutation rate
-      {:ok, mutation_rate, scheduler} = MutationScheduler.next_rate(
-        scheduler,
-        current_generation: 0,
-        max_generations: 10,
-        best_fitness: 0.6
-      )
+      {:ok, mutation_rate, scheduler} =
+        MutationScheduler.next_rate(
+          scheduler,
+          current_generation: 0,
+          max_generations: 10,
+          best_fitness: 0.6
+        )
 
       assert is_float(mutation_rate)
 
@@ -459,10 +483,11 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       assert %Diversity.DiversityMetrics{} = diversity
 
       # 5. Perform crossover to create offspring
-      {:ok, crossover_result} = JidoAI.Runner.GEPA.Crossover.Orchestrator.perform_crossover(
-        Enum.at(prompts, 0),
-        Enum.at(prompts, 1)
-      )
+      {:ok, crossover_result} =
+        JidoAI.Runner.GEPA.Crossover.Orchestrator.perform_crossover(
+          Enum.at(prompts, 0),
+          Enum.at(prompts, 1)
+        )
 
       assert length(crossover_result.offspring_prompts) > 0
 
@@ -476,12 +501,13 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       assert length(top) == 3
 
       # 8. Continue to next generation
-      {:ok, next_rate, _scheduler} = MutationScheduler.next_rate(
-        scheduler,
-        current_generation: 1,
-        max_generations: 10,
-        best_fitness: 0.65
-      )
+      {:ok, next_rate, _scheduler} =
+        MutationScheduler.next_rate(
+          scheduler,
+          current_generation: 1,
+          max_generations: 10,
+          best_fitness: 0.65
+        )
 
       assert is_float(next_rate)
 
@@ -525,8 +551,10 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
 
       # Mutation scheduler handles invalid parameters
       scheduler = MutationScheduler.new()
+
       assert_raise KeyError, fn ->
-        MutationScheduler.next_rate(scheduler, [])  # Missing required params
+        # Missing required params
+        MutationScheduler.next_rate(scheduler, [])
       end
     end
 
@@ -537,28 +565,34 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       {:ok, population} = Population.new(size: 20)
 
       # Add 20 prompts
-      population = Enum.reduce(1..20, population, fn i, pop ->
-        {:ok, updated} = Population.add_candidate(pop, %{prompt: "Prompt #{i}", fitness: i * 0.05})
-        updated
-      end)
+      population =
+        Enum.reduce(1..20, population, fn i, pop ->
+          {:ok, updated} =
+            Population.add_candidate(pop, %{prompt: "Prompt #{i}", fitness: i * 0.05})
+
+          updated
+        end)
 
       # Measure diversity calculation
       candidates = Population.get_all(population)
       prompts = Enum.map(candidates, & &1.prompt)
-      {time_us, {:ok, _diversity}} = :timer.tc(fn ->
-        Diversity.Metrics.calculate(prompts)
-      end)
+
+      {time_us, {:ok, _diversity}} =
+        :timer.tc(fn ->
+          Diversity.Metrics.calculate(prompts)
+        end)
 
       # Should complete in reasonable time (< 1 second)
       assert time_us < 1_000_000
 
       # Measure crossover
-      {time_us, result} = :timer.tc(fn ->
-        JidoAI.Runner.GEPA.Crossover.Orchestrator.perform_crossover(
-          Enum.at(prompts, 0),
-          Enum.at(prompts, 1)
-        )
-      end)
+      {time_us, result} =
+        :timer.tc(fn ->
+          JidoAI.Runner.GEPA.Crossover.Orchestrator.perform_crossover(
+            Enum.at(prompts, 0),
+            Enum.at(prompts, 1)
+          )
+        end)
 
       # Should complete quickly (< 200ms) regardless of success
       assert time_us < 200_000

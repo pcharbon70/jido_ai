@@ -61,7 +61,8 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Promoter do
         apply_random_injection(prompts, metrics, opts)
 
       :adaptive_mutation ->
-        {:ok, prompts}  # Mutation rate is calculated separately
+        # Mutation rate is calculated separately
+        {:ok, prompts}
 
       :targeted_diversification ->
         apply_targeted_diversification(prompts, metrics, opts)
@@ -100,7 +101,10 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Promoter do
       # If diversity healthy: ~0.1
   """
   @spec adaptive_mutation_rate(DiversityMetrics.t(), float()) :: float()
-  def adaptive_mutation_rate(%DiversityMetrics{} = metrics, base_rate \\ @default_base_mutation_rate) do
+  def adaptive_mutation_rate(
+        %DiversityMetrics{} = metrics,
+        base_rate \\ @default_base_mutation_rate
+      ) do
     diversity = metrics.pairwise_diversity
     convergence_risk = metrics.convergence_risk
 
@@ -149,10 +153,14 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Promoter do
   def injection_count(%DiversityMetrics{} = metrics, population_size) do
     ratio =
       case metrics.diversity_level do
-        :critical -> 0.3  # Replace 30%
-        :low -> 0.2  # Replace 20%
-        :moderate -> 0.1  # Replace 10%
-        _ -> 0.0  # No injection needed
+        # Replace 30%
+        :critical -> 0.3
+        # Replace 20%
+        :low -> 0.2
+        # Replace 10%
+        :moderate -> 0.1
+        # No injection needed
+        _ -> 0.0
       end
 
     max(0, floor(population_size * ratio))

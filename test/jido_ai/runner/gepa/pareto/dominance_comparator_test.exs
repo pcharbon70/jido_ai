@@ -54,6 +54,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparatorTest do
 
     test "handles candidate with no normalized_objectives gracefully" do
       a = make_candidate("a", %{accuracy: 0.8})
+
       b = %Candidate{
         id: "b",
         prompt: "test",
@@ -212,12 +213,15 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparatorTest do
     end
 
     test "handles large population with multiple objectives" do
-      candidates = for i <- 1..20 do
-        # Create varied candidates with trade-offs
-        acc = :rand.uniform() * 0.5 + 0.5  # 0.5-1.0
-        lat = :rand.uniform() * 0.5 + 0.5  # 0.5-1.0
-        make_candidate("candidate_#{i}", %{accuracy: acc, latency: lat})
-      end
+      candidates =
+        for i <- 1..20 do
+          # Create varied candidates with trade-offs
+          # 0.5-1.0
+          acc = :rand.uniform() * 0.5 + 0.5
+          # 0.5-1.0
+          lat = :rand.uniform() * 0.5 + 0.5
+          make_candidate("candidate_#{i}", %{accuracy: acc, latency: lat})
+        end
 
       fronts = DominanceComparator.fast_non_dominated_sort(candidates)
 
@@ -290,11 +294,16 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparatorTest do
 
     test "calculates distances for multiple interior solutions" do
       candidates = [
-        make_candidate("a", %{accuracy: 1.0, latency: 0.0}),  # Boundary
-        make_candidate("b", %{accuracy: 0.8, latency: 0.2}),  # Interior
-        make_candidate("c", %{accuracy: 0.6, latency: 0.4}),  # Interior
-        make_candidate("d", %{accuracy: 0.4, latency: 0.6}),  # Interior
-        make_candidate("e", %{accuracy: 0.0, latency: 1.0})   # Boundary
+        # Boundary
+        make_candidate("a", %{accuracy: 1.0, latency: 0.0}),
+        # Interior
+        make_candidate("b", %{accuracy: 0.8, latency: 0.2}),
+        # Interior
+        make_candidate("c", %{accuracy: 0.6, latency: 0.4}),
+        # Interior
+        make_candidate("d", %{accuracy: 0.4, latency: 0.6}),
+        # Boundary
+        make_candidate("e", %{accuracy: 0.0, latency: 1.0})
       ]
 
       distances = DominanceComparator.crowding_distance(candidates)
@@ -379,11 +388,16 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparatorTest do
     test "larger crowding distance for more isolated solutions" do
       # Create a front with uneven spacing
       candidates = [
-        make_candidate("a", %{accuracy: 1.0, latency: 0.0}),   # Boundary
-        make_candidate("b", %{accuracy: 0.9, latency: 0.1}),   # Close to a
-        make_candidate("c", %{accuracy: 0.5, latency: 0.5}),   # Far from others
-        make_candidate("d", %{accuracy: 0.1, latency: 0.9}),   # Close to e
-        make_candidate("e", %{accuracy: 0.0, latency: 1.0})    # Boundary
+        # Boundary
+        make_candidate("a", %{accuracy: 1.0, latency: 0.0}),
+        # Close to a
+        make_candidate("b", %{accuracy: 0.9, latency: 0.1}),
+        # Far from others
+        make_candidate("c", %{accuracy: 0.5, latency: 0.5}),
+        # Close to e
+        make_candidate("d", %{accuracy: 0.1, latency: 0.9}),
+        # Boundary
+        make_candidate("e", %{accuracy: 0.0, latency: 1.0})
       ]
 
       distances = DominanceComparator.crowding_distance(candidates)
@@ -469,6 +483,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparatorTest do
 
     test "handles candidate with no normalized_objectives" do
       a = make_candidate("a", %{accuracy: 0.9})
+
       b = %Candidate{
         id: "b",
         prompt: "test",
@@ -542,9 +557,12 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparatorTest do
 
     test "sorting preserves dominance relationships" do
       # Create population where we know dominance
-      a = make_candidate("a", %{accuracy: 0.9, latency: 0.9})  # Best
-      b = make_candidate("b", %{accuracy: 0.7, latency: 0.7})  # Middle
-      c = make_candidate("c", %{accuracy: 0.5, latency: 0.5})  # Worst
+      # Best
+      a = make_candidate("a", %{accuracy: 0.9, latency: 0.9})
+      # Middle
+      b = make_candidate("b", %{accuracy: 0.7, latency: 0.7})
+      # Worst
+      c = make_candidate("c", %{accuracy: 0.5, latency: 0.5})
 
       fronts = DominanceComparator.fast_non_dominated_sort([a, b, c])
 

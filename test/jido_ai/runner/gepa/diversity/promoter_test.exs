@@ -34,7 +34,8 @@ defmodule Jido.AI.Runner.GEPA.Diversity.PromoterTest do
 
       count = Promoter.injection_count(metrics, 10)
       assert count > 0
-      assert count <= 3  # 30% of 10
+      # 30% of 10
+      assert count <= 3
     end
 
     test "suggests no injection for healthy diversity" do

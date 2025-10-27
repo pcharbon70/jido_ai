@@ -67,8 +67,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelector do
 
   require Logger
 
-  @default_elite_ratio 0.15  # 15% of population
-  @default_similarity_threshold 0.01  # 1% objective space distance
+  # 15% of population
+  @default_elite_ratio 0.15
+  # 1% objective space distance
+  @default_similarity_threshold 0.01
 
   @type selection_result :: {:ok, list(Candidate.t())} | {:error, term()}
 
@@ -285,12 +287,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelector do
   def select_diverse_elites(population, opts) do
     with {:ok, elite_count} <- fetch_required(opts, :elite_count),
          :ok <- validate_selection_metrics(population) do
-      similarity_threshold = Keyword.get(opts, :similarity_threshold, @default_similarity_threshold)
+      similarity_threshold =
+        Keyword.get(opts, :similarity_threshold, @default_similarity_threshold)
 
       # Sort by (rank ASC, distance DESC, generation ASC)
-      sorted = Enum.sort_by(population, fn c ->
-        {c.pareto_rank, negate_distance(c.crowding_distance), c.generation}
-      end, :asc)
+      sorted =
+        Enum.sort_by(
+          population,
+          fn c ->
+            {c.pareto_rank, negate_distance(c.crowding_distance), c.generation}
+          end,
+          :asc
+        )
 
       # Greedily select diverse elites
       elites = select_diverse_subset_greedy(sorted, elite_count, similarity_threshold)
@@ -305,17 +313,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelector do
   defp calculate_elite_count(population_size, opts) do
     min_elites = Keyword.get(opts, :min_elites, 1)
 
-    count = cond do
-      Keyword.has_key?(opts, :elite_count) ->
-        Keyword.get(opts, :elite_count)
+    count =
+      cond do
+        Keyword.has_key?(opts, :elite_count) ->
+          Keyword.get(opts, :elite_count)
 
-      Keyword.has_key?(opts, :elite_ratio) ->
-        ratio = Keyword.get(opts, :elite_ratio)
-        round(population_size * ratio)
+        Keyword.has_key?(opts, :elite_ratio) ->
+          ratio = Keyword.get(opts, :elite_ratio)
+          round(population_size * ratio)
 
-      true ->
-        round(population_size * @default_elite_ratio)
-    end
+        true ->
+          round(population_size * @default_elite_ratio)
+      end
 
     max(min_elites, count)
   end
@@ -338,27 +347,30 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelector do
     |> Enum.take(count)
   end
 
-  @spec select_diverse_subset_greedy(list(Candidate.t()), pos_integer(), float()) :: list(Candidate.t())
+  @spec select_diverse_subset_greedy(list(Candidate.t()), pos_integer(), float()) ::
+          list(Candidate.t())
   defp select_diverse_subset_greedy(sorted_candidates, count, similarity_threshold) do
-    {selected, _} = Enum.reduce(sorted_candidates, {[], 0}, fn candidate, {selected, selected_count} ->
-      if selected_count >= count do
-        # Already have enough elites
-        {selected, selected_count}
-      else
-        # Check if candidate is too similar to any already-selected elite
-        too_similar = Enum.any?(selected, fn elite ->
-          objective_distance(candidate, elite) < similarity_threshold
-        end)
-
-        if too_similar do
-          # Skip this candidate
+    {selected, _} =
+      Enum.reduce(sorted_candidates, {[], 0}, fn candidate, {selected, selected_count} ->
+        if selected_count >= count do
+          # Already have enough elites
           {selected, selected_count}
         else
-          # Add to selected
-          {selected ++ [candidate], selected_count + 1}
+          # Check if candidate is too similar to any already-selected elite
+          too_similar =
+            Enum.any?(selected, fn elite ->
+              objective_distance(candidate, elite) < similarity_threshold
+            end)
+
+          if too_similar do
+            # Skip this candidate
+            {selected, selected_count}
+          else
+            # Add to selected
+            {selected ++ [candidate], selected_count + 1}
+          end
         end
-      end
-    end)
+      end)
 
     selected
   end
@@ -369,17 +381,18 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelector do
     a_objs = a.normalized_objectives || %{}
     b_objs = b.normalized_objectives || %{}
 
-    objectives = Map.keys(a_objs) ++ Map.keys(b_objs) |> Enum.uniq()
+    objectives = (Map.keys(a_objs) ++ Map.keys(b_objs)) |> Enum.uniq()
 
     if Enum.empty?(objectives) do
       0.0
     else
-      sum_squared_diffs = Enum.reduce(objectives, 0.0, fn obj, acc ->
-        a_val = Map.get(a_objs, obj, 0.0)
-        b_val = Map.get(b_objs, obj, 0.0)
-        diff = a_val - b_val
-        acc + (diff * diff)
-      end)
+      sum_squared_diffs =
+        Enum.reduce(objectives, 0.0, fn obj, acc ->
+          a_val = Map.get(a_objs, obj, 0.0)
+          b_val = Map.get(b_objs, obj, 0.0)
+          diff = a_val - b_val
+          acc + diff * diff
+        end)
 
       :math.sqrt(sum_squared_diffs)
     end
@@ -397,7 +410,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.EliteSelector do
     # Assign crowding distances
     case CrowdingDistanceSelector.assign_crowding_distances(population_with_ranks) do
       {:ok, population_with_distances} -> population_with_distances
-      {:error, _} -> population_with_ranks  # Fallback: return with ranks only
+      # Fallback: return with ranks only
+      {:error, _} -> population_with_ranks
     end
   end
 

@@ -161,7 +161,6 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
          :ok <- validate_count(count, length(population)),
          :ok <- validate_pareto_ranks(population),
          :ok <- validate_crowding_distances(population) do
-
       # Sort by (rank ASC, distance DESC)
       # Infinity distance sorts before any finite distance
       survivors =
@@ -220,7 +219,6 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
   def environmental_selection(combined_population, opts) do
     with {:ok, target_size} <- fetch_required(opts, :target_size),
          :ok <- validate_target_size(target_size, length(combined_population)) do
-
       # Step 1: Non-dominated sorting
       fronts = DominanceComparator.fast_non_dominated_sort(combined_population)
 
@@ -236,11 +234,12 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
         assign_crowding_distances(population_with_ranks, opts)
 
       # Step 4: Fill survivor population front by front
-      survivors = fill_population_by_fronts(
-        fronts,
-        population_with_distances,
-        target_size
-      )
+      survivors =
+        fill_population_by_fronts(
+          fronts,
+          population_with_distances,
+          target_size
+        )
 
       {:ok, survivors}
     end
@@ -282,10 +281,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
     # Get all objectives from first candidate
     first_candidate = List.first(population)
 
-    objectives = case first_candidate.normalized_objectives do
-      nil -> []
-      obj_map -> Map.keys(obj_map)
-    end
+    objectives =
+      case first_candidate.normalized_objectives do
+        nil -> []
+        obj_map -> Map.keys(obj_map)
+      end
 
     if Enum.empty?(objectives) do
       []
@@ -315,7 +315,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
 
   # Private helper functions
 
-  @spec fill_population_by_fronts(map(), list(Candidate.t()), pos_integer()) :: list(Candidate.t())
+  @spec fill_population_by_fronts(map(), list(Candidate.t()), pos_integer()) ::
+          list(Candidate.t())
   defp fill_population_by_fronts(fronts, population_with_distances, target_size) do
     # Create lookup map for candidates with distances
     candidate_map = Map.new(population_with_distances, fn c -> {c.id, c} end)
@@ -377,18 +378,22 @@ defmodule Jido.AI.Runner.GEPA.Selection.CrowdingDistanceSelector do
   defp validate_count(count, _pop_size) when count < 1 do
     {:error, {:invalid_count, count}}
   end
+
   defp validate_count(count, pop_size) when count > pop_size do
     {:error, {:count_exceeds_population, count, pop_size}}
   end
+
   defp validate_count(_count, _pop_size), do: :ok
 
   @spec validate_target_size(pos_integer(), non_neg_integer()) :: :ok | {:error, term()}
   defp validate_target_size(target, _pop_size) when target < 1 do
     {:error, {:invalid_target_size, target}}
   end
+
   defp validate_target_size(target, pop_size) when target > pop_size do
     {:error, {:target_exceeds_population, target, pop_size}}
   end
+
   defp validate_target_size(_target, _pop_size), do: :ok
 
   @spec fetch_required(keyword(), atom()) :: {:ok, term()} | {:error, term()}

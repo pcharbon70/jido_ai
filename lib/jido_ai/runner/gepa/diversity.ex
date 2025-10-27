@@ -118,7 +118,10 @@ defmodule Jido.AI.Runner.GEPA.Diversity do
     - `:metadata` - Additional configuration
     """
 
-    field(:similarity_strategy, Jido.AI.Runner.GEPA.Diversity.similarity_strategy(), default: :text)
+    field(:similarity_strategy, Jido.AI.Runner.GEPA.Diversity.similarity_strategy(),
+      default: :text
+    )
+
     field(:similarity_threshold, float(), default: 0.85)
     field(:min_diversity, float(), default: 0.3)
     field(:enable_novelty_rewards, boolean(), default: true)

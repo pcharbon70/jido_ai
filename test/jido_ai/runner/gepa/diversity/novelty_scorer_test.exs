@@ -14,6 +14,7 @@ defmodule Jido.AI.Runner.GEPA.Diversity.NoveltyScorerTest do
 
     test "scores prompt novelty with archive" do
       prompt = "New prompt"
+
       archive = [
         %{text: "Old prompt one"},
         %{text: "Old prompt two"},
@@ -48,14 +49,16 @@ defmodule Jido.AI.Runner.GEPA.Diversity.NoveltyScorerTest do
     end
 
     test "maintains max archive size" do
-      archive = Enum.map(1..45, fn i ->
-        %{
-          id: "id#{i}",
-          text: "prompt#{i}",
-          features: [0.1, 0.2, 0.3],
-          added_at: DateTime.utc_now()
-        }
-      end)
+      archive =
+        Enum.map(1..45, fn i ->
+          %{
+            id: "id#{i}",
+            text: "prompt#{i}",
+            features: [0.1, 0.2, 0.3],
+            added_at: DateTime.utc_now()
+          }
+        end)
+
       new_prompts = Enum.map(1..10, fn i -> "new#{i}" end)
 
       assert {:ok, updated} = NoveltyScorer.update_archive(archive, new_prompts, max_size: 50)
@@ -70,7 +73,8 @@ defmodule Jido.AI.Runner.GEPA.Diversity.NoveltyScorerTest do
       assert combined >= 0.0
       assert combined <= 1.0
       # Should be weighted toward fitness (80%)
-      assert combined >= 0.7  # Mostly influenced by high fitness
+      # Mostly influenced by high fitness
+      assert combined >= 0.7
     end
 
     test "combines with different weights" do

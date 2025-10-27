@@ -142,7 +142,11 @@ defmodule JidoAI.Runner.GEPA.Crossover do
     """
 
     field(:strategy, JidoAI.Runner.GEPA.Crossover.crossover_strategy(), default: :semantic)
-    field(:preserve_sections, list(JidoAI.Runner.GEPA.Crossover.segment_type()), default: [:task_description])
+
+    field(:preserve_sections, list(JidoAI.Runner.GEPA.Crossover.segment_type()),
+      default: [:task_description]
+    )
+
     field(:min_segment_length, non_neg_integer(), default: 10)
     field(:allow_blending, boolean(), default: true)
     field(:validate_offspring, boolean(), default: true)

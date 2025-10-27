@@ -101,16 +101,17 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
       :non_dominated
     else
       # Compare each objective (all normalized, higher is better)
-      comparisons = Enum.map(objectives, fn obj ->
-        a_val = Map.get(a_objectives, obj, 0.0)
-        b_val = Map.get(b_objectives, obj, 0.0)
+      comparisons =
+        Enum.map(objectives, fn obj ->
+          a_val = Map.get(a_objectives, obj, 0.0)
+          b_val = Map.get(b_objectives, obj, 0.0)
 
-        cond do
-          a_val > b_val -> :better
-          a_val < b_val -> :worse
-          true -> :equal
-        end
-      end)
+          cond do
+            a_val > b_val -> :better
+            a_val < b_val -> :worse
+            true -> :equal
+          end
+        end)
 
       # A dominates B if all >= and at least one >
       all_better_or_equal? = Enum.all?(comparisons, &(&1 in [:better, :equal]))
@@ -178,7 +179,9 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
       iex> length(pareto_optimal)
       12
   """
-  @spec fast_non_dominated_sort(list(Candidate.t()), keyword()) :: %{pos_integer() => list(Candidate.t())}
+  @spec fast_non_dominated_sort(list(Candidate.t()), keyword()) :: %{
+          pos_integer() => list(Candidate.t())
+        }
   def fast_non_dominated_sort(candidates, opts \\ [])
 
   def fast_non_dominated_sort([], _opts), do: %{}
@@ -190,18 +193,22 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
       |> Enum.reduce(%{}, fn candidate, acc ->
         Map.put(acc, candidate.id, %{
           candidate: candidate,
-          dominated_by: [],     # IDs of solutions that dominate this one
-          dominates: [],        # IDs of solutions this one dominates
-          domination_count: 0   # Number of solutions that dominate this one
+          # IDs of solutions that dominate this one
+          dominated_by: [],
+          # IDs of solutions this one dominates
+          dominates: [],
+          # Number of solutions that dominate this one
+          domination_count: 0
         })
       end)
 
     # Calculate all pairwise dominance relationships
-    state_with_dominance = calculate_dominance_relationships(
-      candidates,
-      initial_state,
-      opts
-    )
+    state_with_dominance =
+      calculate_dominance_relationships(
+        candidates,
+        initial_state,
+        opts
+      )
 
     # Classify candidates into fronts
     classify_into_fronts(state_with_dominance)
@@ -336,18 +343,20 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
       false
     else
       # Check if A >= B - epsilon in all objectives
-      all_better_or_within_epsilon? = Enum.all?(objectives, fn obj ->
-        a_val = Map.get(a_objectives, obj, 0.0)
-        b_val = Map.get(b_objectives, obj, 0.0)
-        a_val >= (b_val - epsilon)
-      end)
+      all_better_or_within_epsilon? =
+        Enum.all?(objectives, fn obj ->
+          a_val = Map.get(a_objectives, obj, 0.0)
+          b_val = Map.get(b_objectives, obj, 0.0)
+          a_val >= b_val - epsilon
+        end)
 
       # Check if A > B + epsilon in at least one objective
-      at_least_one_strictly_better? = Enum.any?(objectives, fn obj ->
-        a_val = Map.get(a_objectives, obj, 0.0)
-        b_val = Map.get(b_objectives, obj, 0.0)
-        a_val > (b_val + epsilon)
-      end)
+      at_least_one_strictly_better? =
+        Enum.any?(objectives, fn obj ->
+          a_val = Map.get(a_objectives, obj, 0.0)
+          b_val = Map.get(b_objectives, obj, 0.0)
+          a_val > b_val + epsilon
+        end)
 
       all_better_or_within_epsilon? and at_least_one_strictly_better?
     end
@@ -441,15 +450,16 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
   end
 
   @spec add_objective_crowding(list(Candidate.t()), atom(), %{String.t() => crowding_distance()}) ::
-    %{String.t() => crowding_distance()}
+          %{String.t() => crowding_distance()}
   defp add_objective_crowding(candidates, objective, distances) do
     # Sort candidates by this objective value
-    sorted = Enum.sort_by(candidates, fn c ->
-      case c.normalized_objectives do
-        nil -> 0.0
-        obj_map -> Map.get(obj_map, objective, 0.0)
-      end
-    end)
+    sorted =
+      Enum.sort_by(candidates, fn c ->
+        case c.normalized_objectives do
+          nil -> 0.0
+          obj_map -> Map.get(obj_map, objective, 0.0)
+        end
+      end)
 
     # Boundary solutions get infinite distance
     first = List.first(sorted)
@@ -465,15 +475,19 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
       distances
     else
       # Set boundary distances to infinity
-      distances = distances
-      |> Map.put(first.id, :infinity)
-      |> Map.put(last.id, :infinity)
+      distances =
+        distances
+        |> Map.put(first.id, :infinity)
+        |> Map.put(last.id, :infinity)
 
       # Calculate distance contribution for interior solutions
       sorted
-      |> Enum.drop(1)  # Skip first (boundary)
-      |> Enum.drop(-1) # Skip last (boundary)
-      |> Enum.with_index(1)  # Track position in sorted list
+      # Skip first (boundary)
+      |> Enum.drop(1)
+      # Skip last (boundary)
+      |> Enum.drop(-1)
+      # Track position in sorted list
+      |> Enum.with_index(1)
       |> Enum.reduce(distances, fn {candidate, idx}, acc ->
         prev = Enum.at(sorted, idx - 1)
         next = Enum.at(sorted, idx + 1)
@@ -488,6 +502,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
         case Map.get(acc, candidate.id) do
           :infinity ->
             acc
+
           current_distance ->
             Map.put(acc, candidate.id, current_distance + contribution)
         end

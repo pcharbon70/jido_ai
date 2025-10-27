@@ -63,13 +63,13 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
 
   @type tournament_strategy :: :pareto | :diversity | :adaptive
   @type selection_opts :: [
-    count: pos_integer(),
-    tournament_size: pos_integer(),
-    strategy: tournament_strategy(),
-    min_tournament_size: pos_integer(),
-    max_tournament_size: pos_integer(),
-    diversity_threshold: float()
-  ]
+          count: pos_integer(),
+          tournament_size: pos_integer(),
+          strategy: tournament_strategy(),
+          min_tournament_size: pos_integer(),
+          max_tournament_size: pos_integer(),
+          diversity_threshold: float()
+        ]
 
   @doc """
   Select parents from population using tournament selection.
@@ -109,12 +109,12 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
         strategy: :diversity
       )
   """
-  @spec select(list(Candidate.t()), selection_opts()) :: {:ok, list(Candidate.t())} | {:error, term()}
+  @spec select(list(Candidate.t()), selection_opts()) ::
+          {:ok, list(Candidate.t())} | {:error, term()}
   def select(population, opts) do
     with {:ok, count} <- fetch_required(opts, :count),
          :ok <- validate_population(population),
          :ok <- validate_count(count, length(population)) do
-
       strategy = Keyword.get(opts, :strategy, :pareto)
       tournament_size = Keyword.get(opts, :tournament_size, 3)
 
@@ -122,19 +122,20 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
       if tournament_size < 2 or tournament_size > length(population) do
         {:error, {:invalid_tournament_size, tournament_size, length(population)}}
       else
-        parents = case strategy do
-          :pareto ->
-            select_pareto_tournament(population, count, tournament_size)
+        parents =
+          case strategy do
+            :pareto ->
+              select_pareto_tournament(population, count, tournament_size)
 
-          :diversity ->
-            select_diversity_tournament(population, count, tournament_size)
+            :diversity ->
+              select_diversity_tournament(population, count, tournament_size)
 
-          :adaptive ->
-            select_adaptive_tournament(population, count, opts)
+            :adaptive ->
+              select_adaptive_tournament(population, count, opts)
 
-          _ ->
-            {:error, {:invalid_strategy, strategy}}
-        end
+            _ ->
+              {:error, {:invalid_strategy, strategy}}
+          end
 
         case parents do
           {:error, _} = error -> error
@@ -200,9 +201,10 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
 
   def population_diversity(population) do
     # Filter candidates with valid crowding distance
-    distances = population
-    |> Enum.map(fn c -> c.crowding_distance || 0.0 end)
-    |> Enum.filter(fn d -> is_number(d) and d != :infinity end)
+    distances =
+      population
+      |> Enum.map(fn c -> c.crowding_distance || 0.0 end)
+      |> Enum.filter(fn d -> is_number(d) and d != :infinity end)
 
     if Enum.empty?(distances) or length(distances) < 2 do
       0.0
@@ -213,10 +215,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
         0.0
       else
         # Calculate coefficient of variation (normalized standard deviation)
-        variance = distances
-        |> Enum.map(fn d -> :math.pow(d - mean, 2) end)
-        |> Enum.sum()
-        |> Kernel./(length(distances))
+        variance =
+          distances
+          |> Enum.map(fn d -> :math.pow(d - mean, 2) end)
+          |> Enum.sum()
+          |> Kernel./(length(distances))
 
         std_dev = :math.sqrt(variance)
         cv = std_dev / mean
@@ -230,7 +233,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
 
   # Private implementation
 
-  @spec select_pareto_tournament(list(Candidate.t()), pos_integer(), pos_integer()) :: list(Candidate.t())
+  @spec select_pareto_tournament(list(Candidate.t()), pos_integer(), pos_integer()) ::
+          list(Candidate.t())
   defp select_pareto_tournament(population, count, tournament_size) do
     1..count
     |> Enum.map(fn _ ->
@@ -238,7 +242,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
     end)
   end
 
-  @spec select_diversity_tournament(list(Candidate.t()), pos_integer(), pos_integer()) :: list(Candidate.t())
+  @spec select_diversity_tournament(list(Candidate.t()), pos_integer(), pos_integer()) ::
+          list(Candidate.t())
   defp select_diversity_tournament(population, count, tournament_size) do
     1..count
     |> Enum.map(fn _ ->
@@ -246,7 +251,8 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
     end)
   end
 
-  @spec select_adaptive_tournament(list(Candidate.t()), pos_integer(), keyword()) :: list(Candidate.t()) | {:error, term()}
+  @spec select_adaptive_tournament(list(Candidate.t()), pos_integer(), keyword()) ::
+          list(Candidate.t()) | {:error, term()}
   defp select_adaptive_tournament(population, count, opts) do
     min_size = Keyword.get(opts, :min_tournament_size, 2)
     max_size = Keyword.get(opts, :max_tournament_size, 7)
@@ -270,16 +276,22 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
         # Adapt tournament size based on diversity
         # Low diversity -> smaller tournaments (less pressure, more exploration)
         # High diversity -> larger tournaments (more pressure, faster convergence)
-        tournament_size = if diversity < diversity_threshold do
-          min_size
-        else
-          # Scale linearly from min to max based on diversity
-          range = max_size - min_size
-          scaled = trunc(range * ((diversity - diversity_threshold) / (1.0 - diversity_threshold)))
-          min(min_size + scaled, max_size)
-        end
+        tournament_size =
+          if diversity < diversity_threshold do
+            min_size
+          else
+            # Scale linearly from min to max based on diversity
+            range = max_size - min_size
 
-        Logger.debug("Adaptive tournament: diversity=#{Float.round(diversity, 3)}, size=#{tournament_size}")
+            scaled =
+              trunc(range * ((diversity - diversity_threshold) / (1.0 - diversity_threshold)))
+
+            min(min_size + scaled, max_size)
+          end
+
+        Logger.debug(
+          "Adaptive tournament: diversity=#{Float.round(diversity, 3)}, size=#{tournament_size}"
+        )
 
         select_pareto_tournament(population, count, tournament_size)
     end
@@ -306,8 +318,11 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
 
     cond do
       # Lower rank is better
-      rank_a < rank_b -> true
-      rank_a > rank_b -> false
+      rank_a < rank_b ->
+        true
+
+      rank_a > rank_b ->
+        false
 
       # Same rank: higher crowding distance is better
       true ->
@@ -344,15 +359,22 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
 
     cond do
       # Boundary solutions (infinity) always win
-      dist_a == :infinity and dist_b != :infinity -> true
-      dist_b == :infinity and dist_a != :infinity -> false
+      dist_a == :infinity and dist_b != :infinity ->
+        true
+
+      dist_b == :infinity and dist_a != :infinity ->
+        false
+
       dist_a == :infinity and dist_b == :infinity ->
         # Both boundary: use rank as tiebreaker
         (a.pareto_rank || :infinity) < (b.pareto_rank || :infinity)
 
       # Higher crowding distance is better
-      dist_a > dist_b -> true
-      dist_a < dist_b -> false
+      dist_a > dist_b ->
+        true
+
+      dist_a < dist_b ->
+        false
 
       # Same distance: lower rank is better
       true ->
@@ -372,13 +394,15 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
 
   @spec validate_population(list(Candidate.t())) :: :ok | {:error, term()}
   defp validate_population([]), do: {:error, :empty_population}
+
   defp validate_population(population) when is_list(population) do
     # Check that all candidates have required fields
-    missing_fields = Enum.find(population, fn candidate ->
-      not is_struct(candidate, Candidate) or
-      candidate.pareto_rank == nil or
-      candidate.crowding_distance == nil
-    end)
+    missing_fields =
+      Enum.find(population, fn candidate ->
+        not is_struct(candidate, Candidate) or
+          candidate.pareto_rank == nil or
+          candidate.crowding_distance == nil
+      end)
 
     if missing_fields do
       {:error, :candidates_missing_ranking}
@@ -386,11 +410,13 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelector do
       :ok
     end
   end
+
   defp validate_population(_), do: {:error, :invalid_population_format}
 
   @spec validate_count(pos_integer(), non_neg_integer()) :: :ok | {:error, term()}
   defp validate_count(count, _pop_size) when count < 1 do
     {:error, {:invalid_count, count}}
   end
+
   defp validate_count(_count, _pop_size), do: :ok
 end
