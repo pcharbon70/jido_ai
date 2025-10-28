@@ -46,12 +46,12 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGenerator do
   alias Jido.AI.Runner.GEPA.SuggestionGeneration
 
   alias Jido.AI.Runner.GEPA.SuggestionGeneration.{
-    PromptStructureAnalyzer,
-    EditBuilder,
-    EditValidator,
     ConflictResolver,
+    EditBuilder,
+    EditPlan,
+    EditValidator,
     ImpactRanker,
-    EditPlan
+    PromptStructureAnalyzer
   }
 
   @doc """

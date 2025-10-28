@@ -1,7 +1,7 @@
 defmodule Jido.AI.Runner.GEPA.Diversity.NoveltyScorerTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.Diversity.{NoveltyScorer, NoveltyScore}
+  alias Jido.AI.Runner.GEPA.Diversity.{NoveltyScore, NoveltyScorer}
 
   describe "score_prompt/3" do
     test "scores prompt novelty with empty archive" do

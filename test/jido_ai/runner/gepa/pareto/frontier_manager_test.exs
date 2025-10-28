@@ -1,7 +1,7 @@
 defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManagerTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.Pareto.{FrontierManager, Frontier}
+  alias Jido.AI.Runner.GEPA.Pareto.{Frontier, FrontierManager}
   alias Jido.AI.Runner.GEPA.Population.Candidate
 
   # Test helper to create candidate with normalized objectives

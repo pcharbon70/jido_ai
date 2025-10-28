@@ -34,8 +34,8 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
   require Logger
 
   alias Jido.AI.Runner.GEPA.FeedbackAggregation.{
-    FeedbackCollection,
     FailurePattern,
+    FeedbackCollection,
     SuggestionPattern
   }
 

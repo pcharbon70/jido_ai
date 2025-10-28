@@ -1,9 +1,9 @@
 defmodule Jido.AI.Runner.GEPA.MutationSchedulerTest do
   use ExUnit.Case, async: true
 
+  alias Jido.AI.Runner.GEPA.Diversity.DiversityMetrics
   alias Jido.AI.Runner.GEPA.MutationScheduler
   alias Jido.AI.Runner.GEPA.MutationScheduler.SchedulerState
-  alias Jido.AI.Runner.GEPA.Diversity.DiversityMetrics
 
   describe "new/1" do
     test "creates scheduler with default configuration" do

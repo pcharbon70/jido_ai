@@ -197,7 +197,7 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
 
   describe "1.5.4 Mutation System Integration" do
     test "mutation operators produce valid prompts" do
-      alias Jido.AI.Runner.GEPA.{SuggestionGenerator, Reflector}
+      alias Jido.AI.Runner.GEPA.{Reflector, SuggestionGenerator}
 
       # Create a suggestion
       suggestion = %Reflector.Suggestion{

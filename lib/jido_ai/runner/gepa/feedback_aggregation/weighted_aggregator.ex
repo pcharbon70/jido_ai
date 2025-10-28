@@ -34,8 +34,8 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.WeightedAggregator do
   require Logger
 
   alias Jido.AI.Runner.GEPA.FeedbackAggregation.{
-    SuggestionCluster,
     FeedbackCollection,
+    SuggestionCluster,
     WeightedSuggestion
   }
 

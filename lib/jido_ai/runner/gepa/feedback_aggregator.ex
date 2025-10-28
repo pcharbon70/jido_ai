@@ -42,16 +42,17 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
   require Logger
 
   alias Jido.AI.Runner.GEPA.Reflector
-  alias Jido.AI.Runner.GEPA.SuggestionGeneration
   alias Jido.AI.Runner.GEPA.FeedbackAggregation
 
   alias Jido.AI.Runner.GEPA.FeedbackAggregation.{
+    AggregatedFeedback,
     Collector,
-    PatternDetector,
     Deduplicator,
-    WeightedAggregator,
-    AggregatedFeedback
+    PatternDetector,
+    WeightedAggregator
   }
+
+  alias Jido.AI.Runner.GEPA.SuggestionGeneration
 
   @doc """
   Aggregates feedback from multiple evaluations.

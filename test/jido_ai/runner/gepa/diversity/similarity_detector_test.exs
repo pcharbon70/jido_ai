@@ -1,7 +1,7 @@
 defmodule Jido.AI.Runner.GEPA.Diversity.SimilarityDetectorTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.Diversity.{SimilarityDetector, SimilarityResult, SimilarityMatrix}
+  alias Jido.AI.Runner.GEPA.Diversity.{SimilarityDetector, SimilarityMatrix, SimilarityResult}
 
   describe "compare/3" do
     test "compares two identical prompts" do

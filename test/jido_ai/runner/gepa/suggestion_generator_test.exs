@@ -11,11 +11,11 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
   alias Jido.AI.Runner.GEPA.SuggestionGeneration
 
   alias Jido.AI.Runner.GEPA.SuggestionGeneration.{
-    PromptStructureAnalyzer,
+    ConflictResolver,
     EditBuilder,
     EditValidator,
-    ConflictResolver,
-    ImpactRanker
+    ImpactRanker,
+    PromptStructureAnalyzer
   }
 
   describe "generate_edit_plan/2 - integration" do

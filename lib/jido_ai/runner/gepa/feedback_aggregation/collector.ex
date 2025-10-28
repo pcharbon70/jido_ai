@@ -30,8 +30,8 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Collector do
   require Logger
 
   alias Jido.AI.Runner.GEPA.Reflector
-  alias Jido.AI.Runner.GEPA.SuggestionGeneration
   alias Jido.AI.Runner.GEPA.FeedbackAggregation.{CollectedSuggestion, FeedbackCollection}
+  alias Jido.AI.Runner.GEPA.SuggestionGeneration
 
   @doc """
   Collects suggestions from multiple parsed reflections.
