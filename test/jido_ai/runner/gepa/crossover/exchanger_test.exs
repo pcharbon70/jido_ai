@@ -1,7 +1,7 @@
 defmodule JidoAI.Runner.GEPA.Crossover.ExchangerTest do
   use ExUnit.Case, async: true
 
-  alias JidoAI.Runner.GEPA.Crossover.{Segmenter, Exchanger}
+  alias JidoAI.Runner.GEPA.Crossover.{Exchanger, Segmenter}
 
   describe "single_point/3" do
     test "produces two offspring from single-point crossover" do

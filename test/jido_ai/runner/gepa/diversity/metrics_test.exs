@@ -1,7 +1,7 @@
 defmodule Jido.AI.Runner.GEPA.Diversity.MetricsTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.Diversity.{Metrics, DiversityMetrics}
+  alias Jido.AI.Runner.GEPA.Diversity.{DiversityMetrics, Metrics}
 
   describe "calculate/2" do
     test "calculates metrics for diverse population" do

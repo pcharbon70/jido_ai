@@ -1,7 +1,7 @@
 defmodule JidoAI.Runner.GEPA.Crossover.BlenderTest do
   use ExUnit.Case, async: true
 
-  alias JidoAI.Runner.GEPA.Crossover.{Segmenter, Blender, PromptSegment}
+  alias JidoAI.Runner.GEPA.Crossover.{Blender, PromptSegment, Segmenter}
 
   describe "blend_segments/2" do
     test "blends two segments of same type" do

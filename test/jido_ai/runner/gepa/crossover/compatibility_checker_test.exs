@@ -1,7 +1,7 @@
 defmodule JidoAI.Runner.GEPA.Crossover.CompatibilityCheckerTest do
   use ExUnit.Case, async: true
 
-  alias JidoAI.Runner.GEPA.Crossover.{Segmenter, CompatibilityChecker, CompatibilityResult}
+  alias JidoAI.Runner.GEPA.Crossover.{CompatibilityChecker, CompatibilityResult, Segmenter}
 
   describe "check_compatibility/3" do
     test "returns compatible for similar prompts" do

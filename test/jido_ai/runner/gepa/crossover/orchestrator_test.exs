@@ -1,7 +1,7 @@
 defmodule JidoAI.Runner.GEPA.Crossover.OrchestratorTest do
   use ExUnit.Case, async: true
 
-  alias JidoAI.Runner.GEPA.Crossover.{Orchestrator, CrossoverConfig, CrossoverResult}
+  alias JidoAI.Runner.GEPA.Crossover.{CrossoverConfig, CrossoverResult, Orchestrator}
 
   describe "perform_crossover/3" do
     test "performs crossover on two compatible prompts" do

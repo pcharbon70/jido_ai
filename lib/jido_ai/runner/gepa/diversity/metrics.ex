@@ -21,7 +21,7 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Metrics do
       {:ok, metrics} = Metrics.calculate_from_matrix(matrix)
   """
 
-  alias Jido.AI.Runner.GEPA.Diversity.{SimilarityMatrix, DiversityMetrics, SimilarityDetector}
+  alias Jido.AI.Runner.GEPA.Diversity.{DiversityMetrics, SimilarityDetector, SimilarityMatrix}
 
   # Diversity level thresholds
   @critical_threshold 0.15

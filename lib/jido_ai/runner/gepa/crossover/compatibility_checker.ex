@@ -27,7 +27,7 @@ defmodule JidoAI.Runner.GEPA.Crossover.CompatibilityChecker do
   """
 
   alias JidoAI.Runner.GEPA.Crossover
-  alias JidoAI.Runner.GEPA.Crossover.{SegmentedPrompt, CompatibilityResult}
+  alias JidoAI.Runner.GEPA.Crossover.{CompatibilityResult, SegmentedPrompt}
 
   # Contradiction patterns
   @negation_pairs [
