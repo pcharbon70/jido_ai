@@ -22,7 +22,7 @@ defmodule JidoAI.Runner.GEPA.Crossover.Exchanger do
       2
   """
 
-  alias JidoAI.Runner.GEPA.Crossover.{SegmentedPrompt, PromptSegment}
+  alias JidoAI.Runner.GEPA.Crossover.{PromptSegment, SegmentedPrompt}
 
   @doc """
   Performs single-point crossover on two segmented prompts.

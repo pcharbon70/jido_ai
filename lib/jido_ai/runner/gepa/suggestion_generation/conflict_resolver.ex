@@ -26,7 +26,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.ConflictResolver do
 
   require Logger
 
-  alias Jido.AI.Runner.GEPA.SuggestionGeneration.{PromptEdit, ConflictGroup}
+  alias Jido.AI.Runner.GEPA.SuggestionGeneration.{ConflictGroup, PromptEdit}
 
   @doc """
   Resolves conflicts in a list of edits.

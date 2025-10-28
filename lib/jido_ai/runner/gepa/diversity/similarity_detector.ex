@@ -22,7 +22,7 @@ defmodule Jido.AI.Runner.GEPA.Diversity.SimilarityDetector do
       duplicates = SimilarityDetector.find_duplicates(prompts, threshold: 0.9)
   """
 
-  alias Jido.AI.Runner.GEPA.Diversity.{SimilarityResult, SimilarityMatrix}
+  alias Jido.AI.Runner.GEPA.Diversity.{SimilarityMatrix, SimilarityResult}
 
   @doc """
   Compares two prompts for similarity.
