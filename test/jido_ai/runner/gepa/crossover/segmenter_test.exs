@@ -1,8 +1,7 @@
 defmodule JidoAI.Runner.GEPA.Crossover.SegmenterTest do
   use ExUnit.Case, async: true
 
-  alias JidoAI.Runner.GEPA.Crossover.Segmenter
-  alias JidoAI.Runner.GEPA.Crossover.SegmentedPrompt
+  alias JidoAI.Runner.GEPA.Crossover.{SegmentedPrompt, Segmenter}
 
   describe "segment/2" do
     test "segments a simple prompt" do

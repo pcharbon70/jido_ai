@@ -5,9 +5,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregationTest do
 
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.FeedbackAggregator
-  alias Jido.AI.Runner.GEPA.FeedbackAggregation
-  alias Jido.AI.Runner.GEPA.Reflector
+  alias Jido.AI.Runner.GEPA.{FeedbackAggregation, FeedbackAggregator, Reflector}
 
   describe "FeedbackAggregator basic integration" do
     test "requires reflections parameter" do

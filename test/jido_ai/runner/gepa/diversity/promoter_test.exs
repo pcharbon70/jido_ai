@@ -1,7 +1,7 @@
 defmodule Jido.AI.Runner.GEPA.Diversity.PromoterTest do
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.Diversity.{Promoter, DiversityMetrics}
+  alias Jido.AI.Runner.GEPA.Diversity.{DiversityMetrics, Promoter}
 
   describe "adaptive_mutation_rate/2" do
     test "increases rate for critical diversity" do

@@ -2,8 +2,7 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
   use ExUnit.Case, async: false
   use Mimic
 
-  alias Jido.AI.ReqLlmBridge.Authentication
-  alias Jido.AI.Keyring
+  alias Jido.AI.{Keyring, ReqLlmBridge.Authentication}
 
   # Note: async: false because we're manipulating session values
 
