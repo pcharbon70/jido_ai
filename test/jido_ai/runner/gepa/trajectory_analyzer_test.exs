@@ -485,7 +485,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzerTest do
       outcome: :timeout,
       completed_at: nil,
       started_at: DateTime.add(DateTime.utc_now(), -10, :second),
-      duration_ms: 10000,
+      duration_ms: 10_000,
       metadata: %{}
     }
   end
@@ -784,7 +784,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryAnalyzerTest do
       error: :multiple_errors,
       completed_at: DateTime.utc_now(),
       started_at: DateTime.add(DateTime.utc_now(), -10, :second),
-      duration_ms: 10000,
+      duration_ms: 10_000,
       metadata: %{}
     }
   end

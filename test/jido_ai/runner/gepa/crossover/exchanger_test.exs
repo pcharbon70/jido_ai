@@ -124,8 +124,8 @@ defmodule JidoAI.Runner.GEPA.Crossover.ExchangerTest do
       {:ok, seg_a} = Segmenter.segment(prompt_a)
       {:ok, seg_b} = Segmenter.segment(prompt_b)
 
-      {:ok, {off1_a, off1_b}} = Exchanger.uniform(seg_a, seg_b, seed: 12345)
-      {:ok, {off2_a, off2_b}} = Exchanger.uniform(seg_a, seg_b, seed: 12345)
+      {:ok, {off1_a, off1_b}} = Exchanger.uniform(seg_a, seg_b, seed: 12_345)
+      {:ok, {off2_a, off2_b}} = Exchanger.uniform(seg_a, seg_b, seed: 12_345)
 
       # Same seed should produce same results
       assert off1_a == off2_a
