@@ -41,7 +41,6 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
 
   require Logger
 
-  alias Jido.AI.Runner.GEPA.Reflector
   alias Jido.AI.Runner.GEPA.FeedbackAggregation
 
   alias Jido.AI.Runner.GEPA.FeedbackAggregation.{
@@ -52,6 +51,7 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregator do
     WeightedAggregator
   }
 
+  alias Jido.AI.Runner.GEPA.Reflector
   alias Jido.AI.Runner.GEPA.SuggestionGeneration
 
   @doc """
