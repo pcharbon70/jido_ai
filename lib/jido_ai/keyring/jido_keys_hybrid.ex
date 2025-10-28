@@ -136,16 +136,14 @@ defmodule Jido.AI.Keyring.JidoKeysHybrid do
   def validate_and_convert_key(key) when is_atom(key), do: {:ok, key}
 
   def validate_and_convert_key(key) when is_binary(key) do
-    try do
-      case JidoKeys.to_llm_atom(key) do
-        atom when is_atom(atom) -> {:ok, atom}
-        # If string returned, try existing atom
-        ^key -> try_existing_atom(key)
-      end
-    rescue
-      error ->
-        {:error, error}
+    case JidoKeys.to_llm_atom(key) do
+      atom when is_atom(atom) -> {:ok, atom}
+      # If string returned, try existing atom
+      ^key -> try_existing_atom(key)
     end
+  rescue
+    error ->
+      {:error, error}
   end
 
   def validate_and_convert_key(_), do: {:error, :invalid_key_type}

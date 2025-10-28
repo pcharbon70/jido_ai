@@ -474,39 +474,36 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
   @doc false
   @spec execute_generation(State.t()) :: {:ok, State.t()} | {:error, term()}
   defp execute_generation(%State{} = state) do
-    try do
-      # Phase 1: Evaluation - evaluate all candidates in population
-      Logger.debug("Phase 1: Evaluating population (generation: #{state.generation + 1})")
-      {evaluation_results, evals_used} = evaluate_population(state)
+    # Phase 1: Evaluation - evaluate all candidates in population
+    Logger.debug("Phase 1: Evaluating population (generation: #{state.generation + 1})")
+    {evaluation_results, evals_used} = evaluate_population(state)
 
-      # Update state with evaluation results
-      state_after_eval = update_population_fitness(state, evaluation_results, evals_used)
+    # Update state with evaluation results
+    state_after_eval = update_population_fitness(state, evaluation_results, evals_used)
 
-      # Phase 2: Reflection - analyze results (placeholder for Section 1.3)
-      Logger.debug("Phase 2: Reflection (placeholder) (generation: #{state.generation + 1})")
-      reflection_insights = perform_reflection(state_after_eval)
+    # Phase 2: Reflection - analyze results (placeholder for Section 1.3)
+    Logger.debug("Phase 2: Reflection (placeholder) (generation: #{state.generation + 1})")
+    reflection_insights = perform_reflection(state_after_eval)
 
-      # Phase 3: Mutation - generate new candidates (placeholder for Section 1.4)
-      Logger.debug("Phase 3: Mutation (placeholder) (generation: #{state.generation + 1})")
-      offspring = generate_offspring(state_after_eval, reflection_insights)
+    # Phase 3: Mutation - generate new candidates (placeholder for Section 1.4)
+    Logger.debug("Phase 3: Mutation (placeholder) (generation: #{state.generation + 1})")
+    offspring = generate_offspring(state_after_eval, reflection_insights)
 
-      # Phase 4: Selection - select next generation
-      Logger.debug("Phase 4: Selection (generation: #{state.generation + 1})")
-      next_population = perform_selection(state_after_eval, offspring)
+    # Phase 4: Selection - select next generation
+    Logger.debug("Phase 4: Selection (generation: #{state.generation + 1})")
+    next_population = perform_selection(state_after_eval, offspring)
 
-      # Phase 5: Progress tracking - record generation metrics
-      Logger.debug("Phase 5: Recording generation metrics (generation: #{state.generation + 1})")
-      final_state = record_generation_metrics(state_after_eval, next_population)
+    # Phase 5: Progress tracking - record generation metrics
+    Logger.debug("Phase 5: Recording generation metrics (generation: #{state.generation + 1})")
+    final_state = record_generation_metrics(state_after_eval, next_population)
 
-      Logger.info("Generation #{final_state.generation} complete (best_fitness: #{final_state.best_fitness}, evaluations_used: #{final_state.evaluations_used})")
+    Logger.info("Generation #{final_state.generation} complete (best_fitness: #{final_state.best_fitness}, evaluations_used: #{final_state.evaluations_used})")
 
-      {:ok, final_state}
-    rescue
-      e ->
-        Logger.error("Error in generation execution (error: #{Exception.message(e)}, stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)})")
-
-        {:error, e}
-    end
+    {:ok, final_state}
+  rescue
+    e ->
+      Logger.error("Error in generation execution (error: #{Exception.message(e)}, stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)})")
+      {:error, e}
   end
 
   # Phase 1: Evaluation

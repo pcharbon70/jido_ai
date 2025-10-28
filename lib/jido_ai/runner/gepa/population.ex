@@ -449,35 +449,32 @@ defmodule Jido.AI.Runner.GEPA.Population do
 
   defp do_load(path) do
     # Split error handling for better granularity
-    try do
-      binary = File.read!(path)
+    binary = File.read!(path)
+    deserialize_population(binary, path)
+  rescue
+    error ->
+      Logger.error("Failed to read population file (path: #{path}, operation: file_read, error: #{Exception.message(error)})")
+      {:error, {:file_read_failed, error}}
+  end
 
-      try do
-        data = :erlang.binary_to_term(binary)
+  defp deserialize_population(binary, path) do
+    data = :erlang.binary_to_term(binary)
 
-        case data do
-          %{version: 1, population: population} ->
-            Logger.info("Population loaded successfully (path: #{path})")
-            {:ok, population}
+    case data do
+      %{version: 1, population: population} ->
+        Logger.info("Population loaded successfully (path: #{path})")
+        {:ok, population}
 
-          %{version: version} ->
-            {:error, {:unsupported_version, version}}
+      %{version: version} ->
+        {:error, {:unsupported_version, version}}
 
-          _ ->
-            {:error, :invalid_format}
-        end
-      rescue
-        error ->
-          Logger.error("Failed to deserialize population (path: #{path}, operation: deserialization, error: #{Exception.message(error)})")
-
-          {:error, {:deserialization_failed, error}}
-      end
-    rescue
-      error ->
-        Logger.error("Failed to read population file (path: #{path}, operation: file_read, error: #{Exception.message(error)})")
-
-        {:error, {:file_read_failed, error}}
+      _ ->
+        {:error, :invalid_format}
     end
+  rescue
+    error ->
+      Logger.error("Failed to deserialize population (path: #{path}, operation: deserialization, error: #{Exception.message(error)})")
+      {:error, {:deserialization_failed, error}}
   end
 
   # Private Functions

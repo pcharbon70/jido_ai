@@ -309,14 +309,12 @@ defmodule Jido.AI.Provider do
   def ensure_atom(id) when is_atom(id), do: id
 
   def ensure_atom(id) when is_binary(id) do
-    try do
-      String.to_existing_atom(id)
-    rescue
-      ArgumentError ->
-        # If atom doesn't exist, return the string as-is
-        # This prevents creating arbitrary atoms from user input
-        id
-    end
+    String.to_existing_atom(id)
+  rescue
+    ArgumentError ->
+      # If atom doesn't exist, return the string as-is
+      # This prevents creating arbitrary atoms from user input
+      id
   end
 
   def ensure_atom(id), do: id
