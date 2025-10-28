@@ -147,8 +147,8 @@ defmodule Jido.AI.Skills.ChainOfThought do
       "agent.cot.*"
     ]
 
-  alias Jido.AI.Actions.CoT
   alias Jido.Agent
+  alias Jido.AI.Actions.CoT
 
   @doc """
   Provides routing configuration for Chain-of-Thought signal patterns.

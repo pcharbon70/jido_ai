@@ -26,8 +26,8 @@ defmodule Jido.AI.Runner.GEPA.TestHelper do
   import Mimic
   import ExUnit.Assertions
 
-  alias Jido.AI.Runner.GEPA.TestFixtures
   alias Jido.AI.Runner.GEPA.Evaluator.EvaluationResult
+  alias Jido.AI.Runner.GEPA.TestFixtures
   alias Jido.AI.Runner.GEPA.Trajectory
 
   @doc """

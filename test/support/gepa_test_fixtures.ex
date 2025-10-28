@@ -20,8 +20,8 @@ defmodule Jido.AI.Runner.GEPA.TestFixtures do
       trajectory = build_trajectory_for_scenario(:success)
   """
 
-  alias Jido.AI.Runner.GEPA.Trajectory
   alias Jido.AI.Runner.GEPA.Metrics
+  alias Jido.AI.Runner.GEPA.Trajectory
 
   @doc """
   Generates a mock model for the specified provider.

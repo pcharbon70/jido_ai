@@ -86,8 +86,8 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
   use TypedStruct
   require Logger
 
-  alias Jido.AI.Agent
   alias Jido.Agent.Server
+  alias Jido.AI.Agent
   alias Jido.AI.Runner.GEPA.Metrics
   alias Jido.AI.Runner.GEPA.Trajectory
   alias Jido.Signal

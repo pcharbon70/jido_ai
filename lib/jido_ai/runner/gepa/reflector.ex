@@ -55,10 +55,10 @@ defmodule Jido.AI.Runner.GEPA.Reflector do
   use TypedStruct
   require Logger
 
-  alias Jido.AI.Runner.GEPA.TrajectoryAnalyzer
-  alias Jido.AI.Runner.GEPA.Reflection.{PromptBuilder, SuggestionParser}
-  alias Jido.AI.Agent
   alias Jido.Agent.Server
+  alias Jido.AI.Agent
+  alias Jido.AI.Runner.GEPA.Reflection.{PromptBuilder, SuggestionParser}
+  alias Jido.AI.Runner.GEPA.TrajectoryAnalyzer
   alias Jido.Signal
 
   # Type definitions

@@ -69,7 +69,7 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
   use TypedStruct
   require Logger
 
-  alias Jido.AI.Runner.GEPA.Scheduler.{Task, Queue}
+  alias Jido.AI.Runner.GEPA.Scheduler.{Queue, Task}
 
   # Type definitions
 

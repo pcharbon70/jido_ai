@@ -21,9 +21,9 @@ defmodule JidoAI.Runner.GEPA.Crossover.Segmenter do
       %PromptSegment{type: :instruction, content: "Solve step by step", ...}
   """
 
+  alias Jido.AI.Runner.GEPA.SuggestionGeneration.PromptStructureAnalyzer
   alias JidoAI.Runner.GEPA.Crossover
   alias JidoAI.Runner.GEPA.Crossover.{PromptSegment, SegmentedPrompt}
-  alias Jido.AI.Runner.GEPA.SuggestionGeneration.PromptStructureAnalyzer
 
   # Segment type indicators
   @instruction_indicators [
