@@ -59,7 +59,7 @@ defmodule Jido.AI.Runner.GEPA.TestHelper do
     # Stub Server.call to return mock Signal responses
     stub(Jido.Agent.Server, :call, fn _agent_pid, signal, _timeout ->
       # Check if this is a chat/AI response signal
-      if is_chat_signal?(signal) do
+      if chat_signal?(signal) do
         # Simulate latency
         if mock.latency > 0 do
           Process.sleep(mock.latency)
@@ -329,15 +329,15 @@ defmodule Jido.AI.Runner.GEPA.TestHelper do
   defp extract_prompt(_), do: "unknown prompt"
 
   # Check if a signal is a chat/AI response signal that should be mocked
-  defp is_chat_signal?(%{type: type}) when is_binary(type) do
+  defp chat_signal?(%{type: type}) when is_binary(type) do
     String.contains?(type, "chat") or String.contains?(type, "ai")
   end
 
-  defp is_chat_signal?(%Jido.Signal{type: type}) when is_binary(type) do
+  defp chat_signal?(%Jido.Signal{type: type}) when is_binary(type) do
     String.contains?(type, "chat") or String.contains?(type, "ai")
   end
 
-  defp is_chat_signal?(_), do: false
+  defp chat_signal?(_), do: false
 
   # Extract prompt from the signal being sent to the agent
   defp extract_prompt_from_signal(%{data: data}) when is_map(data) do

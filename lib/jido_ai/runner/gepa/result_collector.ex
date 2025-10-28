@@ -399,7 +399,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
 
   @impl GenServer
   def handle_call(:await_completion, from, state) do
-    if is_complete?(state) do
+    if complete?(state) do
       # Already complete
       results = Map.values(state.results)
       {:reply, {:ok, results}, state}
@@ -550,8 +550,8 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
     end
   end
 
-  @spec is_complete?(State.t()) :: boolean()
-  defp is_complete?(state) do
+  @spec complete?(State.t()) :: boolean()
+  defp complete?(state) do
     expected = state.config.expected_count
     completed = map_size(state.results)
 
@@ -560,7 +560,7 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
 
   @spec maybe_notify_completion(State.t()) :: State.t()
   defp maybe_notify_completion(state) do
-    if is_complete?(state) do
+    if complete?(state) do
       Logger.info("All expected results collected (count: #{map_size(state.results)}, expected: #{state.config.expected_count})")
 
       notify_waiters(state, :complete)

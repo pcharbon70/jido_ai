@@ -256,7 +256,7 @@ defmodule Jido.AI.Runner.GEPA.MutationScheduler do
 
     # Check for stagnation
     stagnation_gens =
-      if is_stagnating?(history, scheduler.improvement_threshold) do
+      if stagnating?(history, scheduler.improvement_threshold) do
         scheduler.stagnation_generations + 1
       else
         0
@@ -265,9 +265,9 @@ defmodule Jido.AI.Runner.GEPA.MutationScheduler do
     %{scheduler | fitness_history: history, stagnation_generations: stagnation_gens}
   end
 
-  defp is_stagnating?(history, _threshold) when length(history) < 3, do: false
+  defp stagnating?(history, _threshold) when length(history) < 3, do: false
 
-  defp is_stagnating?(history, threshold) do
+  defp stagnating?(history, threshold) do
     # Check if recent generations show little improvement
     recent = Enum.take(history, 5)
     fitness_values = Enum.map(recent, fn {_gen, fit} -> fit end)
