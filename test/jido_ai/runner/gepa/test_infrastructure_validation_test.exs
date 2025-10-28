@@ -12,8 +12,7 @@ defmodule Jido.AI.Runner.GEPA.TestInfrastructureValidationTest do
   use ExUnit.Case, async: true
   use Jido.AI.Runner.GEPA.TestCase
 
-  alias Jido.AI.Runner.GEPA.TestFixtures
-  alias Jido.AI.Runner.GEPA.Evaluator
+  alias Jido.AI.Runner.GEPA.{Evaluator, TestFixtures}
 
   describe "mock infrastructure" do
     test "generates mock model correctly" do

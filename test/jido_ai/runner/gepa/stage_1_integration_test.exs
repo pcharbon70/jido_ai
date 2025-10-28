@@ -31,9 +31,9 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
   use ExUnit.Case, async: false
 
   alias Jido.AI.Runner.GEPA.{
+    MutationScheduler,
     Optimizer,
-    Population,
-    MutationScheduler
+    Population
   }
 
   alias Jido.AI.Runner.GEPA.Diversity
@@ -146,7 +146,7 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
       # This tests that reflection, suggestion parsing, and feedback aggregation
       # can process real trajectory data
 
-      alias Jido.AI.Runner.GEPA.{Reflector, TrajectoryAnalyzer, FeedbackAggregator}
+      alias Jido.AI.Runner.GEPA.{FeedbackAggregator, Reflector, TrajectoryAnalyzer}
       alias Jido.AI.Runner.GEPA.Trajectory
 
       # Create a mock trajectory
@@ -517,7 +517,7 @@ defmodule Jido.AI.Runner.GEPA.Stage1IntegrationTest do
 
   describe "1.5 Integration - Component Interoperability" do
     test "data structures are compatible across components" do
-      alias Jido.AI.Runner.GEPA.{Reflector, TrajectoryAnalyzer, Population}
+      alias Jido.AI.Runner.GEPA.{Population, Reflector, TrajectoryAnalyzer}
       alias Jido.AI.Runner.GEPA.Trajectory
 
       # Create trajectory

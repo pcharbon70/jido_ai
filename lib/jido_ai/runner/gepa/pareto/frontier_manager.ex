@@ -57,7 +57,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.FrontierManager do
       pareto_optimal = FrontierManager.get_pareto_optimal(frontier)
   """
 
-  alias Jido.AI.Runner.GEPA.Pareto.{Frontier, DominanceComparator}
+  alias Jido.AI.Runner.GEPA.Pareto.{DominanceComparator, Frontier}
   alias Jido.AI.Runner.GEPA.Population.Candidate
 
   require Logger

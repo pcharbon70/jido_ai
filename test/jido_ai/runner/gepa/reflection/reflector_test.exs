@@ -13,7 +13,7 @@ defmodule Jido.AI.Runner.GEPA.ReflectorTest do
 
   use ExUnit.Case, async: false
 
-  alias Jido.AI.Runner.GEPA.{Reflector, TrajectoryAnalyzer, Trajectory}
+  alias Jido.AI.Runner.GEPA.{Reflector, Trajectory, TrajectoryAnalyzer}
   alias Jido.AI.Runner.GEPA.TestFixtures
   alias Jido.Signal
 

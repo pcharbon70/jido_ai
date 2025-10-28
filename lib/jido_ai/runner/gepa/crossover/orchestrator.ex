@@ -32,12 +32,12 @@ defmodule JidoAI.Runner.GEPA.Crossover.Orchestrator do
   alias JidoAI.Runner.GEPA.Crossover
 
   alias JidoAI.Runner.GEPA.Crossover.{
-    Segmenter,
-    CompatibilityChecker,
-    Exchanger,
     Blender,
+    CompatibilityChecker,
     CrossoverConfig,
-    CrossoverResult
+    CrossoverResult,
+    Exchanger,
+    Segmenter
   }
 
   @doc """

@@ -7,7 +7,7 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneratorTest do
 
   use ExUnit.Case, async: true
 
-  alias Jido.AI.Runner.GEPA.{SuggestionGenerator, Reflector}
+  alias Jido.AI.Runner.GEPA.{Reflector, SuggestionGenerator}
   alias Jido.AI.Runner.GEPA.SuggestionGeneration
 
   alias Jido.AI.Runner.GEPA.SuggestionGeneration.{

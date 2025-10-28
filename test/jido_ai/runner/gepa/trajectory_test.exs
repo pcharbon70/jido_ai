@@ -2,7 +2,7 @@ defmodule Jido.AI.Runner.GEPA.TrajectoryTest do
   use ExUnit.Case, async: true
 
   alias Jido.AI.Runner.GEPA.Trajectory
-  alias Jido.AI.Runner.GEPA.Trajectory.{Step, StateSnapshot}
+  alias Jido.AI.Runner.GEPA.Trajectory.{StateSnapshot, Step}
 
   describe "new/1" do
     test "creates a new trajectory with default values" do

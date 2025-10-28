@@ -15,7 +15,7 @@ defmodule Jido.AI.Runner.GEPA.Reflection.PromptBuilderTest do
   use ExUnit.Case, async: true
 
   alias Jido.AI.Runner.GEPA.Reflection.PromptBuilder
-  alias Jido.AI.Runner.GEPA.{Reflector, TrajectoryAnalyzer, Trajectory}
+  alias Jido.AI.Runner.GEPA.{Reflector, Trajectory, TrajectoryAnalyzer}
   alias Jido.AI.Runner.GEPA.TestFixtures
 
   describe "system_prompt/0" do
