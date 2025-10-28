@@ -72,32 +72,34 @@ defmodule Jido.AI.Actions.CoT.GenerateElixirCode do
 
   @impl true
   def run(params, context) do
-    with {:ok, requirements} <- Map.fetch(params, :requirements) do
-      template_type = Map.get(params, :template_type)
-      generate_specs = Map.get(params, :generate_specs, true)
-      generate_docs = Map.get(params, :generate_docs, true)
-      model = Map.get(params, :model)
+    case Map.fetch(params, :requirements) do
+      {:ok, requirements} ->
+        template_type = Map.get(params, :template_type)
+        generate_specs = Map.get(params, :generate_specs, true)
+        generate_docs = Map.get(params, :generate_docs, true)
+        model = Map.get(params, :model)
 
-      with {:ok, analysis} <- ProgramAnalyzer.analyze(requirements),
-           {:ok, template} <- get_reasoning_template(analysis, template_type),
-           {:ok, reasoning} <-
-             generate_structured_reasoning(requirements, template, model, context),
-           {:ok, code} <-
-             translate_to_code(reasoning, analysis, params, generate_specs, generate_docs) do
-        result = %{
-          code: code,
-          reasoning: reasoning,
-          analysis: analysis,
-          template: template.type,
-          elixir_patterns: analysis.elixir_patterns
-        }
+        with {:ok, analysis} <- ProgramAnalyzer.analyze(requirements),
+             {:ok, template} <- get_reasoning_template(analysis, template_type),
+             {:ok, reasoning} <-
+               generate_structured_reasoning(requirements, template, model, context),
+             {:ok, code} <-
+               translate_to_code(reasoning, analysis, params, generate_specs, generate_docs) do
+          result = %{
+            code: code,
+            reasoning: reasoning,
+            analysis: analysis,
+            template: template.type,
+            elixir_patterns: analysis.elixir_patterns
+          }
 
-        {:ok, result, context}
-      else
-        {:error, reason} -> {:error, reason, context}
-      end
-    else
-      :error -> {:error, :missing_requirements, context}
+          {:ok, result, context}
+        else
+          {:error, reason} -> {:error, reason, context}
+        end
+
+      :error ->
+        {:error, :missing_requirements, context}
     end
   end
 

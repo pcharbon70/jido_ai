@@ -140,23 +140,24 @@ defmodule Jido.AI.Runner.GEPA.Pareto.HypervolumeCalculator do
   """
   @spec contribution(list(Candidate.t()), keyword()) :: contribution_map()
   def contribution(solutions, opts) do
-    with {:ok, total_hv} <- calculate(solutions, opts) do
-      # Calculate hypervolume without each solution
-      Enum.map(solutions, fn solution ->
-        remaining = Enum.reject(solutions, fn s -> s.id == solution.id end)
+    case calculate(solutions, opts) do
+      {:ok, total_hv} ->
+        # Calculate hypervolume without each solution
+        Enum.map(solutions, fn solution ->
+          remaining = Enum.reject(solutions, fn s -> s.id == solution.id end)
 
-        case calculate(remaining, opts) do
-          {:ok, hv_without} ->
-            # Contribution = total - without
-            contrib = max(0.0, total_hv - hv_without)
-            {solution.id, Float.round(contrib, 6)}
+          case calculate(remaining, opts) do
+            {:ok, hv_without} ->
+              # Contribution = total - without
+              contrib = max(0.0, total_hv - hv_without)
+              {solution.id, Float.round(contrib, 6)}
 
-          {:error, _} ->
-            {solution.id, 0.0}
-        end
-      end)
-      |> Map.new()
-    else
+            {:error, _} ->
+              {solution.id, 0.0}
+          end
+        end)
+        |> Map.new()
+
       {:error, _} ->
         # Return zero contribution for all on error
         solutions
