@@ -67,7 +67,9 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
     min_frequency = Keyword.get(opts, :min_frequency, @min_frequency_threshold)
     require_significance = Keyword.get(opts, :require_significance, true)
 
-    Logger.debug("Detecting failure patterns (evaluations: #{collection.total_evaluations}, min_frequency: #{min_frequency})")
+    Logger.debug(
+      "Detecting failure patterns (evaluations: #{collection.total_evaluations}, min_frequency: #{min_frequency})"
+    )
 
     # Extract root causes from reflections
     root_cause_groups =
@@ -113,7 +115,9 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.PatternDetector do
   def detect_suggestion_patterns(%FeedbackCollection{} = collection, opts \\ []) do
     min_frequency = Keyword.get(opts, :min_frequency, @min_frequency_threshold)
 
-    Logger.debug("Detecting suggestion patterns (suggestions: #{length(collection.suggestions)}, min_frequency: #{min_frequency})")
+    Logger.debug(
+      "Detecting suggestion patterns (suggestions: #{length(collection.suggestions)}, min_frequency: #{min_frequency})"
+    )
 
     # Group by category and theme
     suggestion_groups =

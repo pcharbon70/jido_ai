@@ -94,7 +94,9 @@ defmodule Jido.AI.Runner.GEPA.SuggestionGeneration.EditValidator do
           if String.contains?(structure.raw_text, location.relative_marker) do
             {:ok, edit}
           else
-            Logger.warning("Relative marker not found in prompt (marker: #{location.relative_marker})")
+            Logger.warning(
+              "Relative marker not found in prompt (marker: #{location.relative_marker})"
+            )
 
             # Fallback to end
             {:ok, %{edit | location: %{location | type: :end}}}

@@ -219,7 +219,8 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DiversityMonitorTest do
     end
 
     test "warning threshold does not trigger collapse" do
-      monitor = DiversityMonitor.new(critical_threshold: 0.15, warning_threshold: 0.30, patience: 2)
+      monitor =
+        DiversityMonitor.new(critical_threshold: 0.15, warning_threshold: 0.30, patience: 2)
 
       # Between warning and critical
       monitor =

@@ -64,11 +64,15 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Deduplicator do
     threshold = Keyword.get(opts, :similarity_threshold, @default_similarity_threshold)
     prefer_impact = Keyword.get(opts, :prefer_highest_impact, true)
 
-    Logger.debug("Deduplicating suggestions (count: #{length(suggestions)}, threshold: #{threshold})")
+    Logger.debug(
+      "Deduplicating suggestions (count: #{length(suggestions)}, threshold: #{threshold})"
+    )
 
     clusters = perform_clustering(suggestions, threshold, prefer_impact)
 
-    Logger.debug("Deduplication complete (original: #{length(suggestions)}, clusters: #{length(clusters)}, reduction: #{1 - length(clusters) / max(length(suggestions), 1)})")
+    Logger.debug(
+      "Deduplication complete (original: #{length(suggestions)}, clusters: #{length(clusters)}, reduction: #{1 - length(clusters) / max(length(suggestions), 1)})"
+    )
 
     {:ok, clusters}
   end

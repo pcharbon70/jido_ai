@@ -77,7 +77,9 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Collector do
         }
       }
 
-      Logger.debug("Collection complete (unique_suggestions: #{length(collected_suggestions)}, total_evaluations: #{length(reflections)})")
+      Logger.debug(
+        "Collection complete (unique_suggestions: #{length(collected_suggestions)}, total_evaluations: #{length(reflections)})"
+      )
 
       {:ok, collection}
     end

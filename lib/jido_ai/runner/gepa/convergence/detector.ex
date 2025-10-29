@@ -151,10 +151,11 @@ defmodule Jido.AI.Runner.GEPA.Convergence.Detector do
       end
 
     # Increment generation
-    generation = max(
-      detector.current_generation + 1,
-      Map.get(metrics, :generation, detector.current_generation + 1)
-    )
+    generation =
+      max(
+        detector.current_generation + 1,
+        Map.get(metrics, :generation, detector.current_generation + 1)
+      )
 
     %{
       detector
@@ -217,7 +218,10 @@ defmodule Jido.AI.Runner.GEPA.Convergence.Detector do
     # Get detailed metrics
     plateau_generations = detector.plateau_detector.patience_counter
     diversity_score = DiversityMonitor.get_current_diversity(detector.diversity_monitor)
-    hypervolume_improvement = HypervolumeTracker.get_recent_improvement(detector.hypervolume_tracker)
+
+    hypervolume_improvement =
+      HypervolumeTracker.get_recent_improvement(detector.hypervolume_tracker)
+
     budget_remaining = BudgetManager.remaining_evaluations(detector.budget_manager)
 
     %Status{
@@ -295,9 +299,14 @@ defmodule Jido.AI.Runner.GEPA.Convergence.Detector do
     warnings =
       if detector.plateau_detector.patience_counter > 0 and
            not PlateauDetector.plateau_detected?(detector.plateau_detector) do
-        patience_ratio = detector.plateau_detector.patience_counter / detector.plateau_detector.patience
+        patience_ratio =
+          detector.plateau_detector.patience_counter / detector.plateau_detector.patience
+
         if patience_ratio >= 0.5 do
-          ["Approaching fitness plateau (#{detector.plateau_detector.patience_counter}/#{detector.plateau_detector.patience})" | warnings]
+          [
+            "Approaching fitness plateau (#{detector.plateau_detector.patience_counter}/#{detector.plateau_detector.patience})"
+            | warnings
+          ]
         else
           warnings
         end
@@ -308,9 +317,14 @@ defmodule Jido.AI.Runner.GEPA.Convergence.Detector do
     warnings =
       if detector.hypervolume_tracker.patience_counter > 0 and
            not HypervolumeTracker.saturated?(detector.hypervolume_tracker) do
-        patience_ratio = detector.hypervolume_tracker.patience_counter / detector.hypervolume_tracker.patience
+        patience_ratio =
+          detector.hypervolume_tracker.patience_counter / detector.hypervolume_tracker.patience
+
         if patience_ratio >= 0.5 do
-          ["Approaching hypervolume saturation (#{detector.hypervolume_tracker.patience_counter}/#{detector.hypervolume_tracker.patience})" | warnings]
+          [
+            "Approaching hypervolume saturation (#{detector.hypervolume_tracker.patience_counter}/#{detector.hypervolume_tracker.patience})"
+            | warnings
+          ]
         else
           warnings
         end
@@ -325,8 +339,10 @@ defmodule Jido.AI.Runner.GEPA.Convergence.Detector do
 
         remaining when is_integer(remaining) ->
           max_evals = detector.budget_manager.max_evaluations
+
           if max_evals > 0 do
-            usage_ratio = 1.0 - (remaining / max_evals)
+            usage_ratio = 1.0 - remaining / max_evals
+
             if usage_ratio >= 0.8 do
               ["Budget 80% consumed (#{remaining} evaluations remaining)" | warnings]
             else

@@ -15,12 +15,13 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
     end
 
     test "accepts custom configuration for all detectors" do
-      detector = Detector.new(
-        plateau_opts: [patience: 10],
-        diversity_opts: [critical_threshold: 0.10],
-        hypervolume_opts: [patience: 8],
-        budget_opts: [max_evaluations: 500]
-      )
+      detector =
+        Detector.new(
+          plateau_opts: [patience: 10],
+          diversity_opts: [critical_threshold: 0.10],
+          hypervolume_opts: [patience: 8],
+          budget_opts: [max_evaluations: 500]
+        )
 
       assert detector.plateau_detector.patience == 10
       assert detector.diversity_monitor.critical_threshold == 0.10
@@ -40,8 +41,19 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector = Detector.new()
 
       metrics = %{
-        fitness_record: %{generation: 1, best_fitness: 0.8, mean_fitness: 0.75, median_fitness: 0.73, std_dev: 0.05},
-        diversity_metrics: %{generation: 1, pairwise_diversity: 0.65, diversity_level: :healthy, convergence_risk: 0.2},
+        fitness_record: %{
+          generation: 1,
+          best_fitness: 0.8,
+          mean_fitness: 0.75,
+          median_fitness: 0.73,
+          std_dev: 0.05
+        },
+        diversity_metrics: %{
+          generation: 1,
+          pairwise_diversity: 0.65,
+          diversity_level: :healthy,
+          convergence_risk: 0.2
+        },
         hypervolume: 0.75,
         consumption: [evaluations: 50, cost: 1.25]
       }
@@ -59,7 +71,13 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector = Detector.new()
 
       metrics = %{
-        fitness_record: %{generation: 1, best_fitness: 0.8, mean_fitness: 0.75, median_fitness: 0.73, std_dev: 0.05}
+        fitness_record: %{
+          generation: 1,
+          best_fitness: 0.8,
+          mean_fitness: 0.75,
+          median_fitness: 0.73,
+          std_dev: 0.05
+        }
       }
 
       detector = Detector.update(detector, metrics)
@@ -74,9 +92,33 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
 
       detector =
         detector
-        |> Detector.update(%{fitness_record: %{generation: 1, best_fitness: 0.8, mean_fitness: 0.75, median_fitness: 0.73, std_dev: 0.05}})
-        |> Detector.update(%{fitness_record: %{generation: 2, best_fitness: 0.82, mean_fitness: 0.76, median_fitness: 0.74, std_dev: 0.04}})
-        |> Detector.update(%{fitness_record: %{generation: 3, best_fitness: 0.84, mean_fitness: 0.77, median_fitness: 0.75, std_dev: 0.03}})
+        |> Detector.update(%{
+          fitness_record: %{
+            generation: 1,
+            best_fitness: 0.8,
+            mean_fitness: 0.75,
+            median_fitness: 0.73,
+            std_dev: 0.05
+          }
+        })
+        |> Detector.update(%{
+          fitness_record: %{
+            generation: 2,
+            best_fitness: 0.82,
+            mean_fitness: 0.76,
+            median_fitness: 0.74,
+            std_dev: 0.04
+          }
+        })
+        |> Detector.update(%{
+          fitness_record: %{
+            generation: 3,
+            best_fitness: 0.84,
+            mean_fitness: 0.77,
+            median_fitness: 0.75,
+            std_dev: 0.03
+          }
+        })
 
       assert detector.current_generation == 3
     end
@@ -86,7 +128,13 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
 
       metrics = %{
         generation: 42,
-        fitness_record: %{generation: 42, best_fitness: 0.8, mean_fitness: 0.75, median_fitness: 0.73, std_dev: 0.05}
+        fitness_record: %{
+          generation: 42,
+          best_fitness: 0.8,
+          mean_fitness: 0.75,
+          median_fitness: 0.73,
+          std_dev: 0.05
+        }
       }
 
       detector = Detector.update(detector, metrics)
@@ -119,10 +167,17 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
     test "includes metadata with generation info" do
       detector = Detector.new()
 
-      detector = Detector.update(detector, %{
-        generation: 5,
-        fitness_record: %{generation: 5, best_fitness: 0.8, mean_fitness: 0.75, median_fitness: 0.73, std_dev: 0.05}
-      })
+      detector =
+        Detector.update(detector, %{
+          generation: 5,
+          fitness_record: %{
+            generation: 5,
+            best_fitness: 0.8,
+            mean_fitness: 0.75,
+            median_fitness: 0.73,
+            std_dev: 0.05
+          }
+        })
 
       status = Detector.get_status(detector)
 
@@ -138,7 +193,13 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector =
         Enum.reduce(1..8, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5, mean_fitness: 0.45, median_fitness: 0.43, std_dev: 0.05}
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5,
+              mean_fitness: 0.45,
+              median_fitness: 0.43,
+              std_dev: 0.05
+            }
           })
         end)
 
@@ -156,7 +217,13 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector =
         Enum.reduce(1..10, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5 + gen * 0.05, mean_fitness: 0.45 + gen * 0.05, median_fitness: 0.43 + gen * 0.05, std_dev: 0.05}
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5 + gen * 0.05,
+              mean_fitness: 0.45 + gen * 0.05,
+              median_fitness: 0.43 + gen * 0.05,
+              std_dev: 0.05
+            }
           })
         end)
 
@@ -279,16 +346,23 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
 
   describe "convergence detection - multiple criteria" do
     test "converges when any criterion triggers" do
-      detector = Detector.new(
-        plateau_opts: [patience: 2, window_size: 2],
-        budget_opts: [max_evaluations: 1000]
-      )
+      detector =
+        Detector.new(
+          plateau_opts: [patience: 2, window_size: 2],
+          budget_opts: [max_evaluations: 1000]
+        )
 
       # Trigger plateau but not budget
       detector =
         Enum.reduce(1..8, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5, mean_fitness: 0.45, median_fitness: 0.43, std_dev: 0.05},
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5,
+              mean_fitness: 0.45,
+              median_fitness: 0.43,
+              std_dev: 0.05
+            },
             consumption: [evaluations: 50]
           })
         end)
@@ -302,16 +376,23 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
     end
 
     test "prioritizes budget exhaustion in reason" do
-      detector = Detector.new(
-        plateau_opts: [patience: 2, window_size: 2],
-        budget_opts: [max_evaluations: 100]
-      )
+      detector =
+        Detector.new(
+          plateau_opts: [patience: 2, window_size: 2],
+          budget_opts: [max_evaluations: 100]
+        )
 
       # Trigger both plateau and budget
       detector =
         Enum.reduce(1..8, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5, mean_fitness: 0.45, median_fitness: 0.43, std_dev: 0.05},
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5,
+              mean_fitness: 0.45,
+              median_fitness: 0.43,
+              std_dev: 0.05
+            },
             consumption: [evaluations: 15]
           })
         end)
@@ -321,7 +402,8 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       assert status.converged
       assert status.plateau_detected
       assert status.budget_exhausted
-      assert status.reason == :budget_exhausted  # Budget has priority
+      # Budget has priority
+      assert status.reason == :budget_exhausted
     end
 
     test "does not converge when no criteria triggered" do
@@ -330,8 +412,19 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector =
         Enum.reduce(1..10, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5 + gen * 0.05, mean_fitness: 0.45 + gen * 0.05, median_fitness: 0.43 + gen * 0.05, std_dev: 0.05},
-            diversity_metrics: %{generation: gen, pairwise_diversity: 0.65, diversity_level: :healthy, convergence_risk: 0.1},
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5 + gen * 0.05,
+              mean_fitness: 0.45 + gen * 0.05,
+              median_fitness: 0.43 + gen * 0.05,
+              std_dev: 0.05
+            },
+            diversity_metrics: %{
+              generation: gen,
+              pairwise_diversity: 0.65,
+              diversity_level: :healthy,
+              convergence_risk: 0.1
+            },
             hypervolume: 0.5 + gen * 0.05,
             consumption: [evaluations: 50]
           })
@@ -351,14 +444,16 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
     test "generates warning when diversity in warning zone" do
       detector = Detector.new(diversity_opts: [warning_threshold: 0.30, critical_threshold: 0.15])
 
-      detector = Detector.update(detector, %{
-        diversity_metrics: %{
-          generation: 1,
-          pairwise_diversity: 0.25,  # Below warning, above critical
-          diversity_level: :low,
-          convergence_risk: 0.5
-        }
-      })
+      detector =
+        Detector.update(detector, %{
+          diversity_metrics: %{
+            generation: 1,
+            # Below warning, above critical
+            pairwise_diversity: 0.25,
+            diversity_level: :low,
+            convergence_risk: 0.5
+          }
+        })
 
       status = Detector.get_status(detector)
 
@@ -372,7 +467,13 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector =
         Enum.reduce(1..6, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5, mean_fitness: 0.45, median_fitness: 0.43, std_dev: 0.05}
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5,
+              mean_fitness: 0.45,
+              median_fitness: 0.43,
+              std_dev: 0.05
+            }
           })
         end)
 
@@ -394,12 +495,24 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
     test "does not generate warnings when all metrics healthy" do
       detector = Detector.new(budget_opts: [max_evaluations: 1000])
 
-      detector = Detector.update(detector, %{
-        fitness_record: %{generation: 1, best_fitness: 0.8, mean_fitness: 0.75, median_fitness: 0.73, std_dev: 0.05},
-        diversity_metrics: %{generation: 1, pairwise_diversity: 0.65, diversity_level: :healthy, convergence_risk: 0.1},
-        hypervolume: 0.75,
-        consumption: [evaluations: 50]
-      })
+      detector =
+        Detector.update(detector, %{
+          fitness_record: %{
+            generation: 1,
+            best_fitness: 0.8,
+            mean_fitness: 0.75,
+            median_fitness: 0.73,
+            std_dev: 0.05
+          },
+          diversity_metrics: %{
+            generation: 1,
+            pairwise_diversity: 0.65,
+            diversity_level: :healthy,
+            convergence_risk: 0.1
+          },
+          hypervolume: 0.75,
+          consumption: [evaluations: 50]
+        })
 
       status = Detector.get_status(detector)
 
@@ -428,8 +541,19 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector =
         Enum.reduce(1..5, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5, mean_fitness: 0.45, median_fitness: 0.43, std_dev: 0.05},
-            diversity_metrics: %{generation: gen, pairwise_diversity: 0.65, diversity_level: :healthy, convergence_risk: 0.1},
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5,
+              mean_fitness: 0.45,
+              median_fitness: 0.43,
+              std_dev: 0.05
+            },
+            diversity_metrics: %{
+              generation: gen,
+              pairwise_diversity: 0.65,
+              diversity_level: :healthy,
+              convergence_risk: 0.1
+            },
             hypervolume: 0.75,
             consumption: [evaluations: 20]
           })
@@ -447,10 +571,11 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
     end
 
     test "preserves configuration after reset" do
-      detector = Detector.new(
-        plateau_opts: [patience: 10],
-        budget_opts: [max_evaluations: 500]
-      )
+      detector =
+        Detector.new(
+          plateau_opts: [patience: 10],
+          budget_opts: [max_evaluations: 500]
+        )
 
       detector = Detector.update(detector, %{consumption: [evaluations: 100]})
       detector = Detector.reset(detector)
@@ -462,17 +587,30 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
 
   describe "integration scenarios" do
     test "full optimization cycle until convergence" do
-      detector = Detector.new(
-        plateau_opts: [patience: 3, window_size: 2],
-        budget_opts: [max_evaluations: 1000]  # Increased budget to avoid exhaustion before plateau
-      )
+      detector =
+        Detector.new(
+          plateau_opts: [patience: 3, window_size: 2],
+          # Increased budget to avoid exhaustion before plateau
+          budget_opts: [max_evaluations: 1000]
+        )
 
       # Initial improving phase
       detector =
         Enum.reduce(1..10, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5 + gen * 0.03, mean_fitness: 0.45 + gen * 0.03, median_fitness: 0.43 + gen * 0.03, std_dev: 0.05},
-            diversity_metrics: %{generation: gen, pairwise_diversity: 0.70 - gen * 0.02, diversity_level: :healthy, convergence_risk: gen * 0.05},
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5 + gen * 0.03,
+              mean_fitness: 0.45 + gen * 0.03,
+              median_fitness: 0.43 + gen * 0.03,
+              std_dev: 0.05
+            },
+            diversity_metrics: %{
+              generation: gen,
+              pairwise_diversity: 0.70 - gen * 0.02,
+              diversity_level: :healthy,
+              convergence_risk: gen * 0.05
+            },
             hypervolume: 0.4 + gen * 0.04,
             consumption: [evaluations: 30, cost: 0.5]
           })
@@ -484,8 +622,19 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector =
         Enum.reduce(11..20, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.80, mean_fitness: 0.75, median_fitness: 0.73, std_dev: 0.05},
-            diversity_metrics: %{generation: gen, pairwise_diversity: 0.50, diversity_level: :healthy, convergence_risk: 0.5},
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.80,
+              mean_fitness: 0.75,
+              median_fitness: 0.73,
+              std_dev: 0.05
+            },
+            diversity_metrics: %{
+              generation: gen,
+              pairwise_diversity: 0.50,
+              diversity_level: :healthy,
+              convergence_risk: 0.5
+            },
             hypervolume: 0.75,
             consumption: [evaluations: 30, cost: 0.5]
           })
@@ -499,16 +648,23 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
     end
 
     test "early budget exhaustion stops before plateau" do
-      detector = Detector.new(
-        plateau_opts: [patience: 10],
-        budget_opts: [max_evaluations: 150]
-      )
+      detector =
+        Detector.new(
+          plateau_opts: [patience: 10],
+          budget_opts: [max_evaluations: 150]
+        )
 
       # Improving fitness but running out of budget
       detector =
         Enum.reduce(1..5, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5 + gen * 0.05, mean_fitness: 0.45 + gen * 0.05, median_fitness: 0.43 + gen * 0.05, std_dev: 0.05},
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5 + gen * 0.05,
+              mean_fitness: 0.45 + gen * 0.05,
+              median_fitness: 0.43 + gen * 0.05,
+              std_dev: 0.05
+            },
             consumption: [evaluations: 30]
           })
         end)
@@ -521,16 +677,23 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
     end
 
     test "diversity collapse triggers early termination" do
-      detector = Detector.new(
-        diversity_opts: [critical_threshold: 0.15, patience: 2],
-        plateau_opts: [patience: 10]
-      )
+      detector =
+        Detector.new(
+          diversity_opts: [critical_threshold: 0.15, patience: 2],
+          plateau_opts: [patience: 10]
+        )
 
       # Fitness still improving but diversity collapsing
       detector =
         Enum.reduce(1..10, detector, fn gen, acc ->
           Detector.update(acc, %{
-            fitness_record: %{generation: gen, best_fitness: 0.5 + gen * 0.05, mean_fitness: 0.45 + gen * 0.05, median_fitness: 0.43 + gen * 0.05, std_dev: 0.05},
+            fitness_record: %{
+              generation: gen,
+              best_fitness: 0.5 + gen * 0.05,
+              mean_fitness: 0.45 + gen * 0.05,
+              median_fitness: 0.43 + gen * 0.05,
+              std_dev: 0.05
+            },
             diversity_metrics: %{
               generation: gen,
               pairwise_diversity: max(0.05, 0.50 - gen * 0.05),

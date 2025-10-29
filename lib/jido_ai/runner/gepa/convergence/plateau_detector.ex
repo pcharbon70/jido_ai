@@ -182,6 +182,7 @@ defmodule Jido.AI.Runner.GEPA.Convergence.PlateauDetector do
 
       # Calculate improvements
       absolute_improvement = recent_fitness - baseline_fitness
+
       relative_improvement =
         if baseline_fitness > 0 do
           absolute_improvement / baseline_fitness

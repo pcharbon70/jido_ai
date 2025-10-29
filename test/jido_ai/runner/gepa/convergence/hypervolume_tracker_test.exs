@@ -540,7 +540,8 @@ defmodule Jido.AI.Runner.GEPA.Convergence.HypervolumeTrackerTest do
     end
 
     test "handles alternating hypervolume values" do
-      tracker = HypervolumeTracker.new(patience: 3, absolute_threshold: 0.001, relative_threshold: 0.01)
+      tracker =
+        HypervolumeTracker.new(patience: 3, absolute_threshold: 0.001, relative_threshold: 0.01)
 
       # Use small oscillations that don't exceed thresholds
       tracker =

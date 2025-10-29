@@ -276,7 +276,9 @@ defmodule Jido.AI.Runner.GEPA.Metrics do
       |> Enum.map(& &1.value)
 
     if length(values) < 2 do
-      Logger.warning("Insufficient data for confidence interval (type: #{type}, count: #{length(values)})")
+      Logger.warning(
+        "Insufficient data for confidence interval (type: #{type}, count: #{length(values)})"
+      )
 
       nil
     else

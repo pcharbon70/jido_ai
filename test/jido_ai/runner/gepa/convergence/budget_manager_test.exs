@@ -481,7 +481,8 @@ defmodule Jido.AI.Runner.GEPA.Convergence.BudgetManagerTest do
 
       elapsed = BudgetManager.total_time_elapsed(manager)
       assert elapsed > 0
-      assert elapsed < 1.0  # Should be very small
+      # Should be very small
+      assert elapsed < 1.0
     end
 
     test "returns 0.0 when start_time is nil" do

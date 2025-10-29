@@ -412,7 +412,10 @@ defmodule Jido.AI.Runner.ChainOfThought.SelfCorrection do
         score = quality_score(validated_result, [])
 
         if quality_threshold_met?(score, context.threshold) do
-          Logger.info("Self-correction succeeded at iteration #{context.iteration} with quality #{score}")
+          Logger.info(
+            "Self-correction succeeded at iteration #{context.iteration} with quality #{score}"
+          )
+
           {:ok, validated_result}
         else
           # Quality not met, try correction
@@ -440,7 +443,8 @@ defmodule Jido.AI.Runner.ChainOfThought.SelfCorrection do
       strategy = select_correction_strategy(:minor, context.iteration, context.history)
       new_history = [{context.iteration, result, score, strategy} | context.history]
 
-      if context.callback, do: context.callback.({:correction, context.iteration, strategy, score})
+      if context.callback,
+        do: context.callback.({:correction, context.iteration, strategy, score})
 
       new_context = %{context | iteration: context.iteration + 1, history: new_history}
       do_iterative_execute(new_context)
@@ -456,7 +460,8 @@ defmodule Jido.AI.Runner.ChainOfThought.SelfCorrection do
       strategy = select_correction_strategy(divergence, context.iteration, context.history)
       new_history = [{context.iteration, result, reason, divergence, strategy} | context.history]
 
-      if context.callback, do: context.callback.({:correction, context.iteration, strategy, divergence})
+      if context.callback,
+        do: context.callback.({:correction, context.iteration, strategy, divergence})
 
       new_context = %{context | iteration: context.iteration + 1, history: new_history}
       do_iterative_execute(new_context)

@@ -75,7 +75,9 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.WeightedAggregator do
     prov_weight = Keyword.get(opts, :provenance_weight, @provenance_weight)
     rec_weight = Keyword.get(opts, :recency_weight, @recency_weight)
 
-    Logger.debug("Weighting suggestions (clusters: #{length(clusters)}, weights: #{inspect({freq_weight, impact_weight, prov_weight, rec_weight})})")
+    Logger.debug(
+      "Weighting suggestions (clusters: #{length(clusters)}, weights: #{inspect({freq_weight, impact_weight, prov_weight, rec_weight})})"
+    )
 
     weighted =
       Enum.map(clusters, fn cluster ->

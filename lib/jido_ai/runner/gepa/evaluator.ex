@@ -142,7 +142,9 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
   def evaluate_prompt(prompt, opts) when is_binary(prompt) and is_list(opts) do
     config = build_config!(opts)
 
-    Logger.debug("Evaluating prompt (length: #{String.length(prompt)}, timeout: #{config.timeout})")
+    Logger.debug(
+      "Evaluating prompt (length: #{String.length(prompt)}, timeout: #{config.timeout})"
+    )
 
     case spawn_and_evaluate(prompt, config) do
       {:ok, result} ->
@@ -335,7 +337,9 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
   @doc false
   @spec execute_evaluation(pid(), prompt(), EvaluationConfig.t()) :: EvaluationResult.t()
   defp execute_evaluation(agent_pid, prompt, %EvaluationConfig{} = config) do
-    Logger.debug("Executing evaluation (agent: #{inspect(agent_pid)}, timeout: #{config.timeout})")
+    Logger.debug(
+      "Executing evaluation (agent: #{inspect(agent_pid)}, timeout: #{config.timeout})"
+    )
 
     # Start trajectory collection
     trajectory =
@@ -417,7 +421,9 @@ defmodule Jido.AI.Runner.GEPA.Evaluator do
         }
 
       {:error, reason} ->
-        Logger.warning("Evaluation failed (agent: #{inspect(agent_pid)}, reason: #{inspect(reason)})")
+        Logger.warning(
+          "Evaluation failed (agent: #{inspect(agent_pid)}, reason: #{inspect(reason)})"
+        )
 
         # Record failure
         trajectory =

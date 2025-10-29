@@ -257,6 +257,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.SelectionIntegrationTest do
       # Most elites should be from best fronts (some randomness in population generation)
       # At least 70% should be from Front 1 or Front 2 (probabilistic due to random population)
       best_front_count = Enum.count(elites, fn c -> c.pareto_rank <= 2 end)
+
       assert best_front_count >= 7,
              "At least 7/10 elites should be from Front 1 or Front 2, got #{best_front_count}"
     end

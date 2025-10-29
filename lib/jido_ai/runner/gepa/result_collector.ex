@@ -324,7 +324,9 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
         state
       end
 
-    Logger.debug("ResultCollector started (batch_size: #{config.batch_size}, batch_timeout: #{config.batch_timeout}, expected_count: #{inspect(config.expected_count)}, timeout: #{config.timeout})")
+    Logger.debug(
+      "ResultCollector started (batch_size: #{config.batch_size}, batch_timeout: #{config.batch_timeout}, expected_count: #{inspect(config.expected_count)}, timeout: #{config.timeout})"
+    )
 
     {:ok, state}
   end
@@ -336,7 +338,9 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
 
     state = %{state | pending: Map.put(state.pending, ref, pid)}
 
-    Logger.debug("Registered evaluation (ref: #{inspect(ref)}, pid: #{inspect(pid)}, pending_count: #{map_size(state.pending)})")
+    Logger.debug(
+      "Registered evaluation (ref: #{inspect(ref)}, pid: #{inspect(pid)}, pending_count: #{map_size(state.pending)})"
+    )
 
     {:noreply, state}
   end
@@ -360,7 +364,9 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
         # Add to current batch
         state = add_to_batch(state, result)
 
-        Logger.debug("Result submitted (ref: #{inspect(ref)}, fitness: #{inspect(result.fitness)}, pending_count: #{map_size(state.pending)}, completed_count: #{map_size(state.results)})")
+        Logger.debug(
+          "Result submitted (ref: #{inspect(ref)}, fitness: #{inspect(result.fitness)}, pending_count: #{map_size(state.pending)}, completed_count: #{map_size(state.results)})"
+        )
 
         # Check if batch should be flushed
         state = maybe_flush_batch(state)
@@ -430,7 +436,9 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
     # Find the evaluation ref for this PID
     case Enum.find(state.pending, fn {_ref, p} -> p == pid end) do
       {eval_ref, ^pid} ->
-        Logger.warning("Evaluation process crashed (pid: #{inspect(pid)}, reason: #{inspect(reason)}, ref: #{inspect(eval_ref)})")
+        Logger.warning(
+          "Evaluation process crashed (pid: #{inspect(pid)}, reason: #{inspect(reason)}, ref: #{inspect(eval_ref)})"
+        )
 
         # Create error result
         error_result = %EvaluationResult{
@@ -469,7 +477,9 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
 
   @impl GenServer
   def handle_info(:global_timeout, state) do
-    Logger.warning("Global timeout reached (pending_count: #{map_size(state.pending)}, completed_count: #{map_size(state.results)})")
+    Logger.warning(
+      "Global timeout reached (pending_count: #{map_size(state.pending)}, completed_count: #{map_size(state.results)})"
+    )
 
     # Flush current batch
     state = flush_batch_internal(state)
@@ -537,7 +547,9 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
           :ok
         rescue
           error ->
-            Logger.error("Batch callback failed (error: #{inspect(error)}, batch_size: #{length(state.current_batch)})")
+            Logger.error(
+              "Batch callback failed (error: #{inspect(error)}, batch_size: #{length(state.current_batch)})"
+            )
         end
       end
 
@@ -561,7 +573,9 @@ defmodule Jido.AI.Runner.GEPA.ResultCollector do
   @spec maybe_notify_completion(State.t()) :: State.t()
   defp maybe_notify_completion(state) do
     if complete?(state) do
-      Logger.info("All expected results collected (count: #{map_size(state.results)}, expected: #{state.config.expected_count})")
+      Logger.info(
+        "All expected results collected (count: #{map_size(state.results)}, expected: #{state.config.expected_count})"
+      )
 
       notify_waiters(state, :complete)
     else

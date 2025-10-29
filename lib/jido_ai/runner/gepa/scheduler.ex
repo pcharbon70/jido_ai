@@ -213,7 +213,9 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
 
   @impl true
   def init(%Config{} = config) do
-    Logger.info("Initializing GEPA Scheduler (max_concurrent: #{config.max_concurrent}, max_queue_size: #{config.max_queue_size})")
+    Logger.info(
+      "Initializing GEPA Scheduler (max_concurrent: #{config.max_concurrent}, max_queue_size: #{config.max_queue_size})"
+    )
 
     state = %State{
       config: config,
@@ -269,7 +271,9 @@ defmodule Jido.AI.Runner.GEPA.Scheduler do
             {:reply, {:ok, task_id}, final_state}
           else
             :error ->
-              Logger.warning("Invalid task_spec missing required keys (task_spec: #{inspect(task_spec)}, required: #{inspect([:candidate_id, :evaluator])})")
+              Logger.warning(
+                "Invalid task_spec missing required keys (task_spec: #{inspect(task_spec)}, required: #{inspect([:candidate_id, :evaluator])})"
+              )
 
               {:reply, {:error, :invalid_task_spec}, state}
           end
