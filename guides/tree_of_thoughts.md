@@ -39,6 +39,8 @@ ToT achieves state-of-the-art results on tasks requiring strategic reasoning:
 - Tasks genuinely requiring exhaustive exploration
 - Applications where single-path methods demonstrably fail
 
+> **💡 Practical Examples**: See the [Tree-of-Thoughts examples directory](../examples/tree-of-thoughts/) for complete working implementations including a game solver and a strategic planner.
+
 ---
 
 ## Core Concepts
@@ -1659,7 +1661,7 @@ end
 
 If issues persist:
 
-1. Check [examples directory](../examples/tree_of_thought_example.ex)
+1. Check [Tree-of-Thoughts examples directory](../examples/tree-of-thoughts/)
 2. Review [API documentation](https://hexdocs.pm/jido_ai)
 3. Search [GitHub issues](https://github.com/agentjido/jido_ai/issues)
 4. Ask in [Elixir Forum](https://elixirforum.com/)
@@ -1736,9 +1738,11 @@ Should I use ToT?
 
 Explore complete working examples:
 
-- `examples/tree_of_thought_example.ex` - Comprehensive ToT patterns
+- [Tree-of-Thoughts Examples Directory](../examples/tree-of-thoughts/) - Complete working implementations:
+  - `game_solver.ex` - Basic ToT with BFS/DFS search and thought evaluation
+  - `strategic_planner.ex` - Advanced ToT with best-first search and pruning strategies
+  - `README.md` - Comprehensive documentation and usage patterns
 - `lib/jido_ai/runner/tree_of_thoughts.ex` - Full implementation
 - `test/jido_ai/runner/tree_of_thoughts_test.exs` - Test suite
-- Game solving, planning, creative writing, and algorithm design patterns (see Integration Patterns section)
 
 By mastering Tree-of-Thoughts, you can tackle problems that require strategic exploration and planning, achieving dramatic accuracy improvements on tasks where single-path reasoning falls short. However, always consider the significant cost increase and use ToT judiciously for high-value problems where the investment is justified.

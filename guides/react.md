@@ -34,6 +34,8 @@ ReAct excels on tasks requiring information gathering and multi-step investigati
 
 **Cost**: Typically 10-30× the cost of direct prompting, depending on the number of reasoning steps (average: 5-10 steps per query).
 
+> **💡 Practical Examples**: See the [ReAct examples directory](../examples/react/) for complete working implementations including a research assistant and a multi-step task solver.
+
 ---
 
 ## Core Concepts
@@ -1633,7 +1635,7 @@ Logger.configure(level: :debug)
 
 If issues persist:
 
-1. Check [examples directory](../examples/) for working code
+1. Check [ReAct examples directory](../examples/react/) for working code
 2. Review [API documentation](https://hexdocs.pm/jido_ai)
 3. Search [GitHub issues](https://github.com/agentjido/jido_ai/issues)
 4. Ask in [Elixir Forum](https://elixirforum.com/)
@@ -1688,8 +1690,11 @@ ReAct (Reasoning + Acting) provides a powerful framework for tasks requiring ite
 
 Explore complete working examples:
 
+- [ReAct Examples Directory](../examples/react/) - Complete working implementations:
+  - `research_assistant.ex` - Basic ReAct with tool integration and reasoning
+  - `task_solver.ex` - Advanced ReAct with multi-step problem solving and trajectory tracking
+  - `README.md` - Comprehensive documentation and usage patterns
 - `lib/jido_ai/runner/react.ex` - Full ReAct implementation
 - `test/jido_ai/runner/react_test.exs` - Comprehensive test suite
-- Research assistant, troubleshooting, and data analysis patterns (see Integration Patterns section)
 
 By mastering ReAct, you can build powerful agents that combine reasoning with real-world actions, achieving state-of-the-art performance on complex information gathering and problem-solving tasks.

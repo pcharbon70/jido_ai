@@ -21,6 +21,8 @@
 | **Best For** | Mission-critical decisions, mathematical reasoning, ambiguous problems |
 | **Optimal Sample Count** | k=5-10 (diminishing returns beyond k=10) |
 
+> **💡 Practical Examples**: See the [Self-Consistency examples directory](../examples/self-consistency/) for complete working implementations including a math reasoning solver and a multi-domain solver with advanced voting strategies.
+
 ### How Self-Consistency Differs from Standard CoT
 
 | Aspect | Chain-of-Thought | Self-Consistency |
@@ -2180,6 +2182,15 @@ Self-Consistency works well with other reasoning frameworks:
 3. **Optimize**: Tune sample count, temperature, and thresholds for your domain
 4. **Scale**: Gradually expand to more use cases based on demonstrated value
 5. **Monitor**: Track consensus, confidence, and costs in production
+
+### Examples
+
+Explore complete working examples:
+
+- [Self-Consistency Examples Directory](../examples/self-consistency/) - Complete working implementations:
+  - `math_reasoning.ex` - Basic Self-Consistency with majority voting and quality scoring
+  - `multi_domain_solver.ex` - Advanced Self-Consistency with multiple voting strategies and outlier detection
+  - `README.md` - Comprehensive documentation and usage patterns
 
 ### Additional Resources
 

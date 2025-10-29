@@ -28,6 +28,8 @@ CoT delivers significant improvements across various domains:
 
 **Cost**: CoT adds 3-4× token overhead for single-shot reasoning, with latency increases of 2-3 seconds.
 
+> **💡 Practical Examples**: See the [Chain-of-Thought examples directory](../examples/chain-of-thought/) for complete working implementations including a basic calculator and an advanced problem solver.
+
 ---
 
 ## Core Concepts
@@ -1454,7 +1456,7 @@ compare_results(baseline_results, cot_results)
 
 If issues persist:
 
-1. Check [examples directory](../examples/chain_of_thought_example.ex)
+1. Check [examples directory](../examples/chain-of-thought/)
 2. Review [API documentation](https://hexdocs.pm/jido_ai)
 3. Search [GitHub issues](https://github.com/agentjido/jido_ai/issues)
 4. Ask in [Elixir Forum](https://elixirforum.com/)
@@ -1509,7 +1511,10 @@ Chain-of-Thought reasoning is a powerful technique for improving LLM performance
 
 Explore complete working examples:
 
-- `examples/chain_of_thought_example.ex` - Comprehensive CoT patterns
+- [Chain-of-Thought Examples Directory](../examples/chain-of-thought/) - Complete working implementations:
+  - `calculator.ex` - Basic CoT with step-by-step mathematical reasoning
+  - `problem_solver.ex` - Advanced CoT with self-correction and verification
+  - `README.md` - Comprehensive documentation and usage patterns
 - `lib/jido_ai/runner/chain_of_thought.ex` - Full implementation
 - `test/jido_ai/runner/chain_of_thought_test.exs` - Test suite
 

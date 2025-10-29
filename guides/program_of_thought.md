@@ -21,6 +21,8 @@
 | **Latency** | 3-5 seconds (classification + generation + execution + integration) |
 | **Computation Safety** | Sandboxed execution with timeout protection |
 
+> **💡 Practical Examples**: See the [Program-of-Thought examples directory](../examples/program-of-thought/) for complete working implementations including a financial calculator and a multi-domain solver with advanced safety validation.
+
 ### When PoT Outperforms Other Methods
 
 PoT is ideal when problems involve:
@@ -2214,6 +2216,15 @@ end
 2. **Experiment**: Try different domains (financial, scientific, statistical)
 3. **Optimize**: Tune timeouts, models, and validation based on your use case
 4. **Integrate**: Combine with other reasoning techniques for comprehensive problem-solving
+
+### Examples
+
+Explore complete working examples:
+
+- [Program-of-Thought Examples Directory](../examples/program-of-thought/) - Complete working implementations:
+  - `financial_calculator.ex` - Basic PoT with four-stage pipeline and safe code generation
+  - `multi_domain_solver.ex` - Advanced PoT with multi-domain routing and execution monitoring
+  - `README.md` - Comprehensive documentation and usage patterns
 
 ### Additional Resources
 
