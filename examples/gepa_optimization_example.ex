@@ -8,6 +8,31 @@ defmodule Examples.GEPAOptimizationExample do
   - Cost: How expensive the prompt is to run
   - Robustness: How consistently the prompt performs
 
+  ## Important Note
+
+  **This is currently a demonstration/template showing the GEPA API and structure.**
+  The current implementation simulates optimization results for educational purposes.
+
+  For actual prompt optimization, you would need to:
+
+  1. **Integrate with real GEPA modules**: Connect to the actual Population,
+     Selection, Mutation, and Crossover implementations in
+     `lib/jido_ai/runner/gepa/`
+
+  2. **Provide evaluation functions**: Implement real prompt evaluation by
+     running prompts against your LLM and measuring actual accuracy, latency,
+     cost, and robustness metrics
+
+  3. **Connect to LLM providers**: Use a client library (e.g., OpenAI API,
+     Anthropic API) to execute and evaluate candidate prompts
+
+  4. **Implement mutation strategies**: Use the GEPA mutation operators
+     (word swap, instruction variation, format changes) to generate prompt
+     variations
+
+  This example demonstrates the intended usage pattern and API design that the
+  full GEPA implementation will provide.
+
   ## Basic Usage
 
       # Simple optimization
