@@ -51,61 +51,77 @@ For other providers, see the [Providers Guide](guides/providers/providers.md).
 
 ## Quick Start
 
-Here's a simple example that extracts structured information about US politicians:
+Here's a simple example using the modern ReqLLM-based API:
 
 ```elixir
-defmodule MyApp.Politician do
-  defmodule Schema do
-    use Ecto.Schema
-    use Instructor
-    @primary_key false
-    embedded_schema do
-      field(:first_name, :string)
-      field(:last_name, :string)
+# Basic chat completion
+alias Jido.AI.Actions.ReqLlm.ChatCompletion
 
-      embeds_many :offices_held, Office, primary_key: false do
-        field(:office, Ecto.Enum,
-          values: [:president, :vice_president, :governor, :congress, :senate]
-        )
-        field(:from_date, :date)
-        field(:to_date, :date)
-      end
-    end
-  end
+# Create a model
+{:ok, model} = Jido.AI.Model.from({:anthropic, [model: "claude-3-5-sonnet-20241022"]})
 
+# Create a prompt
+prompt = Jido.AI.Prompt.new(:user, "Explain Elixir in one sentence")
+
+# Get a response
+{:ok, result} = ChatCompletion.run(%{
+  model: model,
+  prompt: prompt,
+  temperature: 0.7
+})
+
+IO.puts(result.content)
+# => "Elixir is a functional, concurrent programming language..."
+
+# Using with tools (function calling)
+defmodule WeatherAction do
   use Jido.Action,
-    name: "politician",
-    description: "Extract information about US politicians",
+    name: "get_weather",
+    description: "Get current weather for a location",
     schema: [
-      query: [type: :string, required: true]
+      location: [type: :string, required: true]
     ]
 
-  def run(params, _context) do
-    JidoAi.Actions.Anthropic.ChatCompletion.run(
-      %{
-        model: "claude-3-5-haiku-latest",
-        messages: [%{role: "user", content: params.query}],
-        response_model: Schema,
-        temperature: 0.5,
-        max_tokens: 1000
-      },
-      %{}
-    )
+  def run(%{location: location}, _context) do
+    # Fetch weather data...
+    {:ok, %{location: location, temp: 72, condition: "Sunny"}}
   end
 end
 
-# Use it
-{:ok, result} = Jido.Exec.run(
-  MyApp.Politician,
-  %{query: "Tell me about Barack Obama's political career"}
+# Use with tools
+{:ok, result} = ChatCompletion.run(%{
+  model: model,
+  prompt: Jido.AI.Prompt.new(:user, "What's the weather in Paris?"),
+  tools: [WeatherAction],
+  temperature: 0.7
+})
+
+# The LLM will call the weather tool and incorporate the results
+IO.puts(result.content)
+# => "The weather in Paris is currently sunny with a temperature of 72°F"
+```
+
+### With Conversation Manager
+
+For stateful multi-turn conversations:
+
+```elixir
+alias Jido.AI.ReqLlmBridge.ToolIntegrationManager
+
+# Start a conversation
+{:ok, conv_id} = ToolIntegrationManager.start_conversation(
+  [WeatherAction],
+  %{model: "gpt-4", temperature: 0.7}
 )
 
-result.result
-# => %MyApp.Politician.Schema{
-#      first_name: "Barack",
-#      last_name: "Obama",
-#      offices_held: [...]
-#    }
+# Chat across multiple turns
+{:ok, response} = ToolIntegrationManager.continue_conversation(
+  conv_id,
+  "What's the weather in Tokyo?"
+)
+
+# Cleanup
+:ok = ToolIntegrationManager.end_conversation(conv_id)
 ```
 
 For more examples, see [examples/](examples/).
