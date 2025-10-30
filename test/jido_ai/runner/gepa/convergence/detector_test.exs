@@ -83,8 +83,8 @@ defmodule Jido.AI.Runner.GEPA.Convergence.DetectorTest do
       detector = Detector.update(detector, metrics)
 
       assert length(detector.plateau_detector.fitness_history) == 1
-      assert length(detector.diversity_monitor.diversity_history) == 0
-      assert length(detector.hypervolume_tracker.hypervolume_history) == 0
+      assert Enum.empty?(detector.diversity_monitor.diversity_history)
+      assert Enum.empty?(detector.hypervolume_tracker.hypervolume_history)
     end
 
     test "increments generation counter" do

@@ -43,10 +43,10 @@ defmodule Jido.AI.Runner.GEPA.Convergence.Detector do
   use TypedStruct
 
   alias Jido.AI.Runner.GEPA.Convergence.{
-    PlateauDetector,
+    BudgetManager,
     DiversityMonitor,
     HypervolumeTracker,
-    BudgetManager,
+    PlateauDetector,
     Status
   }
 
