@@ -21,110 +21,21 @@ Whether you're building a chatbot, research assistant, code generator, or autono
 
 ## Installation
 
-Add Jido AI to your dependencies:
-
-```elixir
-def deps do
-  [
-    {:jido, "~> 1.2.0"},
-    {:jido_ai, "~> 0.5.2"}
-  ]
-end
-```
+Add `jido` and `jido_ai` to your `mix.exs` dependencies.
 
 ## Configuration
 
-Configure your LLM provider. Here's an example for Anthropic:
-
-```elixir
-# config/config.exs
-config :instructor,
-  adapter: Instructor.Adapters.Anthropic,
-  anthropic: [
-    api_key: System.get_env("ANTHROPIC_API_KEY")
-  ]
-```
-
-For other providers, see the [Providers Guide](guides/providers/providers.md).
+Configure your LLM provider in `config/config.exs` with the appropriate adapter and API key. For other providers, see the [Providers Guide](guides/providers/providers.md).
 
 ---
 
 ## Quick Start
 
-Here's a simple example using the modern ReqLLM-based API:
+Get started quickly with basic chat completion, tool integration, and stateful conversations using the modern ReqLLM-based API. The framework supports creating models from various providers, crafting prompts, and getting responses with optional tool (function calling) support.
 
-```elixir
-# Basic chat completion
-alias Jido.AI.Actions.ReqLlm.ChatCompletion
+For stateful multi-turn conversations, use the ConversationManager to maintain context across multiple turns with automatic tool coordination and conversation cleanup.
 
-# Create a model
-{:ok, model} = Jido.AI.Model.from({:anthropic, [model: "claude-3-5-sonnet-20241022"]})
-
-# Create a prompt
-prompt = Jido.AI.Prompt.new(:user, "Explain Elixir in one sentence")
-
-# Get a response
-{:ok, result} = ChatCompletion.run(%{
-  model: model,
-  prompt: prompt,
-  temperature: 0.7
-})
-
-IO.puts(result.content)
-# => "Elixir is a functional, concurrent programming language..."
-
-# Using with tools (function calling)
-defmodule WeatherAction do
-  use Jido.Action,
-    name: "get_weather",
-    description: "Get current weather for a location",
-    schema: [
-      location: [type: :string, required: true]
-    ]
-
-  def run(%{location: location}, _context) do
-    # Fetch weather data...
-    {:ok, %{location: location, temp: 72, condition: "Sunny"}}
-  end
-end
-
-# Use with tools
-{:ok, result} = ChatCompletion.run(%{
-  model: model,
-  prompt: Jido.AI.Prompt.new(:user, "What's the weather in Paris?"),
-  tools: [WeatherAction],
-  temperature: 0.7
-})
-
-# The LLM will call the weather tool and incorporate the results
-IO.puts(result.content)
-# => "The weather in Paris is currently sunny with a temperature of 72°F"
-```
-
-### With Conversation Manager
-
-For stateful multi-turn conversations:
-
-```elixir
-alias Jido.AI.ReqLlmBridge.ToolIntegrationManager
-
-# Start a conversation
-{:ok, conv_id} = ToolIntegrationManager.start_conversation(
-  [WeatherAction],
-  %{model: "gpt-4", temperature: 0.7}
-)
-
-# Chat across multiple turns
-{:ok, response} = ToolIntegrationManager.continue_conversation(
-  conv_id,
-  "What's the weather in Tokyo?"
-)
-
-# Cleanup
-:ok = ToolIntegrationManager.end_conversation(conv_id)
-```
-
-For more examples, see [examples/](examples/).
+📖 [Getting Started Guide](guides/getting-started.md) | 💡 [Examples](examples/)
 
 ---
 
@@ -134,50 +45,50 @@ For more examples, see [examples/](examples/).
 
 Foundation guides for using Jido AI:
 
-| Guide | Description |
-|-------|-------------|
-| [Getting Started](guides/getting-started.md) | Quick start guide and basic concepts |
-| [Actions](guides/actions.md) | Building and composing AI actions |
-| [Prompt Engineering](guides/prompt.md) | Crafting effective prompts and messages |
-| [Keyring](guides/keyring.md) | Managing API keys for LLM providers |
-| [Agent Skills](guides/agent-skill.md) | Creating reusable agent capabilities |
-| [Troubleshooting](guides/troubleshooting.md) | Common issues and solutions |
+| Guide | Description | Examples |
+|-------|-------------|----------|
+| [Getting Started](guides/getting-started.md) | Quick start guide and basic concepts | [examples/](examples/) |
+| [Actions](guides/actions.md) | Building and composing AI actions | [examples/](examples/) |
+| [Prompt Engineering](guides/prompt.md) | Crafting effective prompts and messages | [examples/](examples/) |
+| [Keyring](guides/keyring.md) | Managing API keys for LLM providers | - |
+| [Agent Skills](guides/agent-skill.md) | Creating reusable agent capabilities | [examples/](examples/) |
+| [Troubleshooting](guides/troubleshooting.md) | Common issues and solutions | - |
 
 ### Provider Guides
 
 Connect to various LLM providers:
 
-| Guide | Description |
-|-------|-------------|
-| [Providers Overview](guides/providers/providers.md) | Supported LLM providers and configuration |
-| [Provider Matrix](guides/providers/provider-matrix.md) | Feature comparison across providers |
-| [Enterprise Providers](guides/providers/enterprise.md) | Azure, AWS Bedrock, enterprise setups |
-| [High Performance](guides/providers/high-performance.md) | Optimization for production workloads |
-| [Local Models](guides/providers/local-models.md) | Running models locally (Ollama, etc.) |
-| [Regional Providers](guides/providers/regional.md) | Region-specific providers and compliance |
-| [Specialized Providers](guides/providers/specialized.md) | Domain-specific models and providers |
+| Guide | Description | Examples |
+|-------|-------------|----------|
+| [Providers Overview](guides/providers/providers.md) | Supported LLM providers and configuration | [examples/](examples/) |
+| [Provider Matrix](guides/providers/provider-matrix.md) | Feature comparison across providers | - |
+| [Enterprise Providers](guides/providers/enterprise.md) | Azure, AWS Bedrock, enterprise setups | - |
+| [High Performance](guides/providers/high-performance.md) | Optimization for production workloads | - |
+| [Local Models](guides/providers/local-models.md) | Running models locally (Ollama, etc.) | - |
+| [Regional Providers](guides/providers/regional.md) | Region-specific providers and compliance | - |
+| [Specialized Providers](guides/providers/specialized.md) | Domain-specific models and providers | - |
 
 ### Advanced Topics
 
 Deep dives into advanced features:
 
-| Guide | Description |
-|-------|-------------|
-| [Advanced Parameters](guides/advanced/advanced-parameters.md) | Fine-tuning model behavior |
-| [Code Execution](guides/advanced/code-execution.md) | Executing generated code safely |
-| [Context Windows](guides/advanced/context-windows.md) | Managing large context efficiently |
-| [Fine-Tuning](guides/advanced/fine-tuning.md) | Custom model training |
-| [Plugins](guides/advanced/plugins.md) | Extending Jido AI with plugins |
-| [RAG Integration](guides/advanced/rag-integration.md) | Retrieval-Augmented Generation patterns |
+| Guide | Description | Examples |
+|-------|-------------|----------|
+| [Advanced Parameters](guides/advanced/advanced-parameters.md) | Fine-tuning model behavior | [examples/](examples/) |
+| [Code Execution](guides/advanced/code-execution.md) | Executing generated code safely | [program-of-thought/](examples/program-of-thought/) |
+| [Context Windows](guides/advanced/context-windows.md) | Managing large context efficiently | - |
+| [Fine-Tuning](guides/advanced/fine-tuning.md) | Custom model training | - |
+| [Plugins](guides/advanced/plugins.md) | Extending Jido AI with plugins | - |
+| [RAG Integration](guides/advanced/rag-integration.md) | Retrieval-Augmented Generation patterns | - |
 
 ### GEPA (Prompt Optimization)
 
 Gradient-Free Evolutionary Prompt Optimization:
 
-| Guide | Description |
-|-------|-------------|
-| [GEPA Overview](guides/gepa/gepa.md) | Complete guide to evolutionary prompt optimization |
-| [GEPA for the Layman](guides/gepa/gepa_for_the_layman.md) | Non-technical introduction to GEPA |
+| Guide | Description | Examples |
+|-------|-------------|----------|
+| [GEPA Overview](guides/gepa/gepa.md) | Complete guide to evolutionary prompt optimization | [examples/](examples/) |
+| [GEPA for the Layman](guides/gepa/gepa_for_the_layman.md) | Non-technical introduction to GEPA | [examples/](examples/) |
 
 ---
 
@@ -189,29 +100,19 @@ Advanced reasoning techniques for complex problem-solving:
 
 Jido AI implements state-of-the-art reasoning frameworks that dramatically improve LLM performance on complex tasks. Each framework is suited to different types of problems:
 
-| Framework | Best For | Accuracy Gain | Cost | Latency |
-|-----------|----------|---------------|------|---------|
-| [Chain-of-Thought](guides/chain_of_thought.md) | Multi-step reasoning | +8-15% | 3-4× | 2-3s |
-| [ReAct](guides/react.md) | Tool use, research | +27% | 10-30× | 20-60s |
-| [Tree-of-Thoughts](guides/tree_of_thoughts.md) | Planning, games | +70% | 50-150× | 30-120s |
-| [Self-Consistency](guides/self_consistency.md) | Critical accuracy | +17.9% | 5-10× | 15-25s |
-| [Program-of-Thought](guides/program_of_thought.md) | Math, calculations | +8.5% | 2-3× | 3-8s |
+| Framework | Best For | Accuracy Gain | Cost | Latency | Examples |
+|-----------|----------|---------------|------|---------|----------|
+| [Chain-of-Thought](guides/chain_of_thought.md) | Multi-step reasoning | +8-15% | 3-4× | 2-3s | [chain-of-thought/](examples/chain-of-thought/) |
+| [ReAct](guides/react.md) | Tool use, research | +27% | 10-30× | 20-60s | [react/](examples/react/) |
+| [Tree-of-Thoughts](guides/tree_of_thoughts.md) | Planning, games | +70% | 50-150× | 30-120s | [tree-of-thoughts/](examples/tree-of-thoughts/) |
+| [Self-Consistency](guides/self_consistency.md) | Critical accuracy | +17.9% | 5-10× | 15-25s | [self-consistency/](examples/self-consistency/) |
+| [Program-of-Thought](guides/program_of_thought.md) | Math, calculations | +8.5% | 2-3× | 3-8s | [program-of-thought/](examples/program-of-thought/) |
 
 ### Chain-of-Thought (CoT)
 
 **Step-by-step reasoning for complex problems**
 
 Chain-of-Thought prompts LLMs to break down problems into intermediate steps, making reasoning explicit and verifiable. Essential for mathematical reasoning, logical deduction, and multi-step planning.
-
-```elixir
-# Use CoT runner with any Jido Agent
-defmodule MyAgent do
-  use Jido.Agent,
-    name: "reasoning_agent",
-    runner: Jido.AI.Runner.ChainOfThought,
-    actions: [MyAction]
-end
-```
 
 📖 [Complete Guide](guides/chain_of_thought.md) | 💡 [Examples](examples/chain-of-thought/)
 
@@ -223,16 +124,6 @@ end
 
 ReAct combines reasoning with action execution in an iterative loop. The model thinks about what to do, executes tools, observes results, and adjusts its approach dynamically.
 
-```elixir
-# ReAct automatically coordinates tools
-defmodule ResearchAgent do
-  use Jido.Agent,
-    name: "research_agent",
-    runner: Jido.AI.Runner.ReAct,
-    actions: [SearchAction, WeatherAction, CalculatorAction]
-end
-```
-
 📖 [Complete Guide](guides/react.md) | 💡 [Examples](examples/react/)
 
 **Performance**: +27.4% on multi-hop QA tasks, 10-30× cost depending on steps.
@@ -242,16 +133,6 @@ end
 **Exploring multiple reasoning paths with backtracking**
 
 Tree-of-Thoughts explores multiple reasoning trajectories simultaneously, evaluates their promise, and backtracks from dead ends. Ideal for strategic planning, game playing, and exhaustive search.
-
-```elixir
-# ToT explores solution space systematically
-{:ok, result} = Jido.AI.Runner.TreeOfThoughts.run(
-  agent,
-  search_strategy: :best_first,
-  branching_factor: 3,
-  max_depth: 5
-)
-```
 
 📖 [Complete Guide](guides/tree_of_thoughts.md) | 💡 [Examples](examples/tree-of-thoughts/)
 
@@ -263,16 +144,6 @@ Tree-of-Thoughts explores multiple reasoning trajectories simultaneously, evalua
 
 Self-Consistency generates diverse reasoning approaches and uses majority voting to select the most reliable answer. Reduces errors through the "wisdom of the crowd."
 
-```elixir
-# Generate multiple paths and vote
-{:ok, result} = Jido.AI.Runner.SelfConsistency.run(
-  agent,
-  sample_count: 7,
-  temperature: 0.8,
-  voting_strategy: :hybrid
-)
-```
-
 📖 [Complete Guide](guides/self_consistency.md) | 💡 [Examples](examples/self-consistency/)
 
 **Performance**: +17.9% accuracy on GSM8K, 5-10× cost with k=5-10 samples.
@@ -283,28 +154,17 @@ Self-Consistency generates diverse reasoning approaches and uses majority voting
 
 Program-of-Thought generates executable code for precise calculations instead of asking LLMs to perform arithmetic. Near-zero error rate for mathematical operations.
 
-```elixir
-# LLM generates code, code executes calculations
-{:ok, result} = Jido.AI.Runner.ProgramOfThought.solve(
-  "Calculate compound interest on $10,000 at 5% for 3 years",
-  timeout: 10_000,
-  validate_safety: true
-)
-```
-
 📖 [Complete Guide](guides/program_of_thought.md) | 💡 [Examples](examples/program-of-thought/)
 
 **Performance**: +8.5% accuracy on GSM8K, 2-3× cost, near-zero arithmetic errors.
 
 ### Choosing a Framework
 
-```
-Simple reasoning problem → Chain-of-Thought
-Need to use tools → ReAct
-Strategic planning required → Tree-of-Thoughts
-Critical accuracy needed → Self-Consistency
-Mathematical calculations → Program-of-Thought
-```
+- Simple reasoning problem → Chain-of-Thought
+- Need to use tools → ReAct
+- Strategic planning required → Tree-of-Thoughts
+- Critical accuracy needed → Self-Consistency
+- Mathematical calculations → Program-of-Thought
 
 All frameworks include:
 - ✅ Complete working examples
@@ -340,37 +200,7 @@ The system consists of three coordinated components:
 
 ### Quick Example
 
-```elixir
-alias Jido.AI.ReqLlmBridge.ToolIntegrationManager
-
-# Start a conversation with tools
-{:ok, conv_id} = ToolIntegrationManager.start_conversation(
-  [WeatherAction, CalculatorAction],
-  %{model: "gpt-4", temperature: 0.7}
-)
-
-# Chat across multiple turns (context preserved)
-{:ok, response1} = ToolIntegrationManager.continue_conversation(
-  conv_id,
-  "What's the weather in Paris?"
-)
-
-{:ok, response2} = ToolIntegrationManager.continue_conversation(
-  conv_id,
-  "And in London?"
-)
-
-{:ok, response3} = ToolIntegrationManager.continue_conversation(
-  conv_id,
-  "Which city is warmer?"  # Uses context from previous turns
-)
-
-# Get full history
-{:ok, history} = ToolIntegrationManager.get_conversation_history(conv_id)
-
-# Cleanup
-:ok = ToolIntegrationManager.end_conversation(conv_id)
-```
+Start conversations with tools, chat across multiple turns while preserving context, retrieve full history, and perform cleanup when finished. The ToolIntegrationManager provides a high-level API for managing tool-enabled conversations.
 
 ### Advanced Features
 
@@ -401,28 +231,7 @@ Jido AI supports multiple LLM providers with consistent APIs:
 
 ### Using Google Gemini
 
-```elixir
-# Set your API key
-Jido.AI.Keyring.set_session_value(:google_api_key, "your_gemini_api_key")
-
-# Create a model
-{:ok, model} = Jido.AI.Model.from({:google, [model: "gemini-2.0-flash"]})
-
-# Use with actions
-result = Jido.AI.Actions.OpenaiEx.run(
-  %{
-    model: model,
-    messages: [%{role: :user, content: "Tell me about Elixir"}],
-    temperature: 0.7
-  },
-  %{}
-)
-```
-
-Environment variables work too:
-```bash
-GOOGLE_API_KEY=your_gemini_api_key
-```
+Set your API key using the Keyring system or environment variables, create a model instance, and use it with actions. Environment variables like `GOOGLE_API_KEY` are automatically detected.
 
 See the [Providers Guide](guides/providers/providers.md) for complete configuration details.
 
@@ -430,33 +239,7 @@ See the [Providers Guide](guides/providers/providers.md) for complete configurat
 
 ## Message Handling
 
-Jido AI provides robust message handling with support for rich content:
-
-```elixir
-alias Jido.AI.Prompt.MessageItem
-
-# Simple text message
-user_msg = MessageItem.new(%{role: :user, content: "Hello"})
-
-# System message
-system_msg = MessageItem.new(%{
-  role: :system,
-  content: "You are a helpful assistant"
-})
-
-# Multipart message with image
-rich_msg = MessageItem.new_multipart(:user, [
-  MessageItem.text_part("Check out this image:"),
-  MessageItem.image_part("https://example.com/image.jpg")
-])
-
-# Template-based message
-template_msg = MessageItem.new(%{
-  role: :system,
-  content: "You are a <%= @assistant_type %>",
-  engine: :eex
-})
-```
+Jido AI provides robust message handling with support for rich content including simple text messages, system messages, multipart messages with images, and template-based messages using EEx.
 
 ---
 
@@ -473,39 +256,11 @@ The Keyring system manages API keys for various LLM providers securely and conve
 
 ### Usage
 
-```elixir
-# Get a key (checks session first, then environment)
-api_key = Jido.AI.Keyring.get_key(:anthropic)
-
-# Set a session-specific key (current process only)
-Jido.AI.Keyring.set_session_key(:anthropic, "my_session_key")
-
-# Test if a key is valid
-case Jido.AI.Keyring.test_key(:anthropic, api_key) do
-  {:ok, _response} -> IO.puts("Key is valid!")
-  {:error, reason} -> IO.puts("Key test failed: #{inspect(reason)}")
-end
-
-# Clear session keys
-Jido.AI.Keyring.clear_all_session_keys()
-```
+The Keyring provides methods to get keys (checking session first, then environment), set session-specific keys (current process only), test if keys are valid, and clear session keys when needed.
 
 ### Configuration
 
-```elixir
-# config/config.exs
-config :jido_ai, :instructor,
-  anthropic: [api_key: "your_anthropic_key"]
-
-config :jido_ai, :openai,
-  api_key: "your_openai_key"
-```
-
-Or use environment variables:
-```bash
-ANTHROPIC_API_KEY=your_anthropic_key
-OPENAI_API_KEY=your_openai_key
-```
+Configure keys in your application config or use environment variables like `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
 
 See the [Keyring Guide](guides/keyring.md) for detailed documentation.
 
@@ -536,13 +291,7 @@ Explore complete working examples in the [examples/](examples/) directory:
 
 ## Documentation
 
-Full documentation is available at [HexDocs](https://hexdocs.pm/jido_ai).
-
-To generate documentation locally:
-
-```bash
-mix docs
-```
+Full documentation is available at [HexDocs](https://hexdocs.pm/jido_ai). To generate documentation locally, run `mix docs`.
 
 ---
 
