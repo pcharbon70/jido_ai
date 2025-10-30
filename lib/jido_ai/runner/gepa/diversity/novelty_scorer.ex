@@ -298,7 +298,7 @@ defmodule Jido.AI.Runner.GEPA.Diversity.NoveltyScorer do
     end
   end
 
-  defp select_diverse_greedy(candidates, selected, remaining) when remaining <= 0 do
+  defp select_diverse_greedy(_candidates, selected, remaining) when remaining <= 0 do
     selected
   end
 

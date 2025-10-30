@@ -39,9 +39,6 @@ defmodule Jido.AI.Runner.GEPA.FeedbackAggregation.Deduplicator do
   }
 
   @default_similarity_threshold 0.7
-  @exact_match_threshold 0.95
-  @high_similarity_threshold 0.85
-  @semantic_cluster_threshold 0.70
 
   @doc """
   Deduplicates suggestions using hierarchical similarity clustering.

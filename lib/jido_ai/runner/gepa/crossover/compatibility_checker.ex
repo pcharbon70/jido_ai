@@ -26,7 +26,6 @@ defmodule JidoAI.Runner.GEPA.Crossover.CompatibilityChecker do
       :semantic
   """
 
-  alias JidoAI.Runner.GEPA.Crossover
   alias JidoAI.Runner.GEPA.Crossover.{CompatibilityResult, SegmentedPrompt}
 
   # Contradiction patterns

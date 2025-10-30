@@ -388,7 +388,7 @@ defmodule Jido.AI.Runner.ChainOfThought do
         if config.fallback_on_error do
           ErrorHandler.handle_error(error, %{agent: agent, operation: "reasoning_generation"},
             strategy: :fallback_direct,
-            fallback_fn: fn -> Jido.AI.Runner.Simple.run(agent) end
+            fallback_fn: fn -> Jido.Runner.Simple.run(agent) end
           )
         else
           {:error, error}
@@ -408,7 +408,7 @@ defmodule Jido.AI.Runner.ChainOfThought do
         if config.fallback_on_error do
           ErrorHandler.handle_error(error, %{agent: agent},
             strategy: :fallback_direct,
-            fallback_fn: fn -> Jido.AI.Runner.Simple.run(agent) end
+            fallback_fn: fn -> Jido.Runner.Simple.run(agent) end
           )
         else
           {:error, error}
@@ -467,7 +467,7 @@ defmodule Jido.AI.Runner.ChainOfThought do
               {:error, _error} = error ->
                 if config.fallback_on_error do
                   Logger.info("Falling back to simple runner due to unexpected outcome")
-                  {:halt, Jido.AI.Runner.Simple.run(agent)}
+                  {:halt, Jido.Runner.Simple.run(agent)}
                 else
                   {:halt, error}
                 end
@@ -489,7 +489,7 @@ defmodule Jido.AI.Runner.ChainOfThought do
           if config.fallback_on_error do
             ErrorHandler.handle_error(error, %{agent: agent, step: index + 1},
               strategy: :fallback_direct,
-              fallback_fn: fn -> Jido.AI.Runner.Simple.run(agent) end
+              fallback_fn: fn -> Jido.Runner.Simple.run(agent) end
             )
             |> case do
               {:ok, _, _} = success -> {:halt, success}

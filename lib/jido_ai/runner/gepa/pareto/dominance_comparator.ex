@@ -88,7 +88,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
     :non_dominated
   end
 
-  def compare(%Candidate{} = a, %Candidate{} = b, opts) do
+  def compare(%Candidate{} = a, %Candidate{} = b, _opts) do
     a_objectives = a.normalized_objectives
     b_objectives = b.normalized_objectives
 
@@ -432,7 +432,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.DominanceComparator do
 
     # For each candidate in current front, decrement domination count
     # of candidates it dominates
-    current_front_ids = Enum.map(current_front, & &1.id)
+    _current_front_ids = Enum.map(current_front, & &1.id)
 
     state
     |> Enum.reject(fn {id, _info} -> MapSet.member?(classified_ids, id) end)

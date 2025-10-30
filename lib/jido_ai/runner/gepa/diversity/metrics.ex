@@ -59,7 +59,7 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Metrics do
 
   def calculate([], _opts), do: {:error, :empty_population}
 
-  def calculate(prompts, opts) when length(prompts) == 1 do
+  def calculate(prompts, _opts) when length(prompts) == 1 do
     # Single prompt = perfect diversity (no comparison possible)
     metrics = %DiversityMetrics{
       pairwise_diversity: 1.0,
@@ -224,7 +224,7 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Metrics do
     end)
   end
 
-  defp calculate_coverage(%SimilarityMatrix{prompt_ids: ids}, threshold) do
+  defp calculate_coverage(%SimilarityMatrix{prompt_ids: ids}, _threshold) do
     # Coverage = unique prompts / total prompts
     # A prompt is unique if it's not highly similar to any other
     n = length(ids)

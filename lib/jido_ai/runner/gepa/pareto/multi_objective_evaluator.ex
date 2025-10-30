@@ -133,20 +133,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluator do
     {:error, :invalid_trajectory_results}
   end
 
-  @doc """
-  Measures a specific objective from trajectory results.
-
-  ## Arguments
-
-  - `objective` - Objective name (atom)
-  - `trajectory_results` - List of evaluation results
-  - `model_pricing` - Pricing information
-  - `custom_objectives` - Map of custom objective functions
-
-  ## Returns
-
-  Float value for the objective
-  """
+  # Measures a specific objective from trajectory results.
   @spec measure_objective(objective_name(), list(map()), map(), map()) :: float()
   defp measure_objective(:accuracy, trajectory_results, _pricing, _custom) do
     measure_accuracy(trajectory_results)
@@ -177,16 +164,8 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluator do
 
   # Objective measurement functions
 
-  @doc """
-  Measures accuracy as the success rate on evaluation tasks.
-
-  Accuracy is the proportion of successful evaluations, where success
-  is determined by the `:success` field in trajectory results.
-
-  ## Returns
-
-  Float in [0.0, 1.0] where 1.0 = 100% success rate
-  """
+  # Measures accuracy as the success rate on evaluation tasks.
+  # Returns a float in [0.0, 1.0] where 1.0 = 100% success rate.
   @spec measure_accuracy(list(map())) :: float()
   defp measure_accuracy(trajectory_results) do
     successes =
@@ -198,16 +177,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluator do
     Float.round(successes / total, 4)
   end
 
-  @doc """
-  Measures latency as the average execution time.
-
-  Latency is computed as the mean duration across all trajectory results,
-  converted to seconds.
-
-  ## Returns
-
-  Float representing average execution time in seconds
-  """
+  # Measures latency as the average execution time in seconds.
   @spec measure_latency(list(map())) :: float()
   defp measure_latency(trajectory_results) do
     durations =
@@ -223,16 +193,7 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluator do
     Float.round(avg_ms / 1000.0, 4)
   end
 
-  @doc """
-  Measures cost based on token usage.
-
-  Cost is calculated from prompt and completion tokens using the provided
-  pricing model. Returns cost in dollars.
-
-  ## Returns
-
-  Float representing total cost in dollars
-  """
+  # Measures cost based on token usage (in dollars).
   @spec measure_cost(list(map()), map()) :: float()
   defp measure_cost(trajectory_results, model_pricing) do
     cost_per_1k = Map.get(model_pricing, :cost_per_1k_tokens, @default_cost_per_1k_tokens)
@@ -248,16 +209,8 @@ defmodule Jido.AI.Runner.GEPA.Pareto.MultiObjectiveEvaluator do
     Float.round(cost, 4)
   end
 
-  @doc """
-  Measures robustness as the inverse of performance variance.
-
-  Robustness quantifies how consistent performance is across evaluations.
-  High variance indicates brittleness, low variance indicates robustness.
-
-  ## Returns
-
-  Float in [0.0, 1.0] where 1.0 = perfectly consistent performance
-  """
+  # Measures robustness as the inverse of performance variance.
+  # Returns a float in [0.0, 1.0] where 1.0 = perfectly consistent performance.
   @spec measure_robustness(list(map())) :: float()
   defp measure_robustness(trajectory_results) do
     scores =

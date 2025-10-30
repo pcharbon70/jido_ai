@@ -29,8 +29,6 @@ defmodule JidoAI.Runner.GEPA.Crossover.Orchestrator do
       true
   """
 
-  alias JidoAI.Runner.GEPA.Crossover
-
   alias JidoAI.Runner.GEPA.Crossover.{
     Blender,
     CompatibilityChecker,

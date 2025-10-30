@@ -20,7 +20,7 @@ defmodule Jido.AI.Runner.GEPA.Diversity.Promoter do
       mutation_rate = Promoter.adaptive_mutation_rate(metrics)
   """
 
-  alias Jido.AI.Runner.GEPA.Diversity.{DiversityMetrics, SimilarityMatrix}
+  alias Jido.AI.Runner.GEPA.Diversity.DiversityMetrics
 
   @default_base_mutation_rate 0.1
   @max_mutation_rate 0.5
