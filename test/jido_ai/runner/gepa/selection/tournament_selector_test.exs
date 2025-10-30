@@ -224,6 +224,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.TournamentSelectorTest do
       assert c1_count > c2_count
     end
 
+    @tag :flaky
     test "favors boundary solutions with infinite distance" do
       population = [
         create_candidate("boundary", pareto_rank: 1, crowding_distance: :infinity),

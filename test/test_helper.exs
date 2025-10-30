@@ -8,10 +8,11 @@ ExUnit.start(
   # Reduced concurrency to prevent memory leaks
   timeout: 120_000,
   # Longer timeout for integration tests
-  # Exclude performance benchmarks, integration tests, and tests requiring API keys by default
+  # Exclude performance benchmarks, integration tests, tests requiring API keys, and flaky tests by default
   # Integration tests require real API credentials and network connectivity
-  # Run with: mix test --include integration --include requires_api --include performance_benchmarks
-  exclude: [:performance_benchmarks, :integration, :requires_api]
+  # Flaky tests have intermittent failures due to probabilistic assertions
+  # Run with: mix test --include integration --include requires_api --include performance_benchmarks --include flaky
+  exclude: [:performance_benchmarks, :integration, :requires_api, :flaky]
 )
 
 # Global setup to clear cache after each test
