@@ -30,6 +30,9 @@ defmodule Jido.AI.Runner.ProgramOfThought.ProgramExecutor do
       {:ok, %{result: 42, duration_ms: 15, output: ""}}
   """
 
+  # Suppress warning for dynamically compiled Solution module
+  @compile {:no_warn_undefined, Solution}
+
   require Logger
 
   @default_timeout 5000
