@@ -139,12 +139,9 @@ defmodule Jido.AI.Runner.GEPA.Diversity.NoveltyScorer do
   def score_population(prompts, archive, opts \\ []) do
     scores =
       Enum.map(prompts, fn prompt ->
-        case score_prompt(prompt, archive, opts) do
-          {:ok, score} -> score
-          {:error, _} -> nil
-        end
+        {:ok, score} = score_prompt(prompt, archive, opts)
+        score
       end)
-      |> Enum.reject(&is_nil/1)
 
     {:ok, scores}
   end
