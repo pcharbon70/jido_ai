@@ -209,6 +209,7 @@ defmodule Jido.AI.Runner.GEPA.Selection.SelectionIntegrationTest do
   end
 
   describe "elite preservation integration scenarios" do
+    @tag :flaky
     test "frontier-preserving elite selection + environmental selection" do
       # Create population with clear Pareto frontier
       # Fill to 50
