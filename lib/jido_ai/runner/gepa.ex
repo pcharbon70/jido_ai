@@ -1,0 +1,377 @@
+defmodule Jido.AI.Runner.GEPA do
+  @moduledoc """
+  GEPA (Genetic-Pareto Prompt Optimization) runner for evolutionary prompt improvement.
+
+  This runner implements evolutionary prompt optimization using multi-objective genetic algorithms
+  guided by LLM reflection. GEPA treats prompt optimization as an evolutionary search problem where
+  prompts evolve through targeted mutations based on LLM feedback about execution failures.
+
+  ## Key Features
+
+  - **Multi-Objective Optimization**: Balances accuracy, cost, latency, and robustness simultaneously
+  - **LLM-Guided Evolution**: Uses language feedback for targeted prompt improvements
+  - **Sample Efficient**: Achieves 10-19% performance gains with 35× fewer evaluations than RL methods
+  - **Pareto Frontier**: Maintains diverse high-performing solutions representing different trade-offs
+  - **Evolutionary Search**: Population-based optimization with crossover and mutation operators
+
+  ## Configuration
+
+  The runner accepts the following configuration options:
+
+  ### Population Parameters
+  - `:population_size` - Number of prompt candidates per generation (default: 10)
+  - `:max_generations` - Maximum evolution cycles (default: 20)
+  - `:evaluation_budget` - Hard limit on total evaluations (default: 200)
+  - `:seed_prompts` - Initial prompt templates to seed population (default: [])
+
+  ### Evaluation Parameters
+  - `:test_inputs` - List of test inputs for evaluation (required)
+  - `:expected_outputs` - Optional expected outputs for accuracy measurement (default: nil)
+  - `:model` - LLM model for evaluation (default: nil, uses agent's model)
+
+  ### Evolution Parameters
+  - `:mutation_rate` - Probability of mutation (0.0-1.0, default: 0.3)
+  - `:crossover_rate` - Probability of crossover (0.0-1.0, default: 0.7)
+  - `:parallelism` - Maximum concurrent evaluations (default: 5)
+
+  ### Multi-Objective Parameters
+  - `:objectives` - List of objectives to optimize (default: [:accuracy, :cost, :latency, :robustness])
+  - `:objective_weights` - Map of objective weights (default: %{}, all equal)
+
+  ### Advanced Options
+  - `:enable_reflection` - Use LLM reflection for mutations (default: true)
+  - `:enable_crossover` - Use crossover operator (default: true)
+  - `:convergence_threshold` - Minimum improvement to continue (default: 0.001)
+
+  ## Usage
+
+  ### Basic Usage
+
+  Create an agent with the GEPA runner:
+
+      defmodule MyAgent do
+        use Jido.Agent,
+          name: "optimizer_agent",
+          runner: Jido.AI.Runner.GEPA,
+          actions: [MyAction]
+      end
+
+      # Run optimization
+      {:ok, agent} = MyAgent.new()
+      {:ok, optimized_agent, directives} = Jido.AI.Runner.GEPA.run(agent,
+        test_inputs: ["input1", "input2", "input3"],
+        population_size: 10,
+        max_generations: 20
+      )
+
+      # Access results
+      best_prompts = optimized_agent.state.gepa_best_prompts
+      pareto_frontier = optimized_agent.state.gepa_pareto_frontier
+
+  ### Custom Configuration
+
+  Configure with specific optimization parameters:
+
+      opts = [
+        population_size: 15,
+        max_generations: 30,
+        evaluation_budget: 500,
+        seed_prompts: ["Solve step by step", "Think carefully"],
+        test_inputs: test_cases,
+        mutation_rate: 0.4,
+        objectives: [:accuracy, :cost],
+        parallelism: 10
+      ]
+
+      {:ok, agent, directives} = GEPA.run(agent, opts)
+
+  ### Configuration via Agent State
+
+  Store runner configuration in agent state for persistent settings:
+
+      agent = MyAgent.new()
+      agent = Jido.Agent.set(agent, :gepa_config, %{
+        population_size: 15,
+        max_generations: 50,
+        seed_prompts: initial_prompts,
+        test_inputs: test_data
+      })
+
+      # Runner will use stored configuration
+      {:ok, updated_agent, directives} = GEPA.run(agent)
+
+  ## Architecture
+
+  The runner follows this execution flow:
+
+  1. **Initialize Population**: Creates initial prompt candidates from seeds or generates variations
+  2. **Evaluate**: Executes prompts on test inputs and measures objectives
+  3. **Reflect**: Uses LLM to analyze failures and propose improvements
+  4. **Mutate & Crossover**: Generates new prompt variations based on reflection
+  5. **Select**: Maintains Pareto-optimal solutions for next generation
+  6. **Converge**: Repeats until budget exhausted or convergence detected
+  7. **Return Results**: Returns agent with optimized prompts and Pareto frontier
+
+  ## Performance Characteristics
+
+  - **Latency**: Depends on population size and generations (minutes to hours)
+  - **API Cost**: population_size × max_generations × test_inputs × cost_per_call
+  - **Accuracy**: 10-19% improvement over baselines (task-dependent)
+  - **Sample Efficiency**: 35× fewer evaluations than RL methods
+
+  ## Research Background
+
+  GEPA achieves significant performance improvements over baselines while using
+  substantially fewer evaluations than reinforcement learning methods by leveraging
+  language feedback for targeted prompt evolution.
+
+  **Reference**: Agrawal et al., "GEPA: Reflective Prompt Evolution Can Outperform
+  Reinforcement Learning" (arXiv:2507.19457)
+
+  ## Implementation Status
+
+  **Phase 1**: Foundation module implementation
+  - Basic module structure with @behaviour Jido.Runner
+  - Configuration schema definition
+  - Skeleton run/2 implementation
+  - Comprehensive documentation
+
+  Future enhancements:
+  - Async optimization interface
+  - Stateful optimizer reuse for long-running optimizations
+  - Custom objective function support
+  - Advanced convergence criteria
+  """
+
+  use TypedStruct
+
+  @behaviour Jido.Runner
+
+  require Logger
+
+  alias Jido.AI.Runner.GEPA.Optimizer
+  alias Jido.AI.Runner.GEPA.Population
+
+  # Type definitions
+
+  typedstruct module: Config do
+    @moduledoc """
+    Configuration schema for the GEPA runner.
+
+    This struct defines all configurable parameters for GEPA optimization behavior.
+    """
+
+    # Population parameters
+    field(:population_size, pos_integer(), default: 10)
+    field(:max_generations, pos_integer(), default: 20)
+    field(:evaluation_budget, pos_integer(), default: 200)
+    field(:seed_prompts, list(String.t()), default: [])
+
+    # Evaluation parameters
+    field(:test_inputs, list(term()), default: [])
+    field(:expected_outputs, list(term()) | nil, default: nil)
+    field(:model, String.t() | nil, default: nil)
+
+    # Evolution parameters
+    field(:mutation_rate, float(), default: 0.3)
+    field(:crossover_rate, float(), default: 0.7)
+    field(:parallelism, pos_integer(), default: 5)
+
+    # Multi-objective parameters
+    field(:objectives, list(atom()), default: [:accuracy, :cost, :latency, :robustness])
+    field(:objective_weights, map(), default: %{})
+
+    # Advanced options
+    field(:enable_reflection, boolean(), default: true)
+    field(:enable_crossover, boolean(), default: true)
+    field(:convergence_threshold, float(), default: 0.001)
+  end
+
+  @type config :: Config.t()
+  @type agent :: struct()
+  @type opts :: keyword()
+  @type directives :: list()
+
+  # Valid objectives
+  @valid_objectives [:accuracy, :cost, :latency, :robustness, :conciseness, :completeness]
+
+  @doc """
+  Executes prompt optimization using GEPA evolutionary algorithm.
+
+  This function initializes a population of prompt candidates, evolves them through
+  multiple generations using LLM-guided mutations and crossover, and returns the
+  best prompts found along the Pareto frontier.
+
+  ## Arguments
+
+  - `agent` - The agent struct with pending instructions and configuration
+  - `opts` - Optional keyword list of configuration overrides
+
+  ## Returns
+
+  - `{:ok, updated_agent, directives}` - Success with optimized prompts and results
+  - `{:error, reason}` - Failure with error details
+
+  ## Options
+
+  All configuration options from `Jido.AI.Runner.GEPA.Config` can be passed as opts.
+  Options override any configuration stored in agent state.
+
+  The `:test_inputs` option is required if not present in agent state.
+
+  ## Examples
+
+      # Basic execution with test inputs
+      {:ok, agent, directives} = Jido.AI.Runner.GEPA.run(agent,
+        test_inputs: ["input1", "input2"]
+      )
+
+      # Custom population and generations
+      {:ok, agent, directives} = Jido.AI.Runner.GEPA.run(agent,
+        test_inputs: test_data,
+        population_size: 20,
+        max_generations: 30
+      )
+
+      # With seed prompts
+      {:ok, agent, directives} = Jido.AI.Runner.GEPA.run(agent,
+        test_inputs: test_data,
+        seed_prompts: ["Step by step", "Think carefully"],
+        evaluation_budget: 500
+      )
+
+  ## Agent State Updates
+
+  The runner stores optimization results in agent state:
+
+  - `:gepa_best_prompts` - List of best prompts from final generation
+  - `:gepa_pareto_frontier` - Pareto-optimal solutions representing trade-offs
+  - `:gepa_history` - Optimization history with metrics per generation
+  - `:gepa_config` - Configuration used for optimization
+
+  ## Directives
+
+  Returns directives containing:
+
+  - `:optimization_complete` - Signals completion with result summary
+  - `:best_prompts` - Top performing prompts
+  - `:pareto_frontier` - Multi-objective trade-off solutions
+  """
+  @impl Jido.Runner
+  @spec run(agent(), opts()) :: {:ok, agent(), directives()} | {:error, term()}
+  def run(agent, opts \\ []) do
+    with {:ok, config} <- build_config(agent, opts),
+         {:ok, agent} <- validate_agent(agent),
+         :ok <- validate_test_inputs(config) do
+      execute_optimization(agent, config)
+    else
+      {:error, reason} = error ->
+        Logger.warning("GEPA runner error: #{inspect(reason)}")
+        error
+    end
+  end
+
+  # Private Functions
+
+  @doc false
+  @spec build_config(agent(), opts()) :: {:ok, config()} | {:error, term()}
+  defp build_config(agent, opts) do
+    state_config = get_state_config(agent)
+    merged_opts = Keyword.merge(state_config, opts)
+
+    config = %Config{
+      population_size: Keyword.get(merged_opts, :population_size, 10),
+      max_generations: Keyword.get(merged_opts, :max_generations, 20),
+      evaluation_budget: Keyword.get(merged_opts, :evaluation_budget, 200),
+      seed_prompts: Keyword.get(merged_opts, :seed_prompts, []),
+      test_inputs: Keyword.get(merged_opts, :test_inputs, []),
+      expected_outputs: Keyword.get(merged_opts, :expected_outputs),
+      model: Keyword.get(merged_opts, :model),
+      mutation_rate: Keyword.get(merged_opts, :mutation_rate, 0.3),
+      crossover_rate: Keyword.get(merged_opts, :crossover_rate, 0.7),
+      parallelism: Keyword.get(merged_opts, :parallelism, 5),
+      objectives: Keyword.get(merged_opts, :objectives, [:accuracy, :cost, :latency, :robustness]),
+      objective_weights: Keyword.get(merged_opts, :objective_weights, %{}),
+      enable_reflection: Keyword.get(merged_opts, :enable_reflection, true),
+      enable_crossover: Keyword.get(merged_opts, :enable_crossover, true),
+      convergence_threshold: Keyword.get(merged_opts, :convergence_threshold, 0.001)
+    }
+
+    validate_config(config)
+  end
+
+  @doc false
+  @spec get_state_config(agent()) :: keyword()
+  defp get_state_config(agent) when is_map(agent) do
+    state = Map.get(agent, :state, %{})
+
+    case Map.get(state, :gepa_config) do
+      nil -> []
+      config when is_map(config) -> Map.to_list(config)
+      _ -> []
+    end
+  end
+
+  defp get_state_config(_agent), do: []
+
+  @doc false
+  @spec validate_config(config()) :: {:ok, config()} | {:error, term()}
+  defp validate_config(config) do
+    cond do
+      config.population_size < 2 ->
+        {:error, "population_size must be at least 2, got: #{config.population_size}"}
+
+      config.max_generations < 1 ->
+        {:error, "max_generations must be at least 1, got: #{config.max_generations}"}
+
+      config.evaluation_budget < config.population_size ->
+        {:error,
+         "evaluation_budget (#{config.evaluation_budget}) must be >= population_size (#{config.population_size})"}
+
+      config.mutation_rate < 0.0 or config.mutation_rate > 1.0 ->
+        {:error, "mutation_rate must be between 0.0 and 1.0, got: #{config.mutation_rate}"}
+
+      config.crossover_rate < 0.0 or config.crossover_rate > 1.0 ->
+        {:error, "crossover_rate must be between 0.0 and 1.0, got: #{config.crossover_rate}"}
+
+      config.parallelism < 1 ->
+        {:error, "parallelism must be at least 1, got: #{config.parallelism}"}
+
+      not Enum.all?(config.objectives, &(&1 in @valid_objectives)) ->
+        invalid = Enum.reject(config.objectives, &(&1 in @valid_objectives))
+
+        {:error,
+         "invalid objectives: #{inspect(invalid)}. Valid: #{inspect(@valid_objectives)}"}
+
+      true ->
+        {:ok, config}
+    end
+  end
+
+  @doc false
+  @spec validate_agent(agent()) :: {:ok, agent()} | {:error, term()}
+  defp validate_agent(agent) when is_map(agent) do
+    {:ok, agent}
+  end
+
+  defp validate_agent(agent) do
+    {:error, "invalid agent: expected map, got: #{inspect(agent)}"}
+  end
+
+  @doc false
+  @spec validate_test_inputs(config()) :: :ok | {:error, term()}
+  defp validate_test_inputs(%Config{test_inputs: []}), do: {:error, "test_inputs cannot be empty"}
+  defp validate_test_inputs(%Config{test_inputs: inputs}) when is_list(inputs), do: :ok
+  defp validate_test_inputs(_), do: {:error, "test_inputs must be a list"}
+
+  @doc false
+  @spec execute_optimization(agent(), config()) ::
+          {:ok, agent(), directives()} | {:error, term()}
+  defp execute_optimization(agent, config) do
+    Logger.info("Starting GEPA optimization (population: #{config.population_size}, generations: #{config.max_generations})")
+
+    # TODO: Implement optimization logic
+    # For now, return a placeholder response
+    {:error, "GEPA optimization not yet implemented"}
+  end
+end
