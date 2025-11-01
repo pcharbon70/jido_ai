@@ -111,6 +111,142 @@ task = %{
 - **Python**: Placeholder (coming soon)
 - **JavaScript**: Placeholder (coming soon)
 
+#### Reasoning (`:reasoning`)
+
+Evaluates prompts for mathematical and logical reasoning tasks.
+
+**Configuration:**
+```elixir
+task = %{
+  type: :reasoning,
+  problem: "What is 15 × 12? Think step by step.",
+  expected_answer: "180",  # optional
+  reasoning_steps_required: true  # optional
+}
+```
+
+**Evaluation Process:**
+1. Generate answer using the LLM with the prompt
+2. Extract answer from response (handles multiple formats)
+3. Check answer correctness (exact match, numeric similarity, partial match)
+4. Assess reasoning steps (looks for "because", "first", "step", etc.)
+5. Evaluate explanation clarity
+6. Calculate reasoning-specific fitness:
+   - 60% answer correctness
+   - 25% reasoning steps present
+   - 15% explanation clarity
+
+**Key Features:**
+- Multi-pattern answer extraction (supports "answer:", "therefore", numeric-only, yes/no)
+- Numeric similarity checking (handles floats vs integers)
+- Reasoning step detection
+- Clarity scoring based on length and structure
+
+#### Classification (`:classification`)
+
+Evaluates prompts for text classification tasks with confidence calibration.
+
+**Configuration:**
+```elixir
+task = %{
+  type: :classification,
+  expected_label: "positive",  # optional
+  classes: ["positive", "negative", "neutral"],  # optional
+  expected_confidence: 0.95  # optional
+}
+```
+
+**Evaluation Process:**
+1. Generate classification using the LLM with the prompt
+2. Extract predicted label and confidence
+3. Check label accuracy (with semantic equivalents like "pos" ↔ "positive")
+4. Assess confidence calibration (penalizes over/under confidence)
+5. Evaluate classification consistency
+6. Calculate classification-specific fitness:
+   - 70% label accuracy
+   - 20% confidence calibration
+   - 10% classification consistency
+
+**Key Features:**
+- Label and confidence extraction from multiple formats
+- Semantic equivalents dictionary
+- Confidence calibration scoring
+- Multi-format confidence parsing (percentages, decimals, integers)
+
+#### Question Answering (`:question_answering`)
+
+Evaluates prompts for QA and information retrieval tasks.
+
+**Configuration:**
+```elixir
+task = %{
+  type: :question_answering,
+  question: "What is the capital of France?",
+  expected_answer: "Paris",  # optional
+  context: "France is a country in Europe...",  # optional, for hallucination detection
+  question_type: :what  # optional, :who, :what, :when, :where, :why, :how
+}
+```
+
+**Evaluation Process:**
+1. Generate answer using the LLM with the prompt
+2. Auto-detect question type if not provided
+3. Assess answer accuracy (exact match, partial match, context grounding)
+4. Evaluate relevance to the question
+5. Check completeness (type-specific length expectations)
+6. Verify question type match (ensures "when" answers have dates/times, etc.)
+7. Detect hallucinations (if context provided)
+8. Calculate QA-specific fitness:
+   - 60% answer accuracy
+   - 25% relevance score
+   - 15% completeness score
+   - 0.5× penalty if hallucination detected
+
+**Key Features:**
+- Auto-detection of question types
+- Question type validation
+- Hallucination detection using context grounding
+- Completeness assessment with type-specific length expectations
+
+#### Summarization (`:summarization`)
+
+Evaluates prompts for text summarization tasks.
+
+**Configuration:**
+```elixir
+task = %{
+  type: :summarization,
+  source_text: "Long article or document to summarize...",
+  expected_summary: "Reference summary for comparison",  # optional
+  max_length: 100,  # optional, maximum words in summary
+  min_length: 20,   # optional, minimum words in summary
+  key_points: ["point 1", "point 2"]  # optional, important points to cover
+}
+```
+
+**Evaluation Process:**
+1. Generate summary using the LLM with the prompt
+2. Calculate length metrics and compression ratio
+3. Assess factual consistency with source (content word overlap)
+4. Evaluate conciseness (optimal: 5-25% of source)
+5. Check coherence (sentence structure, connectors, proper endings)
+6. Verify key points coverage
+7. Detect truncation (identifies lazy copy-paste)
+8. Calculate summarization-specific fitness:
+   - 40% factual consistency
+   - 30% conciseness
+   - 20% coherence
+   - 10% key points coverage
+   - 0.5× penalty if truncation detected
+
+**Key Features:**
+- Content word overlap for factual checking
+- Stop word filtering for better analysis
+- Compression ratio assessment
+- Truncation detection
+- Coherence scoring
+- Key points coverage tracking
+
 #### Generic Tasks (`:generic` or unspecified)
 
 Default evaluation for tasks without specialized evaluators. Uses generic quality metrics based on LLM responses.
@@ -122,15 +258,6 @@ task = %{
 }
 ```
 
-#### Coming Soon
-
-The following task types are planned for future implementation:
-
-- **Reasoning** (`:reasoning`): Mathematical and logical reasoning tasks
-- **Classification** (`:classification`): Text categorization and labeling
-- **Question Answering** (`:question_answering`): QA and information retrieval
-- **Summarization** (`:summarization`): Text condensation and summarization
-
 ### How Task-Specific Evaluation Works
 
 GEPA uses a strategy pattern dispatcher that routes evaluation to the appropriate evaluator based on task type:
@@ -138,8 +265,10 @@ GEPA uses a strategy pattern dispatcher that routes evaluation to the appropriat
 ```
 TaskEvaluator (dispatcher)
   ├─> CodeEvaluator (for :code_generation)
-  ├─> ReasoningEvaluator (for :reasoning) [coming soon]
-  ├─> ClassificationEvaluator (for :classification) [coming soon]
+  ├─> ReasoningEvaluator (for :reasoning)
+  ├─> ClassificationEvaluator (for :classification)
+  ├─> QuestionAnsweringEvaluator (for :question_answering)
+  ├─> SummarizationEvaluator (for :summarization)
   └─> Generic Evaluator (fallback for all others)
 ```
 
@@ -159,9 +288,9 @@ GEPA excels when:
 
 - **Multiple Objectives Matter**: You need to balance accuracy, speed, cost, or other metrics
 - **Quality is Critical**: The cost of optimization is justified by improved prompt quality
-- **Complex Tasks**: Multi-step reasoning, code generation, instruction following, or nuanced tasks
+- **Complex Tasks**: Multi-step reasoning, code generation, classification, QA, summarization, or other nuanced tasks
 - **Trade-off Analysis**: You need to understand trade-offs between competing goals
-- **Task-Specific Optimization**: You're working with code generation or other specialized tasks
+- **Task-Specific Optimization**: You're working with specialized tasks (code generation, reasoning, classification, QA, or summarization)
 
 ### When NOT to Use GEPA
 
@@ -453,6 +582,259 @@ end
 
 ---
 
+## Additional Task Examples
+
+### Reasoning Task Example
+
+Optimize prompts for mathematical and logical reasoning:
+
+```elixir
+defmodule ReasoningPromptOptimizer do
+  alias Jido.AI.Runner.GEPA
+
+  def optimize_reasoning_prompt do
+    agent = build_agent()
+
+    # Reasoning task configuration
+    task = %{
+      type: :reasoning,
+      problem: "What is 15 × 12?",
+      expected_answer: "180",
+      reasoning_steps_required: true
+    }
+
+    # Test inputs (reasoning problems)
+    test_inputs = [
+      "What is 15 × 12? Think step by step.",
+      "Calculate 7 + 8 × 2. Show your work.",
+      "If a train travels 60 mph for 2.5 hours, how far does it go?"
+    ]
+
+    # Seed prompts for reasoning
+    seed_prompts = [
+      """
+      Solve the following problem step by step.
+      Show your reasoning at each step.
+      Provide the final answer clearly.
+      """
+    ]
+
+    {:ok, updated_agent, _} = GEPA.run(
+      agent,
+      test_inputs: test_inputs,
+      seed_prompts: seed_prompts,
+      task: task,
+      population_size: 10,
+      max_generations: 5,
+      model: "openai:gpt-4"
+    )
+
+    best = hd(updated_agent.state.gepa_best_prompts)
+    IO.puts("Optimized Reasoning Prompt:")
+    IO.puts(best.prompt)
+  end
+
+  defp build_agent do
+    %{
+      id: "reasoning-optimizer-#{System.unique_integer([:positive])}",
+      name: "Reasoning Prompt Optimizer",
+      state: %{},
+      pending_instructions: :queue.new(),
+      actions: [],
+      runner: GEPA,
+      result: nil
+    }
+  end
+end
+```
+
+### Classification Task Example
+
+Optimize prompts for text classification with confidence:
+
+```elixir
+defmodule ClassificationPromptOptimizer do
+  alias Jido.AI.Runner.GEPA
+
+  def optimize_classification_prompt do
+    agent = build_agent()
+
+    # Classification task configuration
+    task = %{
+      type: :classification,
+      classes: ["positive", "negative", "neutral"],
+      expected_label: "positive"
+    }
+
+    # Test inputs for sentiment classification
+    test_inputs = [
+      "I absolutely love this product! Best purchase ever.",
+      "Terrible quality. Complete waste of money.",
+      "It's okay, does what it's supposed to do."
+    ]
+
+    # Seed prompts
+    seed_prompts = [
+      """
+      Classify the sentiment of the following text as positive, negative, or neutral.
+      Provide a confidence score between 0 and 1.
+      Format: Label: [label], Confidence: [score]
+      """
+    ]
+
+    {:ok, updated_agent, _} = GEPA.run(
+      agent,
+      test_inputs: test_inputs,
+      seed_prompts: seed_prompts,
+      task: task,
+      population_size: 10,
+      max_generations: 5,
+      model: "anthropic:claude-3-sonnet-20240229"
+    )
+
+    best = hd(updated_agent.state.gepa_best_prompts)
+    IO.puts("Optimized Classification Prompt:")
+    IO.puts(best.prompt)
+    IO.puts("\nMetrics:")
+    IO.inspect(best.objectives)
+  end
+
+  defp build_agent, do: # ... same as above
+end
+```
+
+### Question Answering Task Example
+
+Optimize prompts for QA with hallucination detection:
+
+```elixir
+defmodule QAPromptOptimizer do
+  alias Jido.AI.Runner.GEPA
+
+  def optimize_qa_prompt do
+    agent = build_agent()
+
+    # QA task configuration
+    task = %{
+      type: :question_answering,
+      question: "What is the capital of France?",
+      expected_answer: "Paris",
+      context: "France is a country in Western Europe. Its capital city is Paris, located in the north-central part of the country.",
+      question_type: :what
+    }
+
+    # Test QA inputs
+    test_inputs = [
+      "What is the capital of France?",
+      "Where is the Eiffel Tower located?",
+      "When was France founded as a republic?"
+    ]
+
+    # Seed prompts for QA
+    seed_prompts = [
+      """
+      Answer the following question based on the provided context.
+      Provide a clear, concise answer.
+      Only use information from the context.
+
+      Context: {{context}}
+      Question: {{input}}
+      """
+    ]
+
+    {:ok, updated_agent, _} = GEPA.run(
+      agent,
+      test_inputs: test_inputs,
+      seed_prompts: seed_prompts,
+      task: task,
+      population_size: 10,
+      max_generations: 5,
+      objectives: [:accuracy, :cost],
+      model: "openai:gpt-4"
+    )
+
+    best = hd(updated_agent.state.gepa_best_prompts)
+    IO.puts("Optimized QA Prompt:")
+    IO.puts(best.prompt)
+  end
+
+  defp build_agent, do: # ... same as above
+end
+```
+
+### Summarization Task Example
+
+Optimize prompts for text summarization:
+
+```elixir
+defmodule SummarizationPromptOptimizer do
+  alias Jido.AI.Runner.GEPA
+
+  def optimize_summarization_prompt do
+    agent = build_agent()
+
+    source_text = """
+    Artificial Intelligence (AI) has revolutionized many industries over the past decade.
+    From healthcare to finance, AI systems are being deployed to automate tasks, improve
+    decision-making, and enhance user experiences. Machine learning, a subset of AI,
+    enables systems to learn from data without explicit programming. Deep learning, using
+    neural networks with multiple layers, has achieved remarkable results in image
+    recognition, natural language processing, and game playing. However, challenges remain,
+    including bias in AI systems, lack of interpretability, and concerns about job
+    displacement. Researchers are working on explainable AI, fairness in algorithms, and
+    ensuring AI systems benefit society as a whole.
+    """
+
+    # Summarization task configuration
+    task = %{
+      type: :summarization,
+      source_text: source_text,
+      max_length: 50,
+      min_length: 20,
+      key_points: ["AI", "machine learning", "challenges"]
+    }
+
+    # Test inputs (different summarization requests)
+    test_inputs = [
+      "Summarize the above text in 2-3 sentences.",
+      "Provide a brief summary highlighting key points.",
+      "Condense the main ideas into a short paragraph."
+    ]
+
+    # Seed prompts for summarization
+    seed_prompts = [
+      """
+      Summarize the following text concisely.
+      Focus on the main ideas and key points.
+      Keep the summary between 20-50 words.
+
+      Text: {{input}}
+      """
+    ]
+
+    {:ok, updated_agent, _} = GEPA.run(
+      agent,
+      test_inputs: test_inputs,
+      seed_prompts: seed_prompts,
+      task: task,
+      population_size: 10,
+      max_generations: 5,
+      model: "anthropic:claude-3-sonnet-20240229"
+    )
+
+    best = hd(updated_agent.state.gepa_best_prompts)
+    IO.puts("Optimized Summarization Prompt:")
+    IO.puts(best.prompt)
+    IO.puts("\nMetrics:")
+    IO.inspect(best.objectives)
+  end
+
+  defp build_agent, do: # ... same as above
+end
+```
+
+---
+
 ## Understanding GEPA Components
 
 ### Agent State
@@ -615,34 +997,64 @@ options = [
 
 ### Task-Specific Configuration
 
-For code generation tasks:
-
+**Code Generation:**
 ```elixir
-options = [
-  test_inputs: test_inputs,
-  task: %{
-    type: :code_generation,
-    language: :elixir,              # :elixir, :python, :javascript
-    problem: "Problem description",
-    test_cases: [
-      %{input: test_input, expected: expected_output},
-      # ...
-    ],
-    starter_code: "optional starter code",  # Optional
-    timeout: 30_000                          # Optional, default 30s
-  },
-  # ... other options
-]
+task: %{
+  type: :code_generation,
+  language: :elixir,
+  problem: "Problem description",
+  test_cases: [%{input: test_input, expected: expected_output}],
+  starter_code: "optional",  # Optional
+  timeout: 30_000            # Optional
+}
 ```
 
-For generic tasks (default):
-
+**Reasoning:**
 ```elixir
-options = [
-  test_inputs: test_inputs,
-  task: %{type: :generic},  # Or omit task entirely
-  # ... other options
-]
+task: %{
+  type: :reasoning,
+  problem: "What is 15 × 12?",
+  expected_answer: "180",           # Optional
+  reasoning_steps_required: true    # Optional
+}
+```
+
+**Classification:**
+```elixir
+task: %{
+  type: :classification,
+  expected_label: "positive",       # Optional
+  classes: ["positive", "negative", "neutral"],  # Optional
+  expected_confidence: 0.95         # Optional
+}
+```
+
+**Question Answering:**
+```elixir
+task: %{
+  type: :question_answering,
+  question: "What is the capital of France?",
+  expected_answer: "Paris",         # Optional
+  context: "Source text...",        # Optional
+  question_type: :what              # Optional: :who, :what, :when, :where, :why, :how
+}
+```
+
+**Summarization:**
+```elixir
+task: %{
+  type: :summarization,
+  source_text: "Text to summarize...",
+  expected_summary: "Reference",    # Optional
+  max_length: 100,                  # Optional
+  min_length: 20,                   # Optional
+  key_points: ["point1", "point2"]  # Optional
+}
+```
+
+**Generic (default):**
+```elixir
+task: %{type: :generic}  # Or omit task entirely
 ```
 
 ---
@@ -765,6 +1177,18 @@ seed_prompts = ["Classify the sentiment: {{input}}"]
 ```elixir
 # For code generation
 task = %{type: :code_generation, language: :elixir, ...}
+
+# For mathematical/logical reasoning
+task = %{type: :reasoning, problem: "What is...", ...}
+
+# For text classification
+task = %{type: :classification, classes: [...], ...}
+
+# For question answering
+task = %{type: :question_answering, question: "...", ...}
+
+# For text summarization
+task = %{type: :summarization, source_text: "...", ...}
 
 # For general tasks
 task = %{type: :generic}  # or omit
@@ -936,16 +1360,17 @@ GEPA brings powerful evolutionary optimization to prompt engineering through the
 ### Key Takeaways
 
 - **Runner-Based**: GEPA integrates with the Jido agent system through the runner pattern
-- **Task-Specific**: Specialized evaluation for code generation with more types coming soon
+- **Task-Specific**: Specialized evaluation for code generation, reasoning, classification, question answering, and summarization
 - **Multi-Objective**: Optimize for multiple competing goals using NSGA-II Pareto dominance
 - **Sample Efficient**: Achieve results with far fewer evaluations than traditional methods
 - **Pareto Frontier**: Maintain top 5 diverse solutions representing different trade-offs
+- **Heuristic-Based**: Uses string analysis and pattern matching for task-specific metrics
 
 ### Next Steps
 
 1. **Create an Agent**: Set up a Jido agent with the GEPA runner
 2. **Define Test Inputs**: Prepare representative evaluation data
-3. **Choose Task Type**: Use `:code_generation` for code or `:generic` for other tasks
+3. **Choose Task Type**: Use specialized evaluators (`:code_generation`, `:reasoning`, `:classification`, `:question_answering`, `:summarization`) or `:generic` for other tasks
 4. **Run Optimization**: Call `GEPA.run/2` with your configuration
 5. **Examine Results**: Review agent state for optimized prompts and Pareto frontier
 

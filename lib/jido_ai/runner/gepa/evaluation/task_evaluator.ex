@@ -9,10 +9,10 @@ defmodule Jido.AI.Runner.GEPA.Evaluation.TaskEvaluator do
   ## Supported Task Types
 
   - `:code_generation` - Code generation and programming tasks
-  - `:reasoning` - Mathematical and logical reasoning (coming soon)
-  - `:classification` - Text classification tasks (coming soon)
-  - `:question_answering` - QA tasks (coming soon)
-  - `:summarization` - Text summarization (coming soon)
+  - `:reasoning` - Mathematical and logical reasoning tasks
+  - `:classification` - Text classification tasks
+  - `:question_answering` - Question answering tasks
+  - `:summarization` - Text summarization tasks
   - Generic fallback for other types
 
   ## Usage
@@ -35,13 +35,19 @@ defmodule Jido.AI.Runner.GEPA.Evaluation.TaskEvaluator do
     ├─> CodeEvaluator (for :code_generation)
     ├─> ReasoningEvaluator (for :reasoning)
     ├─> ClassificationEvaluator (for :classification)
+    ├─> QuestionAnsweringEvaluator (for :question_answering)
+    ├─> SummarizationEvaluator (for :summarization)
     └─> Evaluator (generic fallback)
   ```
   """
 
   require Logger
 
+  alias Jido.AI.Runner.GEPA.Evaluation.Strategies.ClassificationEvaluator
   alias Jido.AI.Runner.GEPA.Evaluation.Strategies.CodeEvaluator
+  alias Jido.AI.Runner.GEPA.Evaluation.Strategies.QuestionAnsweringEvaluator
+  alias Jido.AI.Runner.GEPA.Evaluation.Strategies.ReasoningEvaluator
+  alias Jido.AI.Runner.GEPA.Evaluation.Strategies.SummarizationEvaluator
   alias Jido.AI.Runner.GEPA.Evaluator
 
   @type task_config :: map()
@@ -159,28 +165,23 @@ defmodule Jido.AI.Runner.GEPA.Evaluation.TaskEvaluator do
   end
 
   defp dispatch_to_evaluator(:reasoning, prompt, opts) do
-    # TODO: Implement ReasoningEvaluator in future phase
-    # For now, fallback to generic
-    Logger.debug("Reasoning evaluator not yet implemented, using generic")
-    Evaluator.evaluate_prompt(prompt, opts)
+    # Use ReasoningEvaluator for reasoning tasks
+    ReasoningEvaluator.evaluate_prompt(prompt, opts)
   end
 
   defp dispatch_to_evaluator(:classification, prompt, opts) do
-    # TODO: Implement ClassificationEvaluator in future phase
-    Logger.debug("Classification evaluator not yet implemented, using generic")
-    Evaluator.evaluate_prompt(prompt, opts)
+    # Use ClassificationEvaluator for classification tasks
+    ClassificationEvaluator.evaluate_prompt(prompt, opts)
   end
 
   defp dispatch_to_evaluator(:question_answering, prompt, opts) do
-    # TODO: Implement QAEvaluator in future phase
-    Logger.debug("QA evaluator not yet implemented, using generic")
-    Evaluator.evaluate_prompt(prompt, opts)
+    # Use QuestionAnsweringEvaluator for QA tasks
+    QuestionAnsweringEvaluator.evaluate_prompt(prompt, opts)
   end
 
   defp dispatch_to_evaluator(:summarization, prompt, opts) do
-    # TODO: Implement SummarizationEvaluator in future phase
-    Logger.debug("Summarization evaluator not yet implemented, using generic")
-    Evaluator.evaluate_prompt(prompt, opts)
+    # Use SummarizationEvaluator for summarization tasks
+    SummarizationEvaluator.evaluate_prompt(prompt, opts)
   end
 
   defp dispatch_to_evaluator(_unknown_type, prompt, opts) do
