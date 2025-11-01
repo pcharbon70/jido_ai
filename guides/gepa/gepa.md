@@ -190,18 +190,97 @@ Always start with small population sizes and cheaper models for testing.
 
 ### Prerequisites
 
-1. **Install Jido AI**: Ensure the library is available
-2. **Set API Keys**: Configure provider credentials
-3. **Define Test Inputs**: Prepare evaluation data
-4. **Create an Agent**: GEPA runs in the context of a Jido agent
+Before running GEPA optimization, ensure you have:
+
+1. **Jido AI Library**: The library must be available in your project
+2. **LLM Provider Access**: An account with at least one LLM provider (OpenAI, Anthropic, Groq, etc.)
+3. **API Credentials**: Valid API keys for your chosen provider(s)
+4. **Test Data**: Example inputs to evaluate prompt performance
+
+### Configuration
+
+#### Step 1: Set API Keys
+
+GEPA uses `Jido.AI.Keyring` for secure credential management. The API key name must match the provider in your model string.
+
+**Provider → API Key Mapping:**
+
+| Model Provider | API Key Name | Example |
+|---------------|--------------|---------|
+| `"openai:..."` | `:openai_api_key` | `"sk-..."` |
+| `"anthropic:..."` | `:anthropic_api_key` | `"sk-ant-..."` |
+| `"groq:..."` | `:groq_api_key` | `"gsk_..."` |
+
+**Setting Keys:**
+
+```elixir
+# OpenAI
+Jido.AI.Keyring.set_env_value(:openai_api_key, "sk-...")
+
+# Anthropic
+Jido.AI.Keyring.set_env_value(:anthropic_api_key, "sk-ant-...")
+
+# Groq
+Jido.AI.Keyring.set_env_value(:groq_api_key, "gsk_...")
+
+# Verify key is set
+case Jido.AI.Keyring.get_env_value(:openai_api_key, nil) do
+  nil -> IO.puts("⚠️  Key not set!")
+  key -> IO.puts("✓ Key configured: #{String.slice(key, 0, 7)}...")
+end
+```
+
+**Alternative: Environment Variables**
+
+You can also use environment variables (useful for deployment):
+
+```bash
+export OPENAI_API_KEY="sk-..."
+export ANTHROPIC_API_KEY="sk-ant-..."
+export GROQ_API_KEY="gsk_..."
+```
+
+#### Step 2: Choose Your Model
+
+Models **must** be specified in the format: **`"provider:model_name"`**
+
+**Supported Providers** (via [ReqLLM](https://hexdocs.pm/req_llm)):
+
+```elixir
+# OpenAI
+model: "openai:gpt-4"              # High accuracy, expensive
+model: "openai:gpt-3.5-turbo"      # Fast, cost-effective
+
+# Anthropic
+model: "anthropic:claude-3-opus-20240229"    # Highest accuracy
+model: "anthropic:claude-3-sonnet-20240229"  # Balanced
+model: "anthropic:claude-3-haiku-20240307"   # Fast, cheap
+
+# Groq
+model: "groq:llama-3.1-8b-instant"     # Ultra-fast inference
+model: "groq:mixtral-8x7b-32768"       # Good reasoning
+
+# And 50+ more providers via ReqLLM
+```
+
+**Model Selection Guide:**
+
+| Use Case | Recommended Model | Why |
+|----------|------------------|-----|
+| **Testing/Development** | `openai:gpt-3.5-turbo` | Cheap, fast iterations |
+| **Production Quality** | `openai:gpt-4` or `anthropic:claude-3-sonnet` | Best accuracy |
+| **Budget Conscious** | `anthropic:claude-3-haiku` | Good quality, low cost |
+| **Speed Critical** | `groq:llama-3.1-8b-instant` | Ultra-fast responses |
 
 ### Basic Setup
 
+Now that configuration is complete, here's a complete example:
+
 ```elixir
-# Set your API key
+# 1. Set API key (if not already done)
 Jido.AI.Keyring.set_env_value(:openai_api_key, "sk-...")
 
-# Create an agent with GEPA runner
+# 2. Create agent with GEPA runner
 agent = %{
   id: "optimizer-agent",
   name: "My Prompt Optimizer",
@@ -212,43 +291,32 @@ agent = %{
   result: nil
 }
 
-# Define test inputs for evaluation
+# 3. Define test inputs for evaluation
 test_inputs = [
   "Classify sentiment: I love this product!",
   "Classify sentiment: This is terrible.",
   "Classify sentiment: It's okay, nothing special."
 ]
 
-# Run optimization using the GEPA runner
+# 4. Run optimization
 {:ok, updated_agent, directives} = Jido.AI.Runner.GEPA.run(
   agent,
   test_inputs: test_inputs,
   seed_prompts: ["Classify the sentiment of: {{input}}"],
+  model: "openai:gpt-3.5-turbo",  # ← Provider and model
   population_size: 10,
   max_generations: 5,
-  objectives: [:accuracy, :latency, :cost],
-  model: "openai:gpt-3.5-turbo"
+  objectives: [:accuracy, :latency, :cost]
 )
 
-# Access results from agent state
+# 5. Access results from agent state
 best_prompts = updated_agent.state.gepa_best_prompts
 pareto_frontier = updated_agent.state.gepa_pareto_frontier
 history = updated_agent.state.gepa_history
+
+IO.puts("Best prompt: #{hd(best_prompts).prompt}")
+IO.puts("Fitness: #{hd(best_prompts).fitness}")
 ```
-
-### Model Format
-
-Models **must** be specified in the format: `"provider:model_name"`
-
-Supported providers (via ReqLLM):
-- `"openai:gpt-4"` - OpenAI GPT-4
-- `"openai:gpt-3.5-turbo"` - OpenAI GPT-3.5 Turbo
-- `"anthropic:claude-3-sonnet-20240229"` - Anthropic Claude 3 Sonnet
-- `"anthropic:claude-3-haiku-20240307"` - Anthropic Claude 3 Haiku
-- `"groq:llama-3.1-8b-instant"` - Groq Llama 3.1
-- And 50+ more via ReqLLM
-
-See [ReqLLM documentation](https://hexdocs.pm/req_llm) for the full provider list.
 
 ### Simple Example
 
@@ -579,59 +647,6 @@ options = [
 
 ---
 
-## Working with LLM Providers
-
-### Setting API Keys
-
-GEPA uses the Jido.AI.Keyring for secure credential management:
-
-```elixir
-# OpenAI
-Jido.AI.Keyring.set_env_value(:openai_api_key, "sk-...")
-
-# Anthropic
-Jido.AI.Keyring.set_env_value(:anthropic_api_key, "sk-ant-...")
-
-# Groq
-Jido.AI.Keyring.set_env_value(:groq_api_key, "gsk_...")
-
-# Verify key is set
-case Jido.AI.Keyring.get_env_value(:openai_api_key, nil) do
-  nil -> IO.puts("Key not set!")
-  key -> IO.puts("Key configured: #{String.slice(key, 0, 7)}...")
-end
-```
-
-### Provider-Specific Features
-
-Different providers have different capabilities:
-
-```elixir
-# Anthropic - Long context, accurate reasoning
-model: "anthropic:claude-3-sonnet-20240229"
-
-# OpenAI - Fast, cost-effective
-model: "openai:gpt-3.5-turbo"
-
-# Groq - Ultra-fast inference
-model: "groq:llama-3.1-8b-instant"
-```
-
-### Provider Selection Strategy
-
-Choose providers based on your needs:
-
-| Provider | Best For | Cost | Speed |
-|----------|----------|------|-------|
-| **OpenAI GPT-3.5** | General purpose, cost-effective | $ | Fast |
-| **OpenAI GPT-4** | High accuracy, complex tasks | $$$ | Medium |
-| **Anthropic Claude Haiku** | Fast, cheap, good quality | $ | Fast |
-| **Anthropic Claude Sonnet** | Balanced quality and cost | $$ | Medium |
-| **Anthropic Claude Opus** | Highest quality | $$$$ | Slow |
-| **Groq Llama** | Ultra-fast inference | $ | Very Fast |
-
----
-
 ## Cost Management
 
 ### ⚠️ CRITICAL: Understanding Costs
@@ -842,14 +857,23 @@ Jido.AI.Runner.GEPA.run(agent, options)
 
 **Problem**: `{:error, "API key not found: OPENAI_API_KEY"}`
 
-**Solution**:
+**Solution**: Set the API key that matches your model provider. See the [Configuration](#configuration) section for details.
+
 ```elixir
-# Set the key for your provider
+# Set the key for your provider (key name must match model provider)
 Jido.AI.Keyring.set_env_value(:openai_api_key, "sk-...")
 
 # Verify it's set
-Jido.AI.Keyring.get_env_value(:openai_api_key, nil)
+case Jido.AI.Keyring.get_env_value(:openai_api_key, nil) do
+  nil -> IO.puts("⚠️  Key not set!")
+  key -> IO.puts("✓ Key is set")
+end
 ```
+
+**Remember**: The API key name must match your model:
+- `"openai:gpt-4"` requires `:openai_api_key`
+- `"anthropic:claude-3-sonnet"` requires `:anthropic_api_key`
+- `"groq:llama-3.1"` requires `:groq_api_key`
 
 ### Configuration Validation Errors
 
