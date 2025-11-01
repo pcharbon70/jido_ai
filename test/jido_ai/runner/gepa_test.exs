@@ -455,7 +455,8 @@ defmodule Jido.AI.Runner.GEPATest do
       frontier = updated_agent.state.gepa_pareto_frontier
       assert is_list(frontier)
       assert length(frontier) > 0
-      assert length(frontier) <= 5  # Limited to top 5
+      # Limited to top 5
+      assert length(frontier) <= 5
     end
   end
 

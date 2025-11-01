@@ -290,7 +290,8 @@ defmodule Jido.AI.Runner.GEPA do
       mutation_rate: Keyword.get(merged_opts, :mutation_rate, 0.3),
       crossover_rate: Keyword.get(merged_opts, :crossover_rate, 0.7),
       parallelism: Keyword.get(merged_opts, :parallelism, 5),
-      objectives: Keyword.get(merged_opts, :objectives, [:accuracy, :cost, :latency, :robustness]),
+      objectives:
+        Keyword.get(merged_opts, :objectives, [:accuracy, :cost, :latency, :robustness]),
       objective_weights: Keyword.get(merged_opts, :objective_weights, %{}),
       enable_reflection: Keyword.get(merged_opts, :enable_reflection, true),
       enable_crossover: Keyword.get(merged_opts, :enable_crossover, true),
@@ -340,8 +341,7 @@ defmodule Jido.AI.Runner.GEPA do
       not Enum.all?(config.objectives, &(&1 in @valid_objectives)) ->
         invalid = Enum.reject(config.objectives, &(&1 in @valid_objectives))
 
-        {:error,
-         "invalid objectives: #{inspect(invalid)}. Valid: #{inspect(@valid_objectives)}"}
+        {:error, "invalid objectives: #{inspect(invalid)}. Valid: #{inspect(@valid_objectives)}"}
 
       true ->
         {:ok, config}
@@ -490,7 +490,8 @@ defmodule Jido.AI.Runner.GEPA do
          total_evaluations: result.total_evaluations,
          convergence_reason: result.convergence_reason
        }},
-      {:best_prompt, %{prompt: hd(result.best_prompts).prompt, fitness: hd(result.best_prompts).fitness}}
+      {:best_prompt,
+       %{prompt: hd(result.best_prompts).prompt, fitness: hd(result.best_prompts).fitness}}
     ]
   end
 end
