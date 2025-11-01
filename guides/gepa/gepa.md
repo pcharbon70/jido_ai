@@ -10,6 +10,7 @@ The key innovation is treating prompt optimization as an **evolutionary search p
 
 - **Sample Efficient**: Achieves large performance gains with far fewer trials than reinforcement learning (up to 35× fewer rollouts)
 - **Multi-Objective**: Optimizes for multiple competing goals simultaneously (accuracy, speed, cost, robustness)
+- **Task-Specific**: Specialized evaluation strategies for different task types (code generation, reasoning, classification, etc.)
 - **Language-Driven**: Uses natural language reflection to propose targeted improvements
 - **Diverse Solutions**: Maintains multiple high-quality prompts for different trade-offs
 - **Elixir Native**: Leverages Elixir's concurrency to evaluate prompts in parallel
@@ -57,18 +58,96 @@ GEPA follows a four-step cycle:
 1. **Sample**: Evaluate prompt variants on test inputs
 2. **Reflect**: Use the LLM to analyze what went wrong or could improve
 3. **Mutate**: Generate new prompt variations based on reflection
-4. **Select**: Choose the best candidates for the next generation
+4. **Select**: Choose the best candidates for the next generation using Pareto dominance
 
 ### Key Components
 
 | Component | Purpose |
 |-----------|---------|
 | **Population** | Set of prompt candidates being optimized |
-| **Evaluation** | Measures prompt quality across multiple objectives |
-| **Selection** | Chooses parents for breeding based on Pareto dominance |
+| **Evaluation** | Measures prompt quality across multiple objectives with task-specific strategies |
+| **Selection** | Chooses parents for breeding based on NSGA-II Pareto dominance |
 | **Mutation** | Makes small changes to prompts (word changes, instruction tweaks) |
 | **Crossover** | Combines elements from multiple parent prompts |
 | **Convergence Detection** | Determines when optimization has plateaued |
+
+---
+
+## Task-Specific Evaluation
+
+GEPA provides specialized evaluation strategies for different types of LLM tasks. Each strategy includes domain-specific metrics and validation appropriate for the task type.
+
+### Supported Task Types
+
+#### Code Generation (`:code_generation`)
+
+Evaluates prompts for code generation tasks with syntax validation and functionality scoring.
+
+**Configuration:**
+```elixir
+task = %{
+  type: :code_generation,
+  language: :elixir,  # :elixir, :python, :javascript
+  problem: "Write a function to calculate fibonacci numbers",
+  test_cases: [
+    %{input: 0, expected: 0},
+    %{input: 5, expected: 5},
+    %{input: 10, expected: 55}
+  ]
+}
+```
+
+**Evaluation Process:**
+1. Generate code using the LLM with the prompt
+2. Validate syntax using AST parsing
+3. Run test cases (currently heuristic-based)
+4. Calculate code-specific fitness:
+   - 50% functionality (test pass rate)
+   - 30% generic quality
+   - 20% syntax validity
+
+**Supported Languages:**
+- **Elixir**: Full AST-based syntax validation
+- **Python**: Placeholder (coming soon)
+- **JavaScript**: Placeholder (coming soon)
+
+#### Generic Tasks (`:generic` or unspecified)
+
+Default evaluation for tasks without specialized evaluators. Uses generic quality metrics based on LLM responses.
+
+**Configuration:**
+```elixir
+task = %{
+  type: :generic  # or omit for default
+}
+```
+
+#### Coming Soon
+
+The following task types are planned for future implementation:
+
+- **Reasoning** (`:reasoning`): Mathematical and logical reasoning tasks
+- **Classification** (`:classification`): Text categorization and labeling
+- **Question Answering** (`:question_answering`): QA and information retrieval
+- **Summarization** (`:summarization`): Text condensation and summarization
+
+### How Task-Specific Evaluation Works
+
+GEPA uses a strategy pattern dispatcher that routes evaluation to the appropriate evaluator based on task type:
+
+```
+TaskEvaluator (dispatcher)
+  ├─> CodeEvaluator (for :code_generation)
+  ├─> ReasoningEvaluator (for :reasoning) [coming soon]
+  ├─> ClassificationEvaluator (for :classification) [coming soon]
+  └─> Generic Evaluator (fallback for all others)
+```
+
+Each evaluator:
+1. Generates outputs using the LLM with the candidate prompt
+2. Applies task-specific validation and metrics
+3. Calculates domain-appropriate fitness scores
+4. Returns enhanced evaluation results with task-specific metadata
 
 ---
 
@@ -80,9 +159,9 @@ GEPA excels when:
 
 - **Multiple Objectives Matter**: You need to balance accuracy, speed, cost, or other metrics
 - **Quality is Critical**: The cost of optimization is justified by improved prompt quality
-- **Iterative Improvement**: You're refining prompts over time with new requirements
-- **Complex Tasks**: Multi-step reasoning, instruction following, or nuanced tasks
+- **Complex Tasks**: Multi-step reasoning, code generation, instruction following, or nuanced tasks
 - **Trade-off Analysis**: You need to understand trade-offs between competing goals
+- **Task-Specific Optimization**: You're working with code generation or other specialized tasks
 
 ### When NOT to Use GEPA
 
@@ -111,15 +190,27 @@ Always start with small population sizes and cheaper models for testing.
 
 ### Prerequisites
 
-1. **Install Dependencies**: Ensure Jido AI is installed
+1. **Install Jido AI**: Ensure the library is available
 2. **Set API Keys**: Configure provider credentials
 3. **Define Test Inputs**: Prepare evaluation data
+4. **Create an Agent**: GEPA runs in the context of a Jido agent
 
 ### Basic Setup
 
 ```elixir
 # Set your API key
 Jido.AI.Keyring.set_env_value(:openai_api_key, "sk-...")
+
+# Create an agent with GEPA runner
+agent = %{
+  id: "optimizer-agent",
+  name: "My Prompt Optimizer",
+  state: %{},
+  pending_instructions: :queue.new(),
+  actions: [],
+  runner: Jido.AI.Runner.GEPA,
+  result: nil
+}
 
 # Define test inputs for evaluation
 test_inputs = [
@@ -128,19 +219,21 @@ test_inputs = [
   "Classify sentiment: It's okay, nothing special."
 ]
 
-# Run optimization
-{:ok, result} = Examples.WorkingGEPAExample.optimize_prompt(
-  model: "openai:gpt-3.5-turbo",
-  initial_prompt: "Classify the sentiment of the following text as positive, negative, or neutral: {{input}}",
+# Run optimization using the GEPA runner
+{:ok, updated_agent, directives} = Jido.AI.Runner.GEPA.run(
+  agent,
   test_inputs: test_inputs,
+  seed_prompts: ["Classify the sentiment of: {{input}}"],
   population_size: 10,
-  generations: 5,
-  objectives: [:accuracy, :latency, :cost]
+  max_generations: 5,
+  objectives: [:accuracy, :latency, :cost],
+  model: "openai:gpt-3.5-turbo"
 )
 
-# Examine results
-IO.inspect(result.best_prompt)
-IO.inspect(result.pareto_frontier)
+# Access results from agent state
+best_prompts = updated_agent.state.gepa_best_prompts
+pareto_frontier = updated_agent.state.gepa_pareto_frontier
+history = updated_agent.state.gepa_history
 ```
 
 ### Model Format
@@ -161,35 +254,131 @@ See [ReqLLM documentation](https://hexdocs.pm/req_llm) for the full provider lis
 
 ```elixir
 defmodule MyPromptOptimizer do
+  alias Jido.AI.Runner.GEPA
+
   def optimize_classification_prompt do
+    # Create agent
+    agent = build_agent()
+
     # Test data
-    test_cases = [
-      %{input: "I love Elixir!", expected: "positive"},
-      %{input: "This bug is frustrating.", expected: "negative"},
-      %{input: "The documentation is adequate.", expected: "neutral"}
+    test_inputs = [
+      "I love Elixir!",
+      "This bug is frustrating.",
+      "The documentation is adequate."
     ]
 
-    # Initial prompt template
-    initial_prompt = """
-    Classify the sentiment of this text: {{input}}
-    Return only: positive, negative, or neutral
-    """
+    # Initial prompt templates
+    seed_prompts = [
+      "Classify the sentiment of this text: {{input}}\nReturn only: positive, negative, or neutral"
+    ]
 
     # Run GEPA optimization
-    {:ok, result} = Examples.WorkingGEPAExample.optimize_prompt(
-      model: "openai:gpt-3.5-turbo",
-      initial_prompt: initial_prompt,
-      test_inputs: Enum.map(test_cases, & &1.input),
+    {:ok, updated_agent, directives} = GEPA.run(
+      agent,
+      test_inputs: test_inputs,
+      seed_prompts: seed_prompts,
       population_size: 8,
-      generations: 3,
-      max_cost: 1.0  # Budget limit: $1
+      max_generations: 3,
+      model: "openai:gpt-3.5-turbo"
     )
 
+    # Extract results
+    best_prompts = updated_agent.state.gepa_best_prompts
     IO.puts("Optimized prompt:")
-    IO.puts(result.best_prompt)
+    IO.puts(hd(best_prompts).prompt)
 
     IO.puts("\nFitness scores:")
-    IO.inspect(result.best_fitness)
+    IO.inspect(hd(best_prompts).fitness)
+  end
+
+  defp build_agent do
+    %{
+      id: "optimizer-#{System.unique_integer([:positive])}",
+      name: "Prompt Optimizer",
+      state: %{},
+      pending_instructions: :queue.new(),
+      actions: [],
+      runner: GEPA,
+      result: nil
+    }
+  end
+end
+```
+
+---
+
+## Code Generation Example
+
+When optimizing prompts for code generation tasks, use the `:code_generation` task type for specialized evaluation:
+
+```elixir
+defmodule CodePromptOptimizer do
+  alias Jido.AI.Runner.GEPA
+
+  def optimize_code_prompt do
+    agent = build_agent()
+
+    # Code generation task configuration
+    task = %{
+      type: :code_generation,
+      language: :elixir,
+      problem: "Write a function that calculates the nth Fibonacci number",
+      test_cases: [
+        %{input: 0, expected: 0},
+        %{input: 1, expected: 1},
+        %{input: 5, expected: 5},
+        %{input: 10, expected: 55}
+      ]
+    }
+
+    # Test inputs (problem variations)
+    test_inputs = [
+      "Calculate fibonacci(0)",
+      "Calculate fibonacci(5)",
+      "Calculate fibonacci(10)"
+    ]
+
+    # Seed prompts for code generation
+    seed_prompts = [
+      """
+      Write an Elixir function to calculate the nth Fibonacci number.
+      Use recursion and include proper error handling for negative inputs.
+      """
+    ]
+
+    # Run optimization with code evaluation
+    {:ok, updated_agent, _directives} = GEPA.run(
+      agent,
+      test_inputs: test_inputs,
+      seed_prompts: seed_prompts,
+      task: task,
+      population_size: 10,
+      max_generations: 5,
+      objectives: [:accuracy, :cost],
+      model: "openai:gpt-4"
+    )
+
+    # Get best code generation prompt
+    best_prompts = updated_agent.state.gepa_best_prompts
+    best = hd(best_prompts)
+
+    IO.puts("Optimized Code Generation Prompt:")
+    IO.puts(best.prompt)
+
+    IO.puts("\nCode Metrics:")
+    IO.inspect(best.objectives)
+  end
+
+  defp build_agent do
+    %{
+      id: "code-optimizer-#{System.unique_integer([:positive])}",
+      name: "Code Prompt Optimizer",
+      state: %{},
+      pending_instructions: :queue.new(),
+      actions: [],
+      runner: GEPA,
+      result: nil
+    }
   end
 end
 ```
@@ -198,45 +387,89 @@ end
 
 ## Understanding GEPA Components
 
-### Population Management
+### Agent State
 
-The population is the set of prompt candidates being optimized:
+After optimization, the agent state contains all results:
 
 ```elixir
-# Population structure
-%{
-  solutions: [
+agent.state = %{
+  gepa_best_prompts: [
     %{
       prompt: "Your optimized prompt text...",
-      fitness: %{accuracy: 0.95, latency: 120, cost: 0.002},
-      objectives: [:accuracy, :latency, :cost]
+      fitness: 0.95,
+      objectives: %{accuracy: 0.95, latency: 120, cost: 0.002},
+      generation: 5,
+      metadata: %{}
     },
-    # ... more solutions
+    # ... more prompts
   ],
-  generation: 5,
-  best_solution: %{...}
+  gepa_pareto_frontier: [
+    # Top 5 Pareto-optimal solutions
+  ],
+  gepa_history: [
+    %{generation: 1, best_fitness: 0.75, avg_fitness: 0.60},
+    %{generation: 2, best_fitness: 0.82, avg_fitness: 0.68},
+    # ...
+  ],
+  gepa_config: %{
+    # Configuration used for this run
+  },
+  gepa_last_run: %{
+    timestamp: ~U[2024-01-01 12:00:00Z],
+    final_generation: 5,
+    total_evaluations: 50,
+    convergence_reason: :max_generations_reached,
+    duration_ms: 45000
+  }
 }
 ```
+
+### Directives
+
+The runner returns directives that describe what happened:
+
+```elixir
+directives = [
+  {:optimization_complete, %{
+    final_generation: 5,
+    total_evaluations: 50,
+    convergence_reason: :max_generations_reached
+  }},
+  {:best_prompt, %{
+    prompt: "...",
+    fitness: 0.95,
+    objectives: %{...}
+  }},
+  {:pareto_frontier, [
+    # List of Pareto-optimal solutions
+  ]}
+]
+```
+
+### Population Management
 
 **Population Size**: Controls diversity vs. convergence speed
 - Small (5-10): Faster convergence, less diversity
 - Medium (10-20): Good balance (recommended)
 - Large (20-50): More diversity, slower, more expensive
 
-### Selection Strategies
+### Selection: NSGA-II Pareto Dominance
 
-GEPA uses Pareto-based selection to choose parent prompts:
+GEPA uses the NSGA-II algorithm for selection:
 
-```elixir
-# Selection methods
-selection_methods = [
-  :pareto_tournament,      # Tournament selection using dominance
-  :crowding_distance,      # Prefer diverse solutions
-  :hypervolume_contribution # Maximize covered objective space
-]
-```
+**Pareto Dominance**: Solution A dominates solution B if:
+- A is better or equal on all objectives, AND
+- A is strictly better on at least one objective
 
-**Pareto Dominance**: Solution A dominates solution B if A is better or equal on all objectives and strictly better on at least one.
+**Fast Non-Dominated Sorting**:
+1. Classify population into Pareto fronts
+2. Front 1 contains all non-dominated solutions (Pareto optimal)
+3. Front 2 contains solutions dominated only by Front 1, etc.
+
+**Crowding Distance**:
+- When Front 1 has more than 5 solutions, use crowding distance for diversity
+- Solutions in less-crowded regions are preferred
+- Boundary solutions get infinite distance to preserve extremes
 
 ### Mutation Operators
 
@@ -265,122 +498,15 @@ parent2 = "Classify the emotion. Provide reasoning."
 offspring = "Analyze the sentiment. Provide reasoning."
 ```
 
-**Crossover Rate**: Probability of breeding vs. mutation (default: 0.5)
+**Crossover Rate**: Probability of breeding vs. mutation (default: 0.7)
 
 ### Convergence Detection
 
 GEPA automatically detects when optimization has plateaued:
 
-```elixir
-# Convergence triggers
-convergence_criteria = [
-  plateau_detection: true,    # No improvement for N generations
-  max_generations: 10,        # Hard limit
-  target_fitness: 0.95,       # Stop when goal reached
-  budget_exhausted: true      # Stop when cost limit hit
-]
-```
-
----
-
-## Multi-Objective Optimization
-
-### Defining Objectives
-
-Objectives are metrics you want to optimize:
-
-```elixir
-# Common objectives
-objectives = [
-  :accuracy,      # Correctness of outputs
-  :latency,       # Response time (lower is better)
-  :cost,          # API costs (lower is better)
-  :robustness,    # Consistency across inputs
-  :conciseness,   # Output brevity
-  :completeness   # Output thoroughness
-]
-```
-
-### Objective Functions
-
-Each objective needs a function to measure it:
-
-```elixir
-# Accuracy: Compare output to expected result
-def calculate_accuracy(outputs, expected) do
-  correct = Enum.count(outputs, fn %{output: output, expected: exp} ->
-    String.contains?(String.downcase(output), String.downcase(exp))
-  end)
-  correct / length(outputs)
-end
-
-# Latency: Average response time
-def calculate_latency(outputs) do
-  total = Enum.sum(outputs, & &1.latency)
-  total / length(outputs)
-end
-
-# Cost: Sum of API costs
-def calculate_cost(outputs) do
-  Enum.sum(outputs, & &1.cost)
-end
-```
-
-### Objective Weights
-
-Balance the importance of different objectives:
-
-```elixir
-# Equal weight (default)
-objective_weights = %{
-  accuracy: 1.0,
-  latency: 1.0,
-  cost: 1.0
-}
-
-# Prioritize accuracy
-objective_weights = %{
-  accuracy: 2.0,    # 2× weight
-  latency: 1.0,
-  cost: 0.5         # Half weight
-}
-```
-
-### Trade-off Analysis
-
-Examine the Pareto frontier to understand trade-offs:
-
-```elixir
-# After optimization
-result.pareto_frontier
-|> Enum.each(fn solution ->
-  IO.puts """
-  Prompt: #{String.slice(solution.prompt, 0, 50)}...
-  Accuracy: #{solution.fitness.accuracy}
-  Latency: #{solution.fitness.latency}ms
-  Cost: $#{solution.fitness.cost}
-  """
-end)
-```
-
-### Selecting from the Frontier
-
-Choose the solution that best fits your needs:
-
-```elixir
-# Highest accuracy
-best_accuracy = Enum.max_by(frontier, & &1.fitness.accuracy)
-
-# Lowest cost
-cheapest = Enum.min_by(frontier, & &1.fitness.cost)
-
-# Balanced (closest to ideal point)
-balanced = find_balanced_solution(frontier, %{
-  accuracy: 0.9,
-  latency: 100,
-  cost: 0.001
-})
-```
+- **Max Generations**: Hard limit on generations
+- **Evaluation Budget**: Stop when budget exhausted
+- **Convergence Threshold**: Minimal improvement between generations
 
 ---
 
@@ -389,92 +515,66 @@ balanced = find_balanced_solution(frontier, %{
 ### Core Parameters
 
 ```elixir
-config = %{
-  # Model configuration
-  model: "openai:gpt-3.5-turbo",
+# Required parameters
+options = [
+  test_inputs: ["input1", "input2", "input3"],  # Required: evaluation data
 
-  # Initial prompt
-  initial_prompt: "Your starting prompt template",
-
-  # Test data
-  test_inputs: ["input1", "input2", "input3"],
-
-  # Population settings
-  population_size: 15,          # Number of candidates per generation
-  generations: 10,              # Maximum generations
+  # Optional parameters with defaults
+  seed_prompts: [],                     # Initial prompt templates
+  population_size: 10,                  # Candidates per generation
+  max_generations: 20,                  # Maximum generations
+  evaluation_budget: 200,               # Max evaluations (>= population_size)
+  model: nil,                           # LLM model (provider:model format)
 
   # Evolutionary operators
-  mutation_rate: 0.3,           # Probability of mutation (0.0-1.0)
-  crossover_rate: 0.5,          # Probability of crossover (0.0-1.0)
+  mutation_rate: 0.3,                   # Probability of mutation (0.0-1.0)
+  crossover_rate: 0.7,                  # Probability of crossover (0.0-1.0)
 
-  # Objectives
-  objectives: [:accuracy, :latency, :cost],
-  objective_weights: %{         # Optional weights
-    accuracy: 1.0,
-    latency: 1.0,
-    cost: 1.0
+  # Multi-objective settings
+  objectives: [:accuracy, :cost, :latency, :robustness],
+  objective_weights: %{},               # Optional custom weights
+
+  # Advanced options
+  enable_reflection: true,              # Use LLM reflection for improvements
+  enable_crossover: true,               # Enable prompt crossover
+  convergence_threshold: 0.001,         # Minimum fitness improvement
+  parallelism: 5,                       # Max concurrent evaluations
+
+  # Task-specific evaluation
+  task: %{type: :generic}               # Task configuration (see Task-Specific Evaluation)
+]
+```
+
+### Task-Specific Configuration
+
+For code generation tasks:
+
+```elixir
+options = [
+  test_inputs: test_inputs,
+  task: %{
+    type: :code_generation,
+    language: :elixir,              # :elixir, :python, :javascript
+    problem: "Problem description",
+    test_cases: [
+      %{input: test_input, expected: expected_output},
+      # ...
+    ],
+    starter_code: "optional starter code",  # Optional
+    timeout: 30_000                          # Optional, default 30s
   },
-
-  # Budget limits
-  max_cost: 5.0,                # Maximum spend in dollars
-  max_time: 600_000,            # Maximum time in milliseconds
-
-  # Convergence
-  patience: 3,                  # Generations without improvement
-  min_improvement: 0.01,        # Minimum fitness improvement
-
-  # Logging
-  verbose: true,                # Detailed progress logging
-  log_frequency: 1              # Log every N generations
-}
+  # ... other options
+]
 ```
 
-### LLM Parameters
-
-Fine-tune the LLM behavior during evaluation:
+For generic tasks (default):
 
 ```elixir
-llm_params = %{
-  temperature: 0.7,             # Randomness (0.0-1.0)
-  max_tokens: 500,              # Maximum response length
-  top_p: 0.9,                   # Nucleus sampling
-  frequency_penalty: 0.0,       # Penalize repetition
-  presence_penalty: 0.0,        # Encourage new topics
-  timeout: 30_000               # Request timeout (ms)
-}
-```
-
-### Advanced Options
-
-```elixir
-advanced = %{
-  # Parallel evaluation
-  max_concurrent: 5,            # Max concurrent LLM calls
-
-  # Selection strategy
-  selection_method: :pareto_tournament,
-  tournament_size: 3,
-
-  # Mutation strategies
-  mutation_operators: [
-    :instruction_modifier,
-    :wording_tweak,
-    :format_adjuster
-  ],
-
-  # Archive elite solutions
-  archive_size: 10,             # Keep top N solutions
-
-  # Diversity maintenance
-  diversity_threshold: 0.7,     # Minimum prompt similarity
-
-  # Early stopping
-  target_fitness: 0.95,         # Stop when reached
-
-  # Checkpointing
-  checkpoint_frequency: 5,      # Save every N generations
-  checkpoint_dir: "/tmp/gepa"
-}
+options = [
+  test_inputs: test_inputs,
+  task: %{type: :generic},  # Or omit task entirely
+  # ... other options
+]
 ```
 
 ---
@@ -508,25 +608,13 @@ Different providers have different capabilities:
 
 ```elixir
 # Anthropic - Long context, accurate reasoning
-%{
-  model: "anthropic:claude-3-sonnet-20240229",
-  max_tokens: 4096,  # Claude supports longer outputs
-  temperature: 0.7
-}
+model: "anthropic:claude-3-sonnet-20240229"
 
 # OpenAI - Fast, cost-effective
-%{
-  model: "openai:gpt-3.5-turbo",
-  max_tokens: 1000,
-  temperature: 0.7
-}
+model: "openai:gpt-3.5-turbo"
 
 # Groq - Ultra-fast inference
-%{
-  model: "groq:llama-3.1-8b-instant",
-  max_tokens: 500,
-  temperature: 0.7
-}
+model: "groq:llama-3.1-8b-instant"
 ```
 
 ### Provider Selection Strategy
@@ -542,33 +630,6 @@ Choose providers based on your needs:
 | **Anthropic Claude Opus** | Highest quality | $$$$ | Slow |
 | **Groq Llama** | Ultra-fast inference | $ | Very Fast |
 
-### Error Handling
-
-Handle provider errors gracefully:
-
-```elixir
-case Examples.WorkingGEPAExample.optimize_prompt(config) do
-  {:ok, result} ->
-    # Success
-    handle_results(result)
-
-  {:error, "API key not found" <> _} ->
-    IO.puts("Error: API key not configured for provider")
-    IO.puts("Set with: Jido.AI.Keyring.set_env_value(:provider_api_key, \"key\")")
-
-  {:error, "Rate limit" <> _} ->
-    IO.puts("Error: Rate limit exceeded")
-    IO.puts("Wait and retry, or use a different provider")
-
-  {:error, "Budget exceeded" <> _} ->
-    IO.puts("Error: Cost budget exhausted")
-    IO.puts("Increase max_cost or reduce population_size/generations")
-
-  {:error, reason} ->
-    IO.puts("Error: #{reason}")
-end
-```
-
 ---
 
 ## Cost Management
@@ -578,7 +639,7 @@ end
 **GEPA MAKES REAL API CALLS AND INCURS ACTUAL COSTS**
 
 Every optimization run involves:
-- **Population size** × **Generations** = Total evaluations
+- **Population size** × **Generations** = Total evaluations minimum
 - Each evaluation = 1-5 LLM API calls
 - Costs vary by provider, model, and prompt length
 
@@ -597,96 +658,56 @@ Estimated cost: $4.50
 
 ### Budget Limits
 
-Always set a budget limit:
+The evaluation_budget parameter limits total evaluations:
 
 ```elixir
-config = %{
-  # ... other config
-  max_cost: 2.0,  # Stop after $2.00 spent
-
-  # Also set time limit
-  max_time: 600_000,  # 10 minutes maximum
-}
-```
-
-### Cost Tracking
-
-Monitor spending during optimization:
-
-```elixir
-# Enable verbose logging
-config = %{verbose: true, ...}
-
-# Watch the console output:
-# Generation 1/10: Best fitness 0.75, Cost so far: $0.15
-# Generation 2/10: Best fitness 0.82, Cost so far: $0.31
-# ...
-
-# After completion
-IO.puts("Total cost: $#{result.total_cost}")
-IO.puts("Total evaluations: #{result.total_evaluations}")
-IO.puts("Cost per evaluation: $#{result.total_cost / result.total_evaluations}")
+# Run with budget constraint
+{:ok, agent, _} = GEPA.run(
+  agent,
+  test_inputs: inputs,
+  population_size: 10,
+  max_generations: 20,
+  evaluation_budget: 100,  # Stop after 100 evaluations
+  model: "openai:gpt-3.5-turbo"
+)
 ```
 
 ### Cost Reduction Strategies
 
-Minimize costs while optimizing:
-
-1. **Start Small**: Use small populations (5-10) and few generations (3-5) for testing
+1. **Start Small**: Use small populations and few generations for testing
 
 ```elixir
-# Development/testing configuration
-dev_config = %{
+# Development configuration
+dev_options = [
   population_size: 5,
-  generations: 3,
-  max_cost: 0.50
-}
+  max_generations: 3,
+  evaluation_budget: 15
+]
 ```
 
 2. **Use Cheaper Models**: Start with GPT-3.5 or Claude Haiku
 
-```elixir
-# Cheap models for development
-cheap_models = [
-  "openai:gpt-3.5-turbo",
-  "anthropic:claude-3-haiku-20240307",
-  "groq:llama-3.1-8b-instant"
-]
-```
+3. **Limit Test Inputs**: Use fewer evaluation examples during development
 
-3. **Limit Test Inputs**: Use fewer evaluation examples
+4. **Progressive Optimization**: Start cheap, then refine
 
 ```elixir
-# Development: 3-5 inputs
-test_inputs = ["input1", "input2", "input3"]
+# Phase 1: Quick with cheap model
+{:ok, agent1, _} = GEPA.run(agent, [
+  model: "openai:gpt-3.5-turbo",
+  population_size: 5,
+  max_generations: 3
+] ++ base_options)
 
-# Production: 10-20 inputs
-# test_inputs = generate_comprehensive_test_set()
-```
-
-4. **Batch Operations**: Evaluate multiple inputs per LLM call when possible
-
-5. **Progressive Optimization**: Start cheap, then refine with better models
-
-```elixir
-# Phase 1: Quick optimization with cheap model
-{:ok, phase1} = optimize_prompt(%{model: "openai:gpt-3.5-turbo", ...})
-
-# Phase 2: Refine best prompt with better model
-{:ok, phase2} = optimize_prompt(%{
+# Phase 2: Refine with better model
+best_prompt = hd(agent1.state.gepa_best_prompts).prompt
+{:ok, agent2, _} = GEPA.run(agent, [
+  seed_prompts: [best_prompt],
   model: "anthropic:claude-3-sonnet-20240229",
-  initial_prompt: phase1.best_prompt,
-  generations: 3
-})
+  population_size: 10,
+  max_generations: 5
+] ++ base_options)
 ```
-
-### Provider Account Limits
-
-Set limits in your provider accounts:
-
-- **OpenAI**: Set monthly budget limits in account settings
-- **Anthropic**: Configure usage notifications
-- **All Providers**: Monitor usage dashboards regularly
 
 ---
 
@@ -698,8 +719,8 @@ Set limits in your provider accounts:
 # Good: Specific, measurable objectives
 objectives = [:accuracy, :latency, :cost]
 
-# Bad: Vague or unmeasurable
-# objectives = [:quality, :goodness]
+# Consider task-specific objectives for code
+objectives = [:accuracy, :cost]  # Syntax validity is built into code evaluation
 ```
 
 ### 2. Use Representative Test Data
@@ -711,345 +732,113 @@ test_inputs = [
   "Complex scenario with multiple clauses",
   "Edge case: empty input",
   "Edge case: very long text...",
-  "Ambiguous input that could be interpreted multiple ways"
+  "Ambiguous input"
 ]
-
-# Bad: Too similar or not representative
-# test_inputs = ["test", "test2", "test3"]
 ```
 
 ### 3. Start with Simple Baselines
 
 ```elixir
-# Start with a basic prompt
-initial_prompt = "Classify the sentiment: {{input}}"
+# Start with a basic seed prompt
+seed_prompts = ["Classify the sentiment: {{input}}"]
 
 # Let GEPA evolve it
-# Don't start with over-engineered prompts
 ```
 
-### 4. Iterate Progressively
+### 4. Choose Appropriate Task Types
 
 ```elixir
-# Phase 1: Quick exploration
-phase1 = optimize(%{population: 8, generations: 3})
+# For code generation
+task = %{type: :code_generation, language: :elixir, ...}
 
-# Phase 2: Refine top candidates
-phase2 = optimize(%{
-  initial_prompt: phase1.best_prompt,
-  population: 15,
-  generations: 10
-})
+# For general tasks
+task = %{type: :generic}  # or omit
 ```
 
-### 5. Monitor and Validate
+### 5. Monitor Agent State
 
 ```elixir
-# After optimization, validate on held-out test set
-validation_inputs = load_validation_data()
-results = evaluate_prompt(optimized_prompt, validation_inputs)
+# Check progress
+history = agent.state.gepa_history
+last_gen = List.last(history)
+IO.puts("Generation #{last_gen.generation}: fitness #{last_gen.best_fitness}")
 
-# Check for overfitting
-if results.accuracy < training_accuracy - 0.1 do
-  IO.puts("Warning: Possible overfitting")
-end
+# Examine Pareto frontier for trade-offs
+agent.state.gepa_pareto_frontier
+|> Enum.each(fn solution ->
+  IO.inspect(solution.objectives)
+end)
 ```
 
-### 6. Save and Version Prompts
+### 6. Save and Version Results
 
 ```elixir
-# Save optimization results
-File.write!("prompts/sentiment_v1.txt", result.best_prompt)
+# Save best prompt
+best = hd(agent.state.gepa_best_prompts)
+File.write!("prompts/optimized_v1.txt", best.prompt)
 
 # Save metadata
 metadata = %{
   version: "1.0",
-  date: Date.utc_today(),
-  fitness: result.best_fitness,
-  config: config
+  date: DateTime.utc_now(),
+  fitness: best.fitness,
+  objectives: best.objectives,
+  config: agent.state.gepa_config
 }
-File.write!("prompts/sentiment_v1_meta.json", Jason.encode!(metadata))
-```
-
-### 7. Use Appropriate Models
-
-```elixir
-# For development/testing
-dev_model = "openai:gpt-3.5-turbo"
-
-# For production optimization
-prod_model = "anthropic:claude-3-sonnet-20240229"
-
-# Match your production model
-# Don't optimize with GPT-3.5 if you'll use GPT-4 in production
-```
-
-### 8. Balance Objectives
-
-```elixir
-# Don't over-optimize for one objective
-# This might sacrifice too much on others
-objective_weights = %{
-  accuracy: 2.0,    # Important but not overwhelming
-  latency: 1.0,
-  cost: 1.0
-}
-
-# Not: accuracy: 10.0 (would ignore other objectives)
-```
-
-### 9. Document Your Process
-
-```elixir
-# Keep notes on what works
-"""
-Optimization Run: Sentiment Classification v3
-Date: 2024-10-29
-Config: population=15, generations=10
-Model: gpt-3.5-turbo
-Results:
-  - Accuracy improved from 0.75 to 0.89
-  - Cost increased from $0.001 to $0.002 per call
-  - Latency decreased from 350ms to 280ms
-Notes:
-  - Adding "Think step-by-step" improved accuracy significantly
-  - Shorter instructions reduced latency without hurting quality
-"""
-```
-
-### 10. Respect Budget Constraints
-
-```elixir
-# Always set limits
-config = %{
-  max_cost: 5.0,           # Hard limit
-  max_time: 600_000,       # Timeout
-  target_fitness: 0.95     # Stop when good enough
-}
-
-# Monitor during optimization
-# Don't run unbounded experiments
+File.write!("prompts/optimized_v1_meta.json", Jason.encode!(metadata, pretty: true))
 ```
 
 ---
 
-## Example Workflow
+## API Reference
 
-Here's a complete workflow for optimizing a sentiment classification prompt:
-
-```elixir
-defmodule SentimentOptimization do
-  @moduledoc """
-  Complete workflow for optimizing a sentiment classification prompt with GEPA.
-  """
-
-  alias Examples.WorkingGEPAExample
-  alias Jido.AI.Keyring
-
-  def run do
-    # Step 1: Setup
-    IO.puts("=== Step 1: Setup ===")
-    setup_api_keys()
-
-    # Step 2: Prepare test data
-    IO.puts("\n=== Step 2: Prepare Test Data ===")
-    test_inputs = prepare_test_data()
-    IO.puts("Prepared #{length(test_inputs)} test inputs")
-
-    # Step 3: Define objectives
-    IO.puts("\n=== Step 3: Define Objectives ===")
-    objectives = [:accuracy, :latency, :cost]
-    IO.puts("Optimizing for: #{inspect(objectives)}")
-
-    # Step 4: Initial baseline
-    IO.puts("\n=== Step 4: Baseline Evaluation ===")
-    baseline_prompt = """
-    Classify the sentiment of the following text as positive, negative, or neutral.
-
-    Text: {{input}}
-
-    Sentiment:
-    """
-    baseline_results = evaluate_baseline(baseline_prompt, test_inputs)
-    IO.puts("Baseline accuracy: #{baseline_results.accuracy}")
-
-    # Step 5: Quick exploration (cheap model, small population)
-    IO.puts("\n=== Step 5: Quick Exploration ===")
-    {:ok, phase1} = WorkingGEPAExample.optimize_prompt(
-      model: "openai:gpt-3.5-turbo",
-      initial_prompt: baseline_prompt,
-      test_inputs: test_inputs,
-      population_size: 8,
-      generations: 3,
-      objectives: objectives,
-      max_cost: 0.50,
-      verbose: true
-    )
-
-    IO.puts("\nPhase 1 Results:")
-    IO.puts("Best accuracy: #{phase1.best_fitness.accuracy}")
-    IO.puts("Cost: $#{phase1.total_cost}")
-    IO.puts("Improvement: #{(phase1.best_fitness.accuracy - baseline_results.accuracy) * 100}%")
-
-    # Step 6: Detailed optimization (larger population, more generations)
-    IO.puts("\n=== Step 6: Detailed Optimization ===")
-    {:ok, phase2} = WorkingGEPAExample.optimize_prompt(
-      model: "openai:gpt-3.5-turbo",
-      initial_prompt: phase1.best_prompt,
-      test_inputs: test_inputs,
-      population_size: 15,
-      generations: 10,
-      objectives: objectives,
-      max_cost: 2.0,
-      verbose: true
-    )
-
-    IO.puts("\nPhase 2 Results:")
-    IO.puts("Best accuracy: #{phase2.best_fitness.accuracy}")
-    IO.puts("Cost: $#{phase2.total_cost}")
-
-    # Step 7: Analyze Pareto frontier
-    IO.puts("\n=== Step 7: Analyze Trade-offs ===")
-    analyze_frontier(phase2.pareto_frontier)
-
-    # Step 8: Validate on held-out data
-    IO.puts("\n=== Step 8: Validation ===")
-    validation_data = prepare_validation_data()
-    validation_results = validate_prompt(phase2.best_prompt, validation_data)
-    IO.puts("Validation accuracy: #{validation_results.accuracy}")
-
-    # Step 9: Save results
-    IO.puts("\n=== Step 9: Save Results ===")
-    save_results(phase2, validation_results)
-
-    # Step 10: Summary
-    IO.puts("\n=== Summary ===")
-    print_summary(baseline_results, phase2, validation_results)
-
-    {:ok, phase2}
-  end
-
-  defp setup_api_keys do
-    case Keyring.get_env_value(:openai_api_key, nil) do
-      nil ->
-        raise "OpenAI API key not set. Run: Jido.AI.Keyring.set_env_value(:openai_api_key, \"sk-...\")"
-      key ->
-        IO.puts("API key configured: #{String.slice(key, 0, 7)}...")
-    end
-  end
-
-  defp prepare_test_data do
-    [
-      "I absolutely love this product! It exceeded all my expectations.",
-      "This is the worst experience I've ever had. Completely disappointed.",
-      "It's okay, nothing special but gets the job done.",
-      "Horrible customer service and poor quality. Would not recommend.",
-      "Amazing! Best purchase I've made this year. Highly recommend!",
-      "Not bad, not great. Just average overall.",
-      "Fantastic quality and fast shipping. Very satisfied!",
-      "Terrible. Complete waste of money and time."
-    ]
-  end
-
-  defp prepare_validation_data do
-    [
-      "Excellent product, will buy again!",
-      "Very disappointed with the quality.",
-      "It's decent for the price.",
-      "Outstanding service and support!"
-    ]
-  end
-
-  defp evaluate_baseline(prompt, test_inputs) do
-    # Simulate baseline evaluation
-    # In real implementation, would call LLM
-    %{accuracy: 0.75, latency: 350, cost: 0.001}
-  end
-
-  defp validate_prompt(prompt, validation_data) do
-    # Simulate validation
-    # In real implementation, would evaluate on validation set
-    %{accuracy: 0.88, latency: 280, cost: 0.002}
-  end
-
-  defp analyze_frontier(frontier) do
-    IO.puts("\nPareto Frontier Solutions:")
-    frontier
-    |> Enum.with_index(1)
-    |> Enum.each(fn {solution, idx} ->
-      IO.puts("\nSolution #{idx}:")
-      IO.puts("  Accuracy: #{Float.round(solution.fitness.accuracy, 3)}")
-      IO.puts("  Latency: #{round(solution.fitness.latency)}ms")
-      IO.puts("  Cost: $#{Float.round(solution.fitness.cost, 4)}")
-      IO.puts("  Prompt preview: #{String.slice(solution.prompt, 0, 60)}...")
-    end)
-  end
-
-  defp save_results(optimization_result, validation_result) do
-    timestamp = DateTime.utc_now() |> DateTime.to_string()
-
-    # Save best prompt
-    File.mkdir_p!("prompts")
-    File.write!("prompts/sentiment_optimized.txt", optimization_result.best_prompt)
-
-    # Save metadata
-    metadata = %{
-      timestamp: timestamp,
-      optimization: %{
-        best_fitness: optimization_result.best_fitness,
-        total_cost: optimization_result.total_cost,
-        generations: optimization_result.generation
-      },
-      validation: validation_result
-    }
-
-    File.write!("prompts/sentiment_optimized_meta.json",
-                Jason.encode!(metadata, pretty: true))
-
-    IO.puts("Saved results to prompts/")
-  end
-
-  defp print_summary(baseline, optimization, validation) do
-    IO.puts("""
-
-    Optimization Complete!
-    =====================
-
-    Baseline Accuracy:    #{Float.round(baseline.accuracy, 3)}
-    Optimized Accuracy:   #{Float.round(optimization.best_fitness.accuracy, 3)}
-    Validation Accuracy:  #{Float.round(validation.accuracy, 3)}
-
-    Improvement:          #{Float.round((optimization.best_fitness.accuracy - baseline.accuracy) * 100, 1)}%
-    Total Cost:           $#{Float.round(optimization.total_cost, 2)}
-    Generations:          #{optimization.generation}
-
-    Next Steps:
-    1. Review the optimized prompt in prompts/sentiment_optimized.txt
-    2. Test on additional validation data
-    3. Deploy to production if results are satisfactory
-    """)
-  end
-end
-
-# Run the workflow
-SentimentOptimization.run()
-```
-
-### Running the Workflow
+### Main Runner Function
 
 ```elixir
-# In IEx
-iex> c "sentiment_optimization.ex"
-iex> SentimentOptimization.run()
+@spec run(agent(), keyword()) :: {:ok, agent(), list(directive())} | {:error, String.t()}
+
+Jido.AI.Runner.GEPA.run(agent, options)
 ```
+
+**Parameters:**
+- `agent`: Jido agent struct
+- `options`: Keyword list of configuration options
+
+**Returns:**
+- `{:ok, updated_agent, directives}` on success
+- `{:error, reason}` on failure
+
+**Required Options:**
+- `:test_inputs` - List of test inputs for evaluation (must be non-empty)
+
+**Optional Options:**
+- `:seed_prompts` - Initial prompt templates (default: [])
+- `:population_size` - Number of candidates per generation (default: 10, minimum: 2)
+- `:max_generations` - Maximum generations (default: 20, minimum: 1)
+- `:evaluation_budget` - Max evaluations (default: 200, must be >= population_size)
+- `:model` - LLM model in "provider:model" format (default: nil)
+- `:mutation_rate` - Probability 0.0-1.0 (default: 0.3)
+- `:crossover_rate` - Probability 0.0-1.0 (default: 0.7)
+- `:parallelism` - Max concurrent evaluations (default: 5, minimum: 1)
+- `:objectives` - List of objective atoms (default: [:accuracy, :cost, :latency, :robustness])
+- `:objective_weights` - Map of custom weights (default: %{})
+- `:enable_reflection` - Use LLM reflection (default: true)
+- `:enable_crossover` - Enable crossover (default: true)
+- `:convergence_threshold` - Minimum improvement (default: 0.001)
+- `:task` - Task configuration map (default: %{type: :generic})
+
+**Agent State After Optimization:**
+- `:gepa_best_prompts` - Top performing prompts
+- `:gepa_pareto_frontier` - Pareto-optimal solutions (top 5)
+- `:gepa_history` - Optimization history by generation
+- `:gepa_config` - Configuration used
+- `:gepa_last_run` - Metadata about the run
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
-
-#### API Key Not Found
+### API Key Not Found
 
 **Problem**: `{:error, "API key not found: OPENAI_API_KEY"}`
 
@@ -1062,140 +851,54 @@ Jido.AI.Keyring.set_env_value(:openai_api_key, "sk-...")
 Jido.AI.Keyring.get_env_value(:openai_api_key, nil)
 ```
 
-#### Budget Exceeded
+### Configuration Validation Errors
 
-**Problem**: Optimization stops early with "Budget exceeded"
+**Problem**: `{:error, "population_size must be at least 2"}`
 
-**Solutions**:
+**Solution**: Check all configuration constraints match the requirements in the API Reference section.
+
+### No Test Inputs
+
+**Problem**: `{:error, "test_inputs cannot be empty"}`
+
+**Solution**: Provide at least one test input:
 ```elixir
-# Increase budget
-config = %{max_cost: 10.0}  # Was 5.0
-
-# Or reduce population/generations
-config = %{
-  population_size: 10,  # Was 20
-  generations: 5        # Was 10
-}
+test_inputs = ["test input"]
 ```
 
-#### Poor Convergence
+### Task-Specific Evaluation Failures
 
-**Problem**: Fitness doesn't improve over generations
+**Problem**: Code evaluation fails or produces low scores
 
 **Solutions**:
 ```elixir
-# 1. Increase mutation rate
-config = %{mutation_rate: 0.5}  # Was 0.3
-
-# 2. Increase population diversity
-config = %{population_size: 20}  # Was 10
-
-# 3. Better initial prompt
-config = %{
-  initial_prompt: "A more detailed and specific starting prompt..."
+# 1. Verify task configuration
+task = %{
+  type: :code_generation,
+  language: :elixir,  # Must match actual target language
+  problem: "Clear problem description",
+  test_cases: [
+    %{input: valid_input, expected: correct_output}
+  ]
 }
 
-# 4. More test inputs for evaluation
-test_inputs = generate_diverse_test_set(count: 15)  # Was 5
-```
+# 2. Use appropriate model
+model: "openai:gpt-4"  # Better for code generation than gpt-3.5-turbo
 
-#### Evaluation Errors
-
-**Problem**: Errors during prompt evaluation
-
-**Solutions**:
-```elixir
-# 1. Check test input format
-test_inputs = [
-  "Valid string input",
-  "Another valid input"
+# 3. Provide good seed prompts
+seed_prompts: [
+  """
+  Write clean, well-documented Elixir code.
+  Include proper error handling.
+  """
 ]
-# Not: [%{complex: "structure"}]
-
-# 2. Verify prompt template syntax
-# Good: "Classify: {{input}}"
-# Bad: "Classify: {input}"  # Wrong placeholder syntax
-
-# 3. Check model availability
-# Some models may not be available in your region
-```
-
-#### Rate Limiting
-
-**Problem**: API rate limit errors
-
-**Solutions**:
-```elixir
-# 1. Reduce concurrent calls
-config = %{max_concurrent: 2}  # Was 5
-
-# 2. Add delays between requests
-config = %{request_delay: 1000}  # 1 second
-
-# 3. Use a different provider
-config = %{model: "groq:llama-3.1-8b-instant"}  # Faster limits
-```
-
-#### Memory Issues
-
-**Problem**: Out of memory with large populations
-
-**Solutions**:
-```elixir
-# 1. Reduce population size
-config = %{population_size: 10}  # Was 50
-
-# 2. Limit archive size
-config = %{archive_size: 5}  # Was 20
-
-# 3. Clear history periodically
-config = %{clear_history_every: 5}  # Every 5 generations
-```
-
-### Debugging Tips
-
-1. **Enable Verbose Logging**
-```elixir
-config = %{verbose: true}
-# Shows detailed progress and fitness values
-```
-
-2. **Save Checkpoints**
-```elixir
-config = %{
-  checkpoint_frequency: 2,
-  checkpoint_dir: "/tmp/gepa_debug"
-}
-# Review state if optimization fails
-```
-
-3. **Test Individual Components**
-```elixir
-# Test evaluation function
-result = evaluate_single_prompt(prompt, test_inputs[0])
-IO.inspect(result)
-
-# Test mutation
-mutated = mutate_prompt(prompt, mutation_rate: 0.3)
-IO.inspect(mutated)
-```
-
-4. **Validate Test Data**
-```elixir
-# Ensure test inputs are valid
-test_inputs
-|> Enum.each(fn input ->
-  unless is_binary(input) and String.length(input) > 0 do
-    raise "Invalid test input: #{inspect(input)}"
-  end
-end)
 ```
 
 ### Getting Help
 
 If you encounter issues:
 
-1. Check the [examples](../examples/) for working code
+1. Check the agent state for error information
 2. Review the [API documentation](https://hexdocs.pm/jido_ai)
 3. Search [GitHub issues](https://github.com/agentjido/jido_ai/issues)
 4. Ask in the [Elixir Forum](https://elixirforum.com/)
@@ -1204,39 +907,29 @@ If you encounter issues:
 
 ## Conclusion
 
-GEPA brings powerful evolutionary optimization to prompt engineering, leveraging Elixir's concurrency and fault tolerance for efficient, parallel evaluation. By optimizing across multiple objectives simultaneously, GEPA helps you find prompts that balance accuracy, speed, cost, and other metrics according to your specific needs.
+GEPA brings powerful evolutionary optimization to prompt engineering through the Jido runner system. With specialized evaluation strategies for different task types and multi-objective Pareto dominance selection, GEPA helps you find prompts that balance accuracy, speed, cost, and other metrics according to your specific needs.
 
 ### Key Takeaways
 
-- **Multi-Objective**: Optimize for multiple competing goals simultaneously
+- **Runner-Based**: GEPA integrates with the Jido agent system through the runner pattern
+- **Task-Specific**: Specialized evaluation for code generation with more types coming soon
+- **Multi-Objective**: Optimize for multiple competing goals using NSGA-II Pareto dominance
 - **Sample Efficient**: Achieve results with far fewer evaluations than traditional methods
-- **Cost Aware**: Built-in budget limits and cost tracking
-- **Pareto Frontier**: Maintain diverse solutions representing different trade-offs
-- **LLM-Guided**: Use the AI itself to propose improvements through reflection
+- **Pareto Frontier**: Maintain top 5 diverse solutions representing different trade-offs
 
 ### Next Steps
 
-1. **Start Simple**: Begin with small populations and cheap models
-2. **Define Clear Objectives**: Know what you're optimizing for
-3. **Iterate**: Use progressive refinement for best results
-4. **Monitor Costs**: Always set budget limits
-5. **Validate**: Test optimized prompts on held-out data
+1. **Create an Agent**: Set up a Jido agent with the GEPA runner
+2. **Define Test Inputs**: Prepare representative evaluation data
+3. **Choose Task Type**: Use `:code_generation` for code or `:generic` for other tasks
+4. **Run Optimization**: Call `GEPA.run/2` with your configuration
+5. **Examine Results**: Review agent state for optimized prompts and Pareto frontier
 
 ### Further Reading
 
-- [Prompt Engineering Guide](./prompt.md)
-- [Actions Guide](./actions.md)
-- [Provider Configuration](./providers.md)
 - [GEPA Research Paper](https://arxiv.org/abs/2507.19457)
 - [ReqLLM Documentation](https://hexdocs.pm/req_llm)
-
-### Examples
-
-Check out the complete working examples:
-
-- `examples/gepa_optimization_example.ex` - API demonstration
-- `examples/working_gepa_example.ex` - Full working implementation
-- `examples/chain_of_thought_example.ex` - CoT reasoning patterns
-- `examples/tree_of_thought_example.ex` - ToT exploration patterns
+- [Jido Documentation](https://hexdocs.pm/jido)
+- [NSGA-II Algorithm](https://ieeexplore.ieee.org/document/996017)
 
 By mastering GEPA, you can systematically improve your prompts, understand trade-offs between competing objectives, and build more effective AI-powered applications with confidence in your prompt quality.
