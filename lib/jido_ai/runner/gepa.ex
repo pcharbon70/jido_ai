@@ -130,17 +130,25 @@ defmodule Jido.AI.Runner.GEPA do
 
   ## Implementation Status
 
-  **Phase 1**: Foundation module implementation
-  - Basic module structure with @behaviour Jido.Runner
-  - Configuration schema definition
-  - Skeleton run/2 implementation
-  - Comprehensive documentation
+  **Phases 1-5 Complete**: Real Optimization Integration
+  - ✅ Module structure with @behaviour Jido.Runner
+  - ✅ Configuration schema and validation
+  - ✅ Real GEPA.Optimizer GenServer integration
+  - ✅ Config mapping between runner and optimizer
+  - ✅ Result transformation and Pareto frontier extraction
+  - ✅ Comprehensive documentation
 
-  Future enhancements:
-  - Async optimization interface
-  - Stateful optimizer reuse for long-running optimizations
-  - Custom objective function support
-  - Advanced convergence criteria
+  **Current Limitations**:
+  - Evaluation uses mock fitness (optimizer's mock evaluation)
+  - Objectives are derived from fitness (not measured independently)
+  - Pareto frontier is simple top-N selection (true Pareto sorting in Phase 7)
+  - Reflection and mutation use placeholders in optimizer
+
+  **Future Phases** (6-9):
+  - Real evaluation function with LLM calls
+  - True Pareto dominance sorting
+  - Integration tests with real optimization
+  - Enhanced documentation and examples
   """
 
   use TypedStruct
@@ -150,7 +158,6 @@ defmodule Jido.AI.Runner.GEPA do
   require Logger
 
   alias Jido.AI.Runner.GEPA.Optimizer
-  alias Jido.AI.Runner.GEPA.Population
 
   # Type definitions
 
@@ -372,89 +379,128 @@ defmodule Jido.AI.Runner.GEPA do
       "Starting GEPA optimization (population: #{config.population_size}, generations: #{config.max_generations})"
     )
 
-    # For MVP: Create stub optimization result
-    # TODO: In future phase, implement full optimization using GEPA.Optimizer GenServer
-    optimization_result = create_stub_optimization_result(config)
+    # Start optimizer GenServer with mapped configuration
+    with {:ok, optimizer_opts} <- map_runner_config_to_optimizer_opts(agent, config),
+         {:ok, optimizer_pid} <- Optimizer.start_link(optimizer_opts),
+         {:ok, optimizer_result} <- Optimizer.optimize(optimizer_pid) do
+      # Stop optimizer (cleanup)
+      Optimizer.stop(optimizer_pid)
 
-    # Update agent state with results
-    updated_agent = update_agent_with_results(agent, optimization_result, config)
+      # Map optimizer result to runner format and add Pareto frontier
+      runner_result = map_optimizer_result_to_runner_format(optimizer_result)
 
-    # Build directives
-    directives = build_directives(optimization_result)
+      # Update agent state with results
+      updated_agent = update_agent_with_results(agent, runner_result, config)
 
-    Logger.info("GEPA optimization complete (stub implementation)")
+      # Build directives
+      directives = build_directives(runner_result)
 
-    {:ok, updated_agent, directives}
+      Logger.info(
+        "GEPA optimization complete (generations: #{runner_result.final_generation}, evaluations: #{runner_result.total_evaluations})"
+      )
+
+      {:ok, updated_agent, directives}
+    else
+      {:error, reason} = error ->
+        Logger.error("GEPA optimization failed: #{inspect(reason)}")
+        error
+    end
   end
 
   @doc false
-  @spec create_stub_optimization_result(config()) :: map()
-  defp create_stub_optimization_result(config) do
-    # Create stub best prompts based on seed prompts or test inputs
-    best_prompts =
-      case config.seed_prompts do
-        [] ->
-          # Generate from test inputs
-          [
-            %{
-              prompt: "Analyze the following input carefully: {{input}}",
-              fitness: 0.85,
-              objectives: %{
-                accuracy: 0.85,
-                cost: 0.002,
-                latency: 150,
-                robustness: 0.80
-              },
-              generation: config.max_generations,
-              metadata: %{source: "generated"}
-            }
-          ]
+  @spec map_runner_config_to_optimizer_opts(agent(), config()) ::
+          {:ok, keyword()} | {:error, term()}
+  defp map_runner_config_to_optimizer_opts(agent, config) do
+    # Build task map from agent and config
+    task = extract_task_from_config(agent, config)
 
-        seeds ->
-          # Use seed prompts
-          Enum.with_index(seeds, 1)
-          |> Enum.map(fn {prompt, idx} ->
-            %{
-              prompt: prompt,
-              fitness: 0.75 + idx * 0.05,
-              objectives: %{
-                accuracy: 0.75 + idx * 0.05,
-                cost: 0.001 + idx * 0.0005,
-                latency: 120 + idx * 10,
-                robustness: 0.70 + idx * 0.05
-              },
-              generation: config.max_generations,
-              metadata: %{source: "seed", index: idx}
-            }
-          end)
-      end
+    # Map runner config to optimizer options
+    optimizer_opts = [
+      population_size: config.population_size,
+      max_generations: config.max_generations,
+      evaluation_budget: config.evaluation_budget,
+      seed_prompts: config.seed_prompts,
+      task: task,
+      parallelism: config.parallelism
+    ]
 
-    # Create Pareto frontier (for now, same as best prompts)
-    pareto_frontier = Enum.take(best_prompts, min(length(best_prompts), 5))
+    {:ok, optimizer_opts}
+  end
 
+  @doc false
+  @spec extract_task_from_config(agent(), config()) :: map()
+  defp extract_task_from_config(agent, config) do
+    # Build task definition from runner configuration
+    # The task map describes what the optimizer should optimize for
     %{
-      best_prompts: best_prompts,
-      pareto_frontier: pareto_frontier,
-      final_generation: config.max_generations,
-      total_evaluations: config.population_size * config.max_generations,
-      history: create_stub_history(config.max_generations),
-      convergence_reason: :max_generations_reached,
-      duration_ms: 1000
+      type: :prompt_optimization,
+      test_inputs: config.test_inputs,
+      expected_outputs: config.expected_outputs,
+      model: config.model || get_agent_model(agent),
+      objectives: config.objectives,
+      objective_weights: config.objective_weights,
+      mutation_rate: config.mutation_rate,
+      crossover_rate: config.crossover_rate,
+      enable_reflection: config.enable_reflection,
+      enable_crossover: config.enable_crossover,
+      convergence_threshold: config.convergence_threshold
     }
   end
 
   @doc false
-  @spec create_stub_history(pos_integer()) :: list(map())
-  defp create_stub_history(generations) do
-    Enum.map(1..generations, fn gen ->
-      %{
-        generation: gen,
-        best_fitness: 0.6 + gen * 0.02,
-        avg_fitness: 0.5 + gen * 0.015,
-        diversity: 0.8 - gen * 0.03,
-        evaluations_used: gen * 10
-      }
-    end)
+  @spec get_agent_model(agent()) :: String.t() | nil
+  defp get_agent_model(agent) when is_map(agent) do
+    # Try to extract model from agent state or config
+    agent
+    |> Map.get(:state, %{})
+    |> Map.get(:model)
+  end
+
+  defp get_agent_model(_), do: nil
+
+  @doc false
+  @spec map_optimizer_result_to_runner_format(map()) :: map()
+  defp map_optimizer_result_to_runner_format(optimizer_result) do
+    # Optimizer: best_prompts, final_generation, total_evaluations, history, duration_ms
+    # Runner: + pareto_frontier, convergence_reason
+
+    # Extract Pareto frontier from best prompts (top 5)
+    pareto_frontier = Enum.take(optimizer_result.best_prompts, 5)
+
+    # Add objectives map to each prompt if not present
+    best_prompts =
+      Enum.map(optimizer_result.best_prompts, fn prompt ->
+        Map.put_new(prompt, :objectives, %{
+          accuracy: prompt.fitness,
+          cost: 0.0,
+          latency: 0,
+          robustness: prompt.fitness
+        })
+      end)
+
+    pareto_frontier =
+      Enum.map(pareto_frontier, fn prompt ->
+        Map.put_new(prompt, :objectives, %{
+          accuracy: prompt.fitness,
+          cost: 0.0,
+          latency: 0,
+          robustness: prompt.fitness
+        })
+      end)
+
+    # Determine convergence reason from optimizer result
+    convergence_reason =
+      Map.get(optimizer_result, :stop_reason, :max_generations_reached)
+
+    %{
+      best_prompts: best_prompts,
+      pareto_frontier: pareto_frontier,
+      final_generation: optimizer_result.final_generation,
+      total_evaluations: optimizer_result.total_evaluations,
+      history: optimizer_result.history,
+      convergence_reason: convergence_reason,
+      duration_ms: optimizer_result.duration_ms
+    }
   end
 
   @doc false
