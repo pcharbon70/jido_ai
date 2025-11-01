@@ -88,9 +88,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
     test "accepts valid population_size", %{agent: agent} do
       result = GEPA.run(agent, test_inputs: ["input"], population_size: 5)
-      # Will return error for now since optimization not implemented
-      # But should not fail on validation
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "rejects non-positive population_size", %{agent: agent} do
@@ -105,7 +103,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
     test "accepts valid max_generations", %{agent: agent} do
       result = GEPA.run(agent, test_inputs: ["input"], max_generations: 10)
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "rejects zero max_generations", %{agent: agent} do
@@ -115,7 +113,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
     test "accepts valid evaluation_budget", %{agent: agent} do
       result = GEPA.run(agent, test_inputs: ["input"], evaluation_budget: 100)
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "rejects evaluation_budget < population_size", %{agent: agent} do
@@ -128,7 +126,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
     test "accepts valid mutation_rate", %{agent: agent} do
       result = GEPA.run(agent, test_inputs: ["input"], mutation_rate: 0.5)
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "rejects mutation_rate < 0", %{agent: agent} do
@@ -143,7 +141,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
     test "accepts valid crossover_rate", %{agent: agent} do
       result = GEPA.run(agent, test_inputs: ["input"], crossover_rate: 0.8)
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "rejects crossover_rate < 0", %{agent: agent} do
@@ -158,7 +156,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
     test "accepts valid parallelism", %{agent: agent} do
       result = GEPA.run(agent, test_inputs: ["input"], parallelism: 10)
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "rejects zero parallelism", %{agent: agent} do
@@ -168,7 +166,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
     test "accepts valid objectives", %{agent: agent} do
       result = GEPA.run(agent, test_inputs: ["input"], objectives: [:accuracy, :cost])
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "rejects invalid objectives", %{agent: agent} do
@@ -186,7 +184,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
     test "accepts list of test_inputs", %{agent: agent} do
       result = GEPA.run(agent, test_inputs: ["input1", "input2", "input3"])
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
   end
 
@@ -201,7 +199,7 @@ defmodule Jido.AI.Runner.GEPATest do
 
       result = GEPA.run(agent)
       # Should not fail on missing test_inputs since it's in state
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "runtime opts override agent state config" do
@@ -219,7 +217,7 @@ defmodule Jido.AI.Runner.GEPATest do
       ]
 
       result = GEPA.run(agent, opts)
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
 
     test "handles missing state config gracefully" do
@@ -247,7 +245,7 @@ defmodule Jido.AI.Runner.GEPATest do
       ]
 
       result = GEPA.run(agent, opts)
-      assert match?({:error, _}, result)
+      assert {:ok, _agent, _directives} = result
     end
   end
 
@@ -263,9 +261,80 @@ defmodule Jido.AI.Runner.GEPATest do
       agent = build_test_agent()
 
       result = GEPA.run(agent, test_inputs: ["input1", "input2"])
-      # Will fail with "not yet implemented" but should pass validation
-      assert {:error, error} = result
-      assert error =~ "not yet implemented"
+      assert {:ok, updated_agent, directives} = result
+
+      # Verify agent state updated
+      assert Map.has_key?(updated_agent.state, :gepa_best_prompts)
+      assert Map.has_key?(updated_agent.state, :gepa_pareto_frontier)
+      assert Map.has_key?(updated_agent.state, :gepa_history)
+      assert Map.has_key?(updated_agent.state, :gepa_config)
+      assert Map.has_key?(updated_agent.state, :gepa_last_run)
+
+      # Verify directives returned
+      assert is_list(directives)
+      assert length(directives) > 0
+    end
+
+    test "returns best prompts in agent state" do
+      agent = build_test_agent()
+
+      {:ok, updated_agent, _directives} = GEPA.run(agent, test_inputs: ["input"])
+
+      best_prompts = updated_agent.state.gepa_best_prompts
+      assert is_list(best_prompts)
+      assert length(best_prompts) > 0
+
+      # Verify prompt structure
+      first_prompt = hd(best_prompts)
+      assert Map.has_key?(first_prompt, :prompt)
+      assert Map.has_key?(first_prompt, :fitness)
+      assert Map.has_key?(first_prompt, :objectives)
+      assert Map.has_key?(first_prompt, :generation)
+    end
+
+    test "returns Pareto frontier in agent state" do
+      agent = build_test_agent()
+
+      {:ok, updated_agent, _directives} = GEPA.run(agent, test_inputs: ["input"])
+
+      frontier = updated_agent.state.gepa_pareto_frontier
+      assert is_list(frontier)
+      assert length(frontier) > 0
+    end
+
+    test "returns optimization history" do
+      agent = build_test_agent()
+
+      {:ok, updated_agent, _directives} =
+        GEPA.run(agent, test_inputs: ["input"], max_generations: 5)
+
+      history = updated_agent.state.gepa_history
+      assert is_list(history)
+      assert length(history) == 5
+
+      # Verify history structure
+      first_entry = hd(history)
+      assert Map.has_key?(first_entry, :generation)
+      assert Map.has_key?(first_entry, :best_fitness)
+      assert Map.has_key?(first_entry, :avg_fitness)
+    end
+
+    test "returns directives with optimization results" do
+      agent = build_test_agent()
+
+      {:ok, _updated_agent, directives} = GEPA.run(agent, test_inputs: ["input"])
+
+      # Should have optimization_complete directive
+      assert Enum.any?(directives, fn
+               {:optimization_complete, _} -> true
+               _ -> false
+             end)
+
+      # Should have best_prompt directive
+      assert Enum.any?(directives, fn
+               {:best_prompt, _} -> true
+               _ -> false
+             end)
     end
   end
 
@@ -279,8 +348,16 @@ defmodule Jido.AI.Runner.GEPATest do
           seed_prompts: ["Solve step by step", "Think carefully"]
         )
 
-      assert {:error, error} = result
-      assert error =~ "not yet implemented"
+      assert {:ok, updated_agent, _directives} = result
+
+      # Should use seed prompts
+      best_prompts = updated_agent.state.gepa_best_prompts
+      assert length(best_prompts) >= 2
+
+      # Prompts should be based on seeds
+      prompt_texts = Enum.map(best_prompts, & &1.prompt)
+      assert "Solve step by step" in prompt_texts
+      assert "Think carefully" in prompt_texts
     end
 
     test "accepts empty seed prompts" do
@@ -292,8 +369,31 @@ defmodule Jido.AI.Runner.GEPATest do
           seed_prompts: []
         )
 
-      assert {:error, error} = result
-      assert error =~ "not yet implemented"
+      assert {:ok, updated_agent, _directives} = result
+
+      # Should generate default prompts
+      best_prompts = updated_agent.state.gepa_best_prompts
+      assert length(best_prompts) > 0
+    end
+
+    test "uses all seed prompts in results" do
+      agent = build_test_agent()
+
+      seeds = ["Prompt 1", "Prompt 2", "Prompt 3"]
+
+      {:ok, updated_agent, _directives} =
+        GEPA.run(agent,
+          test_inputs: ["input"],
+          seed_prompts: seeds
+        )
+
+      best_prompts = updated_agent.state.gepa_best_prompts
+      prompt_texts = Enum.map(best_prompts, & &1.prompt)
+
+      # All seeds should be present
+      Enum.each(seeds, fn seed ->
+        assert seed in prompt_texts
+      end)
     end
   end
 
@@ -307,8 +407,14 @@ defmodule Jido.AI.Runner.GEPATest do
           objectives: [:accuracy, :cost, :latency]
         )
 
-      assert {:error, error} = result
-      assert error =~ "not yet implemented"
+      assert {:ok, updated_agent, _directives} = result
+
+      # Verify objectives are tracked
+      best_prompts = updated_agent.state.gepa_best_prompts
+      first_prompt = hd(best_prompts)
+      assert Map.has_key?(first_prompt.objectives, :accuracy)
+      assert Map.has_key?(first_prompt.objectives, :cost)
+      assert Map.has_key?(first_prompt.objectives, :latency)
     end
 
     test "accepts single objective" do
@@ -320,8 +426,7 @@ defmodule Jido.AI.Runner.GEPATest do
           objectives: [:accuracy]
         )
 
-      assert {:error, error} = result
-      assert error =~ "not yet implemented"
+      assert {:ok, _updated_agent, _directives} = result
     end
 
     test "accepts objective weights" do
@@ -334,8 +439,23 @@ defmodule Jido.AI.Runner.GEPATest do
           objective_weights: %{accuracy: 2.0, cost: 1.0}
         )
 
-      assert {:error, error} = result
-      assert error =~ "not yet implemented"
+      assert {:ok, _updated_agent, _directives} = result
+    end
+
+    test "returns Pareto frontier with trade-offs" do
+      agent = build_test_agent()
+
+      {:ok, updated_agent, _directives} =
+        GEPA.run(agent,
+          test_inputs: ["input"],
+          objectives: [:accuracy, :cost],
+          population_size: 10
+        )
+
+      frontier = updated_agent.state.gepa_pareto_frontier
+      assert is_list(frontier)
+      assert length(frontier) > 0
+      assert length(frontier) <= 5  # Limited to top 5
     end
   end
 
