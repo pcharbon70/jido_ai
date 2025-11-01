@@ -27,12 +27,12 @@ This guide shows you how to run GEPA (Genetic-Pareto Prompt Optimization) with l
 
 GEPA supports local LLMs through [ReqLLM](https://hexdocs.pm/req_llm)'s provider system:
 
-- **Ollama** (Recommended) - Easy to install and use
-- **LM Studio** - GUI-based with OpenAI-compatible API
+- **Ollama** (Recommended) - Easy to install and use, CLI-first
+- **LM Studio** - GUI + CLI, OpenAI-compatible API, great for beginners
 - **LocalAI** - OpenAI-compatible local server
 - **vLLM** - High-performance inference server
 
-This guide focuses on **Ollama** as it's the most popular and easiest to set up.
+This guide covers **Ollama** and **LM Studio** (both with CLI tools) as they're the most popular and easiest to set up.
 
 ### Installing Ollama
 
@@ -71,6 +71,93 @@ ollama pull llama3.1:70b       # 40GB, highest quality (requires 64GB+ RAM)
 
 # List installed models
 ollama list
+```
+
+### Installing LM Studio CLI (lms)
+
+**LM Studio** provides both a GUI application and a powerful CLI tool (`lms`) for managing local LLMs.
+
+**Installation:**
+
+```bash
+# macOS (via Homebrew)
+brew install lmstudio
+
+# Or download from: https://lmstudio.ai/
+
+# After GUI installation, the CLI is available as 'lms'
+lms --version
+```
+
+**Windows / Linux:**
+- Download LM Studio from [lmstudio.ai](https://lmstudio.ai/)
+- The CLI tool is bundled with the GUI application
+- Add to PATH: The `lms` command should be available after installation
+
+**Verify Installation:**
+
+```bash
+# Check lms is available
+lms --version
+
+# List available models
+lms ls
+
+# Check server status
+lms status
+```
+
+### Managing Models with LM Studio CLI
+
+**Downloading Models:**
+
+```bash
+# Search for models
+lms search llama
+
+# Download a model (via GUI model ID)
+lms download TheBloke/Llama-2-7B-GGUF
+
+# Or use popular presets
+lms download llama-3.1-8b-instruct    # Llama 3.1 8B
+lms download mistral-7b-instruct      # Mistral 7B
+lms download codellama-7b             # CodeLlama 7B
+
+# List downloaded models
+lms ls
+
+# Remove a model
+lms rm model-name
+```
+
+**Starting the Server:**
+
+```bash
+# Start LM Studio server (OpenAI-compatible API)
+lms server start
+
+# Start with specific model
+lms server start --model llama-3.1-8b-instruct
+
+# Start on custom port (default: 1234)
+lms server start --port 8080
+
+# Check server status
+lms status
+
+# Stop server
+lms server stop
+```
+
+**Server Configuration:**
+
+LM Studio runs an OpenAI-compatible API server by default on `http://localhost:1234`.
+
+```bash
+# Verify server is running
+curl http://localhost:1234/v1/models
+
+# Should return list of loaded models
 ```
 
 ---
@@ -125,11 +212,55 @@ model: "ollama:mistral"
 model: "ollama:codellama"
 model: "ollama:phi3"
 
-# LM Studio (if running)
-model: "lmstudio:your-model-name"
+# LM Studio (OpenAI-compatible, default port 1234)
+model: "lmstudio:llama-3.1-8b-instruct"
 
 # Custom OpenAI-compatible server
 model: "openai:model-name"    # Configure base_url separately
+```
+
+### Using LM Studio with GEPA
+
+Once you have LM Studio server running, use it just like Ollama:
+
+```elixir
+# 1. Start LM Studio server (in terminal)
+# $ lms server start --model llama-3.1-8b-instruct
+
+# 2. In IEx - use lmstudio provider
+agent = %{
+  id: "lmstudio-optimizer",
+  name: "LM Studio Optimizer",
+  state: %{},
+  pending_instructions: :queue.new(),
+  actions: [],
+  runner: Jido.AI.Runner.GEPA,
+  result: nil
+}
+
+{:ok, updated_agent, directives} = Jido.AI.Runner.GEPA.run(
+  agent,
+  test_inputs: ["The product is amazing!", "This is disappointing."],
+  seed_prompts: ["Classify: {{input}}"],
+  model: "lmstudio:llama-3.1-8b-instruct",  # ← LM Studio model
+  population_size: 5,
+  max_generations: 3,
+  objectives: [:accuracy, :latency]
+)
+
+# View results
+best = hd(updated_agent.state.gepa_best_prompts)
+IO.puts("Best prompt: #{best.prompt}")
+IO.puts("Fitness: #{best.fitness}")
+```
+
+**Note**: The model name should match the model you loaded in LM Studio. Check with:
+```bash
+# See what model is currently loaded
+lms status
+
+# Or query the API
+curl http://localhost:1234/v1/models
 ```
 
 ---
@@ -194,6 +325,26 @@ defmodule LocalGEPAExample do
     display_results(result)
   end
 
+  def run_with_lmstudio do
+    IO.puts("🚀 Starting GEPA with LM Studio...")
+    IO.puts("   Make sure LM Studio server is running:")
+    IO.puts("   $ lms server start --model llama-3.1-8b-instruct\n")
+
+    agent = build_agent()
+
+    {:ok, result, _} = GEPA.run(
+      agent,
+      test_inputs: ["I love this!", "Not great.", "It's okay."],
+      seed_prompts: ["Sentiment: {{input}}"],
+      model: "lmstudio:llama-3.1-8b-instruct",  # Use LM Studio
+      population_size: 5,
+      max_generations: 3,
+      objectives: [:accuracy, :latency]
+    )
+
+    display_results(result)
+  end
+
   defp build_agent do
     %{
       id: "local-test-#{System.unique_integer([:positive])}",
@@ -237,6 +388,7 @@ end
 # Run it:
 # LocalGEPAExample.run_simple_test()
 # LocalGEPAExample.run_code_generation()
+# LocalGEPAExample.run_with_lmstudio()  # Requires LM Studio server running
 ```
 
 ---
@@ -386,6 +538,79 @@ model: "ollama:phi3"  # Much faster than llama3.1:70b
 **Problem**: Ollama runs on non-default port
 
 **Solution**: ReqLLM uses `http://localhost:11434` by default. If your Ollama runs on a different port, you'll need to configure it (see ReqLLM documentation).
+
+### LM Studio Server Not Running
+
+**Problem**: `Connection refused` when using LM Studio, or `ECONNREFUSED localhost:1234`
+
+**Solution**:
+```bash
+# Start LM Studio server
+lms server start
+
+# Or start with specific model
+lms server start --model llama-3.1-8b-instruct
+
+# Verify it's running
+lms status
+
+# Or check the API directly
+curl http://localhost:1234/v1/models
+```
+
+### LM Studio Model Not Loaded
+
+**Problem**: Server is running but GEPA can't find the model
+
+**Solution**:
+```bash
+# Check what models are downloaded
+lms ls
+
+# Download the model if needed
+lms download llama-3.1-8b-instruct
+
+# Check which model is currently loaded in the server
+lms status
+
+# Restart server with correct model
+lms server stop
+lms server start --model llama-3.1-8b-instruct
+```
+
+### LM Studio CLI Not Found
+
+**Problem**: `lms: command not found`
+
+**Solution**:
+1. **Ensure LM Studio is installed**: Download from [lmstudio.ai](https://lmstudio.ai/)
+2. **Add to PATH** (macOS/Linux):
+   ```bash
+   # Find LM Studio installation
+   # macOS: Usually in /Applications/LM Studio.app
+   # Add to ~/.zshrc or ~/.bashrc:
+   export PATH="/Applications/LM Studio.app/Contents/Resources:$PATH"
+
+   # Reload shell
+   source ~/.zshrc  # or ~/.bashrc
+   ```
+3. **Windows**: Add LM Studio installation directory to system PATH
+
+### LM Studio Wrong Port
+
+**Problem**: LM Studio running on different port than default (1234)
+
+**Solution**:
+```bash
+# Start on default port
+lms server start --port 1234
+
+# Or check what port it's running on
+lms status
+
+# Verify connection
+curl http://localhost:1234/v1/models
+```
 
 ---
 
