@@ -461,32 +461,12 @@ defmodule Jido.AI.Runner.GEPA do
   @doc false
   @spec map_optimizer_result_to_runner_format(map()) :: map()
   defp map_optimizer_result_to_runner_format(optimizer_result) do
-    # Optimizer: best_prompts, final_generation, total_evaluations, history, duration_ms
-    # Runner: + pareto_frontier, convergence_reason
+    # Optimizer now provides both best_prompts and pareto_frontier with objectives
+    # Runner just needs to ensure objectives are present for backward compatibility
 
-    # Extract Pareto frontier from best prompts (top 5)
-    pareto_frontier = Enum.take(optimizer_result.best_prompts, 5)
-
-    # Add objectives map to each prompt if not present
-    best_prompts =
-      Enum.map(optimizer_result.best_prompts, fn prompt ->
-        Map.put_new(prompt, :objectives, %{
-          accuracy: prompt.fitness,
-          cost: 0.0,
-          latency: 0,
-          robustness: prompt.fitness
-        })
-      end)
-
-    pareto_frontier =
-      Enum.map(pareto_frontier, fn prompt ->
-        Map.put_new(prompt, :objectives, %{
-          accuracy: prompt.fitness,
-          cost: 0.0,
-          latency: 0,
-          robustness: prompt.fitness
-        })
-      end)
+    # Ensure objectives are present (fallback to fitness-based if missing)
+    best_prompts = ensure_objectives_present(optimizer_result.best_prompts)
+    pareto_frontier = ensure_objectives_present(optimizer_result.pareto_frontier)
 
     # Determine convergence reason from optimizer result
     convergence_reason =
@@ -501,6 +481,25 @@ defmodule Jido.AI.Runner.GEPA do
       convergence_reason: convergence_reason,
       duration_ms: optimizer_result.duration_ms
     }
+  end
+
+  @doc false
+  @spec ensure_objectives_present(list(map())) :: list(map())
+  defp ensure_objectives_present(prompts) do
+    Enum.map(prompts, fn prompt ->
+      # If objectives are already present, use them
+      # Otherwise create fallback objectives from fitness
+      if Map.has_key?(prompt, :objectives) and prompt.objectives do
+        prompt
+      else
+        Map.put(prompt, :objectives, %{
+          accuracy: prompt.fitness || 0.0,
+          cost: 0.0,
+          latency: 0,
+          robustness: prompt.fitness || 0.0
+        })
+      end
+    end)
   end
 
   @doc false

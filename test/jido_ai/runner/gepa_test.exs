@@ -1,6 +1,10 @@
 defmodule Jido.AI.Runner.GEPATest do
   use ExUnit.Case, async: true
 
+  # These tests now make real API calls via TaskEvaluator
+  # Exclude by default to avoid requiring API keys in CI/development
+  @moduletag :requires_api
+
   alias Jido.AI.Runner.GEPA
   alias Jido.AI.Runner.GEPA.Config
 

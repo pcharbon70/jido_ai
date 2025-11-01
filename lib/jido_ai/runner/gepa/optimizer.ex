@@ -75,6 +75,8 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
   use TypedStruct
   require Logger
 
+  alias Jido.AI.Runner.GEPA.Evaluation.TaskEvaluator
+  alias Jido.AI.Runner.GEPA.Pareto.DominanceComparator
   alias Jido.AI.Runner.GEPA.Population
 
   # Type definitions
@@ -121,10 +123,12 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
 
   @type optimization_result :: %{
           best_prompts: list(prompt_candidate()),
+          pareto_frontier: list(prompt_candidate()),
           final_generation: non_neg_integer(),
           total_evaluations: non_neg_integer(),
           history: list(map()),
-          duration_ms: non_neg_integer()
+          duration_ms: non_neg_integer(),
+          stop_reason: atom()
         }
 
   # Client API
@@ -533,13 +537,30 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
     candidates = Population.get_all(state.population)
     unevaluated = Enum.filter(candidates, fn c -> is_nil(c.fitness) end)
 
-    # For now, use simple mock evaluation
-    # Real evaluation will use Scheduler (Task 1.1.3) and evaluation system (Section 1.2)
+    # Use real task-specific evaluation
+    Logger.debug("Starting evaluation of #{length(unevaluated)} candidates")
+
+    # Build evaluation options from state config
+    eval_opts = build_evaluation_opts(state.config)
+
+    # Evaluate all unevaluated candidates using task-specific evaluator
+    # Use batch evaluation for better performance
+    prompts = Enum.map(unevaluated, & &1.prompt)
+
+    evaluation_results =
+      if length(prompts) > 0 do
+        TaskEvaluator.evaluate_batch(prompts, eval_opts)
+      else
+        []
+      end
+
+    # Map evaluation results back to candidate IDs
     results =
-      Enum.map(unevaluated, fn candidate ->
-        # Mock fitness: random score with some correlation to prompt length
-        fitness = mock_evaluate_prompt(candidate.prompt)
-        %{id: candidate.id, fitness: fitness}
+      unevaluated
+      |> Enum.zip(evaluation_results)
+      |> Enum.map(fn {candidate, eval_result} ->
+        fitness = eval_result.fitness || 0.0
+        %{id: candidate.id, fitness: fitness, evaluation: eval_result}
       end)
 
     evaluations_count = length(results)
@@ -549,15 +570,13 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
   end
 
   @doc false
-  @spec mock_evaluate_prompt(String.t()) :: float()
-  defp mock_evaluate_prompt(prompt) do
-    # Simple mock: score based on prompt characteristics
-    # Real implementation will use actual task evaluation
-    base_score = 0.5
-    length_factor = min(String.length(prompt) / 200.0, 0.3)
-    randomness = :rand.uniform() * 0.2
-
-    min(base_score + length_factor + randomness, 1.0)
+  @spec build_evaluation_opts(Config.t()) :: keyword()
+  defp build_evaluation_opts(%Config{} = config) do
+    [
+      task: config.task,
+      parallelism: config.parallelism,
+      timeout: 30_000
+    ]
   end
 
   @doc false
@@ -766,24 +785,93 @@ defmodule Jido.AI.Runner.GEPA.Optimizer do
         []
       end
 
+    # Extract Pareto frontier using dominance sorting
+    pareto_frontier_candidates =
+      if state.population do
+        extract_pareto_frontier(state.population)
+      else
+        []
+      end
+
     # Convert to simple maps for API compatibility
-    best_prompts =
-      Enum.map(best_candidates, fn candidate ->
-        %{
-          prompt: candidate.prompt,
-          fitness: candidate.fitness,
-          generation: candidate.generation,
-          metadata: candidate.metadata
-        }
-      end)
+    best_prompts = convert_candidates_to_maps(best_candidates)
+    pareto_frontier = convert_candidates_to_maps(pareto_frontier_candidates)
 
     %{
       best_prompts: best_prompts,
+      pareto_frontier: pareto_frontier,
       final_generation: state.generation,
       total_evaluations: state.evaluations_used,
       history: Enum.reverse(state.history),
       duration_ms: duration_ms,
       stop_reason: get_stop_reason(state)
     }
+  end
+
+  @doc false
+  @spec extract_pareto_frontier(Population.t()) :: list(Population.Candidate.t())
+  defp extract_pareto_frontier(population) do
+    # Get all candidates from population
+    all_candidates = Population.get_all(population)
+
+    # Filter out candidates without objectives or normalized_objectives
+    candidates_with_objectives =
+      Enum.filter(all_candidates, fn candidate ->
+        candidate.normalized_objectives != nil and
+          map_size(candidate.normalized_objectives) > 0
+      end)
+
+    if Enum.empty?(candidates_with_objectives) do
+      # No multi-objective data, fallback to best by fitness
+      Logger.debug("No candidates with objectives, using fitness-based selection")
+      Population.get_best(population, limit: 5)
+    else
+      # Perform Pareto dominance sorting
+      fronts = DominanceComparator.fast_non_dominated_sort(candidates_with_objectives)
+
+      # Get first front (Pareto optimal solutions)
+      first_front = Map.get(fronts, 1, [])
+
+      # If first front has more than 5, use crowding distance to select
+      if length(first_front) > 5 do
+        # Calculate crowding distances
+        distances = DominanceComparator.crowding_distance(first_front)
+
+        # Sort by crowding distance (descending) and take top 5
+        first_front
+        |> Enum.sort_by(
+          fn candidate ->
+            case Map.get(distances, candidate.id) do
+              :infinity -> 999_999.0
+              dist -> dist
+            end
+          end,
+          :desc
+        )
+        |> Enum.take(5)
+      else
+        first_front
+      end
+    end
+  end
+
+  @doc false
+  @spec convert_candidates_to_maps(list(Population.Candidate.t())) :: list(map())
+  defp convert_candidates_to_maps(candidates) do
+    Enum.map(candidates, fn candidate ->
+      base_map = %{
+        prompt: candidate.prompt,
+        fitness: candidate.fitness,
+        generation: candidate.generation,
+        metadata: candidate.metadata
+      }
+
+      # Add objectives if present
+      if candidate.objectives do
+        Map.put(base_map, :objectives, candidate.objectives)
+      else
+        base_map
+      end
+    end)
   end
 end
