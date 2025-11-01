@@ -61,34 +61,30 @@ defmodule Examples.WorkingGEPAExample do
     model: "openai:gpt-3.5-turbo",  # Cheaper model
     test_inputs: ["Short text here"],
     population_size: 5,   # SMALL
-    max_generations: 3,   # FEW
-    evaluation_budget: 20 # Hard limit
+    max_generations: 3    # FEW
   )
 
   # View results
   IO.puts("Best prompts found:")
   Enum.each(results.pareto_frontier, fn candidate ->
-    IO.puts("\nPrompt: \#{candidate.prompt}")
-    IO.puts("Accuracy: \#{candidate.objectives.accuracy}")
-    IO.puts("Cost: $\#{candidate.objectives.cost}")
+    IO.puts("\nPrompt: #{candidate.prompt}")
+    IO.puts("Fitness: #{candidate.fitness}")
   end)
   ```
 
   ## Features
 
-  - Real multi-objective optimization with LLM evaluation
-  - Actual cost tracking per evaluation
-  - Hard budget limits (evaluation_budget parameter)
-  - Simple mutation operators (word substitution, instruction variation)
-  - Pareto frontier extraction
-  - Progress monitoring
+  - Real multi-objective optimization with LLM evaluation using GEPA runner
+  - Automatic agent state management
+  - Task-specific evaluation support
+  - Pareto frontier extraction via NSGA-II
+  - Progress monitoring and convergence detection
   """
 
   require Logger
 
   alias Jido.AI.Keyring
-  alias Jido.AI.Runner.GEPA.Population.Candidate
-  alias Jido.AI.Runner.GEPA.Pareto.DominanceComparator
+  alias Jido.AI.Runner.GEPA
 
   @doc """
   Optimize a prompt template using GEPA with real LLM evaluation.
@@ -102,16 +98,16 @@ defmodule Examples.WorkingGEPAExample do
   - `:test_inputs` - List of test inputs for evaluation
   - `:population_size` - Candidates per generation (default: 10, recommend 5-10)
   - `:max_generations` - Maximum generations (default: 5, recommend 3-5 for testing)
-  - `:evaluation_budget` - Hard limit on total evaluations (default: 50)
-  - `:expected_outputs` - Optional list of expected outputs for accuracy measurement
+  - `:objectives` - List of objectives to optimize (default: [:accuracy, :latency, :cost])
+  - `:task` - Task configuration for task-specific evaluation (optional)
 
   ## Returns
 
   - `{:ok, results}` with:
     - `:pareto_frontier` - Best trade-off solutions
+    - `:best_prompts` - Top prompts by fitness
     - `:total_evaluations` - Number of LLM calls made
-    - `:total_cost` - Actual API cost incurred
-    - `:generations_completed` - Generations run before stopping
+    - `:history` - Optimization history
 
   ## Examples
 
@@ -121,8 +117,23 @@ defmodule Examples.WorkingGEPAExample do
         model: "openai:gpt-3.5-turbo",
         test_inputs: ["Hello"],
         population_size: 5,
-        max_generations: 2,
-        evaluation_budget: 10
+        max_generations: 2
+      )
+
+      # Code generation task
+      {:ok, results} = optimize_prompt(
+        initial_prompt: "Write a function to {{problem}}",
+        model: "openai:gpt-4",
+        test_inputs: [
+          %{problem: "calculate fibonacci"}
+        ],
+        population_size: 10,
+        max_generations: 5,
+        task: %{
+          type: :code_generation,
+          language: :elixir,
+          test_cases: [%{input: 5, expected: 5}]
+        }
       )
   """
   @spec optimize_prompt(keyword()) :: {:ok, map()} | {:error, term()}
@@ -130,8 +141,7 @@ defmodule Examples.WorkingGEPAExample do
     # Extract and validate parameters
     with {:ok, config} <- build_config(opts),
          :ok <- check_api_key(config.model),
-         :ok <- confirm_cost_awareness() do
-
+         :ok <- confirm_cost_awareness(config) do
       Logger.warning("""
 
       ========================================
@@ -140,8 +150,9 @@ defmodule Examples.WorkingGEPAExample do
       Model: #{config.model}
       Population: #{config.population_size}
       Max Generations: #{config.max_generations}
-      Budget Limit: #{config.evaluation_budget} evaluations
+      Test Inputs: #{length(config.test_inputs)}
 
+      ESTIMATED MAX EVALUATIONS: #{estimate_evaluations(config)}
       ESTIMATED COST: $#{estimate_cost(config)}
       (Actual cost may vary based on response lengths)
       ========================================
@@ -158,11 +169,10 @@ defmodule Examples.WorkingGEPAExample do
       initial_prompt: Keyword.fetch!(opts, :initial_prompt),
       model: Keyword.fetch!(opts, :model),
       test_inputs: Keyword.fetch!(opts, :test_inputs),
-      expected_outputs: Keyword.get(opts, :expected_outputs),
       population_size: Keyword.get(opts, :population_size, 10),
       max_generations: Keyword.get(opts, :max_generations, 5),
-      evaluation_budget: Keyword.get(opts, :evaluation_budget, 50),
-      mutation_rate: Keyword.get(opts, :mutation_rate, 0.3)
+      objectives: Keyword.get(opts, :objectives, [:accuracy, :latency, :cost]),
+      task: Keyword.get(opts, :task)
     }
 
     # Validate
@@ -175,6 +185,9 @@ defmodule Examples.WorkingGEPAExample do
 
       config.max_generations < 1 ->
         {:error, "Must run at least 1 generation"}
+
+      config.test_inputs == [] ->
+        {:error, "test_inputs must be non-empty"}
 
       true ->
         {:ok, config}
@@ -202,13 +215,16 @@ defmodule Examples.WorkingGEPAExample do
     end
   end
 
-  defp confirm_cost_awareness do
+  defp confirm_cost_awareness(config) do
     # In a real interactive environment, you might prompt the user
     # For this example, we just log a final warning
     Logger.warning("""
 
     ⚠️  FINAL COST WARNING ⚠️
     You are about to make real API calls that will cost real money.
+    Max evaluations: #{estimate_evaluations(config)}
+    Estimated cost: $#{estimate_cost(config)}
+
     Proceeding in 2 seconds... (Ctrl+C to abort)
     """)
 
@@ -216,13 +232,15 @@ defmodule Examples.WorkingGEPAExample do
     :ok
   end
 
+  defp estimate_evaluations(config) do
+    config.population_size * config.max_generations
+  end
+
   defp estimate_cost(config) do
-    # Rough estimation: $0.05 per evaluation for gpt-3.5-turbo equivalent
-    # Real costs vary significantly by model and length
-    evaluations = min(
-      config.population_size * config.max_generations,
-      config.evaluation_budget
-    )
+    # Rough estimation: varies by model
+    evaluations = estimate_evaluations(config)
+    # Multiply by number of test inputs
+    total_calls = evaluations * length(config.test_inputs)
 
     cost_per_eval = cond do
       String.contains?(config.model, "gpt-4") -> 0.10
@@ -232,375 +250,85 @@ defmodule Examples.WorkingGEPAExample do
       true -> 0.05  # Conservative estimate
     end
 
-    Float.round(evaluations * cost_per_eval, 2)
+    Float.round(total_calls * cost_per_eval, 2)
   end
 
   defp run_optimization(config) do
-    # Initialize population
-    Logger.info("Creating initial population of #{config.population_size} candidates...")
-    population = create_initial_population(config)
+    # Create agent for GEPA runner
+    agent = build_agent()
 
-    # Evaluate initial population
-    Logger.info("Evaluating initial population...")
-    {evaluated_pop, eval_count, total_cost} = evaluate_population(population, config)
+    Logger.info("Running GEPA optimization via runner...")
 
-    # Track state
-    state = %{
-      population: evaluated_pop,
-      generation: 1,
-      evaluations_used: eval_count,
-      total_cost: total_cost,
-      best_fitness: get_best_fitness(evaluated_pop)
-    }
-
-    # Run generations
-    final_state = run_generations(state, config)
-
-    # Extract Pareto frontier
-    fronts = DominanceComparator.fast_non_dominated_sort(final_state.population)
-    frontier = Map.get(fronts, 1, [])
-
-    Logger.info("""
-
-    ========================================
-    OPTIMIZATION COMPLETE
-    ========================================
-    Generations: #{final_state.generation - 1}
-    Evaluations: #{final_state.evaluations_used}
-    Actual Cost: $#{Float.round(final_state.total_cost, 4)}
-    Frontier Size: #{length(frontier)}
-    ========================================
-    """)
-
-    {:ok, %{
-      pareto_frontier: frontier,
-      total_evaluations: final_state.evaluations_used,
-      total_cost: final_state.total_cost,
-      generations_completed: final_state.generation - 1,
-      final_population: final_state.population
-    }}
-  end
-
-  defp create_initial_population(config) do
-    # Create initial candidate from template
-    initial = %Candidate{
-      id: "gen0_1",
-      prompt: config.initial_prompt,
-      generation: 0,
-      parent_ids: []
-    }
-
-    # Generate variations through mutation
-    [initial | Enum.map(2..config.population_size, fn i ->
-      %Candidate{
-        id: "gen0_#{i}",
-        prompt: mutate_prompt(config.initial_prompt, i),
-        generation: 0,
-        parent_ids: []
-      }
-    end)]
-  end
-
-  defp mutate_prompt(prompt, seed) do
-    # Simple mutation strategies
-    :rand.seed(:exsplus, {seed, seed * 2, seed * 3})
-
-    case :rand.uniform(3) do
-      1 -> add_instruction_modifier(prompt)
-      2 -> change_wording(prompt)
-      3 -> adjust_format(prompt)
-    end
-  end
-
-  defp add_instruction_modifiers() do
-    ["Be concise", "Be detailed", "Be clear", "Be precise", "Focus on key points",
-     "Explain step by step", "Provide examples", "Summarize briefly"]
-  end
-
-  defp add_instruction_modifier(prompt) do
-    modifiers = add_instruction_modifiers()
-    modifier = Enum.random(modifiers)
-    "#{modifier}. #{prompt}"
-  end
-
-  defp change_wording(prompt) do
-    replacements = [
-      {"Summarize", "Condense"},
-      {"Explain", "Describe"},
-      {"Translate", "Convert"},
-      {"Analyze", "Examine"},
-      {"Generate", "Create"}
+    # Build options for GEPA runner
+    gepa_opts = [
+      test_inputs: config.test_inputs,
+      seed_prompts: [config.initial_prompt],
+      model: config.model,
+      population_size: config.population_size,
+      max_generations: config.max_generations,
+      objectives: config.objectives
     ]
 
-    Enum.reduce(replacements, prompt, fn {from, to}, acc ->
-      if String.contains?(acc, from) and :rand.uniform() > 0.5 do
-        String.replace(acc, from, to, global: false)
+    # Add task config if provided
+    gepa_opts =
+      if config.task do
+        Keyword.put(gepa_opts, :task, config.task)
       else
-        acc
-      end
-    end)
-  end
-
-  defp adjust_format(prompt) do
-    formats = [
-      "\n\nProvide your response in a clear format.",
-      "\n\nAnswer:",
-      "\n\nOutput:",
-      ""
-    ]
-
-    prompt <> Enum.random(formats)
-  end
-
-  defp evaluate_population(population, config) do
-    Logger.info("Evaluating #{length(population)} candidates...")
-
-    {evaluated, eval_count, total_cost} = Enum.reduce(population, {[], 0, 0.0}, fn candidate, {acc, count, cost} ->
-      if count >= config.evaluation_budget do
-        Logger.warning("Budget limit reached at #{count} evaluations")
-        {[candidate | acc], count, cost}  # Return unevaluated
-      else
-        case evaluate_candidate(candidate, config) do
-          {:ok, evaluated_candidate, eval_cost} ->
-            Logger.debug("Evaluated #{candidate.id}: accuracy=#{Float.round(evaluated_candidate.objectives.accuracy, 2)}, cost=$#{Float.round(eval_cost, 4)}")
-            {[evaluated_candidate | acc], count + length(config.test_inputs), cost + eval_cost}
-
-          {:error, reason} ->
-            Logger.error("Evaluation failed for #{candidate.id}: #{inspect(reason)}")
-            {[candidate | acc], count, cost}
-        end
-      end
-    end)
-
-    {Enum.reverse(evaluated), eval_count, total_cost}
-  end
-
-  defp evaluate_candidate(candidate, config) do
-    # Evaluate prompt on all test inputs
-    results = Enum.map(config.test_inputs, fn input ->
-      evaluate_on_input(candidate.prompt, input, config)
-    end)
-
-    # Check for any errors
-    if Enum.any?(results, &match?({:error, _}, &1)) do
-      errors = Enum.filter(results, &match?({:error, _}, &1))
-      {:error, "Evaluation failed: #{inspect(List.first(errors))}"}
-    else
-      # Calculate metrics
-      metrics = Enum.map(results, fn {:ok, result} -> result end)
-
-      objectives = %{
-        accuracy: calculate_accuracy(metrics, config),
-        latency: calculate_avg_latency(metrics),
-        cost: calculate_total_cost(metrics),
-        robustness: calculate_robustness(metrics)
-      }
-
-      normalized_objectives = normalize_objectives(objectives)
-
-      evaluated = %{candidate |
-        objectives: objectives,
-        normalized_objectives: normalized_objectives,
-        fitness: normalized_objectives.accuracy  # Use accuracy as primary fitness
-      }
-
-      total_cost = Enum.sum(Enum.map(metrics, & &1.cost))
-      {:ok, evaluated, total_cost}
-    end
-  end
-
-  defp evaluate_on_input(prompt_template, input, config) do
-    # Replace {{text}} or {{input}} with actual input
-    prompt = prompt_template
-    |> String.replace("{{text}}", to_string(input))
-    |> String.replace("{{input}}", to_string(input))
-
-    messages = [%{role: "user", content: prompt}]
-
-    start_time = System.monotonic_time(:millisecond)
-
-    case ReqLLM.generate_text(config.model, messages, max_tokens: 500, temperature: 0.7) do
-      {:ok, response} ->
-        end_time = System.monotonic_time(:millisecond)
-        latency = end_time - start_time
-
-        output = get_response_content(response)
-        cost = estimate_call_cost(response, config.model)
-
-        {:ok, %{
-          input: input,
-          output: output,
-          latency: latency,
-          cost: cost,
-          success: true
-        }}
-
-      {:error, reason} ->
-        {:error, "LLM call failed: #{inspect(reason)}"}
-    end
-  end
-
-  defp get_response_content(response) when is_binary(response), do: response
-  defp get_response_content(%{content: content}), do: content
-  defp get_response_content(response) when is_map(response) do
-    response["content"] || response[:content] || inspect(response)
-  end
-  defp get_response_content(_), do: ""
-
-  defp estimate_call_cost(response, model) when is_binary(response) do
-    # Rough estimate based on typical response lengths
-    estimate_call_cost(%{content: response}, model)
-  end
-  defp estimate_call_cost(response, model) when is_map(response) do
-    content = get_response_content(response)
-
-    # Estimate tokens (rough: ~4 chars per token)
-    output_tokens = div(String.length(content), 4)
-    input_tokens = 50  # Rough estimate for prompt
-
-    # Cost per 1K tokens (rough estimates)
-    {input_cost_per_1k, output_cost_per_1k} = case model do
-      "openai:gpt-4" <> _ -> {0.03, 0.06}
-      "openai:gpt-3.5-turbo" <> _ -> {0.0015, 0.002}
-      "anthropic:claude-3-opus" <> _ -> {0.015, 0.075}
-      "anthropic:claude-3-sonnet" <> _ -> {0.003, 0.015}
-      "anthropic:claude-3-haiku" <> _ -> {0.00025, 0.00125}
-      "anthropic:claude-instant" <> _ -> {0.00080, 0.00240}
-      _ -> {0.001, 0.002}  # Generic estimate
-    end
-
-    input_cost = (input_tokens / 1000.0) * input_cost_per_1k
-    output_cost = (output_tokens / 1000.0) * output_cost_per_1k
-
-    input_cost + output_cost
-  end
-
-  defp calculate_accuracy(metrics, config) do
-    if config.expected_outputs do
-      # Calculate similarity to expected outputs
-      scores = Enum.zip(metrics, config.expected_outputs)
-      |> Enum.map(fn {metric, expected} ->
-        similarity_score(metric.output, expected)
-      end)
-
-      Enum.sum(scores) / length(scores)
-    else
-      # Use success rate and output quality heuristics
-      success_rate = Enum.count(metrics, & &1.success) / length(metrics)
-      avg_length = Enum.sum(Enum.map(metrics, &String.length(&1.output))) / length(metrics)
-
-      # Penalize very short or very long outputs
-      length_score = cond do
-        avg_length < 10 -> 0.3
-        avg_length > 1000 -> 0.6
-        true -> 1.0
+        gepa_opts
       end
 
-      success_rate * length_score
+    # Run optimization via GEPA runner
+    case GEPA.run(agent, gepa_opts) do
+      {:ok, updated_agent, directives} ->
+        # Extract results from agent state
+        results = extract_results(updated_agent, directives)
+
+        Logger.info("""
+
+        ========================================
+        OPTIMIZATION COMPLETE
+        ========================================
+        Best Prompts: #{length(results.best_prompts)}
+        Pareto Frontier: #{length(results.pareto_frontier)}
+        Directives: #{inspect(directives)}
+        ========================================
+        """)
+
+        {:ok, results}
+
+      {:error, reason} = error ->
+        Logger.error("GEPA optimization failed: #{inspect(reason)}")
+        error
     end
   end
 
-  defp similarity_score(output, expected) do
-    # Simple word overlap similarity
-    output_words = String.split(String.downcase(output))
-    expected_words = String.split(String.downcase(expected))
-
-    common = MapSet.intersection(MapSet.new(output_words), MapSet.new(expected_words))
-    union = MapSet.union(MapSet.new(output_words), MapSet.new(expected_words))
-
-    if MapSet.size(union) == 0 do
-      0.0
-    else
-      MapSet.size(common) / MapSet.size(union)
-    end
-  end
-
-  defp calculate_avg_latency(metrics) do
-    Enum.sum(Enum.map(metrics, & &1.latency)) / length(metrics)
-  end
-
-  defp calculate_total_cost(metrics) do
-    Enum.sum(Enum.map(metrics, & &1.cost))
-  end
-
-  defp calculate_robustness(metrics) do
-    # Robustness = consistency of outputs
-    if length(metrics) < 2 do
-      1.0
-    else
-      outputs = Enum.map(metrics, & &1.output)
-      lengths = Enum.map(outputs, &String.length/1)
-
-      avg_len = Enum.sum(lengths) / length(lengths)
-      variance = Enum.sum(Enum.map(lengths, fn len -> :math.pow(len - avg_len, 2) end)) / length(lengths)
-      std_dev = :math.sqrt(variance)
-
-      # Lower variance = higher robustness
-      1.0 - min(std_dev / (avg_len + 1), 1.0)
-    end
-  end
-
-  defp normalize_objectives(objectives) do
-    # Simple normalization for optimization
+  defp build_agent do
     %{
-      accuracy: objectives.accuracy,  # Already 0-1
-      latency: 1.0 / (1.0 + objectives.latency / 1000.0),  # Invert and normalize
-      cost: 1.0 / (1.0 + objectives.cost * 100),  # Invert and normalize
-      robustness: objectives.robustness  # Already 0-1
+      id: "gepa-optimizer-#{System.unique_integer([:positive])}",
+      name: "GEPA Prompt Optimizer",
+      state: %{},
+      pending_instructions: :queue.new(),
+      actions: [],
+      runner: GEPA,
+      result: nil
     }
   end
 
-  defp run_generations(state, config) do
-    if state.generation > config.max_generations do
-      state
-    else
-      if state.evaluations_used >= config.evaluation_budget do
-        Logger.info("Budget limit reached. Stopping optimization.")
-        state
-      else
-        Logger.info("\n--- Generation #{state.generation} ---")
-        Logger.info("Best fitness: #{Float.round(state.best_fitness, 3)}")
-        Logger.info("Evaluations used: #{state.evaluations_used}/#{config.evaluation_budget}")
-        Logger.info("Cost so far: $#{Float.round(state.total_cost, 4)}")
+  defp extract_results(agent, _directives) do
+    state = agent.state
 
-        # Selection: Keep best half
-        sorted = Enum.sort_by(state.population, & &1.fitness, :desc)
-        parents = Enum.take(sorted, div(config.population_size, 2))
-
-        # Generate offspring through mutation
-        offspring = Enum.map(1..div(config.population_size, 2), fn i ->
-          parent = Enum.random(parents)
-          %Candidate{
-            id: "gen#{state.generation}_#{i}",
-            prompt: mutate_prompt(parent.prompt, i + state.generation * 100),
-            generation: state.generation,
-            parent_ids: [parent.id]
-          }
-        end)
-
-        # Evaluate new offspring
-        {evaluated_offspring, new_evals, new_cost} = evaluate_population(offspring, %{config | evaluation_budget: config.evaluation_budget - state.evaluations_used})
-
-        # Combine parents and evaluated offspring
-        new_population = parents ++ evaluated_offspring
-
-        # Update state
-        new_state = %{state |
-          population: new_population,
-          generation: state.generation + 1,
-          evaluations_used: state.evaluations_used + new_evals,
-          total_cost: state.total_cost + new_cost,
-          best_fitness: max(state.best_fitness, get_best_fitness(new_population))
-        }
-
-        run_generations(new_state, config)
-      end
-    end
+    %{
+      pareto_frontier: Map.get(state, :gepa_pareto_frontier, []),
+      best_prompts: Map.get(state, :gepa_best_prompts, []),
+      total_evaluations: get_total_evaluations(state),
+      history: Map.get(state, :gepa_history, [])
+    }
   end
 
-  defp get_best_fitness(population) do
-    population
-    |> Enum.map(& &1.fitness)
-    |> Enum.max(fn -> 0.0 end)
+  defp get_total_evaluations(state) do
+    case Map.get(state, :gepa_last_run) do
+      nil -> 0
+      last_run -> Map.get(last_run, :total_evaluations, 0)
+    end
   end
 end
