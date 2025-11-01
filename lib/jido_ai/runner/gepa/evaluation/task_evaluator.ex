@@ -41,8 +41,8 @@ defmodule Jido.AI.Runner.GEPA.Evaluation.TaskEvaluator do
 
   require Logger
 
-  alias Jido.AI.Runner.GEPA.Evaluator
   alias Jido.AI.Runner.GEPA.Evaluation.Strategies.CodeEvaluator
+  alias Jido.AI.Runner.GEPA.Evaluator
 
   @type task_config :: map()
   @type prompt :: String.t()

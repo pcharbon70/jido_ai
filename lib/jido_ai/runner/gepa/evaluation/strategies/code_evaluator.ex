@@ -45,8 +45,8 @@ defmodule Jido.AI.Runner.GEPA.Evaluation.Strategies.CodeEvaluator do
 
   require Logger
 
-  alias Jido.AI.Runner.GEPA.Evaluator
   alias Jido.AI.Runner.GEPA.Evaluation.Validators.CodeValidator
+  alias Jido.AI.Runner.GEPA.Evaluator
 
   @type task_config :: map()
   @type prompt :: String.t()
@@ -222,7 +222,7 @@ defmodule Jido.AI.Runner.GEPA.Evaluation.Strategies.CodeEvaluator do
 
   @doc false
   @spec run_test_cases(String.t(), list(test_case()), task_config()) :: map()
-  defp run_test_cases(_code, test_cases, _task) when length(test_cases) == 0 do
+  defp run_test_cases(_code, test_cases, _task) when test_cases == [] do
     %{tests_passed: 0, tests_total: 0, functionality: 1.0}
   end
 
