@@ -350,13 +350,15 @@ defmodule Jido.AI.Actions.OpenaiEx do
   defp build_req_llm_options_from_chat_req(chat_req, model) do
     opts = []
 
-    # Set API key via JidoKeys if available
+    # Set API key via Application environment
     if model.api_key do
       provider_atom = extract_provider_from_reqllm_id(model.reqllm_id)
 
       if provider_atom do
-        env_var_name = ReqLLM.Keys.env_var_name(provider_atom)
-        JidoKeys.put(env_var_name, model.api_key)
+        _env_var_name = ReqLLM.Keys.env_var_name(provider_atom)
+        # Use Application environment instead of JidoKeys
+        config_key = ReqLLM.Keys.config_key(provider_atom)
+        Application.put_env(:req_llm, config_key, model.api_key)
       end
     end
 

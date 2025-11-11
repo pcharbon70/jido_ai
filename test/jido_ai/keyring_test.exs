@@ -12,7 +12,8 @@ defmodule JidoTest.AI.KeyringTest do
   setup do
     # Copy modules for mocking
     Mimic.copy(Dotenvy)
-    Mimic.copy(JidoKeys)
+    # JidoKeys no longer exists - using ReqLLM.Keys instead
+    Mimic.copy(ReqLLM.Keys)
 
     # Reset application env
     Application.delete_env(:jido_ai, :keyring)
@@ -30,33 +31,15 @@ defmodule JidoTest.AI.KeyringTest do
     # Mock Dotenvy.env! to raise by default
     stub(Dotenvy, :env!, fn _key, _type -> raise "Not found" end)
 
-    # Mock JidoKeys.get to read from Keyring's state instead of its own storage
-    # This is necessary because Keyring.get() calls JidoKeys.get(), but the tests
-    # mock Dotenvy which populates Keyring's ETS cache, not JidoKeys
-    stub(JidoKeys, :get, fn key, default ->
-      # Try to find a keyring that has this value in the ETS table
-      case :ets.match(:test_keyrings, {:"$1", :"$2"}) do
-        [] ->
-          # No keyrings registered
-          default
-
-        keyrings ->
-          # Try each registered keyring
-          result =
-            Enum.find_value(keyrings, fn [keyring_name, _pid] ->
-              try do
-                case GenServer.call(keyring_name, {:get_value, key, nil}) do
-                  nil -> nil
-                  value -> value
-                end
-              catch
-                :exit, _ -> nil
-              end
-            end)
-
-          result || default
-      end
+    # Mock ReqLLM.Keys.get to read from ETS state instead of external sources
+    # This is necessary because Keyring.get() calls ReqLLM.Keys.get(), but the tests
+    # should use the test environment data rather than real API keys
+    stub(ReqLLM.Keys, :get, fn _provider, _opts ->
+      # Return empty result to force fallback to ETS
+      {:error, "test mode - no provider keys"}
     end)
+    
+    # Remove the JidoKeys stub since it no longer exists - tests will use ETS fallback directly
 
     on_exit(fn ->
       # Don't delete the table, just clear it - it might be reused by other tests
@@ -76,7 +59,7 @@ defmodule JidoTest.AI.KeyringTest do
     registry = :"registry_#{System.unique_integer()}"
     {:ok, pid} = Keyring.start_link(name: name, registry: registry)
 
-    # Register keyring in ETS table so JidoKeys.get stub can find it
+    # Register keyring in ETS table so environment lookups work properly
     :ets.insert(:test_keyrings, {name, pid})
 
     on_exit(fn ->

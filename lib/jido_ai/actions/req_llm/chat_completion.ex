@@ -264,11 +264,12 @@ defmodule Jido.AI.Actions.ReqLlm.ChatCompletion do
 
     # Add API key using Authentication system
     case Authentication.authenticate_for_provider(model.provider, opts_with_tools) do
-      {:ok, headers, api_key} ->
+      {:ok, _headers, api_key} ->
         final_opts =
           opts_with_tools
           |> Keyword.put(:api_key, api_key)
-          |> Keyword.put(:headers, headers)
+        # Note: Headers are no longer passed to ReqLLM in the new version
+        # ReqLLM handles authentication internally via the API key
 
         {:ok, final_opts}
 

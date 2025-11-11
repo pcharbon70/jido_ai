@@ -29,7 +29,6 @@ defmodule Jido.AI.Keyring do
   use GenServer
   require Logger
 
-  alias Jido.AI.Keyring.JidoKeysHybrid
   alias Jido.AI.ReqLlmBridge.KeyringIntegration
 
   @session_registry :jido_ai_keyring_sessions
@@ -199,12 +198,12 @@ defmodule Jido.AI.Keyring do
     # Enhanced: Use JidoKeys hybrid integration for better session fallback
     case get_session_value(server, key, pid) do
       nil ->
-        # Delegate to JidoKeys hybrid for enhanced security and runtime config
-        JidoKeysHybrid.get_global_value(key, default)
+        # Try ReqLLM.Keys for API keys, then fall back to environment
+        get_reqllm_or_env_value(server, key, default)
 
       value ->
-        # Apply JidoKeys filtering to session values for security
-        JidoKeysHybrid.filter_sensitive_data(value)
+        # Apply security filtering to session values
+        filter_sensitive_data(value)
     end
   end
 
@@ -259,9 +258,9 @@ defmodule Jido.AI.Keyring do
   """
   @spec get_env_value(GenServer.server(), atom(), term()) :: term()
   def get_env_value(server \\ @default_name, key, default \\ nil) when is_atom(key) do
-    # Enhanced: Try JidoKeys first, then fallback to ETS for compatibility
-    case JidoKeysHybrid.get_global_value(key, nil) do
-      nil ->
+    # Try ReqLLM.Keys for API keys, then fallback to ETS for compatibility
+    case get_reqllm_or_env_value(server, key, nil) do
+      ^default ->
         # Fallback to existing ETS-based lookup for backward compatibility
         get_env_value_from_ets(server, key, default)
 
@@ -305,14 +304,14 @@ defmodule Jido.AI.Keyring do
   """
   @spec set_session_value(GenServer.server(), atom(), term(), pid()) :: :ok
   def set_session_value(server \\ @default_name, key, value, pid \\ self()) when is_atom(key) do
-    # Enhanced: Apply JidoKeys security filtering before storing session values
-    filtered_value = JidoKeysHybrid.filter_sensitive_data(value)
+    # Apply security filtering before storing session values
+    filtered_value = filter_sensitive_data(value)
 
     registry = GenServer.call(server, :get_registry)
     :ets.insert(registry, {{pid, key}, filtered_value})
 
-    # Enhanced: Log session operations with security filtering
-    JidoKeysHybrid.safe_log_key_operation(key, :set_session, :keyring)
+    # Log session operations
+    safe_log_key_operation(key, :set_session, :keyring)
     :ok
   end
 
@@ -398,7 +397,16 @@ defmodule Jido.AI.Keyring do
   """
   @spec set_runtime_value(atom() | String.t(), String.t()) :: :ok | {:error, term()}
   def set_runtime_value(key, value) when is_binary(value) do
-    JidoKeysHybrid.set_runtime_value(key, value)
+    try do
+      # Use Application environment for runtime configuration
+      config_key = reqllm_config_key(key)
+      Application.put_env(:req_llm, config_key, value)
+      :ok
+    rescue
+      error ->
+        Logger.warning("[Keyring] Failed to set runtime value for #{key}: #{inspect(error)}")
+        {:error, error}
+    end
   end
 
   @impl true
@@ -528,5 +536,104 @@ defmodule Jido.AI.Keyring do
     # Convert the key to a string, prefix with "lb_", and convert back to atom
     "lb_#{key}"
     |> String.to_atom()
+  end
+
+  # Helper functions for ReqLLM integration and security filtering
+
+  defp get_reqllm_or_env_value(server, key, default) do
+    try do
+      # Try to get value through ReqLLM.Keys for API keys
+      provider = extract_provider_from_key(key)
+      if provider do
+        case ReqLLM.Keys.get(provider, []) do
+          {:ok, value, _source} -> 
+            if is_binary(value) and value != "" do
+              value
+            else
+              get_env_value_from_ets(server, key, default)
+            end
+          {:error, _} -> get_env_value_from_ets(server, key, default)
+        end
+      else
+        # For non-API keys, use standard environment lookup
+        get_env_value_from_ets(server, key, default)
+      end
+    rescue
+      _ -> get_env_value_from_ets(server, key, default)
+    end
+  end
+
+  @doc """
+  Filters sensitive data for security purposes.
+  
+  ## Parameters
+    * `data` - Data to filter (supports various types)
+  
+  ## Returns
+    * Filtered data with sensitive patterns masked
+  """
+  @spec filter_sensitive_data(term()) :: term()
+  def filter_sensitive_data(data) when is_binary(data) do
+    # Apply basic filtering for sensitive patterns
+    data_lower = String.downcase(data)
+
+    sensitive_value_patterns = [
+      "password",
+      "secret",
+      "token",
+      "bearer",
+      "api_key",
+      "api-key",
+      "apikey"
+    ]
+
+    # If the value itself contains sensitive terms and is short, filter it entirely
+    should_filter_entire_value =
+      Enum.any?(sensitive_value_patterns, fn pattern ->
+        String.contains?(data_lower, pattern) and String.length(data) < 200
+      end)
+
+    if should_filter_entire_value do
+      "[FILTERED]"
+    else
+      # Otherwise apply pattern-based filtering for specific tokens
+      data
+      |> String.replace(~r/sk-[a-zA-Z0-9]{6,}/, "[FILTERED]")
+      |> String.replace(~r/xoxb-[a-zA-Z0-9\-]{20,}/, "[FILTERED]")
+      |> String.replace(~r/ghp_[a-zA-Z0-9]{20,}/, "[FILTERED]")
+      |> String.replace(~r/AKIA[0-9A-Z]{16}/, "[FILTERED]")
+      |> String.replace(~r/bearer_token_[a-zA-Z0-9]+/i, "[FILTERED]")
+    end
+  end
+
+  def filter_sensitive_data(data), do: data
+
+  defp reqllm_config_key(key) when is_atom(key) do
+    key
+    |> Atom.to_string()
+    |> String.replace("_api_key", "")
+    |> String.to_atom()
+    |> ReqLLM.Keys.config_key()
+  end
+
+  defp reqllm_config_key(key) when is_binary(key) do
+    key
+    |> String.replace("_api_key", "")
+    |> String.to_atom()
+    |> ReqLLM.Keys.config_key()
+  end
+
+  defp extract_provider_from_key(key) do
+    key_str = key |> to_string() |> String.replace("_api_key", "")
+    try do
+      String.to_atom(key_str)
+    rescue
+      ArgumentError -> nil
+    end
+  end
+
+  defp safe_log_key_operation(key, operation, source) do
+    safe_key = filter_sensitive_data(to_string(key))
+    Logger.debug("[Keyring] #{operation} operation for #{safe_key} from #{source}")
   end
 end

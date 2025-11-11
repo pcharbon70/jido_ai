@@ -203,7 +203,9 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
         # Use safe provider extraction like in openaiex.ex
         case extract_provider_from_reqllm_id(reqllm_id) do
           {:ok, provider_atom} ->
-            JidoKeys.put(provider_atom, api_key)
+            # Use Application environment instead of JidoKeys
+            config_key = ReqLLM.Keys.config_key(provider_atom)
+            Application.put_env(:req_llm, config_key, api_key)
 
           {:error, _reason} ->
             Logger.warning("Could not extract provider from reqllm_id: #{reqllm_id}")

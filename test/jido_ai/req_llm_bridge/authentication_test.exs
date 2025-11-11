@@ -27,10 +27,10 @@ defmodule Jido.AI.ReqLlmBridge.AuthenticationTest do
     copy(Jido.AI.Keyring)
 
     # Stub ReqLLM.Keys.get to return error by default
-    # This ensures tests are isolated from global JidoKeys state
+    # This ensures tests are isolated from global ReqLLM state
     stub(ReqLLM.Keys, :get, fn provider, _opts ->
       env_var = "#{String.upcase(to_string(provider))}_API_KEY"
-      {:error, ":api_key option or #{env_var} env var (optionally via JidoKeys.put/2)"}
+      {:error, ":api_key option or #{env_var} env var or app config"}
     end)
 
     # Stub Keyring.get_env_value to return nil by default

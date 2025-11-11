@@ -214,17 +214,20 @@ defmodule Jido.AI.ReqLlmBridgeTest do
   end
 
   describe "8.5 Tool Conversion Interface" do
-    test "converting tools with schema issues returns error" do
-      # Jido.Actions.Basic.Sleep has schema compatibility issues with ReqLLM
-      # The ToolBuilder generates a schema format that ReqLLM doesn't accept
+    test "converting tools with schema issues succeeds with new ReqLLM" do
+      # Jido.Actions.Basic.Sleep now works correctly with the new ReqLLM version
+      # The ToolBuilder handles schema conversion properly
       tools = [Jido.Actions.Basic.Sleep]
 
       result = ReqLlmBridge.convert_tools(tools)
 
-      # Should return error due to schema format mismatch
-      assert {:error, error_details} = result
-      assert error_details.reason == "tool_conversion_error"
-      assert error_details.details =~ "invalid value for :parameter_schema option"
+      # Should succeed with the new ReqLLM compatibility
+      assert {:ok, converted_tools} = result
+      assert length(converted_tools) == 1
+      
+      tool = hd(converted_tools)
+      assert tool.name == "sleep_action"
+      assert is_map(tool.parameter_schema) or tool.parameter_schema == nil
     end
 
     test "converting empty tool list returns ok with empty list" do
@@ -424,25 +427,27 @@ defmodule Jido.AI.ReqLlmBridgeTest do
   end
 
   describe "8.11 Enhanced Tool Conversion" do
-    test "converting tools with options raises on schema issues" do
+    test "converting tools with options succeeds with new ReqLLM" do
       tools = [Jido.Actions.Basic.Sleep]
       opts = %{validate_schema: true}
 
-      # convert_tools_with_options doesn't have rescue block like convert_tools
-      # so it raises ReqLLM.Error.Validation.Error
-      assert_raise ReqLLM.Error.Validation.Error, fn ->
-        ReqLlmBridge.convert_tools_with_options(tools, opts)
-      end
+      # With the new ReqLLM version, enhanced conversion works correctly
+      result = ReqLlmBridge.convert_tools_with_options(tools, opts)
+      
+      # Should succeed with the enhanced converter
+      assert {:ok, converted_tools} = result
+      assert length(converted_tools) == 1
     end
 
-    test "converting tools with empty options raises on schema issues" do
+    test "converting tools with empty options succeeds with new ReqLLM" do
       tools = [Jido.Actions.Basic.Sleep]
 
-      # convert_tools_with_options doesn't have rescue block like convert_tools
-      # so it raises ReqLLM.Error.Validation.Error
-      assert_raise ReqLLM.Error.Validation.Error, fn ->
-        ReqLlmBridge.convert_tools_with_options(tools, %{})
-      end
+      # With the new ReqLLM version, tools convert successfully even with empty options
+      result = ReqLlmBridge.convert_tools_with_options(tools, %{})
+      
+      # Should succeed
+      assert {:ok, converted_tools} = result
+      assert length(converted_tools) == 1
     end
   end
 

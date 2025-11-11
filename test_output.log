@@ -1,0 +1,433 @@
+[debug] ReqLLM provider registry initialized with 56 providers (11 implemented, 45 metadata-only) {{2025, 11, 11}, {10, 6, 32, 125}}
+[debug] Loading Initial Jobs from Config {{2025, 11, 11}, {10, 6, 32, 186}}
+[debug] [Jido.AI.Keyring] Initializing environment variables with ETS optimization (table: jido_ai_env_cache) {{2025, 11, 11}, {10, 6, 32, 201}}
+[info] ConversationManager started with cleanup interval 1800000ms {{2025, 11, 11}, {10, 6, 32, 201}}
+Running ExUnit with seed: 224225, max_cases: 2
+Excluding tags: [:integration_testing, :performance_benchmarks]
+
+..................................
+
+  1) test 8.11 Enhanced Tool Conversion converting tools with options raises on schema issues (Jido.AI.ReqLlmBridgeTest)
+     test/jido_ai/req_llm_bridge_test.exs:427
+     Expected exception ReqLLM.Error.Validation.Error but nothing was raised
+     code: assert_raise ReqLLM.Error.Validation.Error, fn ->
+     stacktrace:
+       test/jido_ai/req_llm_bridge_test.exs:433: (test)
+
+.
+
+  2) test 8.5 Tool Conversion Interface converting tools with schema issues returns error (Jido.AI.ReqLlmBridgeTest)
+     test/jido_ai/req_llm_bridge_test.exs:217
+     match (=) failed
+     code:  assert {:error, error_details} = result
+     left:  {:error, error_details}
+     right: {:ok, [#Tool<"sleep_action" no params (JSON Schema)>]}
+     stacktrace:
+       test/jido_ai/req_llm_bridge_test.exs:225: (test)
+
+...................................................[debug] Multiple function selection not directly supported, using auto {{2025, 11, 11}, {10, 6, 32, 508}}
+...........[warning] Unknown tool choice format, defaulting to auto {{2025, 11, 11}, {10, 6, 32, 515}}
+
+
+  3) test 8.11 Enhanced Tool Conversion converting tools with empty options raises on schema issues (Jido.AI.ReqLlmBridgeTest)
+     test/jido_ai/req_llm_bridge_test.exs:438
+     Expected exception ReqLLM.Error.Validation.Error but nothing was raised
+     code: assert_raise ReqLLM.Error.Validation.Error, fn ->
+     stacktrace:
+       test/jido_ai/req_llm_bridge_test.exs:443: (test)
+
+........................................................    warning: Instructor.Adapters.Anthropic.chat_completion/2 is undefined (module Instructor.Adapters.Anthropic is not available or is yet to be defined)
+    │
+ 32 │         Anthropic.chat_completion(opts, config)
+    │                   ~
+    │
+    └─ test/e2e/tool_agent_test.exs:32:19: JidoTest.E2E.ToolAgentTest.__ex_unit_setup_0_0/1
+
+................*[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 840}}
+..[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 840}}
+[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 840}}
+.[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 841}}
+.[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 841}}
+.[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 841}}
+..[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 841}}
+.[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 842}}
+.[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 842}}
+.[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 842}}
+[debug] [Keyring] set_session operation for [FILTERED] from keyring {{2025, 11, 11}, {10, 6, 32, 842}}
+.**..[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: OPENAI_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 854}}
+.[error] Invalid model specification: "invalid" {{2025, 11, 11}, {10, 6, 32, 854}}
+[error] Chat completion failed: "Invalid model specification: \"invalid\"" {{2025, 11, 11}, {10, 6, 32, 854}}
+.[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: OPENAI_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 854}}
+...[error] Chat completion failed: "Authentication failed: \"API key not found: NONEXISTENT_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 854}}
+...........**[debug] Starting tool response generation, params: %{
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: [],
+  model: %Jido.AI.Model{
+    cost: nil,
+    modalities: nil,
+    capabilities: nil,
+    reqllm_id: "openai:gpt-4",
+    max_retries: 0,
+    max_tokens: 1024,
+    temperature: 0.7,
+    model: "gpt-4",
+    api_key: "test-api-key",
+    base_url: "https://api.openai.com/v1",
+    endpoints: [],
+    description: "OpenAI model",
+    created: 1762873592,
+    architecture: %Jido.AI.Model.Architecture{
+      tokenizer: "unknown",
+      modality: "text",
+      instruct_type: nil
+    },
+    provider: :openai,
+    name: "OpenAI gpt-4",
+    id: "openai_gpt-4"
+  }
+} {{2025, 11, 11}, {10, 6, 32, 921}}
+[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "%ReqLLM.Error.Unknown.Unknown{error: %NimbleOptions.ValidationError{message: \"unknown options [:headers], valid options are: [:temperature, :max_tokens, :top_p, :top_k, :frequency_penalty, :presence_penalty, :seed, :stop, :user, :system_prompt, :reasoning_effort, :reasoning_token_budget, :tools, :tool_choice, :n, :stream, :provider_options, :on_unsupported, :req_http_options, :receive_timeout]\", key: [:headers], value: nil, keys_path: []}, splode: nil, bread_crumbs: [], vars: [], path: [], stacktrace: #Splode.Stacktrace<>, class: :unknown}", original_error: %ReqLLM.Error.Unknown.Unknown{error: %NimbleOptions.ValidationError{message: "unknown options [:headers], valid options are: [:temperature, :max_tokens, :top_p, :top_k, :frequency_penalty, :presence_penalty, :seed, :stop, :user, :system_prompt, :reasoning_effort, :reasoning_token_budget, :tools, :tool_choice, :n, :stream, :provider_options, :on_unsupported, :req_http_options, :receive_timeout]", key: [:headers], value: nil, keys_path: []}, splode: nil, bread_crumbs: [], vars: [], path: [], stacktrace: #Splode.Stacktrace<>, class: :unknown}} {{2025, 11, 11}, {10, 6, 32, 922}}
+.[debug] Starting tool response generation, params: %{
+  verbose: true,
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: []
+} {{2025, 11, 11}, {10, 6, 32, 923}}
+[info] Running ReqLLM chat completion with params: %{
+  timeout: 30000,
+  stop: nil,
+  stream: false,
+  verbose: true,
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: [],
+  model: %Jido.AI.Model{
+    cost: nil,
+    modalities: nil,
+    capabilities: nil,
+    reqllm_id: "anthropic:claude-3-5-haiku-latest",
+    max_retries: 0,
+    max_tokens: 1024,
+    temperature: 0.7,
+    model: "claude-3-5-haiku-latest",
+    api_key: nil,
+    base_url: "https://api.anthropic.com/v1",
+    endpoints: [],
+    description: "Anthropic Claude model",
+    created: 1762873592,
+    architecture: %Jido.AI.Model.Architecture{
+      tokenizer: "unknown",
+      modality: "text",
+      instruct_type: nil
+    },
+    provider: :anthropic,
+    name: "Anthropic claude-3-5-haiku-latest",
+    id: "anthropic_claude-3-5-haiku-latest"
+  },
+  max_tokens: 1000,
+  max_retries: 0,
+  temperature: 0.7,
+  top_p: nil,
+  frequency_penalty: nil,
+  presence_penalty: nil,
+  json_mode: false
+} {{2025, 11, 11}, {10, 6, 32, 927}}
+[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 927}}
+.[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 927}}
+[debug] Starting tool response generation, params: %{
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: []
+} {{2025, 11, 11}, {10, 6, 32, 927}}
+.[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 927}}
+[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 927}}
+[debug] Starting tool response generation, params: %{
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  }
+} {{2025, 11, 11}, {10, 6, 32, 928}}
+[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 928}}
+.[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 928}}
+[debug] Starting tool response generation, params: %{
+  timeout: 10000,
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: []
+} {{2025, 11, 11}, {10, 6, 32, 929}}
+[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 929}}
+.[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 929}}
+[debug] Starting tool response generation, params: %{
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: []
+} {{2025, 11, 11}, {10, 6, 32, 929}}
+[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 929}}
+.[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 929}}
+[debug] Starting tool response generation, params: %{
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: [],
+  model: %Jido.AI.Model{
+    cost: nil,
+    modalities: nil,
+    capabilities: nil,
+    reqllm_id: nil,
+    max_retries: 0,
+    max_tokens: 1024,
+    temperature: 0.7,
+    model: "test",
+    api_key: nil,
+    base_url: nil,
+    endpoints: nil,
+    description: nil,
+    created: nil,
+    architecture: nil,
+    provider: :invalid,
+    name: nil,
+    id: nil
+  }
+} {{2025, 11, 11}, {10, 6, 32, 930}}
+[error] Chat completion failed: "Authentication failed: \"API key not found: INVALID_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 930}}
+.[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"API key not found: INVALID_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 930}}
+[debug] Starting tool response generation, params: %{
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: [],
+  temperature: 0.5
+} {{2025, 11, 11}, {10, 6, 32, 931}}
+[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 931}}
+[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 931}}
+.[debug] Starting tool response generation, params: %{
+  message: "Hello",
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "You are helpful",
+        role: :system
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: []
+} {{2025, 11, 11}, {10, 6, 32, 932}}
+.[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 933}}
+[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 933}}
+[debug] Starting tool response generation, params: %{
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "What is 2 + 2?",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: []
+} {{2025, 11, 11}, {10, 6, 32, 933}}
+..[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 933}}
+.[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 933}}
+[debug] Starting tool response generation, params: %{message: "Hello", tools: []} {{2025, 11, 11}, {10, 6, 32, 933}}
+[error] Chat completion failed: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\"" {{2025, 11, 11}, {10, 6, 32, 933}}
+[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "Authentication failed: \"Authentication error: API key not found: ANTHROPIC_API_KEY\""} {{2025, 11, 11}, {10, 6, 32, 933}}
+[debug] Starting tool response generation, params: %{tools: []} {{2025, 11, 11}, {10, 6, 32, 934}}
+[error] ToolResponse parameter validation failed {{2025, 11, 11}, {10, 6, 32, 934}}
+[debug] Starting tool response generation, params: %{
+  prompt: %Jido.AI.Prompt{
+    output_schema: nil,
+    options: [],
+    metadata: %{},
+    params: %{},
+    messages: [
+      %Jido.AI.Prompt.MessageItem{
+        name: nil,
+        engine: :none,
+        content: "Hello",
+        role: :user
+      }
+    ],
+    history: [],
+    version: 1,
+    id: nil
+  },
+  tools: [],
+  model: %Jido.AI.Model{
+    cost: nil,
+    modalities: nil,
+    capabilities: nil,
+    reqllm_id: "openai:gpt-4",
+    max_retries: 0,
+    max_tokens: 1024,
+    temperature: 0.7,
+    model: "gpt-4",
+    api_key: "test-api-key",
+    base_url: "https://api.openai.com/v1",
+    endpoints: [],
+    description: "OpenAI model",
+    created: 1762873592,
+    architecture: %Jido.AI.Model.Architecture{
+      tokenizer: "unknown",
+      modality: "text",
+      instruct_type: nil
+    },
+    provider: :openai,
+    name: "OpenAI gpt-4",
+    id: "openai_gpt-4"
+  }
+} {{2025, 11, 11}, {10, 6, 32, 935}}
+[warning] ChatCompletion execution failed: %{reason: "req_llm_error", details: "%ReqLLM.Error.Unknown.Unknown{error: %NimbleOptions.ValidationError{message: \"unknown options [:headers], valid options are: [:temperature, :max_tokens, :top_p, :top_k, :frequency_penalty, :presence_penalty, :seed, :stop, :user, :system_prompt, :reasoning_effort, :reasoning_token_budget, :tools, :tool_choice, :n, :stream, :provider_options, :on_unsupported, :req_http_options, :receive_timeout]\", key: [:headers], value: nil, keys_path: []}, splode: nil, bread_crumbs: [], vars: [], path: [], stacktrace: #Splode.Stacktrace<>, class: :unknown}", original_error: %ReqLLM.Error.Unknown.Unknown{error: %NimbleOptions.ValidationError{message: "unknown options [:headers], valid options are: [:temperature, :max_tokens, :top_p, :top_k, :frequency_penalty, :presence_penalty, :seed, :stop, :user, :system_prompt, :reasoning_effort, :reasoning_token_budget, :tools, :tool_choice, :n, :stream, :provider_options, :on_unsupported, :req_http_options, :receive_timeout]", key: [:headers], value: nil, keys_path: []}, splode: nil, bread_crumbs: [], vars: [], path: [], stacktrace: #Splode.Stacktrace<>, class: :unknown}} {{2025, 11, 11}, {10, 6, 32, 936}}
+..................................[debug] Registry adapter: found 7 models for google {{2025, 11, 11}, {10, 6, 33, 251}}
+..........................................................................................................................................................................................................................................................................................................[warning] Some tool conversions failed {{2025, 11, 11}, {10, 6, 34, 750}}
+.....................
+Finished in 2.4 seconds (0.4s async, 2.0s sync)
+44 doctests, 527 tests, 3 failures, 5 skipped

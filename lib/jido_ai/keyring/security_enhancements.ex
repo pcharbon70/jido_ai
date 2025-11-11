@@ -21,7 +21,6 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
 
   require Logger
   alias Jido.AI.Keyring
-  alias Jido.AI.Keyring.JidoKeysHybrid
 
   @sensitive_patterns [
     "api_key",
@@ -65,7 +64,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   """
   @spec filter_credential_data(term()) :: term()
   def filter_credential_data(data) when is_binary(data) do
-    JidoKeysHybrid.filter_sensitive_data(data)
+    Keyring.filter_sensitive_data(data)
   end
 
   def filter_credential_data(data) when is_map(data) do
@@ -87,7 +86,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
       case item do
         str when is_binary(str) ->
           # Apply filtering to string items in the list
-          JidoKeysHybrid.filter_sensitive_data(str)
+          Keyring.filter_sensitive_data(str)
 
         _ ->
           filter_credential_data(item)
@@ -369,7 +368,7 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   defp validate_key(key) when is_atom(key), do: {:ok, key}
 
   defp validate_key(key) when is_binary(key) do
-    case JidoKeysHybrid.validate_and_convert_key(key) do
+    case validate_and_convert_key(key) do
       {:ok, atom} -> {:ok, atom}
       {:error, reason} -> {:error, reason}
     end
@@ -452,4 +451,39 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   end
 
   defp redact_sensitive_strings(value), do: value
+
+  defp validate_and_convert_key(key) when is_atom(key), do: {:ok, key}
+  defp validate_and_convert_key(key) when is_binary(key) do
+    try do
+      # Use safe atom conversion
+      case safe_string_to_atom(key) do
+        atom when is_atom(atom) -> {:ok, atom}
+        # If string returned, try existing atom
+        ^key -> try_existing_atom(key)
+      end
+    rescue
+      error ->
+        {:error, error}
+    end
+  end
+
+  defp validate_and_convert_key(_), do: {:error, :invalid_key_type}
+
+  defp try_existing_atom(key) do
+    {:ok, String.to_existing_atom(key)}
+  rescue
+    ArgumentError ->
+      # Key doesn't exist as atom, return as string for compatibility
+      {:ok, key}
+  end
+
+  defp safe_string_to_atom(key) do
+    try do
+      String.to_existing_atom(key)
+    rescue
+      ArgumentError ->
+        # Create new atom if it doesn't exist
+        String.to_atom(key)
+    end
+  end
 end
