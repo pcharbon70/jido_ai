@@ -193,12 +193,11 @@ defmodule Jido.AI.Schema do
 
     field_lines =
       fields
-      |> Enum.map(fn field ->
+      |> Enum.map_join("\n", fn field ->
         required = if field.required, do: " (required)", else: ""
         type_str = format_type(field.type)
         ~s|  "#{field.name}": #{type_str}#{required} - #{field.doc}|
       end)
-      |> Enum.join("\n")
 
     """
     #{doc}
