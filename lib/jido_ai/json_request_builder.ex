@@ -23,9 +23,9 @@ defmodule Jido.AI.JsonRequestBuilder do
       ReqLLM.ChatCompletion.run(model, enhanced_prompt, options)
   """
 
-  alias Jido.AI.Schema
   alias Jido.AI.Prompt
   alias Jido.AI.Prompt.MessageItem
+  alias Jido.AI.Schema
 
   @doc """
   Build options map for ReqLLM with JSON mode enabled.

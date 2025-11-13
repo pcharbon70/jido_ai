@@ -224,7 +224,7 @@ defmodule Jido.AI.ReqLlmBridgeTest do
       # Should succeed with the new ReqLLM compatibility
       assert {:ok, converted_tools} = result
       assert length(converted_tools) == 1
-      
+
       tool = hd(converted_tools)
       assert tool.name == "sleep_action"
       assert is_map(tool.parameter_schema) or tool.parameter_schema == nil
@@ -433,7 +433,7 @@ defmodule Jido.AI.ReqLlmBridgeTest do
 
       # With the new ReqLLM version, enhanced conversion works correctly
       result = ReqLlmBridge.convert_tools_with_options(tools, opts)
-      
+
       # Should succeed with the enhanced converter
       assert {:ok, converted_tools} = result
       assert length(converted_tools) == 1
@@ -444,7 +444,7 @@ defmodule Jido.AI.ReqLlmBridgeTest do
 
       # With the new ReqLLM version, tools convert successfully even with empty options
       result = ReqLlmBridge.convert_tools_with_options(tools, %{})
-      
+
       # Should succeed
       assert {:ok, converted_tools} = result
       assert length(converted_tools) == 1

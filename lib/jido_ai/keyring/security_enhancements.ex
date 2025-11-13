@@ -454,17 +454,15 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
 
   defp validate_and_convert_key(key) when is_atom(key), do: {:ok, key}
   defp validate_and_convert_key(key) when is_binary(key) do
-    try do
-      # Use safe atom conversion
-      case safe_string_to_atom(key) do
-        atom when is_atom(atom) -> {:ok, atom}
-        # If string returned, try existing atom
-        ^key -> try_existing_atom(key)
-      end
-    rescue
-      error ->
-        {:error, error}
+    # Use safe atom conversion
+    case safe_string_to_atom(key) do
+      atom when is_atom(atom) -> {:ok, atom}
+      # If string returned, try existing atom
+      ^key -> try_existing_atom(key)
     end
+  rescue
+    error ->
+      {:error, error}
   end
 
   defp validate_and_convert_key(_), do: {:error, :invalid_key_type}
@@ -478,12 +476,10 @@ defmodule Jido.AI.Keyring.SecurityEnhancements do
   end
 
   defp safe_string_to_atom(key) do
-    try do
-      String.to_existing_atom(key)
-    rescue
-      ArgumentError ->
-        # Create new atom if it doesn't exist
-        String.to_atom(key)
-    end
+    String.to_existing_atom(key)
+  rescue
+    ArgumentError ->
+      # Create new atom if it doesn't exist
+      String.to_atom(key)
   end
 end

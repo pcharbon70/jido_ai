@@ -38,8 +38,8 @@ defmodule JidoTest.AI.KeyringTest do
       # Return empty result to force fallback to ETS
       {:error, "test mode - no provider keys"}
     end)
-    
-    # Remove the JidoKeys stub since it no longer exists - tests will use ETS fallback directly
+
+    # Tests will use ETS fallback directly
 
     on_exit(fn ->
       # Don't delete the table, just clear it - it might be reused by other tests

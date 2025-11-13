@@ -397,16 +397,14 @@ defmodule Jido.AI.Keyring do
   """
   @spec set_runtime_value(atom() | String.t(), String.t()) :: :ok | {:error, term()}
   def set_runtime_value(key, value) when is_binary(value) do
-    try do
-      # Use Application environment for runtime configuration
-      config_key = reqllm_config_key(key)
-      Application.put_env(:req_llm, config_key, value)
-      :ok
-    rescue
-      error ->
-        Logger.warning("[Keyring] Failed to set runtime value for #{key}: #{inspect(error)}")
-        {:error, error}
-    end
+    # Use Application environment for runtime configuration
+    config_key = reqllm_config_key(key)
+    Application.put_env(:req_llm, config_key, value)
+    :ok
+  rescue
+    error ->
+      Logger.warning("[Keyring] Failed to set runtime value for #{key}: #{inspect(error)}")
+      {:error, error}
   end
 
   @impl true
@@ -541,12 +539,11 @@ defmodule Jido.AI.Keyring do
   # Helper functions for ReqLLM integration and security filtering
 
   defp get_reqllm_or_env_value(server, key, default) do
-    try do
-      # Try to get value through ReqLLM.Keys for API keys
-      provider = extract_provider_from_key(key)
+    # Try to get value through ReqLLM.Keys for API keys
+    provider = extract_provider_from_key(key)
       if provider do
         case ReqLLM.Keys.get(provider, []) do
-          {:ok, value, _source} -> 
+          {:ok, value, _source} ->
             if is_binary(value) and value != "" do
               value
             else
@@ -558,17 +555,16 @@ defmodule Jido.AI.Keyring do
         # For non-API keys, use standard environment lookup
         get_env_value_from_ets(server, key, default)
       end
-    rescue
-      _ -> get_env_value_from_ets(server, key, default)
-    end
+  rescue
+    _ -> get_env_value_from_ets(server, key, default)
   end
 
   @doc """
   Filters sensitive data for security purposes.
-  
+
   ## Parameters
     * `data` - Data to filter (supports various types)
-  
+
   ## Returns
     * Filtered data with sensitive patterns masked
   """
