@@ -1,6 +1,6 @@
 defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
   @moduledoc """
-  Action module for generating vector embeddings using ReqLlmBridge.
+  Action module for generating vector embeddings using ReqLLM.
 
   This module supports embedding generation across all ReqLLM providers with embedding
   capabilities. Embeddings are useful for semantic search, clustering, classification,
@@ -66,12 +66,9 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
 
   require Logger
   alias Jido.AI.Model
-  alias Jido.AI.ReqLlmBridge
-  alias Jido.AI.ReqLlmBridge.ProviderMapping
-  alias ReqLLM.Provider.Generated.ValidProviders
 
   @doc """
-  Generates embeddings for the given input using ReqLlmBridge.
+  Generates embeddings for the given input using ReqLLM.
 
   ## Parameters
     - params: Map containing:
@@ -119,16 +116,18 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
   end
 
   @spec validate_model_for_reqllm(Model.t()) :: {:ok, Model.t()} | {:error, String.t()}
-  defp validate_model_for_reqllm(%Model{reqllm_id: nil}) do
-    {:error, "Model must have reqllm_id field for ReqLLM integration"}
+  defp validate_model_for_reqllm(%ReqLLM.Model{} = model) do
+    # ReqLLM.Model is already validated
+    {:ok, model}
   end
 
-  defp validate_model_for_reqllm(%Model{reqllm_id: reqllm_id} = model)
-       when is_binary(reqllm_id) do
-    # Use provider mapping to validate the model configuration
-    case ProviderMapping.validate_model_availability(reqllm_id) do
-      {:ok, _config} -> {:ok, model}
-      {:error, reason} -> {:error, "Model validation failed: #{reason}"}
+  defp validate_model_for_reqllm(%Model{provider: provider, model: model_name} = model)
+       when not is_nil(provider) and not is_nil(model_name) do
+    # Use ReqLLM registry to validate the model exists
+    model_spec = "#{provider}:#{model_name}"
+    case ReqLLM.Provider.Registry.model_exists?(model_spec) do
+      true -> {:ok, model}
+      false -> {:error, "Model not found in registry: #{model_spec}"}
     end
   end
 
@@ -167,7 +166,7 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
           {:ok, %{embeddings: list(list(float()))}} | {:error, any()}
   defp make_reqllm_request(model, input, params) do
     Logger.debug("Making ReqLLM embedding request", module: __MODULE__)
-    Logger.debug("Model: #{inspect(model.reqllm_id)}", module: __MODULE__)
+    Logger.debug("Model: #{inspect(model.provider)}:#{inspect(model.model)}", module: __MODULE__)
     Logger.debug("Input: #{inspect(input)}", module: __MODULE__)
 
     # Set up API key for the model's provider
@@ -184,54 +183,26 @@ defmodule Jido.AI.Actions.OpenaiEx.Embeddings do
     opts = build_reqllm_options(model, params)
 
     # Make ReqLLM request
-    case ReqLLM.Embedding.embed(model.reqllm_id, input_list, opts) do
+    model_spec = "#{model.provider}:#{model.model}"
+    case ReqLLM.Embedding.embed(model_spec, input_list, opts) do
       {:ok, embeddings} when is_list(embeddings) ->
         # ReqLLM.Embedding.embed returns embeddings directly as a list
         {:ok, %{embeddings: embeddings}}
 
       {:error, error} ->
-        # Map ReqLLM errors to expected format
-        ReqLlmBridge.map_error({:error, error})
+        # Return error as-is
+        {:error, error}
     end
   end
 
-  @spec setup_reqllm_keys(Model.t()) :: :ok
-  defp setup_reqllm_keys(%Model{reqllm_id: reqllm_id, api_key: api_key}) do
-    # Extract provider from reqllm_id and set up environment variable
-    case String.split(reqllm_id, ":", parts: 2) do
-      [_provider_str, _model] ->
-        # Use safe provider extraction like in openaiex.ex
-        case extract_provider_from_reqllm_id(reqllm_id) do
-          {:ok, provider_atom} ->
-            JidoKeys.put(provider_atom, api_key)
-
-          {:error, _reason} ->
-            Logger.warning("Could not extract provider from reqllm_id: #{reqllm_id}")
-        end
-
-      _ ->
-        Logger.warning("Invalid reqllm_id format: #{reqllm_id}")
+  @spec setup_reqllm_keys(ReqLLM.Model.t() | Model.t()) :: :ok
+  defp setup_reqllm_keys(model) do
+    # Use provider directly from model struct
+    if Map.get(model, :api_key) && model.provider do
+      JidoKeys.put(model.provider, model.api_key)
     end
 
     :ok
   end
 
-  @spec extract_provider_from_reqllm_id(String.t()) :: {:ok, atom()} | {:error, String.t()}
-  defp extract_provider_from_reqllm_id(reqllm_id) when is_binary(reqllm_id) do
-    case String.split(reqllm_id, ":", parts: 2) do
-      [provider_str, _model] when provider_str != "" ->
-        # Use safe string-to-atom mapping using ReqLLM's valid provider list
-        valid_providers =
-          ValidProviders.list()
-          |> Map.new(fn atom -> {to_string(atom), atom} end)
-
-        case Map.get(valid_providers, provider_str) do
-          nil -> {:error, "Unsupported provider: #{provider_str}"}
-          provider_atom -> {:ok, provider_atom}
-        end
-
-      _ ->
-        {:error, "Invalid ReqLLM ID format"}
-    end
-  end
 end

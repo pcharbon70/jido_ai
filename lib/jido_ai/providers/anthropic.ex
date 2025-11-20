@@ -5,7 +5,6 @@ defmodule Jido.AI.Provider.Anthropic do
   Implements the ProviderBehavior for Anthropic's specific API.
   """
   @behaviour Jido.AI.Model.Provider.Adapter
-  alias Jido.AI.Model
   alias Jido.AI.Provider
   alias Jido.AI.Provider.Helpers
 
@@ -79,7 +78,12 @@ defmodule Jido.AI.Provider.Anthropic do
 
     case Registry.list_models(@provider_id) do
       {:ok, models} ->
-        case Enum.find(models, fn m -> m.id == model_id or m.name == model_id end) do
+        # ReqLLM.Model may have id in metadata or use .model field
+        case Enum.find(models, fn m ->
+          m_id = Map.get(m._metadata || %{}, :id) || m.model
+          m_name = Map.get(m._metadata || %{}, "name")
+          m_id == model_id or m_name == model_id or m.model == model_id
+        end) do
           nil -> {:error, "Model not found: #{model_id}"}
           model -> {:ok, model}
         end
@@ -140,7 +144,7 @@ defmodule Jido.AI.Provider.Anthropic do
   """
   def build(opts) do
     # Extract or generate an API key
-    api_key = Helpers.get_api_key(opts, "ANTHROPIC_API_KEY", :anthropic_api_key)
+    _api_key = Helpers.get_api_key(opts, "ANTHROPIC_API_KEY", :anthropic_api_key)
 
     # Get model from opts
     model = Keyword.get(opts, :model)
@@ -149,29 +153,8 @@ defmodule Jido.AI.Provider.Anthropic do
     if is_nil(model) do
       {:error, "model is required for Anthropic models"}
     else
-      # Create the model struct with all necessary fields
-      model_struct = %Model{
-        id: Keyword.get(opts, :id, "anthropic_#{model}"),
-        name: Keyword.get(opts, :name, "Anthropic #{model}"),
-        provider: :anthropic,
-        model: model,
-        base_url: @base_url,
-        api_key: api_key,
-        temperature: Keyword.get(opts, :temperature, 0.7),
-        max_tokens: Keyword.get(opts, :max_tokens, 1024),
-        max_retries: Keyword.get(opts, :max_retries, 0),
-        architecture: %Model.Architecture{
-          modality: Keyword.get(opts, :modality, "text"),
-          tokenizer: Keyword.get(opts, :tokenizer, "unknown"),
-          instruct_type: Keyword.get(opts, :instruct_type)
-        },
-        description: Keyword.get(opts, :description, "Anthropic Claude model"),
-        created: System.system_time(:second),
-        endpoints: [],
-        reqllm_id: Model.compute_reqllm_id(:anthropic, model)
-      }
-
-      {:ok, model_struct}
+      # Create ReqLLM.Model directly
+      ReqLLM.Model.from({:anthropic, model, opts})
     end
   end
 

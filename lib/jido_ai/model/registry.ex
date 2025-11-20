@@ -37,7 +37,6 @@ defmodule Jido.AI.Model.Registry do
   alias Jido.AI.Model.CapabilityIndex
   alias Jido.AI.Model.Registry.Adapter
   alias Jido.AI.Model.Registry.Cache
-  alias Jido.AI.Model.Registry.MetadataBridge
   alias Jido.AI.Provider
 
   @type provider_id :: atom()
@@ -220,10 +219,8 @@ defmodule Jido.AI.Model.Registry do
     # Primary path: ReqLLM registry
     case Adapter.get_model(provider_id, model_name) do
       {:ok, registry_model} ->
-        # Convert and enhance with legacy data
-        jido_model = MetadataBridge.to_jido_model(registry_model)
-        enhanced_model = enhance_single_model_with_legacy_data(jido_model, provider_id)
-        {:ok, enhanced_model}
+        # Return ReqLLM model directly
+        {:ok, registry_model}
 
       {:error, :not_found} ->
         # Fallback to legacy adapter
@@ -383,15 +380,8 @@ defmodule Jido.AI.Model.Registry do
             try do
               case Adapter.list_models(provider) do
                 {:ok, models} ->
-                  Enum.flat_map(models, fn model ->
-                    try do
-                      [MetadataBridge.to_jido_model(model)]
-                    rescue
-                      e ->
-                        Logger.warning("Failed to convert model from #{provider}: #{inspect(e)}")
-                        []
-                    end
-                  end)
+                  # Return ReqLLM models directly
+                  models
 
                 {:error, _} ->
                   []
@@ -413,8 +403,8 @@ defmodule Jido.AI.Model.Registry do
   defp get_models_from_registry(provider_id) when is_atom(provider_id) do
     case Adapter.list_models(provider_id) do
       {:ok, registry_models} ->
-        jido_models = Enum.map(registry_models, &MetadataBridge.to_jido_model/1)
-        {:ok, jido_models}
+        # Return ReqLLM models directly
+        {:ok, registry_models}
 
       {:error, reason} ->
         {:error, reason}
@@ -425,12 +415,6 @@ defmodule Jido.AI.Model.Registry do
     # For now, return registry models as-is
     # Future: enhance with legacy adapter data where available
     registry_models
-  end
-
-  defp enhance_single_model_with_legacy_data(jido_model, _provider_id) do
-    # For now, return model as-is
-    # Future: enhance with legacy adapter-specific metadata
-    jido_model
   end
 
   defp get_models_from_legacy_adapter(provider_id) do
@@ -673,10 +657,9 @@ defmodule Jido.AI.Model.Registry do
     # Count registry vs legacy models
     {registry_count, legacy_count} =
       Enum.reduce(models, {0, 0}, fn model, {reg_acc, leg_acc} ->
-        if model.reqllm_id do
-          {reg_acc + 1, leg_acc}
-        else
-          {reg_acc, leg_acc + 1}
+        case model do
+          %ReqLLM.Model{} -> {reg_acc + 1, leg_acc}
+          _ -> {reg_acc, leg_acc + 1}
         end
       end)
 

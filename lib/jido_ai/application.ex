@@ -11,9 +11,7 @@ defmodule Jido.AI.Application do
   def start(_type, _args) do
     children = [
       # Start the Keyring GenServer
-      Jido.AI.Keyring,
-      # Start the ConversationManager for ReqLLM tool execution pipeline
-      Jido.AI.ReqLlmBridge.ConversationManager
+      Jido.AI.Keyring
     ]
 
     opts = [strategy: :one_for_one, name: Jido.AI.Supervisor]

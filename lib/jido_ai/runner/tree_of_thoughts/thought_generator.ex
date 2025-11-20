@@ -300,13 +300,14 @@ defmodule Jido.AI.Runner.TreeOfThoughts.ThoughtGenerator do
     case String.split(model_str, ":", parts: 2) do
       [provider_str, model_name] ->
         provider = String.to_atom(provider_str)
-
-        %Jido.AI.Model{provider: provider, model: model_name}
-        |> Jido.AI.Model.ensure_reqllm_id()
+        # Create ReqLLM.Model directly
+        {:ok, model} = ReqLLM.Model.from("#{provider}:#{model_name}")
+        model
 
       [model_name] ->
-        %Jido.AI.Model{provider: :openai, model: model_name}
-        |> Jido.AI.Model.ensure_reqllm_id()
+        # Create ReqLLM.Model directly with default provider
+        {:ok, model} = ReqLLM.Model.from("openai:#{model_name}")
+        model
     end
   end
 

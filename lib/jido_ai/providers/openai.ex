@@ -152,7 +152,7 @@ defmodule Jido.AI.Provider.OpenAI do
   """
   def build(opts) do
     # Extract or generate an API key
-    api_key = Helpers.get_api_key(opts, "OPENAI_API_KEY", :openai_api_key)
+    _api_key = Helpers.get_api_key(opts, "OPENAI_API_KEY", :openai_api_key)
 
     # Get model from opts
     model = Keyword.get(opts, :model)
@@ -161,29 +161,8 @@ defmodule Jido.AI.Provider.OpenAI do
     if is_nil(model) do
       {:error, "model is required for OpenAI models"}
     else
-      # Create the model struct with all necessary fields
-      model_struct = %Model{
-        id: Keyword.get(opts, :id, "openai_#{model}"),
-        name: Keyword.get(opts, :name, "OpenAI #{model}"),
-        provider: :openai,
-        model: model,
-        base_url: @base_url,
-        api_key: api_key,
-        temperature: Keyword.get(opts, :temperature, 0.7),
-        max_tokens: Keyword.get(opts, :max_tokens, 1024),
-        max_retries: Keyword.get(opts, :max_retries, 0),
-        architecture: %Model.Architecture{
-          modality: Keyword.get(opts, :modality, "text"),
-          tokenizer: Keyword.get(opts, :tokenizer, "unknown"),
-          instruct_type: Keyword.get(opts, :instruct_type)
-        },
-        description: Keyword.get(opts, :description, "OpenAI model"),
-        created: System.system_time(:second),
-        endpoints: [],
-        reqllm_id: Model.compute_reqllm_id(:openai, model)
-      }
-
-      {:ok, model_struct}
+      # Create ReqLLM.Model directly
+      ReqLLM.Model.from({:openai, model, opts})
     end
   end
 

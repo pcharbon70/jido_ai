@@ -9,7 +9,6 @@ defmodule Jido.AI.Provider do
   alias Jido.AI.Provider.Helpers
   alias Jido.AI.Provider.OpenAI
   alias Jido.AI.Provider.OpenRouter
-  alias Jido.AI.ReqLlmBridge.ProviderMapping
 
   # Legacy hardcoded providers for fallback
   @legacy_providers [
@@ -164,10 +163,11 @@ defmodule Jido.AI.Provider do
   defp build_provider_struct(_provider_id, _adapter), do: nil
 
   defp get_reqllm_provider_metadata(provider_id) do
-    # Use the provider mapping module to get metadata
-    # Note: Currently always returns {:ok, metadata}
-    {:ok, metadata} = ProviderMapping.get_jido_provider_metadata(provider_id)
-    metadata
+    # Get metadata directly from ReqLLM registry
+    case ReqLLM.Provider.Registry.get_provider_metadata(provider_id) do
+      {:ok, metadata} -> metadata
+      {:error, _} -> %{}
+    end
   end
 
   defp humanize_provider_name(atom) do

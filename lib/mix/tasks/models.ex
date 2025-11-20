@@ -93,7 +93,6 @@ defmodule Mix.Tasks.Jido.Ai.Models do
   use Mix.Task
   require Logger
   alias Jido.AI.Provider
-  alias Jido.AI.ReqLlmBridge.ProviderMapping
 
   @shortdoc "Fetches and caches models from an AI provider"
 
@@ -532,7 +531,7 @@ defmodule Mix.Tasks.Jido.Ai.Models do
       |> Enum.take(20)
       |> Enum.each(fn provider ->
         status =
-          if ProviderMapping.provider_implemented?(provider.id),
+          if ReqLLM.Provider.Registry.implemented?(provider.id),
             do: "✓",
             else: "○"
 

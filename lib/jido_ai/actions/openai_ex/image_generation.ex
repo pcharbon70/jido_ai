@@ -147,7 +147,16 @@ defmodule Jido.AI.Actions.OpenaiEx.ImageGeneration do
     {:error, "Invalid model specification. Must be a map or {provider, opts} tuple."}
   end
 
-  @spec validate_provider(Model.t()) :: {:ok, Model.t()} | {:error, String.t()}
+  @spec validate_provider(Model.t() | ReqLLM.Model.t()) :: {:ok, Model.t() | ReqLLM.Model.t()} | {:error, String.t()}
+  defp validate_provider(%ReqLLM.Model{provider: provider} = model) when provider in @valid_providers do
+    {:ok, model}
+  end
+
+  defp validate_provider(%ReqLLM.Model{provider: provider}) do
+    {:error,
+     "Invalid provider: #{inspect(provider)}. Must be one of: #{inspect(@valid_providers)}"}
+  end
+
   defp validate_provider(%Model{provider: provider} = model) when provider in @valid_providers do
     {:ok, model}
   end
@@ -164,7 +173,7 @@ defmodule Jido.AI.Actions.OpenaiEx.ImageGeneration do
   defp validate_prompt(%{prompt: _}), do: {:error, "Prompt must be a non-empty string"}
   defp validate_prompt(_), do: {:error, "Prompt is required"}
 
-  @spec build_request(Model.t(), String.t(), map()) :: {:ok, map()}
+  @spec build_request(Model.t() | ReqLLM.Model.t(), String.t(), map()) :: {:ok, map()}
   defp build_request(model, prompt, params) do
     req =
       Images.Generate.new(
@@ -187,10 +196,13 @@ defmodule Jido.AI.Actions.OpenaiEx.ImageGeneration do
   defp maybe_add_param(req, _key, nil), do: req
   defp maybe_add_param(req, key, value), do: Map.put(req, key, value)
 
-  @spec make_request(Model.t(), map()) :: {:ok, %{images: list(String.t())}} | {:error, any()}
+  @spec make_request(Model.t() | ReqLLM.Model.t(), map()) :: {:ok, %{images: list(String.t())}} | {:error, any()}
   defp make_request(model, req) do
+    # Get API key - ReqLLM.Model doesn't have api_key field, need to get from env
+    api_key = Map.get(model, :api_key) || System.get_env("OPENAI_API_KEY")
+
     client =
-      OpenaiEx.new(model.api_key)
+      OpenaiEx.new(api_key)
       |> maybe_add_base_url(model)
       |> maybe_add_headers(model)
 
@@ -208,7 +220,15 @@ defmodule Jido.AI.Actions.OpenaiEx.ImageGeneration do
   defp extract_image(%{b64_json: b64}) when not is_nil(b64), do: b64
   defp extract_image(_), do: nil
 
-  @spec maybe_add_base_url(OpenaiEx.t(), Model.t()) :: OpenaiEx.t()
+  @spec maybe_add_base_url(OpenaiEx.t(), Model.t() | ReqLLM.Model.t()) :: OpenaiEx.t()
+  defp maybe_add_base_url(client, %ReqLLM.Model{provider: :openrouter}) do
+    OpenaiEx.with_base_url(client, OpenRouter.base_url())
+  end
+
+  defp maybe_add_base_url(client, %ReqLLM.Model{provider: :google}) do
+    OpenaiEx.with_base_url(client, Google.base_url())
+  end
+
   defp maybe_add_base_url(client, %Model{provider: :openrouter}) do
     OpenaiEx.with_base_url(client, OpenRouter.base_url())
   end
@@ -219,7 +239,15 @@ defmodule Jido.AI.Actions.OpenaiEx.ImageGeneration do
 
   defp maybe_add_base_url(client, _), do: client
 
-  @spec maybe_add_headers(OpenaiEx.t(), Model.t()) :: OpenaiEx.t()
+  @spec maybe_add_headers(OpenaiEx.t(), Model.t() | ReqLLM.Model.t()) :: OpenaiEx.t()
+  defp maybe_add_headers(client, %ReqLLM.Model{provider: :openrouter}) do
+    OpenaiEx.with_additional_headers(client, OpenRouter.request_headers([]))
+  end
+
+  defp maybe_add_headers(client, %ReqLLM.Model{provider: :google}) do
+    OpenaiEx.with_additional_headers(client, Google.request_headers([]))
+  end
+
   defp maybe_add_headers(client, %Model{provider: :openrouter}) do
     OpenaiEx.with_additional_headers(client, OpenRouter.request_headers([]))
   end

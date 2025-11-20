@@ -112,7 +112,7 @@ defmodule Jido.AI.Provider.OpenRouterTest do
 
       # Models should be properly formatted
       model = List.first(models)
-      assert is_struct(model, Jido.AI.Model)
+      assert is_struct(model, ReqLLM.Model)
       assert model.provider == :openrouter
     end
 
@@ -136,10 +136,14 @@ defmodule Jido.AI.Provider.OpenRouterTest do
       real_model = List.first(models)
 
       # Fetch that specific model
-      assert {:ok, model_result} = OpenRouter.model(real_model.id)
-      assert model_result.id == real_model.id
+      # ReqLLM.Model uses .model field instead of .id
+      model_id = Map.get(real_model._metadata || %{}, :id) || real_model.model
+      assert {:ok, model_result} = OpenRouter.model(model_id)
+
+      result_id = Map.get(model_result._metadata || %{}, :id) || model_result.model
+      assert result_id == model_id
       assert model_result.provider == :openrouter
-      assert is_struct(model_result, Jido.AI.Model)
+      assert is_struct(model_result, ReqLLM.Model)
     end
 
     test "handles model not found errors" do

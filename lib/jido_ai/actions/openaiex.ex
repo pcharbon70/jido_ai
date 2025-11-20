@@ -85,10 +85,8 @@ defmodule Jido.AI.Actions.OpenaiEx do
   alias Jido.AI.Actions.OpenaiEx.ToolHelper
   alias Jido.AI.Model
   alias Jido.AI.Prompt
-  alias Jido.AI.ReqLlmBridge
   alias OpenaiEx.Chat
   alias OpenaiEx.ChatMessage
-  alias ReqLLM.Provider.Generated.ValidProviders
 
   @valid_providers [:openai, :openrouter, :google]
 
@@ -294,16 +292,16 @@ defmodule Jido.AI.Actions.OpenaiEx do
     # Build ReqLLM options from chat_req
     opts = build_req_llm_options_from_chat_req(chat_req, model)
 
-    # Use ReqLLM with the model's reqllm_id
-    case ReqLLM.generate_text(model.reqllm_id, messages, opts) do
+    # Use ReqLLM with the model spec
+    model_spec = "#{model.provider}:#{model.model}"
+    case ReqLLM.generate_text(model_spec, messages, opts) do
       {:ok, response} ->
-        # Convert ReqLLM response through bridge first, then to OpenaiEx format
-        converted = ReqLlmBridge.convert_response(response)
-        {:ok, convert_to_openai_response_format(converted)}
+        # Convert ReqLLM response to OpenaiEx format
+        {:ok, convert_to_openai_response_format(response)}
 
       {:error, error} ->
-        # Map ReqLLM errors to existing error patterns
-        ReqLlmBridge.map_error({:error, error})
+        # Return error as-is
+        {:error, error}
     end
   end
 
@@ -317,16 +315,16 @@ defmodule Jido.AI.Actions.OpenaiEx do
     # Build ReqLLM options from chat_req with streaming enabled
     opts = build_req_llm_options_from_chat_req(chat_req, model) |> Keyword.put(:stream, true)
 
-    # Use ReqLLM streaming with the model's reqllm_id
-    case ReqLLM.stream_text(model.reqllm_id, messages, opts) do
+    # Use ReqLLM streaming with the model spec
+    model_spec = "#{model.provider}:#{model.model}"
+    case ReqLLM.stream_text(model_spec, messages, opts) do
       {:ok, stream} ->
-        # Convert ReqLLM stream to Jido AI compatible format using bridge functions
-        converted_stream = ReqLlmBridge.convert_streaming_response(stream)
-        {:ok, converted_stream}
+        # Return ReqLLM stream directly
+        {:ok, stream}
 
       {:error, error} ->
-        # Map ReqLLM streaming errors to existing error patterns
-        ReqLlmBridge.map_streaming_error({:error, error})
+        # Return error as-is
+        {:error, error}
     end
   end
 
@@ -351,8 +349,8 @@ defmodule Jido.AI.Actions.OpenaiEx do
     opts = []
 
     # Set API key via JidoKeys if available
-    if model.api_key do
-      provider_atom = extract_provider_from_reqllm_id(model.reqllm_id)
+    if Map.get(model, :api_key) do
+      provider_atom = model.provider
 
       if provider_atom do
         env_var_name = ReqLLM.Keys.env_var_name(provider_atom)
@@ -399,23 +397,6 @@ defmodule Jido.AI.Actions.OpenaiEx do
     opts
   end
 
-  defp extract_provider_from_reqllm_id(reqllm_id) when is_binary(reqllm_id) do
-    case String.split(reqllm_id, ":") do
-      [provider_str | _] ->
-        # Create a safe string-to-atom mapping from ReqLLM's valid providers
-        # This avoids creating arbitrary atoms from user input
-        valid_providers =
-          ValidProviders.list()
-          |> Map.new(fn atom -> {to_string(atom), atom} end)
-
-        Map.get(valid_providers, provider_str)
-
-      [] ->
-        nil
-    end
-  end
-
-  defp extract_provider_from_reqllm_id(_), do: nil
 
   defp convert_tools_for_reqllm(tools) when is_list(tools) do
     # Convert OpenAI format tool maps to ReqLLM.Tool structs

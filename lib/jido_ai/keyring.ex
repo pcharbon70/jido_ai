@@ -30,7 +30,6 @@ defmodule Jido.AI.Keyring do
   require Logger
 
   alias Jido.AI.Keyring.JidoKeysHybrid
-  alias Jido.AI.ReqLlmBridge.KeyringIntegration
 
   @session_registry :jido_ai_keyring_sessions
   @default_name __MODULE__
@@ -239,11 +238,21 @@ defmodule Jido.AI.Keyring do
         key,
         default \\ nil,
         pid \\ self(),
-        req_options \\ %{}
+        _req_options \\ %{}
       )
       when is_atom(key) do
-    # Use the KeyringIntegration module for unified key resolution
-    KeyringIntegration.get(server, key, default, pid, req_options)
+    # First check session value
+    case get_session_value(server, key, pid) do
+      nil ->
+        # Then check ReqLLM/JidoKeys
+        case ReqLLM.get_key(key) do
+          nil -> default
+          value -> value
+        end
+
+      value ->
+        value
+    end
   end
 
   @doc """
@@ -286,8 +295,18 @@ defmodule Jido.AI.Keyring do
   """
   @spec get_env_value_with_reqllm(GenServer.server(), atom(), term()) :: term()
   def get_env_value_with_reqllm(server \\ @default_name, key, default \\ nil) when is_atom(key) do
-    # Use the KeyringIntegration module for ReqLLM-aware environment resolution
-    KeyringIntegration.get_env_value(server, key, default)
+    # First check environment directly
+    case get_env_value(server, key, nil) do
+      nil ->
+        # Then check ReqLLM/JidoKeys
+        case ReqLLM.get_key(key) do
+          nil -> default
+          value -> value
+        end
+
+      value ->
+        value
+    end
   end
 
   @doc """

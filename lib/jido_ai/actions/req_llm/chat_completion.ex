@@ -102,8 +102,6 @@ defmodule Jido.AI.Actions.ReqLlm.ChatCompletion do
   require Logger
   alias Jido.AI.Model
   alias Jido.AI.Prompt
-  alias Jido.AI.ReqLlmBridge
-  alias Jido.AI.ReqLlmBridge.{Authentication, ToolBuilder}
 
   @impl true
   def on_before_validate_params(params) do
@@ -193,7 +191,7 @@ defmodule Jido.AI.Actions.ReqLlm.ChatCompletion do
     else
       {:error, reason} ->
         Logger.error("Chat completion failed: #{inspect(reason)}")
-        ReqLlmBridge.map_error({:error, reason})
+        {:error, reason}
     end
   end
 
@@ -207,7 +205,8 @@ defmodule Jido.AI.Actions.ReqLlm.ChatCompletion do
     end
   end
 
-  defp validate_model(%Model{} = model), do: {:ok, model}
+  defp validate_model(%ReqLLM.Model{} = model), do: {:ok, model}
+  defp validate_model(%Model{} = model), do: Model.from(model)
   defp validate_model(spec) when is_tuple(spec), do: Model.from(spec)
 
   defp validate_model(other) do
@@ -225,7 +224,7 @@ defmodule Jido.AI.Actions.ReqLlm.ChatCompletion do
     {:ok, messages}
   end
 
-  defp build_req_llm_options(model, params) do
+  defp build_req_llm_options(_model, params) do
     # Build base options
     base_opts =
       []
@@ -240,64 +239,48 @@ defmodule Jido.AI.Actions.ReqLlm.ChatCompletion do
     opts_with_tools =
       case params[:tools] do
         tools when is_list(tools) and length(tools) > 0 ->
-          case ToolBuilder.batch_convert(tools) do
-            {:ok, tool_descriptors} ->
-              # Extract tool specs for ReqLLM
-              tool_specs =
-                Enum.map(tool_descriptors, fn descriptor ->
-                  %{
-                    name: descriptor.name,
-                    description: descriptor.description,
-                    parameters: descriptor.parameters
-                  }
-                end)
+          # Convert tools directly to ReqLLM format
+          tool_specs =
+            Enum.map(tools, fn tool ->
+              %{
+                name: tool.name,
+                description: Map.get(tool, :description, ""),
+                parameters: Map.get(tool, :parameters, %{})
+              }
+            end)
 
-              Keyword.put(base_opts, :tools, tool_specs)
-
-            {:error, _reason} ->
-              base_opts
-          end
+          Keyword.put(base_opts, :tools, tool_specs)
 
         _ ->
           base_opts
       end
 
-    # Add API key using Authentication system
-    case Authentication.authenticate_for_provider(model.provider, opts_with_tools) do
-      {:ok, headers, api_key} ->
-        final_opts =
-          opts_with_tools
-          |> Keyword.put(:api_key, api_key)
-          |> Keyword.put(:headers, headers)
-
-        {:ok, final_opts}
-
-      {:error, reason} ->
-        {:error, "Authentication failed: #{inspect(reason)}"}
-    end
+    # ReqLLM handles authentication internally via JidoKeys
+    {:ok, opts_with_tools}
   end
 
   defp add_opt_if_present(opts, _key, nil), do: opts
   defp add_opt_if_present(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp call_reqllm(model, messages, req_options, params) do
-    model_id = model.reqllm_id || build_reqllm_model_id(model)
+    # Build model spec string from ReqLLM.Model
+    model_spec = "#{model.provider}:#{model.model}"
 
     if params.stream do
-      call_streaming(model_id, messages, req_options)
+      call_streaming(model_spec, messages, req_options)
     else
-      call_standard(model_id, messages, req_options)
+      call_standard(model_spec, messages, req_options)
     end
   end
 
   defp call_standard(model_id, messages, req_options) do
     case ReqLLM.generate_text(model_id, messages, req_options) do
       {:ok, response} ->
-        converted = ReqLlmBridge.convert_response(response)
-        format_response(converted)
+        # Use ReqLLM response directly
+        format_response(response)
 
       {:error, error} ->
-        ReqLlmBridge.map_error({:error, error})
+        {:error, error}
     end
   end
 
@@ -310,14 +293,10 @@ defmodule Jido.AI.Actions.ReqLlm.ChatCompletion do
         {:ok, stream}
 
       {:error, error} ->
-        ReqLlmBridge.map_error({:error, error})
+        {:error, error}
     end
   end
 
-  defp build_reqllm_model_id(%Model{provider: provider, model: model_name}) do
-    # Format: "provider:model_name"
-    "#{provider}:#{model_name}"
-  end
 
   defp format_response(%{content: content, tool_calls: tool_calls}) when is_list(tool_calls) do
     formatted_tools =

@@ -81,11 +81,14 @@ defmodule Jido.AI.Provider.GoogleTest do
 
     # Models should be properly formatted
     model = List.first(models)
-    assert is_struct(model, Jido.AI.Model)
+    assert is_struct(model, ReqLLM.Model)
     assert model.provider == :google
 
     # Should have at least some Gemini models
-    gemini_models = Enum.filter(models, fn m -> String.contains?(m.id, "gemini") end)
+    gemini_models = Enum.filter(models, fn m ->
+      model_id = Map.get(m._metadata || %{}, :id) || m.model
+      String.contains?(model_id, "gemini")
+    end)
     assert length(gemini_models) > 0
   end
 

@@ -26,23 +26,6 @@ defmodule Jido.AI.Actions.OpenaiEx.TestHelpers do
       end)
     end
 
-    @doc """
-    Test helper for extract_provider_from_reqllm_id/1
-    """
-    def extract_provider_from_reqllm_id(reqllm_id) do
-      provider_str =
-        reqllm_id
-        |> String.split(":")
-        |> hd()
-
-      # Create a safe string-to-atom mapping from ReqLLM's valid providers
-      # This avoids creating arbitrary atoms from user input
-      valid_providers =
-        ValidProviders.list()
-        |> Map.new(fn atom -> {to_string(atom), atom} end)
-
-      Map.get(valid_providers, provider_str)
-    end
 
     @doc """
     Test helper for convert_to_openai_response_format/1
@@ -94,13 +77,9 @@ defmodule Jido.AI.Actions.OpenaiEx.TestHelpers do
       opts = []
 
       # Set API key via JidoKeys if available
-      if model.api_key do
-        provider_atom = extract_provider_from_reqllm_id(model.reqllm_id)
-
-        if provider_atom do
-          env_var_name = ReqLLM.Keys.env_var_name(provider_atom)
-          JidoKeys.put(env_var_name, model.api_key)
-        end
+      if Map.get(model, :api_key) && model.provider do
+        env_var_name = ReqLLM.Keys.env_var_name(model.provider)
+        JidoKeys.put(env_var_name, model.api_key)
       end
 
       # Add other parameters from chat_req

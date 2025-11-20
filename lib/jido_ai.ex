@@ -35,7 +35,6 @@ defmodule Jido.AI do
   """
 
   alias Jido.AI.Keyring
-  alias Jido.AI.ReqLlmBridge
 
   # ===========================================================================
   # Configuration API - Simple facades for common operations
@@ -243,9 +242,17 @@ defmodule Jido.AI do
       Jido.AI.api_key_with_reqllm(:openai, options)
   """
   @spec api_key_with_reqllm(atom(), map()) :: String.t() | nil
-  def api_key_with_reqllm(provider \\ :openai, req_options \\ %{}) do
-    ReqLlmBridge.get_provider_key(provider, req_options)
+  def api_key_with_reqllm(provider \\ :openai, _req_options \\ %{}) do
+    # Map provider to appropriate key name
+    key_name = provider_to_key_name(provider)
+    ReqLLM.get_key(key_name)
   end
+
+  defp provider_to_key_name(:openai), do: :openai_api_key
+  defp provider_to_key_name(:anthropic), do: :anthropic_api_key
+  defp provider_to_key_name(:google), do: :google_api_key
+  defp provider_to_key_name(:github_models), do: :github_models_api_key
+  defp provider_to_key_name(provider), do: :"#{provider}_api_key"
 
   @doc """
   Validates that all required provider keys are available.
@@ -264,7 +271,16 @@ defmodule Jido.AI do
   """
   @spec list_available_providers() :: [%{provider: atom(), source: atom()}]
   def list_available_providers do
-    ReqLlmBridge.list_available_providers()
+    ReqLLM.Provider.Registry.list_implemented_providers()
+    |> Enum.map(fn provider ->
+      key_name = provider_to_key_name(provider)
+      has_key = ReqLLM.get_key(key_name) != nil
+
+      %{
+        provider: provider,
+        source: if(has_key, do: :configured, else: :not_configured)
+      }
+    end)
   end
 
   @doc """

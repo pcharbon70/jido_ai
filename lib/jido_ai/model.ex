@@ -2,8 +2,6 @@ defmodule Jido.AI.Model do
   use TypedStruct
   require Logger
 
-  alias Jido.AI.Provider
-
   typedstruct module: Architecture do
     field(:instruct_type, String.t() | nil)
     field(:modality, String.t())
@@ -51,60 +49,7 @@ defmodule Jido.AI.Model do
     field(:cost, map())
   end
 
-  @doc """
-  Computes the ReqLLM ID from provider and model information.
 
-  The ReqLLM ID follows the format "provider:model" which is used by ReqLLM
-  to identify specific models across different providers.
-
-  ## Parameters
-    - provider: atom representing the provider (e.g., :openai, :anthropic)
-    - model: string representing the model name (e.g., "gpt-4o", "claude-3-5-haiku")
-
-  ## Returns
-    - String in "provider:model" format
-
-  ## Examples
-
-      iex> Jido.AI.Model.compute_reqllm_id(:openai, "gpt-4o")
-      "openai:gpt-4o"
-
-      iex> Jido.AI.Model.compute_reqllm_id(:anthropic, "claude-3-5-haiku")
-      "anthropic:claude-3-5-haiku"
-  """
-  @spec compute_reqllm_id(atom(), String.t()) :: String.t()
-  def compute_reqllm_id(provider, model) when is_atom(provider) and is_binary(model) do
-    "#{provider}:#{model}"
-  end
-
-  def compute_reqllm_id(provider, model) do
-    "#{provider}:#{model}"
-  end
-
-  @doc """
-  Ensures a model struct has the reqllm_id field populated.
-
-  If the reqllm_id is missing or nil, it will be computed from the provider and model fields.
-  If provider or model is missing, the reqllm_id will remain as is.
-
-  ## Parameters
-    - model: A %Jido.AI.Model{} struct
-
-  ## Returns
-    - Updated model struct with reqllm_id populated
-  """
-  @spec ensure_reqllm_id(__MODULE__.t()) :: __MODULE__.t()
-  def ensure_reqllm_id(%__MODULE__{reqllm_id: nil, provider: provider, model: model} = struct)
-      when not is_nil(provider) and not is_nil(model) do
-    %{struct | reqllm_id: compute_reqllm_id(provider, model)}
-  end
-
-  def ensure_reqllm_id(%__MODULE__{reqllm_id: "", provider: provider, model: model} = struct)
-      when not is_nil(provider) and not is_nil(model) do
-    %{struct | reqllm_id: compute_reqllm_id(provider, model)}
-  end
-
-  def ensure_reqllm_id(%__MODULE__{} = struct), do: struct
 
   @doc """
   Creates a model struct from various input formats.
@@ -131,73 +76,35 @@ defmodule Jido.AI.Model do
       iex> Jido.AI.Model.from(%Jido.AI.Model{provider: :openai, model: "gpt-4"})
       {:ok, %Jido.AI.Model{provider: :openai, model: "gpt-4", ...}}
   """
-  @spec from(term()) :: {:ok, __MODULE__.t()} | {:error, String.t()}
+  @spec from(term()) :: {:ok, ReqLLM.Model.t()} | {:error, String.t()}
   def from(input) do
     case input do
-      # Already a Model struct
-      %__MODULE__{} = model ->
-        {:ok, ensure_reqllm_id(model)}
+      # Already a ReqLLM.Model struct
+      %ReqLLM.Model{} = model ->
+        {:ok, model}
+
+      # Already a Jido.AI.Model struct - convert to ReqLLM.Model
+      %__MODULE__{provider: provider, model: model_name} ->
+        ReqLLM.Model.from("#{provider}:#{model_name}")
 
       # A provider tuple
       {provider, opts} when is_atom(provider) and is_list(opts) ->
-        case Provider.get_adapter_by_id(provider) do
-          {:ok, :reqllm_backed} ->
-            # ReqLLM-backed providers: build model directly from provider and opts
-            model_name = Keyword.get(opts, :model)
+        model_name = Keyword.get(opts, :model)
 
-            if model_name do
-              {:ok,
-               %__MODULE__{
-                 id: model_name,
-                 name: model_name,
-                 provider: provider,
-                 model: model_name,
-                 reqllm_id: compute_reqllm_id(provider, model_name),
-                 api_key: Keyword.get(opts, :api_key),
-                 base_url: Keyword.get(opts, :base_url, ""),
-                 temperature: Keyword.get(opts, :temperature, 0.7),
-                 max_tokens: Keyword.get(opts, :max_tokens, 1024),
-                 max_retries: Keyword.get(opts, :max_retries, 0),
-                 endpoints: [],
-                 architecture: %Architecture{modality: "text", tokenizer: "unknown"},
-                 description: "ReqLLM model: #{provider}:#{model_name}",
-                 created: System.system_time(:second)
-               }}
-            else
-              {:error, "model option is required for ReqLLM-backed provider #{provider}"}
-            end
-
-          {:ok, adapter_module} when is_atom(adapter_module) ->
-            # Legacy adapter module: delegate to module's build/1
-            adapter_module.build(opts)
-
-          {:error, reason} ->
-            {:error, reason}
+        if model_name do
+          # Use ReqLLM.Model directly
+          ReqLLM.Model.from({provider, model_name, opts})
+        else
+          {:error, "model option is required for provider #{provider}"}
         end
 
-      # A category tuple
-      {:category, category, class} when is_atom(category) and is_atom(class) ->
-        # For now, create a basic model with category info
-        # This could be enhanced to map to specific providers based on category/class
-        model_name = "#{category}_#{class}"
+      # A string specification like "openai:gpt-4"
+      model_spec when is_binary(model_spec) ->
+        ReqLLM.Model.from(model_spec)
 
-        {:ok,
-         %__MODULE__{
-           id: "#{category}_#{class}",
-           name: "#{category} #{class} Model",
-           provider: nil,
-           architecture: %Architecture{
-             modality: "text",
-             tokenizer: "unknown"
-           },
-           description: "Category-based model for #{category} #{class}",
-           created: System.system_time(:second),
-           endpoints: [],
-           base_url: "",
-           api_key: "",
-           model: model_name,
-           reqllm_id: compute_reqllm_id(category, model_name)
-         }}
+      # A category tuple - not supported directly by ReqLLM
+      {:category, category, class} when is_atom(category) and is_atom(class) ->
+        {:error, "Category-based models not supported. Use provider:model format instead."}
 
       other ->
         {:error, "Invalid model specification: #{inspect(other)}"}

@@ -55,7 +55,12 @@ defmodule Jido.AI.Provider.Google do
 
     case Registry.list_models(@provider_id) do
       {:ok, models} ->
-        case Enum.find(models, fn m -> m.id == model_id or m.name == model_id end) do
+        # ReqLLM.Model may have id in metadata or use .model field
+        case Enum.find(models, fn m ->
+          m_id = Map.get(m._metadata || %{}, :id) || m.model
+          m_name = Map.get(m._metadata || %{}, "name")
+          m_id == model_id or m_name == model_id or m.model == model_id
+        end) do
           nil -> {:error, "Model not found: #{model_id}"}
           model -> {:ok, model}
         end
@@ -123,7 +128,7 @@ defmodule Jido.AI.Provider.Google do
 
   def build(opts) when is_map(opts) do
     # Extract or generate an API key
-    api_key = Map.get(opts, "api_key") || Map.get(opts, :api_key)
+    _api_key = Map.get(opts, "api_key") || Map.get(opts, :api_key)
 
     # Get model from opts
     model = Map.get(opts, "name") || Map.get(opts, :model)
@@ -135,30 +140,10 @@ defmodule Jido.AI.Provider.Google do
       # Strip models/ prefix if present
       model = String.replace(model, "models/", "")
 
-      # Create the model struct with all necessary fields
-      model_struct = %Jido.AI.Model{
-        id: model,
-        name: Map.get(opts, "displayName") || Map.get(opts, :name, "Google #{model}"),
-        provider: :google,
-        model: model,
-        base_url: @base_url,
-        api_key: api_key,
-        temperature: Map.get(opts, "temperature", 0.7),
-        max_tokens: Map.get(opts, "outputTokenLimit", 1024),
-        max_retries: Map.get(opts, :max_retries, 0),
-        architecture: %Model.Architecture{
-          modality: Map.get(opts, :modality, "text+image->text"),
-          tokenizer: Map.get(opts, :tokenizer, "gemini"),
-          instruct_type: Map.get(opts, :instruct_type, "gemini")
-        },
-        description:
-          Map.get(opts, "description") || Map.get(opts, :description, "Google Gemini model"),
-        created: System.system_time(:second),
-        endpoints: [],
-        reqllm_id: Model.compute_reqllm_id(:google, model)
-      }
-
-      {:ok, model_struct}
+      # Create ReqLLM.Model directly
+      # Convert Map opts to Keyword list for ReqLLM
+      keyword_opts = if is_map(opts), do: Map.to_list(opts), else: opts
+      ReqLLM.Model.from({:google, model, keyword_opts})
     end
   end
 

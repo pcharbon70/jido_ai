@@ -57,7 +57,12 @@ defmodule Jido.AI.Provider.Cloudflare do
 
     case Registry.list_models(@provider_id) do
       {:ok, models} ->
-        case Enum.find(models, fn m -> m.id == model_id or m.name == model_id end) do
+        # ReqLLM.Model may have id in metadata or use .model field
+        case Enum.find(models, fn m ->
+          m_id = Map.get(m._metadata || %{}, :id) || m.model
+          m_name = Map.get(m._metadata || %{}, "name")
+          m_id == model_id or m_name == model_id or m.model == model_id
+        end) do
           nil -> {:error, "Model not found: #{model_id}"}
           model -> {:ok, model}
         end
@@ -110,7 +115,7 @@ defmodule Jido.AI.Provider.Cloudflare do
   """
   def build(opts) do
     # Extract or generate an API key
-    api_key = Helpers.get_api_key(opts, "CLOUDFLARE_API_KEY", :cloudflare_api_key)
+    _api_key = Helpers.get_api_key(opts, "CLOUDFLARE_API_KEY", :cloudflare_api_key)
 
     # Get model from opts
     model = Keyword.get(opts, :model)
@@ -119,29 +124,8 @@ defmodule Jido.AI.Provider.Cloudflare do
     if is_nil(model) do
       {:error, "model is required for Cloudflare models"}
     else
-      # Create the model struct with all necessary fields
-      model_struct = %Model{
-        id: Keyword.get(opts, :id, "cloudflare_#{model}"),
-        name: Keyword.get(opts, :name, "Cloudflare #{model}"),
-        provider: :cloudflare,
-        model: model,
-        base_url: @base_url,
-        api_key: api_key,
-        temperature: Keyword.get(opts, :temperature, 0.7),
-        max_tokens: Keyword.get(opts, :max_tokens, 1024),
-        max_retries: Keyword.get(opts, :max_retries, 0),
-        architecture: %Model.Architecture{
-          modality: Keyword.get(opts, :modality, "text"),
-          tokenizer: Keyword.get(opts, :tokenizer, "unknown"),
-          instruct_type: Keyword.get(opts, :instruct_type)
-        },
-        description: Keyword.get(opts, :description, "Cloudflare model"),
-        created: System.system_time(:second),
-        endpoints: [],
-        reqllm_id: Model.compute_reqllm_id(:cloudflare, model)
-      }
-
-      {:ok, model_struct}
+      # Create ReqLLM.Model directly
+      ReqLLM.Model.from({:cloudflare, model, opts})
     end
   end
 

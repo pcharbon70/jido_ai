@@ -76,33 +76,32 @@ defmodule Jido.AI.Actions.TextCompletion do
   end
 
   @doc false
-  @spec build_reqllm_model(Model.t(), map()) :: {:ok, tuple()} | {:error, term()}
-  defp build_reqllm_model(%Model{} = model, params) do
-    # Ensure reqllm_id is set
-    model = Model.ensure_reqllm_id(model)
-
-    # Build ReqLLM model tuple with options
-    reqllm_model =
+  @spec build_reqllm_model(Model.t() | ReqLLM.Model.t(), map()) :: {:ok, tuple()} | {:error, term()}
+  defp build_reqllm_model(%ReqLLM.Model{} = model, params) do
+    # Already a ReqLLM.Model, build tuple directly
+    reqllm_tuple =
       {model.provider, model.model,
        [
          temperature: params.temperature,
          max_tokens: params.max_tokens
-       ]
-       |> add_api_key(model)}
+       ]}
 
-    {:ok, reqllm_model}
+    {:ok, reqllm_tuple}
+  end
+
+  defp build_reqllm_model(%Model{} = model, params) do
+    # Convert Jido.AI.Model to ReqLLM.Model
+    with {:ok, reqllm_model} <- Jido.AI.Model.from(model) do
+      build_reqllm_model(reqllm_model, params)
+    else
+      {:error, reason} ->
+        {:error, "Failed to build ReqLLM model: #{inspect(reason)}"}
+    end
   rescue
     error ->
       {:error, "Failed to build ReqLLM model: #{inspect(error)}"}
   end
 
-  @doc false
-  @spec add_api_key(keyword(), Model.t()) :: keyword()
-  defp add_api_key(opts, %Model{api_key: api_key}) when is_binary(api_key) do
-    Keyword.put(opts, :api_key, api_key)
-  end
-
-  defp add_api_key(opts, _model), do: opts
 
   @doc false
   @spec convert_messages(Prompt.t()) :: {:ok, list()} | {:error, term()}
