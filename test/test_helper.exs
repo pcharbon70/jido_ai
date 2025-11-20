@@ -50,4 +50,7 @@ if Code.loaded?(Mimic) do
   # GEPA test infrastructure
   Mimic.copy(Jido.AI.Actions.Internal.ChatResponse)
   Mimic.copy(Jido.Agent.Server)
+  # ReqLLM integration testing
+  Mimic.copy(ReqLLM)
+  Mimic.copy(ReqLLM.Model)
 end

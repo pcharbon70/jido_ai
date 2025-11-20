@@ -1,61 +1,42 @@
 defmodule Jido.AI.Actions.ReqLlm.ChatCompletionTest do
   use ExUnit.Case, async: false
+  import JidoTest.ReqLLMTestHelper
+  import Mimic
 
   alias Jido.AI.Actions.ReqLlm.ChatCompletion
   alias Jido.AI.Model
   alias Jido.AI.Prompt
 
-  @moduledoc """
-  Tests for the ReqLlm.ChatCompletion action.
+  @moduletag :capture_log
+  @moduletag :reqllm_integration
 
-  Tests cover:
-  - Parameter validation
-  - Basic chat completion
-  - Tool/function calling
-  - Error handling
-  - Response formatting
-  """
+  setup :verify_on_exit!
 
   describe "parameter validation" do
     test "handles missing model parameter" do
-      # Action runs but fails due to missing model in required params
       result = ChatCompletion.run(%{prompt: Prompt.new(:user, "Hello")}, %{})
-
-      # Should get an error about missing model
       assert match?({:error, _}, result)
     end
 
     test "handles missing prompt parameter" do
       {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
-
-      # Action runs but fails due to missing prompt in required params
       result = ChatCompletion.run(%{model: model}, %{})
-
-      # Should get an error about missing prompt
       assert match?({:error, _}, result)
     end
 
     test "validates model format" do
-      result =
-        ChatCompletion.run(
-          %{
-            model: "invalid",
-            prompt: Prompt.new(:user, "Hello")
-          },
-          %{}
-        )
-
+      result = ChatCompletion.run(%{
+        model: "invalid",
+        prompt: Prompt.new(:user, "Hello")
+      }, %{})
       assert {:error, _} = result
     end
 
     test "accepts valid model and prompt" do
       {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
       prompt = Prompt.new(:user, "Hello")
-
-      # Note: This will fail without API credentials, but parameter validation should pass
       params = %{model: model, prompt: prompt}
 
-      # Run on_before_validate_params
       result = ChatCompletion.on_before_validate_params(params)
       assert {:ok, validated_params} = result
       assert validated_params.model == model
@@ -63,115 +44,399 @@ defmodule Jido.AI.Actions.ReqLlm.ChatCompletionTest do
     end
   end
 
-  describe "basic chat completion" do
-    @tag :skip
-    test "makes basic completion request" do
-      # This test requires real API credentials
-      # Skip by default, enable with mix test --include skip
+  describe "basic chat completion with mocking" do
+    test "generates text with valid model and prompt" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "What is 2+2?")
 
-      {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
-      prompt = Prompt.new(:user, "Say hello")
+      mock_generate_text(mock_chat_response("The answer is 4."))
 
-      result = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
 
-      assert {:ok, response} = result
-      assert is_binary(response.content)
-      assert is_list(response.tool_results)
+      assert result.content == "The answer is 4."
+      assert result.tool_results == []
+    end
+
+    test "generates text with ReqLLM.Model struct" do
+      model = create_test_model(:anthropic, model: "claude-3-5-sonnet")
+      prompt = Prompt.new(:user, "Hello")
+
+      mock_generate_text(mock_chat_response("Hello! How can I help?"))
+
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+
+      assert result.content == "Hello! How can I help?"
+    end
+
+    test "generates text with Jido.AI.Model struct" do
+      model = %Jido.AI.Model{provider: :openai, model: "gpt-4"}
+      prompt = Prompt.new(:user, "Test")
+
+      mock_generate_text(mock_chat_response("Test response"))
+
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+
+      assert result.content == "Test response"
+    end
+
+    test "passes correct model spec to ReqLLM" do
+      model = {:anthropic, [model: "claude-3-5-haiku"]}
+      prompt = Prompt.new(:user, "Test")
+
+      expect_generate_text(fn model_spec, _messages, _opts ->
+        assert model_spec == "anthropic:claude-3-5-haiku"
+        {:ok, mock_chat_response("Response")}
+      end)
+
+      {:ok, _result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+    end
+
+    test "converts prompt to messages correctly" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Hello world")
+
+      expect_generate_text(fn _model, messages, _opts ->
+        assert length(messages) == 1
+        [message] = messages
+        assert message.role == :user
+        assert message.content == "Hello world"
+        {:ok, mock_chat_response("Hi!")}
+      end)
+
+      {:ok, _result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+    end
+  end
+
+  describe "parameters passing to ReqLLM" do
+    test "passes temperature parameter" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      expect_generate_text(fn _model, _messages, opts ->
+        assert Keyword.get(opts, :temperature) == 0.2
+        {:ok, mock_chat_response("Response")}
+      end)
+
+      {:ok, _result} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        temperature: 0.2
+      }, %{})
+    end
+
+    test "passes max_tokens parameter" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      expect_generate_text(fn _model, _messages, opts ->
+        assert Keyword.get(opts, :max_tokens) == 2048
+        {:ok, mock_chat_response("Response")}
+      end)
+
+      {:ok, _result} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        max_tokens: 2048
+      }, %{})
+    end
+
+    test "passes top_p parameter" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      expect_generate_text(fn _model, _messages, opts ->
+        assert Keyword.get(opts, :top_p) == 0.9
+        {:ok, mock_chat_response("Response")}
+      end)
+
+      {:ok, _result} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        top_p: 0.9
+      }, %{})
+    end
+
+    test "passes stop sequences" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      expect_generate_text(fn _model, _messages, opts ->
+        assert Keyword.get(opts, :stop) == ["END", "STOP"]
+        {:ok, mock_chat_response("Response")}
+      end)
+
+      {:ok, _result} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        stop: ["END", "STOP"]
+      }, %{})
+    end
+
+    test "passes frequency_penalty and presence_penalty" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      expect_generate_text(fn _model, _messages, opts ->
+        assert Keyword.get(opts, :frequency_penalty) == 0.5
+        assert Keyword.get(opts, :presence_penalty) == 0.3
+        {:ok, mock_chat_response("Response")}
+      end)
+
+      {:ok, _result} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        frequency_penalty: 0.5,
+        presence_penalty: 0.3
+      }, %{})
+    end
+
+    test "uses default values when parameters not provided" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      expect_generate_text(fn _model, _messages, opts ->
+        assert Keyword.get(opts, :temperature) == 0.7
+        assert Keyword.get(opts, :max_tokens) == 1000
+        {:ok, mock_chat_response("Response")}
+      end)
+
+      {:ok, _result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
     end
   end
 
   describe "tool calling" do
-    @tag :skip
-    test "includes tools in request" do
-      # This test requires real API credentials and tool actions
-      # Skip by default
+    test "returns tool calls in response" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "What's the weather?")
 
-      {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
-      prompt = Prompt.new(:user, "What is 2 + 2?")
-      tools = [Jido.Actions.Arithmetic.Add]
+      response = mock_chat_response("I'll check the weather", tool_calls: [
+        %{name: "get_weather", arguments: %{"location" => "Tokyo"}}
+      ])
+      mock_generate_text(response)
 
-      result = ChatCompletion.run(%{model: model, prompt: prompt, tools: tools}, %{})
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
 
-      assert {:ok, response} = result
-      assert is_binary(response.content)
-      assert is_list(response.tool_results)
+      assert result.content == "I'll check the weather"
+      assert length(result.tool_results) == 1
+      [tool] = result.tool_results
+      assert tool.name == "get_weather"
+      assert tool.arguments == %{"location" => "Tokyo"}
+    end
+
+    test "handles multiple tool calls" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Search and calculate")
+
+      response = mock_chat_response("Running tools", tool_calls: [
+        %{name: "search", arguments: %{"query" => "test"}},
+        %{name: "calculate", arguments: %{"expression" => "2+2"}}
+      ])
+      mock_generate_text(response)
+
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+
+      assert length(result.tool_results) == 2
+      names = Enum.map(result.tool_results, & &1.name)
+      assert "search" in names
+      assert "calculate" in names
+    end
+
+    test "handles response with no tool calls" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Just chat")
+
+      mock_generate_text(mock_chat_response("Just a chat response"))
+
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+
+      assert result.tool_results == []
+    end
+  end
+
+  describe "streaming" do
+    test "returns stream when stream: true" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Tell me a story")
+      chunks = mock_stream_chunks(["Once", " upon", " a", " time"])
+
+      mock_stream_text(chunks)
+
+      {:ok, stream} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        stream: true
+      }, %{})
+
+      assert is_struct(stream, Stream) or is_function(stream)
+    end
+
+    test "stream contains expected chunks" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Count to 3")
+      chunks = mock_stream_chunks(["1", " 2", " 3"])
+
+      mock_stream_text(chunks)
+
+      {:ok, stream} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        stream: true
+      }, %{})
+
+      collected = Enum.to_list(stream)
+      assert length(collected) == 3
+    end
+
+    test "passes stream option to ReqLLM" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      stub(ReqLLM, :stream_text, fn _model, _messages, opts ->
+        assert Keyword.get(opts, :stream) == true
+        {:ok, Stream.map([], & &1)}
+      end)
+
+      {:ok, _stream} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        stream: true
+      }, %{})
+    end
+
+    test "handles streaming errors" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      mock_stream_text_error(%{reason: :connection_error})
+
+      {:error, error} = ChatCompletion.run(%{
+        model: model,
+        prompt: prompt,
+        stream: true
+      }, %{})
+
+      assert error.reason == :connection_error
     end
   end
 
   describe "error handling" do
-    test "handles invalid API key" do
-      {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
-      prompt = Prompt.new(:user, "Hello")
+    test "returns error from ReqLLM" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
 
-      # Without proper authentication setup, this should fail gracefully
-      result = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+      stub(ReqLLM, :generate_text, fn _model, _messages, _opts ->
+        {:error, %{reason: :rate_limit, message: "Too many requests"}}
+      end)
 
-      # Should return error tuple, not crash
+      {:error, error} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+
+      assert error.reason == :rate_limit
+    end
+
+    test "returns error for invalid model specification" do
+      prompt = Prompt.new(:user, "Test")
+
+      result = ChatCompletion.run(%{
+        model: "not-a-valid-model",
+        prompt: prompt
+      }, %{})
+
       assert match?({:error, _}, result)
     end
 
     test "handles missing provider" do
-      # Create a model with invalid provider
-      result =
-        ChatCompletion.run(
-          %{
-            model: %Model{provider: :nonexistent, model: "test"},
-            prompt: Prompt.new(:user, "Hello")
-          },
-          %{}
-        )
+      result = ChatCompletion.run(%{
+        model: %Model{provider: :nonexistent, model: "test"},
+        prompt: Prompt.new(:user, "Hello")
+      }, %{})
 
       assert {:error, _} = result
     end
   end
 
   describe "response formatting" do
-    # Note: format_response is a private function, so we test it indirectly
-    # through the public API behavior
+    test "formats response with content only" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
 
-    test "response includes content" do
-      {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
-      prompt = Prompt.new(:user, "Hello")
+      mock_generate_text(%{content: "Simple response"})
 
-      # Will fail with authentication error, but we can check error structure
-      result = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
 
-      # Should return properly formatted error
-      assert match?({:error, %{reason: _, details: _}}, result)
+      assert result.content == "Simple response"
+      assert result.tool_results == []
+    end
+
+    test "handles response with string keys" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      mock_generate_text(%{"content" => "String key response"})
+
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+
+      assert result.content == "String key response"
+    end
+
+    test "handles tool calls with string keys" do
+      model = {:openai, [model: "gpt-4"]}
+      prompt = Prompt.new(:user, "Test")
+
+      response = %{
+        content: "Using tool",
+        tool_calls: [
+          %{"name" => "test_tool", "arguments" => %{"arg" => "value"}}
+        ]
+      }
+      mock_generate_text(response)
+
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+
+      assert length(result.tool_results) == 1
+      [tool] = result.tool_results
+      assert tool.name == "test_tool"
     end
   end
 
-  describe "options handling" do
-    test "applies default options" do
-      {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
-      prompt = Prompt.new(:user, "Hello")
+  describe "different providers" do
+    test "works with OpenAI" do
+      model = {:openai, [model: "gpt-4-turbo"]}
+      prompt = Prompt.new(:user, "Test")
 
-      params = %{model: model, prompt: prompt}
+      mock_generate_text(mock_chat_response("OpenAI response"))
 
-      result = ChatCompletion.on_before_validate_params(params)
-      assert {:ok, _validated} = result
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+      assert result.content == "OpenAI response"
     end
 
-    test "accepts temperature parameter" do
-      {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
-      prompt = Prompt.new(:user, "Hello")
+    test "works with Anthropic" do
+      model = {:anthropic, [model: "claude-3-5-sonnet"]}
+      prompt = Prompt.new(:user, "Test")
 
-      params = %{model: model, prompt: prompt, temperature: 0.5}
+      mock_generate_text(mock_chat_response("Anthropic response"))
 
-      result = ChatCompletion.on_before_validate_params(params)
-      assert {:ok, validated} = result
-      assert validated.temperature == 0.5
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+      assert result.content == "Anthropic response"
     end
 
-    test "accepts max_tokens parameter" do
-      {:ok, model} = Model.from({:openai, [model: "gpt-4"]})
-      prompt = Prompt.new(:user, "Hello")
+    test "works with Google" do
+      model = {:google, [model: "gemini-pro"]}
+      prompt = Prompt.new(:user, "Test")
 
-      params = %{model: model, prompt: prompt, max_tokens: 500}
+      mock_generate_text(mock_chat_response("Google response"))
 
-      result = ChatCompletion.on_before_validate_params(params)
-      assert {:ok, validated} = result
-      assert validated.max_tokens == 500
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+      assert result.content == "Google response"
+    end
+
+    test "works with OpenRouter" do
+      model = {:openrouter, [model: "anthropic/claude-3-opus"]}
+      prompt = Prompt.new(:user, "Test")
+
+      mock_generate_text(mock_chat_response("OpenRouter response"))
+
+      {:ok, result} = ChatCompletion.run(%{model: model, prompt: prompt}, %{})
+      assert result.content == "OpenRouter response"
     end
   end
 end
