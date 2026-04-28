@@ -1,5 +1,7 @@
 # Model Routing And Policy
 
+<!-- covers: jido_ai.plugins.cross_cutting_runtime_plugins -->
+
 You need predictable model selection and input/output guardrails before shipping AI workloads.
 
 After this guide, you can explain how model routing and policy enforcement behave in `jido_ai`, and where to tune them.

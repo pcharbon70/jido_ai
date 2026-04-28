@@ -1,5 +1,7 @@
 # Strategy Internals
 
+<!-- covers: jido_ai.strategies.strategy_internal_contracts -->
+
 You want to extend strategy behavior without breaking machine/runtime contracts.
 
 After this guide, you can safely modify strategy adapters and preserve signal/directive semantics.

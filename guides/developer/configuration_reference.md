@@ -1,5 +1,7 @@
 # Configuration Reference
 
+<!-- covers: jido_ai.tooling_and_configuration.explicit_configuration_defaults -->
+
 This is the copy-paste reference for common `jido_ai` configuration and defaults.
 
 ## Application Config

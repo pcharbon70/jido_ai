@@ -1,5 +1,7 @@
 # Strategy Recipes
 
+<!-- covers: jido_ai.strategies.explicit_strategy_selection -->
+
 You want copy-paste patterns for every built-in strategy, not just a comparison matrix.
 
 After this guide, you can stand up ReAct, Chain-of-Draft, Chain-of-Thought, Algorithm-of-Thoughts, Tree-of-Thoughts, Graph-of-Thoughts, TRM, and Adaptive agents quickly.

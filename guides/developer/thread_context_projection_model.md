@@ -1,5 +1,7 @@
 # Thread-Context Projection Model
 
+<!-- covers: jido_ai.thread_context_projection.dual_thread_and_context_model -->
+
 This guide defines the ReAct data model after the `thread -> context` materialized-view rename.
 
 ## Ownership Boundaries

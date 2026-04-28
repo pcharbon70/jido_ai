@@ -1,5 +1,7 @@
 # Context And Message Projection
 
+<!-- covers: jido_ai.thread_context_projection.dual_thread_and_context_model jido_ai.thread_context_projection.context_projection_semantics -->
+
 You need deterministic conversation state and explicit message projection to LLM input format.
 
 After this guide, you can build and inspect history using `Jido.AI.Context`.

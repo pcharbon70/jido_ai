@@ -1,4 +1,5 @@
 defmodule Jido.AI.Quality.Checkpoint do
+  # covers: jido_ai.examples_and_quality.quality_checkpoint_helpers
   @moduledoc """
   Final stable quality checkpoint helpers.
 

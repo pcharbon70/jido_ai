@@ -1,5 +1,7 @@
 # Strategy Selection Playbook
 
+<!-- covers: jido_ai.strategies.built_in_strategy_families jido_ai.strategies.explicit_strategy_selection -->
+
 You need to choose a strategy before building agents at scale.
 
 After this guide, you can select CoD, CoT, ReAct, AoT, ToT, GoT, TRM, or Adaptive with explicit tradeoffs.

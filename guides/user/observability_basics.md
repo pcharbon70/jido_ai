@@ -1,5 +1,7 @@
 # Observability Basics
 
+<!-- covers: jido_ai.runtime_contracts.canonical_signals_and_telemetry -->
+
 You need a stable telemetry contract for requests, LLM calls, and tool execution.
 
 After this guide, you can emit normalized events and subscribe to key paths.

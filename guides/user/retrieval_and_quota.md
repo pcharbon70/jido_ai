@@ -1,5 +1,7 @@
 # Retrieval And Quota
 
+<!-- covers: jido_ai.actions.retrieval_and_quota_actions jido_ai.plugins.cross_cutting_runtime_plugins -->
+
 You need memory-aware responses and budget controls before production traffic scales.
 
 After this guide, you can enable retrieval and quota plugins, run retrieval/quota actions directly, and understand request-rewrite behavior.

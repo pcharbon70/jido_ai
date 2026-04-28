@@ -1,5 +1,7 @@
 # Directives Runtime Contract
 
+<!-- covers: jido_ai.runtime_contracts.directive_signal_envelopes -->
+
 You need to modify runtime side effects (LLM/tool/embed/lifecycle) without breaking strategy semantics.
 
 After this guide, you can add directive behavior while preserving correlation, retries, and signal contracts.

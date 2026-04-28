@@ -27,6 +27,18 @@ Build tool-using AI agents with explicit strategy, runtime policy, and reliable 
 - Preserve tagged tuple and structured error contracts
 - Prefer deterministic fallback behavior over ad-hoc prompt pipelines
 
+## Spec Led Development
+
+<!-- covers: package.jido_ai.spec_led_workspace -->
+
+`.spec/` is the package-local Spec Led Development workspace for current-truth specs and durable ADRs.
+
+- Run `mix spec.prime --base HEAD` when entering the repo or handing work to another agent
+- Keep `.spec/specs/*.spec.md` aligned with code, guides, and tests when behavior changes
+- Use `.spec/decisions/*.md` only for durable cross-cutting ADRs
+- Run `mix spec.next` after code, docs, or tests change, then `mix spec.check --base ...` when work is ready to finish
+- If spec tooling is blocked by an unrelated compile or runtime issue, report the blocker instead of inventing a passing result
+
 ## Testing and QA
 - Cover strategy behavior, tool-call loops, and error/fallback handling
 - Keep flaky tests isolated behind tags; maintain a stable smoke subset (`mix test.fast`)
@@ -40,6 +52,7 @@ Build tool-using AI agents with explicit strategy, runtime policy, and reliable 
 
 ## References
 - `README.md`
+- `.spec/README.md`
 - `usage-rules.md`
 - `guides/`
 - https://hexdocs.pm/jido_ai

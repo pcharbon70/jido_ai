@@ -1,5 +1,7 @@
 # Security And Validation
 
+<!-- covers: jido_ai.security_and_errors.validation_and_sanitization -->
+
 You need defense-in-depth for prompts, callbacks, stream IDs, and user-visible errors.
 
 After this guide, you can apply the runtime security modules consistently.

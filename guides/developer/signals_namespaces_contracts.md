@@ -1,5 +1,7 @@
 # Signals, Namespaces, Contracts
 
+<!-- covers: jido_ai.runtime_contracts.canonical_signals_and_telemetry -->
+
 You need stable event names and payload semantics across strategies, runtime, and tooling.
 
 After this guide, you can add signals without namespace drift.

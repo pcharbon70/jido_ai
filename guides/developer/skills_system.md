@@ -1,5 +1,7 @@
 # Skills System
 
+<!-- covers: jido_ai.skills_system.unified_skill_abstraction jido_ai.skills_system.registry_lifecycle jido_ai.skills_system.skill_cli_surface -->
+
 You need to package reusable instructions/capabilities and load them safely.
 
 After this guide, you can load skill files, register specs, render prompts, and handle common runtime failures.

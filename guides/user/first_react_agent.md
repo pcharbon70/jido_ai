@@ -1,5 +1,7 @@
 # First Agent
 
+<!-- covers: jido_ai.core_runtime.react_agent_entrypoint -->
+
 You want a production-shaped `Jido.AI.Agent` with tools, request handles, and explicit runtime control.
 
 After this guide, you will run a custom tool, submit async requests, and await specific request IDs.

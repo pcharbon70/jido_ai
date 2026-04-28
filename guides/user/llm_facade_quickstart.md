@@ -1,5 +1,7 @@
 # LLM Facade Quickstart
 
+<!-- covers: jido_ai.core_runtime.llm_facades -->
+
 You want one-shot LLM generation without running a long-lived agent process.
 
 After this guide, you can use `Jido.AI.generate_text/2`, `generate_object/3`, `stream_text/2`, and `ask/2` with model aliases and sane defaults.

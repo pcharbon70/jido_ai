@@ -1,5 +1,7 @@
 # Architecture And Runtime Flow
 
+<!-- covers: jido_ai.runtime_contracts.layered_runtime_flow -->
+
 You need a mental model of how a query moves through strategy, directives, signals, and runtime execution.
 
 After this guide, you can trace one request end-to-end and debug failures at the correct layer.

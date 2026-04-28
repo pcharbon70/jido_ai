@@ -1,4 +1,5 @@
 defmodule Mix.Tasks.JidoAi.Install.Docs do
+  # covers: jido_ai.tooling_and_configuration.igniter_install_surface
   @moduledoc false
 
   @doc "Returns the short description shown in Mix task listings."

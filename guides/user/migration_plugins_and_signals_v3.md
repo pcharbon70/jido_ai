@@ -1,5 +1,7 @@
 # Migration Guide: Plugins And Signals (v2 -> v3)
 
+<!-- covers: jido_ai.plugins.v3_migration_surface -->
+
 This guide maps the removed v2 public plugin surface to the v3 replacement.
 
 ## Breaking Change Summary

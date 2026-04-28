@@ -1,5 +1,7 @@
 # Standalone ReAct Runtime
 
+<!-- covers: jido_ai.strategies.standalone_react_runtime -->
+
 You want to run `Jido.AI.Reasoning.ReAct` directly — streaming events, checkpointing mid-run, and resuming later — without wrapping everything in a `Jido.AI.Agent`.
 
 After this guide, you can use `run/3`, `stream/3`, `start/3`, `continue/3`, `collect/3`, and `cancel/3` to build checkpoint-aware ReAct workflows outside of the agent macro.

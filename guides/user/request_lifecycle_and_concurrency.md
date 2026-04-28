@@ -1,5 +1,7 @@
 # Request Lifecycle And Concurrency
 
+<!-- covers: jido_ai.core_runtime.request_handles -->
+
 You need concurrent requests without single-slot state overwrites.
 
 After this guide, you will use request handles (`ask/await`) and collect multiple results safely.

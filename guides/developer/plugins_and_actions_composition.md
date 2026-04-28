@@ -1,5 +1,7 @@
 # Plugins And Actions Composition
 
+<!-- covers: jido_ai.plugins.public_plugin_surface jido_ai.plugins.default_plugin_composition -->
+
 You need a reliable way to compose mountable capabilities (plugins) with executable primitives (actions) without coupling to strategy internals.
 
 After this guide, you can choose the right extension surface for each requirement.

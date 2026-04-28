@@ -1,5 +1,7 @@
 # Jido.AI
 
+<!-- covers: package.jido_ai.runtime_layer package.jido_ai.agent_and_action_surfaces -->
+
 [![Hex.pm](https://img.shields.io/hexpm/v/jido_ai.svg)](https://hex.pm/packages/jido_ai)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/jido_ai/)
 [![CI](https://github.com/agentjido/jido_ai/actions/workflows/ci.yml/badge.svg)](https://github.com/agentjido/jido_ai/actions/workflows/ci.yml)

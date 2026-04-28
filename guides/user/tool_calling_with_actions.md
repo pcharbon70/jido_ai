@@ -1,5 +1,7 @@
 # Tool Calling With Actions
 
+<!-- covers: jido_ai.actions.tool_calling_loop_contract -->
+
 You want model-selected tool calls with `Jido.Action` modules, plus deterministic terminal shapes for one-shot and multi-turn runs.
 
 After this guide, you can use:

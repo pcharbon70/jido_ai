@@ -1,5 +1,7 @@
 # Actions Catalog
 
+<!-- covers: jido_ai.actions.standalone_action_surface jido_ai.actions.retrieval_and_quota_actions -->
+
 This guide is the quick inventory of built-in `Jido.AI.Actions.*` modules and what each one is for.
 
 ## Production Baseline (Standalone Surface)

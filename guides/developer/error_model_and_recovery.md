@@ -1,5 +1,7 @@
 # Error Model And Recovery
 
+<!-- covers: jido_ai.security_and_errors.structured_error_taxonomy jido_ai.security_and_errors.sanitized_user_error_boundary -->
+
 You need consistent error taxonomy and retry behavior across provider, tool, and validation failures.
 
 After this guide, you can classify failures and pick the right recovery path.

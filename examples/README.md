@@ -1,5 +1,7 @@
 # Jido.AI Examples
 
+<!-- covers: jido_ai.examples_and_quality.top_level_runnable_examples -->
+
 The runnable agents, tools, and demo scripts for `jido_ai` live in this top-level `examples/`
 folder. They stay out of the root `elixirc_paths`, so the core package does not compile example
 modules by default.

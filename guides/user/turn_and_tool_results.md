@@ -1,5 +1,7 @@
 # Turn And Tool Results
 
+<!-- covers: jido_ai.thread_context_projection.turn_normalization jido_ai.actions.tool_calling_loop_contract -->
+
 You want to normalize raw LLM responses, classify them, execute tool calls, and project messages for follow-up LLM turns.
 
 After this guide, you can:

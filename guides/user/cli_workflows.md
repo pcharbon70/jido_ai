@@ -1,5 +1,7 @@
 # CLI Workflows
 
+<!-- covers: jido_ai.tooling_and_configuration.mix_jido_ai_cli -->
+
 You want fast one-shot automation or batch processing from shell workflows.
 
 After this guide, you can run `mix jido_ai` in one-shot, stdin, and agent-module modes.

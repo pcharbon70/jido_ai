@@ -1,5 +1,7 @@
 # Jido AI Usage Rules
 
+<!-- covers: package.jido_ai.explicit_policy_boundaries -->
+
 ## Intent
 Implement tool-using AI behavior with explicit model policy, bounded execution, and observable request flow.
 
