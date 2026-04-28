@@ -855,6 +855,15 @@
       },
       {
         "covers": [
+          "jido_ai.examples_and_quality.executable_contract_regression_tests"
+        ],
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/integration/backend_boundary_phase2_test.exs"
+      },
+      {
+        "covers": [
           "jido_ai.plugins.public_plugin_surface",
           "jido_ai.plugins.default_plugin_composition"
         ],
@@ -1223,7 +1232,7 @@
     "requirements": 45,
     "scenarios": 0,
     "subjects": 12,
-    "verifications": 58
+    "verifications": 59
   },
   "verification": {
     "claims": [
@@ -1457,6 +1466,17 @@
         "subject_id": "jido_ai.examples_and_quality",
         "target": "test/jido_ai/integration/backend_boundary_phase1_test.exs",
         "verification_index": 6
+      },
+      {
+        "cover_id": "jido_ai.examples_and_quality.executable_contract_regression_tests",
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/integration/backend_boundary_phase2_test.exs",
+        "verification_index": 7
       },
       {
         "cover_id": "jido_ai.plugins.default_plugin_composition",
@@ -1981,7 +2001,7 @@
     "strength_summary": {
       "claimed": 2,
       "executed": 0,
-      "linked": 66
+      "linked": 67
     },
     "threshold_failures": 0
   },
