@@ -59,6 +59,23 @@ defmodule Jido.AI do
       {:ok, json} = Jido.AI.generate_object("Extract fields", schema)
       {:ok, stream} = Jido.AI.stream_text("Stream this response")
 
+  ## Backend Selection
+
+  Backend selection is additive. Existing entrypoint names and arities stay the
+  same while callers can reserve an explicit backend choice with `backend: ...`:
+
+      config :jido_ai,
+        llm_backend: :req_llm,
+        llm_backends: %{
+          req_llm: %{transport: :api},
+          harness: %{transport: :exec}
+        }
+
+      {:ok, _response} = Jido.AI.generate_text("hello", backend: :req_llm)
+
+  At this phase the package still executes through ReqLLM only. Any alternate
+  backend request fails explicitly with a structured unsupported-backend error.
+
   ## Runtime Tool Management
 
   Register and unregister tools dynamically with running agents:
@@ -80,6 +97,7 @@ defmodule Jido.AI do
   """
 
   alias Jido.Agent.Strategy.State, as: StratState
+  alias Jido.AI.Backends
   alias Jido.AI.ModelAliases
   alias Jido.AI.Reasoning.ReAct
   alias Jido.AI.ToolAdapter
@@ -92,6 +110,7 @@ defmodule Jido.AI do
   @type model_input :: model_alias() | ReqLLM.model_input()
   @type llm_kind :: :text | :object | :stream
   @type llm_generation_opts :: %{
+          optional(:backend) => Backends.backend(),
           optional(:model) => model_input(),
           optional(:system_prompt) => String.t(),
           optional(:max_tokens) => non_neg_integer(),
@@ -265,6 +284,7 @@ defmodule Jido.AI do
 
   `opts` supports:
 
+  - `:backend` - explicit additive backend selection (`:req_llm` today)
   - `:model` - model alias or direct model spec
   - `:system_prompt` - optional system prompt
   - `:max_tokens`, `:temperature`, `:timeout`
@@ -276,7 +296,8 @@ defmodule Jido.AI do
     model = resolve_generation_model(opts, defaults)
     system_prompt = Keyword.get(opts, :system_prompt, defaults[:system_prompt])
 
-    with {:ok, req_context} <- normalize_context(input, system_prompt) do
+    with {:ok, :req_llm} <- Backends.ensure_supported_backend(opts, [:req_llm]),
+         {:ok, req_context} <- normalize_context(input, system_prompt) do
       ReqLLM.Generation.generate_text(model, req_context.messages, build_reqllm_opts(opts, defaults))
     end
   end
@@ -292,7 +313,8 @@ defmodule Jido.AI do
     model = resolve_generation_model(opts, defaults)
     system_prompt = Keyword.get(opts, :system_prompt, defaults[:system_prompt])
 
-    with {:ok, req_context} <- normalize_context(input, system_prompt) do
+    with {:ok, :req_llm} <- Backends.ensure_supported_backend(opts, [:req_llm]),
+         {:ok, req_context} <- normalize_context(input, system_prompt) do
       ReqLLM.Generation.generate_object(
         model,
         req_context.messages,
@@ -313,7 +335,8 @@ defmodule Jido.AI do
     model = resolve_generation_model(opts, defaults)
     system_prompt = Keyword.get(opts, :system_prompt, defaults[:system_prompt])
 
-    with {:ok, req_context} <- normalize_context(input, system_prompt) do
+    with {:ok, :req_llm} <- Backends.ensure_supported_backend(opts, [:req_llm]),
+         {:ok, req_context} <- normalize_context(input, system_prompt) do
       ReqLLM.stream_text(model, req_context.messages, build_reqllm_opts(opts, defaults))
     end
   end
@@ -713,7 +736,9 @@ defmodule Jido.AI do
       |> put_opt(:temperature, Keyword.get(opts, :temperature, defaults[:temperature]))
       |> put_timeout_opt(Keyword.get(opts, :timeout, defaults[:timeout]))
 
-    passthrough_opts = Keyword.drop(opts, [:model, :system_prompt, :max_tokens, :temperature, :timeout, :opts])
+    passthrough_opts =
+      Keyword.drop(opts, [:backend, :model, :system_prompt, :max_tokens, :temperature, :timeout, :opts])
+
     extra_opts = Keyword.get(opts, :opts, [])
 
     req_opts

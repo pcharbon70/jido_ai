@@ -456,6 +456,7 @@ defmodule Jido.AI.Agent do
       ## Options
 
       - `:tool_context` - Additional context map merged with agent's tool_context
+      - `:backend` - Explicit additive backend override for this request path (`:req_llm` today)
       - `:tools` - Request-scoped tool registry override for this run only
       - `:allowed_tools` - Request-scoped allowlist of tool names
       - `:request_transformer` - Module implementing per-turn ReAct request shaping
@@ -550,6 +551,7 @@ defmodule Jido.AI.Agent do
       ## Options
 
       - `:tool_context` - Additional context map merged with agent's tool_context
+      - `:backend` - Explicit additive backend override for this request path (`:req_llm` today)
       - `:tools` - Request-scoped tool registry override for this run only
       - `:allowed_tools` - Request-scoped allowlist of tool names
       - `:request_transformer` - Module implementing per-turn ReAct request shaping

@@ -153,6 +153,7 @@ defmodule Jido.AI.Request do
 
   ## Options
 
+  - `:backend` - Explicit additive backend override for this request path (`:req_llm` today)
   - `:tool_context` - Additional context merged with agent's tool_context
   - `:tools` - ReAct-only request-scoped tool registry override for this run
   - `:allowed_tools` - ReAct-only request-scoped allowlist of tool names
@@ -183,6 +184,7 @@ defmodule Jido.AI.Request do
   def create_and_send(server, query, opts) when is_binary(query) do
     signal_type = Keyword.fetch!(opts, :signal_type)
     source = Keyword.fetch!(opts, :source)
+    backend = Jido.AI.Backends.request_backend(opts)
     tool_context = Keyword.get(opts, :tool_context, %{})
     tools = Keyword.get(opts, :tools)
     allowed_tools = Keyword.get(opts, :allowed_tools)
@@ -193,13 +195,14 @@ defmodule Jido.AI.Request do
     request_id = Keyword.get_lazy(opts, :request_id, &generate_id/0)
     stream_to = Keyword.get(opts, :stream_to)
 
-    with {:ok, stream_to} <- RequestStream.normalize_sink(stream_to) do
+    with {:ok, :req_llm} <- Jido.AI.Backends.ensure_supported_backend(opts, [:req_llm]),
+         {:ok, stream_to} <- RequestStream.normalize_sink(stream_to) do
       # Build payload with request_id for correlation.
       # Keep both query and prompt keys so all strategy start schemas can consume it.
       extra_refs = Keyword.get(opts, :extra_refs, %{})
 
       payload =
-        %{query: query, prompt: query, request_id: request_id}
+        %{query: query, prompt: query, request_id: request_id, backend: backend}
         |> maybe_add_tool_context(tool_context)
         |> maybe_add_tools(tools)
         |> maybe_add_allowed_tools(allowed_tools)

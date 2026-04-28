@@ -9,6 +9,11 @@ This is the copy-paste reference for common `jido_ai` configuration and defaults
 ```elixir
 # config/config.exs
 config :jido_ai,
+  llm_backend: :req_llm,
+  llm_backends: %{
+    req_llm: %{transport: :api},
+    harness: %{transport: :exec}
+  },
   model_aliases: %{
     fast: "provider:fast-model",
     capable: "provider:capable-model",
@@ -18,6 +23,7 @@ config :jido_ai,
 ```
 
 Package defaults are built into `Jido.AI`; `model_aliases` is merged on top for overrides.
+`llm_backend` defaults to `:req_llm`, and `llm_backends` is additive reserved config for future alternate backends.
 
 ## Strategy/Macro Defaults
 
@@ -75,6 +81,15 @@ Package defaults are built into `Jido.AI`; `model_aliases` is merged on top for 
 - await timeout: `30_000ms`
 - max retained requests per agent state: `100`
 - request-scoped ReAct overrides: `tools`, `allowed_tools`, `request_transformer`, `tool_context`, `req_http_options`, `llm_opts`
+- request-scoped additive backend override: `backend`
+
+## Backend Compatibility Rules
+
+- `:req_llm` remains the only executing backend in the current package state.
+- `model_aliases`, `llm_defaults`, `llm_opts`, and `req_http_options` continue to apply to the ReqLLM path unchanged.
+- Alternate backends use distinct additive config under `llm_backends`; they do not overload `model_aliases`.
+- Passing `backend: ...` to public facades or request-bearing agent calls does not change names or arities.
+- Passing any backend other than `:req_llm` currently returns a structured unsupported-backend error instead of silently falling back.
 
 ## Security Defaults
 

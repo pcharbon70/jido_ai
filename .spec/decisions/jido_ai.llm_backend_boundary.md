@@ -49,6 +49,17 @@ Backend selection must be additive and explicit. Jido.AI must not rename or
 replace the existing public request APIs just to expose a new transport or
 runtime.
 
+The additive selection convention is:
+
+- app default under `config :jido_ai, llm_backend: ...`
+- backend-owned additive config under `config :jido_ai, llm_backends: %{...}`
+- request-scoped override through existing public entrypoints with
+  `backend: :req_llm | ...`
+
+These controls reserve alternate backends without overloading the existing
+`model_aliases`, `llm_defaults`, `llm_opts`, or `req_http_options` semantics
+that continue to belong to the ReqLLM path.
+
 Backend-specific provider, CLI session, tool, and stream semantics must be
 normalized before they cross into public Jido.AI turn, request, signal, or
 runtime-event contracts.
@@ -61,6 +72,10 @@ unsupported-capability error rather than silently degrading the contract.
 Model aliases and current ReqLLM-facing configuration remain supported. Any
 alternate backend or provider selection must be additive rather than overloading
 the current alias/config semantics in a breaking way.
+
+Until a non-ReqLLM backend is implemented for a given call path, explicit
+selection of that backend shall return a structured unsupported-backend or
+unsupported-capability outcome instead of silently falling back to ReqLLM.
 
 ## Consequences
 

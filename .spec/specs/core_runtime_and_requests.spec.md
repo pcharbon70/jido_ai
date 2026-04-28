@@ -12,6 +12,7 @@ decisions:
 surface:
   - lib/jido_ai.ex
   - lib/jido_ai/agent.ex
+  - lib/jido_ai/backends.ex
   - lib/jido_ai/backend/request.ex
   - lib/jido_ai/request.ex
   - lib/jido_ai/request/*.ex
@@ -64,6 +65,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_ai/backend/request.ex
+  covers:
+    - jido_ai.core_runtime.additive_backend_selection
+
+- kind: source_file
+  target: lib/jido_ai/backends.ex
   covers:
     - jido_ai.core_runtime.additive_backend_selection
 

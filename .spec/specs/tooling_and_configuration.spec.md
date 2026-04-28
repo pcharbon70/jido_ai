@@ -19,7 +19,7 @@ surface:
 
 ```spec-requirements
 - id: jido_ai.tooling_and_configuration.explicit_configuration_defaults
-  statement: Configuration documentation shall keep model aliases, llm defaults, strategy defaults, request defaults, security defaults, and CLI defaults explicit instead of implicit runtime convention.
+  statement: Configuration documentation shall keep additive backend selection, model aliases, llm defaults, strategy defaults, request defaults, security defaults, and CLI defaults explicit instead of implicit runtime convention.
   priority: must
   stability: stable
 

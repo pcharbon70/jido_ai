@@ -283,7 +283,7 @@
         "id": "jido_ai.tooling_and_configuration.explicit_configuration_defaults",
         "priority": "must",
         "stability": "stable",
-        "statement": "Configuration documentation shall keep model aliases, llm defaults, strategy defaults, request defaults, security defaults, and CLI defaults explicit instead of implicit runtime convention.",
+        "statement": "Configuration documentation shall keep additive backend selection, model aliases, llm defaults, strategy defaults, request defaults, security defaults, and CLI defaults explicit instead of implicit runtime convention.",
         "subject_id": "jido_ai.tooling_and_configuration"
       },
       {
@@ -429,6 +429,7 @@
           "surface": [
             "lib/jido_ai.ex",
             "lib/jido_ai/agent.ex",
+            "lib/jido_ai/backends.ex",
             "lib/jido_ai/backend/request.ex",
             "lib/jido_ai/request.ex",
             "lib/jido_ai/request/*.ex",
@@ -734,6 +735,15 @@
       },
       {
         "covers": [
+          "jido_ai.core_runtime.additive_backend_selection"
+        ],
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai/backends.ex"
+      },
+      {
+        "covers": [
           "jido_ai.core_runtime.react_agent_entrypoint"
         ],
         "file": ".spec/specs/core_runtime_and_requests.spec.md",
@@ -785,6 +795,15 @@
         "kind": "source_file",
         "subject_id": "jido_ai.examples_and_quality",
         "target": "test/jido_ai/error/model_test.exs"
+      },
+      {
+        "covers": [
+          "jido_ai.examples_and_quality.executable_contract_regression_tests"
+        ],
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/backends_test.exs"
       },
       {
         "covers": [
@@ -1156,7 +1175,7 @@
     "requirements": 45,
     "scenarios": 0,
     "subjects": 12,
-    "verifications": 51
+    "verifications": 53
   },
   "verification": {
     "claims": [
@@ -1249,6 +1268,17 @@
         "verification_index": 2
       },
       {
+        "cover_id": "jido_ai.core_runtime.additive_backend_selection",
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai/backends.ex",
+        "verification_index": 3
+      },
+      {
         "cover_id": "jido_ai.core_runtime.react_agent_entrypoint",
         "file": ".spec/specs/core_runtime_and_requests.spec.md",
         "kind": "guide_file",
@@ -1257,7 +1287,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.core_runtime",
         "target": "guides/user/first_react_agent.md",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "jido_ai.core_runtime.request_handles",
@@ -1268,7 +1298,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.core_runtime",
         "target": "guides/user/request_lifecycle_and_concurrency.md",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "jido_ai.examples_and_quality.top_level_runnable_examples",
@@ -1313,6 +1343,17 @@
         "subject_id": "jido_ai.examples_and_quality",
         "target": "test/jido_ai/error/model_test.exs",
         "verification_index": 3
+      },
+      {
+        "cover_id": "jido_ai.examples_and_quality.executable_contract_regression_tests",
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/backends_test.exs",
+        "verification_index": 4
       },
       {
         "cover_id": "jido_ai.plugins.default_plugin_composition",
@@ -1837,7 +1878,7 @@
     "strength_summary": {
       "claimed": 2,
       "executed": 0,
-      "linked": 59
+      "linked": 61
     },
     "threshold_failures": 0
   },

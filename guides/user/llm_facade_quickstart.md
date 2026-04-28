@@ -17,6 +17,11 @@ After this guide, you can use `Jido.AI.generate_text/2`, `generate_object/3`, `s
 ```elixir
 # config/config.exs
 config :jido_ai,
+  llm_backend: :req_llm,
+  llm_backends: %{
+    req_llm: %{transport: :api},
+    harness: %{transport: :exec}
+  },
   model_aliases: %{
     fast: "provider:fast-model",
     capable: "provider:capable-model",
@@ -34,6 +39,7 @@ config :req_llm,
 ```
 
 `Jido.AI.resolve_model/1` resolves aliases at runtime, so you can keep app code model-agnostic.
+`llm_backend` defaults to `:req_llm`; alternate backend config is additive and explicit.
 
 ## 2. Quick Text Generation
 
@@ -107,6 +113,14 @@ end
 ```
 
 `Jido.AI.llm_defaults/0` and `Jido.AI.llm_defaults/1` are useful for debugging effective runtime config.
+
+You can also reserve an explicit backend per call without changing the entrypoint shape:
+
+```elixir
+{:ok, _response} = Jido.AI.generate_text("Default backend path", backend: :req_llm)
+```
+
+At the current phase, any backend other than `:req_llm` returns a structured unsupported-backend error.
 
 ## Failure Mode: Unknown Model Alias
 

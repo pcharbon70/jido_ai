@@ -55,4 +55,9 @@ surface:
   target: test/jido_ai/error/model_test.exs
   covers:
     - jido_ai.examples_and_quality.executable_contract_regression_tests
+
+- kind: source_file
+  target: test/jido_ai/backends_test.exs
+  covers:
+    - jido_ai.examples_and_quality.executable_contract_regression_tests
 ```
