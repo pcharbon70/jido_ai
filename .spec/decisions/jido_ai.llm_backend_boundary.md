@@ -85,6 +85,10 @@ breaking rewrite of the package surface first.
 ReqLLM-centric code paths can remain in place while request, directive, action,
 and runtime boundaries are refactored toward backend normalization.
 
+The first concrete backend adapter should be ReqLLM-backed so existing public
+facades and standalone actions can move behind the backend seam before any
+alternate backend changes public runtime behavior.
+
 `Jido.Harness` integration should begin where prompt/cwd/session semantics are a
 natural fit, rather than forcing every existing ReqLLM-shaped surface to become
 immediately dual-backed.

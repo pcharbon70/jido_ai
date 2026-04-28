@@ -55,6 +55,14 @@ defmodule Jido.AI.Backends do
   end
 
   @doc """
+  Returns the adapter module for the resolved backend.
+  """
+  @spec adapter_for(backend()) :: module()
+  def adapter_for(backend) when is_atom(backend) do
+    config_for(backend)[:adapter] || adapter_module(backend)
+  end
+
+  @doc """
   Resolves the requested backend from request-scoped options or app config.
   """
   @spec request_backend(keyword() | map() | Request.t() | nil) :: backend()

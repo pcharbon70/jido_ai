@@ -62,6 +62,11 @@ surface:
     - jido_ai.examples_and_quality.executable_contract_regression_tests
 
 - kind: source_file
+  target: test/jido_ai/backends/req_llm_test.exs
+  covers:
+    - jido_ai.examples_and_quality.executable_contract_regression_tests
+
+- kind: source_file
   target: test/jido_ai/integration/backend_boundary_phase1_test.exs
   covers:
     - jido_ai.examples_and_quality.executable_contract_regression_tests

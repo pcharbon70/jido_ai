@@ -13,6 +13,7 @@ surface:
   - lib/jido_ai.ex
   - lib/jido_ai/agent.ex
   - lib/jido_ai/backends.ex
+  - lib/jido_ai/backends/*.ex
   - lib/jido_ai/backend/request.ex
   - lib/jido_ai/request.ex
   - lib/jido_ai/request/*.ex
