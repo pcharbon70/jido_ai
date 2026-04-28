@@ -53,7 +53,6 @@ defmodule Jido.AI.Actions.Reasoning.Infer do
       })
 
   alias Jido.AI.Actions.Helpers
-  alias Jido.AI.Turn
   alias Jido.AI.Validation
   alias ReqLLM.Context
 
@@ -89,20 +88,19 @@ defmodule Jido.AI.Actions.Reasoning.Infer do
   """
   @impl Jido.Action
   def run(params, _context) do
-    with {:ok, model} <- resolve_model(params[:model]),
-         {:ok, validated_params} <- validate_and_sanitize_params(params),
+    with {:ok, validated_params} <- validate_and_sanitize_params(params),
          {:ok, req_context} <- build_inference_messages(validated_params),
-         opts = build_opts(validated_params),
-         {:ok, response} <- ReqLLM.Generation.generate_text(model, req_context.messages, opts) do
-      {:ok, format_result(response, model)}
+         {:ok, result} <-
+           Helpers.generate_backend_result(validated_params, %{
+             default_model: :reasoning,
+             operation: :text,
+             messages: req_context.messages
+           }) do
+      {:ok, format_result(result)}
     end
   end
 
   # Private Functions
-
-  defp resolve_model(nil), do: {:ok, Jido.AI.resolve_model(:reasoning)}
-  defp resolve_model(model) when is_atom(model), do: {:ok, Jido.AI.resolve_model(model)}
-  defp resolve_model(model) when is_binary(model), do: {:ok, model}
 
   defp build_inference_messages(params) do
     user_prompt = build_inference_user_prompt(params)
@@ -145,28 +143,12 @@ defmodule Jido.AI.Actions.Reasoning.Infer do
 
   defp validate_context_if_needed(_params), do: {:ok, nil}
 
-  defp build_opts(params) do
-    opts = [
-      max_tokens: params[:max_tokens],
-      temperature: params[:temperature]
-    ]
-
-    opts =
-      if params[:timeout] do
-        Keyword.put(opts, :receive_timeout, params[:timeout])
-      else
-        opts
-      end
-
-    opts
-  end
-
-  defp format_result(response, model) do
+  defp format_result(result) do
     %{
-      result: Turn.extract_text(response),
-      reasoning: Turn.extract_text(response),
-      model: model,
-      usage: Helpers.extract_usage(response)
+      result: result.text,
+      reasoning: result.text,
+      model: result.model,
+      usage: result.usage || Helpers.extract_usage(%{})
     }
   end
 end

@@ -1,4 +1,5 @@
 defmodule Jido.AI.Actions.Helpers do
+  # covers: jido_ai.actions.standalone_action_surface
   @moduledoc """
   Shared helper functions for Jido.AI skill actions.
 
@@ -28,9 +29,11 @@ defmodule Jido.AI.Actions.Helpers do
       end
   """
 
+  alias Jido.AI.Backend.{Request, Result}
+  alias Jido.AI.Backends
   alias Jido.AI.Error.Sanitize
-  alias Jido.AI.Validation
   alias Jido.AI.Turn
+  alias Jido.AI.Validation
 
   @doc """
   Resolves a model parameter to a model spec.
@@ -97,6 +100,42 @@ defmodule Jido.AI.Actions.Helpers do
       end
 
     opts
+  end
+
+  @doc """
+  Builds a backend-neutral request from action params plus explicit request attrs.
+  """
+  @spec build_backend_request(map(), map() | keyword()) :: Request.t()
+  def build_backend_request(params, attrs) when is_map(params) do
+    attrs = normalize_request_attrs(attrs)
+    default_model = Map.get(attrs, :default_model)
+    attrs = Map.delete(attrs, :default_model)
+
+    backend_metadata =
+      Map.merge(
+        normalize_backend_metadata(Map.get(params, :backend_metadata)),
+        normalize_backend_metadata(Map.get(attrs, :backend_metadata))
+      )
+
+    params
+    |> Map.take([:backend, :model])
+    |> Map.put(:model, Map.get(params, :model) || default_model)
+    |> Map.put(:timeout_ms, params[:timeout])
+    |> Map.put(:max_tokens, params[:max_tokens])
+    |> Map.put(:temperature, params[:temperature])
+    |> Map.put(:backend_metadata, backend_metadata)
+    |> Map.merge(attrs)
+    |> Request.new()
+  end
+
+  @doc """
+  Executes a backend-neutral generation request and returns a normalized result.
+  """
+  @spec generate_backend_result(map(), map() | keyword()) :: {:ok, Result.t()} | {:error, term()}
+  def generate_backend_result(params, attrs) when is_map(params) do
+    params
+    |> build_backend_request(attrs)
+    |> Backends.generate()
   end
 
   @doc """
@@ -291,4 +330,13 @@ defmodule Jido.AI.Actions.Helpers do
   def telemetry_error_type(%{code: type}) when is_atom(type), do: type
   def telemetry_error_type(:timeout), do: :timeout
   def telemetry_error_type(_), do: :llm_error
+
+  defp normalize_request_attrs(attrs) when is_list(attrs), do: Map.new(attrs)
+  defp normalize_request_attrs(attrs) when is_map(attrs), do: attrs
+  defp normalize_request_attrs(_), do: %{}
+
+  defp normalize_backend_metadata(nil), do: %{}
+  defp normalize_backend_metadata(metadata) when is_map(metadata), do: metadata
+  defp normalize_backend_metadata(metadata) when is_list(metadata), do: Map.new(metadata)
+  defp normalize_backend_metadata(_), do: %{}
 end

@@ -43,7 +43,7 @@
         "id": "jido_ai.actions.standalone_action_surface",
         "priority": "must",
         "stability": "stable",
-        "statement": "Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent.",
+        "statement": "Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors.",
         "subject_id": "jido_ai.actions"
       },
       {
@@ -51,7 +51,7 @@
         "id": "jido_ai.actions.tool_calling_loop_contract",
         "priority": "must",
         "stability": "stable",
-        "statement": "Tool-calling actions and turn helpers shall normalize tool schemas, execute registered Jido.Action tools, and project assistant/tool follow-up messages for iterative loops.",
+        "statement": "Tool-calling actions and turn helpers shall normalize tool schemas, execute registered Jido.Action tools, and project assistant/tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior until a later runtime phase widens tool normalization.",
         "subject_id": "jido_ai.actions"
       },
       {
@@ -67,7 +67,7 @@
         "id": "jido_ai.core_runtime.llm_facades",
         "priority": "must",
         "stability": "stable",
-        "statement": "Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend execution changes stay behind those stable entrypoint contracts.",
+        "statement": "Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts and preserve the previous default ReqLLM-facing return shapes.",
         "subject_id": "jido_ai.core_runtime"
       },
       {
@@ -397,11 +397,13 @@
         "file": ".spec/specs/actions_and_tool_calling.spec.md",
         "id": "jido_ai.actions",
         "meta": {
-          "decisions": null,
+          "decisions": [
+            "jido_ai.llm_backend_boundary"
+          ],
           "id": "jido_ai.actions",
           "kind": "feature",
           "status": "active",
-          "summary": "Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents.",
+          "summary": "Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers.",
           "surface": [
             "lib/jido_ai/actions/**/*.ex",
             "lib/jido_ai/tool_adapter.ex",
@@ -425,7 +427,7 @@
           "id": "jido_ai.core_runtime",
           "kind": "runtime",
           "status": "active",
-          "summary": "Public runtime entrypoints expose direct LLM facades, a default ReAct-first agent macro, and request-handle orchestration for concurrent AI work while backend execution stays behind stable request contracts.",
+          "summary": "Public runtime entrypoints expose direct LLM facades, a default ReAct-first agent macro, and request-handle orchestration for concurrent AI work while backend dispatch stays behind stable request contracts.",
           "surface": [
             "lib/jido_ai.ex",
             "lib/jido_ai/agent.ex",
@@ -690,6 +692,24 @@
       },
       {
         "covers": [
+          "jido_ai.actions.standalone_action_surface"
+        ],
+        "file": ".spec/specs/actions_and_tool_calling.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.actions",
+        "target": "lib/jido_ai/actions/helpers.ex"
+      },
+      {
+        "covers": [
+          "jido_ai.actions.tool_calling_loop_contract"
+        ],
+        "file": ".spec/specs/actions_and_tool_calling.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.actions",
+        "target": "lib/jido_ai/actions/tool_calling/call_with_tools.ex"
+      },
+      {
+        "covers": [
           "jido_ai.actions.tool_calling_loop_contract"
         ],
         "file": ".spec/specs/actions_and_tool_calling.spec.md",
@@ -724,6 +744,15 @@
         "kind": "source_file",
         "subject_id": "jido_ai.core_runtime",
         "target": ".spec/decisions/jido_ai.llm_backend_boundary.md"
+      },
+      {
+        "covers": [
+          "jido_ai.core_runtime.llm_facades"
+        ],
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai.ex"
       },
       {
         "covers": [
@@ -1194,7 +1223,7 @@
     "requirements": 45,
     "scenarios": 0,
     "subjects": 12,
-    "verifications": 55
+    "verifications": 58
   },
   "verification": {
     "claims": [
@@ -1221,6 +1250,28 @@
         "verification_index": 0
       },
       {
+        "cover_id": "jido_ai.actions.standalone_action_surface",
+        "file": ".spec/specs/actions_and_tool_calling.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.actions",
+        "target": "lib/jido_ai/actions/helpers.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "jido_ai.actions.tool_calling_loop_contract",
+        "file": ".spec/specs/actions_and_tool_calling.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.actions",
+        "target": "lib/jido_ai/actions/tool_calling/call_with_tools.ex",
+        "verification_index": 2
+      },
+      {
         "cover_id": "jido_ai.actions.tool_calling_loop_contract",
         "file": ".spec/specs/actions_and_tool_calling.spec.md",
         "kind": "guide_file",
@@ -1229,7 +1280,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.actions",
         "target": "guides/user/tool_calling_with_actions.md",
-        "verification_index": 1
+        "verification_index": 3
       },
       {
         "cover_id": "jido_ai.actions.retrieval_and_quota_actions",
@@ -1240,7 +1291,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.actions",
         "target": "guides/user/retrieval_and_quota.md",
-        "verification_index": 2
+        "verification_index": 4
       },
       {
         "cover_id": "jido_ai.core_runtime.llm_facades",
@@ -1276,14 +1327,14 @@
         "verification_index": 1
       },
       {
-        "cover_id": "jido_ai.core_runtime.additive_backend_selection",
+        "cover_id": "jido_ai.core_runtime.llm_facades",
         "file": ".spec/specs/core_runtime_and_requests.spec.md",
         "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.core_runtime",
-        "target": "lib/jido_ai/backend/request.ex",
+        "target": "lib/jido_ai.ex",
         "verification_index": 2
       },
       {
@@ -1294,8 +1345,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.core_runtime",
-        "target": "lib/jido_ai/backends.ex",
+        "target": "lib/jido_ai/backend/request.ex",
         "verification_index": 3
+      },
+      {
+        "cover_id": "jido_ai.core_runtime.additive_backend_selection",
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai/backends.ex",
+        "verification_index": 4
       },
       {
         "cover_id": "jido_ai.core_runtime.react_agent_entrypoint",
@@ -1306,7 +1368,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.core_runtime",
         "target": "guides/user/first_react_agent.md",
-        "verification_index": 4
+        "verification_index": 5
       },
       {
         "cover_id": "jido_ai.core_runtime.request_handles",
@@ -1317,7 +1379,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.core_runtime",
         "target": "guides/user/request_lifecycle_and_concurrency.md",
-        "verification_index": 5
+        "verification_index": 6
       },
       {
         "cover_id": "jido_ai.examples_and_quality.top_level_runnable_examples",
@@ -1919,7 +1981,7 @@
     "strength_summary": {
       "claimed": 2,
       "executed": 0,
-      "linked": 63
+      "linked": 66
     },
     "threshold_failures": 0
   },

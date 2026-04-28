@@ -63,7 +63,6 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
       })
 
   alias Jido.AI.Actions.Helpers
-  alias Jido.AI.Turn
   alias ReqLLM.Context
 
   @prioritization_prompt """
@@ -132,11 +131,14 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
     params = apply_context_defaults(params, context)
 
     with :ok <- validate_tasks(params[:tasks]),
-         {:ok, model} <- resolve_model(params[:model]),
          {:ok, req_context} <- build_prioritize_messages(params),
-         opts = build_opts(params),
-         {:ok, response} <- ReqLLM.Generation.generate_text(model, req_context.messages, opts) do
-      {:ok, format_result(response, model)}
+         {:ok, result} <-
+           Helpers.generate_backend_result(params, %{
+             default_model: :planning,
+             operation: :text,
+             messages: req_context.messages
+           }) do
+      {:ok, format_result(result)}
     end
   end
 
@@ -146,10 +148,6 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
   defp validate_tasks([]), do: {:error, :tasks_cannot_be_empty}
   defp validate_tasks(tasks) when is_list(tasks), do: :ok
   defp validate_tasks(_), do: {:error, :invalid_tasks_format}
-
-  defp resolve_model(nil), do: {:ok, Jido.AI.resolve_model(:planning)}
-  defp resolve_model(model) when is_atom(model), do: {:ok, Jido.AI.resolve_model(model)}
-  defp resolve_model(model) when is_binary(model), do: {:ok, model}
 
   defp build_prioritize_messages(params) do
     user_prompt = build_prioritize_user_prompt(params)
@@ -185,31 +183,15 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
     base
   end
 
-  defp build_opts(params) do
-    opts = [
-      max_tokens: params[:max_tokens],
-      temperature: params[:temperature]
-    ]
-
-    opts =
-      if params[:timeout] do
-        Keyword.put(opts, :receive_timeout, params[:timeout])
-      else
-        opts
-      end
-
-    opts
-  end
-
-  defp format_result(response, model) do
-    prioritization_text = Turn.extract_text(response)
+  defp format_result(result) do
+    prioritization_text = result.text
 
     %{
       prioritization: prioritization_text,
       ordered_tasks: extract_ordered_tasks(prioritization_text),
       scores: extract_scores(prioritization_text),
-      model: model,
-      usage: extract_usage(response)
+      model: result.model,
+      usage: extract_usage(result)
     }
   end
 
@@ -271,6 +253,7 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
     end
   end
 
+  defp extract_usage(%{usage: usage}) when is_map(usage), do: usage
   defp extract_usage(response), do: Helpers.extract_usage(response)
 
   defp apply_context_defaults(params, context) when is_map(params) do

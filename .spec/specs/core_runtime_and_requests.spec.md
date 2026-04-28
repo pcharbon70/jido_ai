@@ -6,7 +6,7 @@ Current-truth contract for top-level Jido.AI runtime entrypoints and request-han
 id: jido_ai.core_runtime
 kind: runtime
 status: active
-summary: Public runtime entrypoints expose direct LLM facades, a default ReAct-first agent macro, and request-handle orchestration for concurrent AI work while backend execution stays behind stable request contracts.
+summary: Public runtime entrypoints expose direct LLM facades, a default ReAct-first agent macro, and request-handle orchestration for concurrent AI work while backend dispatch stays behind stable request contracts.
 decisions:
   - jido_ai.llm_backend_boundary
 surface:
@@ -30,7 +30,7 @@ surface:
 
 ```spec-requirements
 - id: jido_ai.core_runtime.llm_facades
-  statement: Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend execution changes stay behind those stable entrypoint contracts.
+  statement: Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts and preserve the previous default ReqLLM-facing return shapes.
   priority: must
   stability: stable
 
@@ -63,6 +63,11 @@ surface:
   covers:
     - jido_ai.core_runtime.llm_facades
     - jido_ai.core_runtime.additive_backend_selection
+
+- kind: source_file
+  target: lib/jido_ai.ex
+  covers:
+    - jido_ai.core_runtime.llm_facades
 
 - kind: source_file
   target: lib/jido_ai/backend/request.ex

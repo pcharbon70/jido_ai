@@ -57,7 +57,6 @@ defmodule Jido.AI.Actions.Planning.Plan do
       })
 
   alias Jido.AI.Actions.Helpers
-  alias Jido.AI.Turn
   alias ReqLLM.Context
 
   @planning_prompt """
@@ -117,19 +116,18 @@ defmodule Jido.AI.Actions.Planning.Plan do
   def run(params, context) do
     params = apply_context_defaults(params, context)
 
-    with {:ok, model} <- resolve_model(params[:model]),
-         {:ok, req_context} <- build_plan_messages(params),
-         opts = build_opts(params),
-         {:ok, response} <- ReqLLM.Generation.generate_text(model, req_context.messages, opts) do
-      {:ok, format_result(response, model, params[:goal])}
+    with {:ok, req_context} <- build_plan_messages(params),
+         {:ok, result} <-
+           Helpers.generate_backend_result(params, %{
+             default_model: :planning,
+             operation: :text,
+             messages: req_context.messages
+           }) do
+      {:ok, format_result(result, params[:goal])}
     end
   end
 
   # Private Functions
-
-  defp resolve_model(nil), do: {:ok, Jido.AI.resolve_model(:planning)}
-  defp resolve_model(model) when is_atom(model), do: {:ok, Jido.AI.resolve_model(model)}
-  defp resolve_model(model) when is_binary(model), do: {:ok, model}
 
   defp build_plan_messages(params) do
     user_prompt = build_plan_user_prompt(params)
@@ -169,31 +167,15 @@ defmodule Jido.AI.Actions.Planning.Plan do
     base <> "\n\nPlease create a plan with approximately #{max_steps} steps."
   end
 
-  defp build_opts(params) do
-    opts = [
-      max_tokens: params[:max_tokens],
-      temperature: params[:temperature]
-    ]
-
-    opts =
-      if params[:timeout] do
-        Keyword.put(opts, :receive_timeout, params[:timeout])
-      else
-        opts
-      end
-
-    opts
-  end
-
-  defp format_result(response, model, goal) do
-    plan_text = Turn.extract_text(response)
+  defp format_result(result, goal) do
+    plan_text = result.text
 
     %{
       plan: plan_text,
       steps: extract_steps(plan_text),
       goal: goal,
-      model: model,
-      usage: Helpers.extract_usage(response)
+      model: result.model,
+      usage: result.usage || Helpers.extract_usage(%{})
     }
   end
 

@@ -89,6 +89,11 @@ The first concrete backend adapter should be ReqLLM-backed so existing public
 facades and standalone actions can move behind the backend seam before any
 alternate backend changes public runtime behavior.
 
+When those cutovers happen, top-level facades should keep their historical raw
+ReqLLM-shaped default return values, and standalone actions should keep their
+historical normalized result maps even though transport execution now routes
+through the backend adapter.
+
 `Jido.Harness` integration should begin where prompt/cwd/session semantics are a
 natural fit, rather than forcing every existing ReqLLM-shaped surface to become
 immediately dual-backed.

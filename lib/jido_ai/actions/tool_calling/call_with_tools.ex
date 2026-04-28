@@ -1,4 +1,5 @@
 defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
+  # covers: jido_ai.actions.tool_calling_loop_contract
   @moduledoc """
   A Jido.Action for LLM calls with tool/function calling support.
 
@@ -62,6 +63,7 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
           |> Zoi.default(10)
       })
 
+  alias Jido.AI.Actions.Helpers
   alias Jido.AI.{ToolAdapter, Turn, Validation}
   alias ReqLLM.Context
 
@@ -73,23 +75,19 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
     params = apply_context_defaults(params, context)
 
     with {:ok, validated_params} <- validate_and_sanitize_params(params),
-         {:ok, model} <- resolve_model(validated_params[:model]),
          {:ok, llm_context} <- build_messages(validated_params[:prompt], validated_params[:system_prompt]),
          tools = get_tools(validated_params[:tools], context),
          execution_tools = resolve_execution_tools(validated_params[:tools], context),
-         opts = build_opts(validated_params),
-         {:ok, response} <-
-           ReqLLM.Generation.generate_text(model, llm_context.messages, Keyword.put(opts, :tools, tools)) do
-      turn = classify_and_format_response(response, model)
+         {:ok, result} <- generate_turn_result(validated_params, llm_context.messages, tools) do
+      turn = classify_and_format_response(result.raw, result.model)
 
       if validated_params[:auto_execute] && Turn.needs_tools?(turn) do
         execute_tool_turns(
           turn,
           llm_context.messages,
-          model,
+          result.model,
           validated_params,
           context,
-          opts,
           1,
           turn.usage,
           tools,
@@ -102,11 +100,6 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
   end
 
   # Private Functions
-
-  defp resolve_model(nil), do: {:ok, Jido.AI.resolve_model(:capable)}
-  defp resolve_model(model) when is_atom(model), do: {:ok, Jido.AI.resolve_model(model)}
-  defp resolve_model(model) when is_binary(model), do: {:ok, model}
-  defp resolve_model(_), do: {:error, :invalid_model_format}
 
   defp build_messages(prompt, nil) do
     Context.normalize(prompt, [])
@@ -154,22 +147,6 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
   defp get_tool_name(%{name: name}), do: name
   defp get_tool_name(_), do: nil
 
-  defp build_opts(params) do
-    opts = [
-      max_tokens: params[:max_tokens],
-      temperature: params[:temperature]
-    ]
-
-    opts =
-      if params[:timeout] do
-        Keyword.put(opts, :receive_timeout, params[:timeout])
-      else
-        opts
-      end
-
-    opts
-  end
-
   defp classify_and_format_response(response, model), do: Turn.from_response(response, model: model)
 
   # Multi-turn execution for auto_execute
@@ -179,7 +156,6 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
          model,
          params,
          context,
-         opts,
          turn_count,
          usage_acc,
          llm_tools,
@@ -201,10 +177,8 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
       case execute_tools_and_continue(
              turn,
              messages_with_assistant,
-             model,
              params,
              context,
-             opts,
              llm_tools,
              execution_tools
            ) do
@@ -223,7 +197,6 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
             model,
             params,
             context,
-            opts,
             turn_count + 1,
             merge_usage(usage_acc, next_turn.usage),
             llm_tools,
@@ -255,30 +228,29 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
 
   defp validate_system_prompt_if_needed(_params), do: {:ok, nil}
 
-  defp execute_tools_and_continue(turn, messages, model, params, context, opts, llm_tools, execution_tools) do
+  defp execute_tools_and_continue(turn, messages, params, context, llm_tools, execution_tools) do
     with {:ok, turn_with_results} <-
-           Turn.run_tools(turn, context, timeout: params[:timeout], tools: execution_tools) do
+           Turn.run_tools(turn, context, timeout: params[:timeout], tools: execution_tools),
+         {:ok, result} <- generate_turn_result(params, messages ++ Turn.tool_messages(turn_with_results), llm_tools) do
       updated_messages = messages ++ Turn.tool_messages(turn_with_results)
+      next_turn = classify_and_format_response(result.raw, result.model)
+      next_messages = append_assistant_message(updated_messages, next_turn)
 
-      # Preserve generation options across all turns
-      turn_opts = opts |> Keyword.put(:tools, llm_tools)
-
-      # Call LLM again with tool results
-      case ReqLLM.Generation.generate_text(model, updated_messages, turn_opts) do
-        {:ok, response} ->
-          next_turn = classify_and_format_response(response, model)
-          next_messages = append_assistant_message(updated_messages, next_turn)
-
-          if Turn.needs_tools?(next_turn) do
-            {:more_tools, next_turn, next_messages}
-          else
-            {:final_answer, next_turn, next_messages}
-          end
-
-        {:error, reason} ->
-          {:error, reason}
+      if Turn.needs_tools?(next_turn) do
+        {:more_tools, next_turn, next_messages}
+      else
+        {:final_answer, next_turn, next_messages}
       end
     end
+  end
+
+  defp generate_turn_result(params, messages, llm_tools) do
+    Helpers.generate_backend_result(params, %{
+      default_model: :capable,
+      operation: :text,
+      messages: messages,
+      tool_intent: %{tools: llm_tools}
+    })
   end
 
   defp append_assistant_message(messages, %Turn{} = turn), do: messages ++ [Turn.assistant_message(turn)]

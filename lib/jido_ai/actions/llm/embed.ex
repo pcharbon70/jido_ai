@@ -105,9 +105,13 @@ defmodule Jido.AI.Actions.LLM.Embed do
 
     with {:ok, validated} <- validate_and_sanitize_params(params),
          texts = normalize_texts(validated[:texts], validated[:texts_list]),
-         {:ok, model} <- Helpers.resolve_model(params[:model], :embedding),
-         opts = build_opts(params),
-         {:ok, response} <- ReqLLM.Embedding.embed(model, texts, opts) do
+         {:ok, result} <-
+           Helpers.generate_backend_result(validated, %{
+             default_model: :embedding,
+             operation: :embedding,
+             inputs: texts,
+             backend_metadata: %{dimensions: validated[:dimensions]}
+           }) do
       duration_native = System.monotonic_time() - start_time
 
       measurements = %{
@@ -118,13 +122,13 @@ defmodule Jido.AI.Actions.LLM.Embed do
       result_metadata =
         base_metadata
         |> Map.merge(%{
-          model: model,
-          dimensions: get_in(response, [:usage, :dimensions]) || extract_dimensions(response)
+          model: result.model,
+          dimensions: result.metadata[:dimensions]
         })
         |> Observe.sanitize_sensitive()
 
       Observe.emit(obs_cfg, Observe.llm(:complete), measurements, result_metadata)
-      {:ok, format_result(response, model)}
+      {:ok, format_result(result)}
     else
       {:error, reason} ->
         duration_native = System.monotonic_time() - start_time
@@ -247,37 +251,18 @@ defmodule Jido.AI.Actions.LLM.Embed do
   defp normalize_texts(nil, texts_list) when is_list(texts_list), do: texts_list
   defp normalize_texts(_, _), do: []
 
-  defp build_opts(params) do
-    opts = []
-
-    opts =
-      if params[:dimensions] do
-        Keyword.put(opts, :dimensions, params[:dimensions])
-      else
-        opts
-      end
-
-    opts =
-      if params[:timeout] do
-        Keyword.put(opts, :receive_timeout, params[:timeout])
-      else
-        opts
-      end
-
-    opts
-  end
-
-  defp format_result(response, model) do
-    embeddings = extract_embeddings(response)
+  defp format_result(result) do
+    embeddings = extract_embeddings(result)
 
     %{
       embeddings: embeddings,
       count: length(embeddings),
-      model: model,
+      model: result.model,
       dimensions: extract_dimensions(embeddings)
     }
   end
 
+  defp extract_embeddings(%{embeddings: embeddings}) when is_list(embeddings), do: embeddings
   defp extract_embeddings(embeddings) when is_list(embeddings), do: embeddings
 
   defp calculate_total_length([]), do: 0

@@ -65,7 +65,6 @@ defmodule Jido.AI.Actions.Reasoning.Analyze do
       })
 
   alias Jido.AI.Actions.Helpers
-  alias Jido.AI.Turn
   alias Jido.AI.Validation
   alias ReqLLM.Context
 
@@ -131,20 +130,19 @@ defmodule Jido.AI.Actions.Reasoning.Analyze do
   """
   @impl Jido.Action
   def run(params, _context) do
-    with {:ok, model} <- resolve_model(params[:model]),
-         {:ok, validated_params} <- validate_and_sanitize_params(params),
+    with {:ok, validated_params} <- validate_and_sanitize_params(params),
          {:ok, req_context} <- build_analysis_messages(validated_params),
-         opts = build_opts(validated_params),
-         {:ok, response} <- ReqLLM.Generation.generate_text(model, req_context.messages, opts) do
-      {:ok, format_result(response, model, validated_params[:analysis_type])}
+         {:ok, result} <-
+           Helpers.generate_backend_result(validated_params, %{
+             default_model: :reasoning,
+             operation: :text,
+             messages: req_context.messages
+           }) do
+      {:ok, format_result(result, validated_params[:analysis_type])}
     end
   end
 
   # Private Functions
-
-  defp resolve_model(nil), do: {:ok, Jido.AI.resolve_model(:reasoning)}
-  defp resolve_model(model) when is_atom(model), do: {:ok, Jido.AI.resolve_model(model)}
-  defp resolve_model(model) when is_binary(model), do: {:ok, model}
 
   defp build_analysis_messages(params) do
     system_prompt = build_analysis_system_prompt(params[:analysis_type], params[:custom_prompt])
@@ -185,28 +183,12 @@ defmodule Jido.AI.Actions.Reasoning.Analyze do
 
   defp validate_custom_prompt_if_needed(_params), do: {:ok, nil}
 
-  defp build_opts(params) do
-    opts = [
-      max_tokens: params[:max_tokens],
-      temperature: params[:temperature]
-    ]
-
-    opts =
-      if params[:timeout] do
-        Keyword.put(opts, :receive_timeout, params[:timeout])
-      else
-        opts
-      end
-
-    opts
-  end
-
-  defp format_result(response, model, analysis_type) do
+  defp format_result(result, analysis_type) do
     %{
-      result: Turn.extract_text(response),
+      result: result.text,
       analysis_type: analysis_type,
-      model: model,
-      usage: Helpers.extract_usage(response)
+      model: result.model,
+      usage: result.usage || Helpers.extract_usage(%{})
     }
   end
 end

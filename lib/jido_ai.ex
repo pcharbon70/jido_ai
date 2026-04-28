@@ -1,4 +1,5 @@
 defmodule Jido.AI do
+  # covers: jido_ai.core_runtime.llm_facades
   @moduledoc """
   AI integration layer for the Jido ecosystem.
 
@@ -97,6 +98,7 @@ defmodule Jido.AI do
   """
 
   alias Jido.Agent.Strategy.State, as: StratState
+  alias Jido.AI.Backend.Request
   alias Jido.AI.Backends
   alias Jido.AI.ModelAliases
   alias Jido.AI.Reasoning.ReAct
@@ -293,12 +295,17 @@ defmodule Jido.AI do
   @spec generate_text(term(), keyword()) :: {:ok, term()} | {:error, term()}
   def generate_text(input, opts \\ []) when is_list(opts) do
     defaults = llm_defaults(:text)
-    model = resolve_generation_model(opts, defaults)
     system_prompt = Keyword.get(opts, :system_prompt, defaults[:system_prompt])
 
     with {:ok, :req_llm} <- Backends.ensure_supported_backend(opts, [:req_llm]),
-         {:ok, req_context} <- normalize_context(input, system_prompt) do
-      ReqLLM.Generation.generate_text(model, req_context.messages, build_reqllm_opts(opts, defaults))
+         {:ok, req_context} <- normalize_context(input, system_prompt),
+         request <-
+           build_generation_request(opts, defaults, %{
+             operation: :text,
+             messages: req_context.messages
+           }),
+         {:ok, result} <- Backends.generate(request) do
+      {:ok, result.raw}
     end
   end
 
@@ -310,17 +317,18 @@ defmodule Jido.AI do
   @spec generate_object(term(), term(), keyword()) :: {:ok, term()} | {:error, term()}
   def generate_object(input, object_schema, opts \\ []) when is_list(opts) do
     defaults = llm_defaults(:object)
-    model = resolve_generation_model(opts, defaults)
     system_prompt = Keyword.get(opts, :system_prompt, defaults[:system_prompt])
 
     with {:ok, :req_llm} <- Backends.ensure_supported_backend(opts, [:req_llm]),
-         {:ok, req_context} <- normalize_context(input, system_prompt) do
-      ReqLLM.Generation.generate_object(
-        model,
-        req_context.messages,
-        object_schema,
-        build_reqllm_opts(opts, defaults)
-      )
+         {:ok, req_context} <- normalize_context(input, system_prompt),
+         request <-
+           build_generation_request(opts, defaults, %{
+             operation: :object,
+             messages: req_context.messages,
+             response_schema: object_schema
+           }),
+         {:ok, result} <- Backends.generate(request) do
+      {:ok, result.raw}
     end
   end
 
@@ -332,12 +340,17 @@ defmodule Jido.AI do
   @spec stream_text(term(), keyword()) :: {:ok, term()} | {:error, term()}
   def stream_text(input, opts \\ []) when is_list(opts) do
     defaults = llm_defaults(:stream)
-    model = resolve_generation_model(opts, defaults)
     system_prompt = Keyword.get(opts, :system_prompt, defaults[:system_prompt])
 
     with {:ok, :req_llm} <- Backends.ensure_supported_backend(opts, [:req_llm]),
-         {:ok, req_context} <- normalize_context(input, system_prompt) do
-      ReqLLM.stream_text(model, req_context.messages, build_reqllm_opts(opts, defaults))
+         {:ok, req_context} <- normalize_context(input, system_prompt),
+         request <-
+           build_generation_request(opts, defaults, %{
+             operation: :text,
+             stream?: true,
+             messages: req_context.messages
+           }) do
+      Backends.stream(request)
     end
   end
 
@@ -709,12 +722,6 @@ defmodule Jido.AI do
 
   # Private helpers for top-level LLM facades
 
-  defp resolve_generation_model(opts, defaults) do
-    opts
-    |> Keyword.get(:model, defaults[:model] || :fast)
-    |> resolve_model()
-  end
-
   defp list_tools_from_agent(%Jido.Agent{} = agent) do
     state = StratState.get(agent, %{})
     config = state[:config] || %{}
@@ -729,31 +736,26 @@ defmodule Jido.AI do
     Context.normalize(input, system_prompt: system_prompt)
   end
 
-  defp build_reqllm_opts(opts, defaults) do
-    req_opts =
-      []
-      |> put_opt(:max_tokens, Keyword.get(opts, :max_tokens, defaults[:max_tokens]))
-      |> put_opt(:temperature, Keyword.get(opts, :temperature, defaults[:temperature]))
-      |> put_timeout_opt(Keyword.get(opts, :timeout, defaults[:timeout]))
+  defp build_generation_request(opts, defaults, attrs) do
+    backend_opts =
+      opts
+      |> Keyword.drop([:backend, :model, :system_prompt, :max_tokens, :temperature, :timeout, :opts])
+      |> Keyword.merge(Keyword.get(opts, :opts, []))
 
-    passthrough_opts =
-      Keyword.drop(opts, [:backend, :model, :system_prompt, :max_tokens, :temperature, :timeout, :opts])
-
-    extra_opts = Keyword.get(opts, :opts, [])
-
-    req_opts
-    |> Keyword.merge(passthrough_opts)
-    |> merge_extra_opts(extra_opts)
+    Request.new(
+      Map.merge(
+        %{
+          backend: Keyword.get(opts, :backend),
+          model: Keyword.get(opts, :model, defaults[:model] || :fast),
+          timeout_ms: Keyword.get(opts, :timeout, defaults[:timeout]),
+          max_tokens: Keyword.get(opts, :max_tokens, defaults[:max_tokens]),
+          temperature: Keyword.get(opts, :temperature, defaults[:temperature]),
+          backend_metadata: %{opts: backend_opts}
+        },
+        attrs
+      )
+    )
   end
-
-  defp put_opt(opts, _key, nil), do: opts
-  defp put_opt(opts, key, value), do: Keyword.put(opts, key, value)
-
-  defp put_timeout_opt(opts, nil), do: opts
-  defp put_timeout_opt(opts, timeout), do: Keyword.put(opts, :receive_timeout, timeout)
-
-  defp merge_extra_opts(opts, extra_opts) when is_list(extra_opts), do: Keyword.merge(opts, extra_opts)
-  defp merge_extra_opts(opts, _), do: opts
 
   defp format_model_label(%LLMDB.Model{} = model) do
     provider = Map.get(model, :provider)

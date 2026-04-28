@@ -9,6 +9,7 @@ defmodule Jido.AI.Backends do
   phases can widen support behind the same entrypoints.
   """
 
+  alias Jido.AI.Backend
   alias Jido.AI.Backend.Request
 
   @default_backend :req_llm
@@ -63,10 +64,28 @@ defmodule Jido.AI.Backends do
   end
 
   @doc """
+  Dispatches a normalized generation request through the resolved backend adapter.
+  """
+  @spec generate(Request.t()) :: Backend.generate_result()
+  def generate(%Request{} = request) do
+    request = ensure_request_backend(request)
+    dispatch(adapter_for(request.backend), :generate, request)
+  end
+
+  @doc """
+  Dispatches a normalized streaming request through the resolved backend adapter.
+  """
+  @spec stream(Request.t()) :: Backend.stream_result()
+  def stream(%Request{} = request) do
+    request = ensure_request_backend(request)
+    dispatch(adapter_for(request.backend), :stream, request)
+  end
+
+  @doc """
   Resolves the requested backend from request-scoped options or app config.
   """
   @spec request_backend(keyword() | map() | Request.t() | nil) :: backend()
-  def request_backend(%Request{backend: backend}) when is_atom(backend), do: backend
+  def request_backend(%Request{backend: backend}) when is_atom(backend) and not is_nil(backend), do: backend
   def request_backend(%Request{}), do: default_backend()
   def request_backend(opts) when is_list(opts), do: normalize_backend(Keyword.get(opts, :backend, default_backend()))
 
@@ -117,7 +136,7 @@ defmodule Jido.AI.Backends do
 
   defp normalize_backend_configs(_), do: %{}
 
-  defp normalize_backend(backend) when is_atom(backend), do: backend
+  defp normalize_backend(backend) when is_atom(backend) and not is_nil(backend), do: backend
 
   defp normalize_backend(backend) when is_binary(backend) do
     case reserved_backend_from_string(backend) do
@@ -127,6 +146,19 @@ defmodule Jido.AI.Backends do
   end
 
   defp normalize_backend(_backend), do: default_backend()
+
+  defp ensure_request_backend(%Request{} = request) do
+    backend = request_backend(request)
+    %{request | backend: backend}
+  end
+
+  defp dispatch(adapter, function_name, %Request{} = request) do
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, function_name, 1) do
+      apply(adapter, function_name, [request])
+    else
+      {:error, Jido.AI.Error.Backend.UnsupportedBackend.exception(backend: request.backend)}
+    end
+  end
 
   defp reserved_backend_from_string("req_llm"), do: {:ok, :req_llm}
   defp reserved_backend_from_string("harness"), do: {:ok, :harness}

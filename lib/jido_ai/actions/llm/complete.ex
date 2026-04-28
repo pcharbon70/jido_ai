@@ -90,10 +90,13 @@ defmodule Jido.AI.Actions.LLM.Complete do
     start_time = System.monotonic_time()
 
     with {:ok, validated_params} <- Helpers.validate_and_sanitize_input(params),
-         {:ok, model} <- Helpers.resolve_model(validated_params[:model], :fast),
          {:ok, req_context} <- build_messages(validated_params[:prompt]),
-         opts = Helpers.build_opts(validated_params),
-         {:ok, response} <- ReqLLM.Generation.generate_text(model, req_context.messages, opts) do
+         {:ok, result} <-
+           Helpers.generate_backend_result(validated_params, %{
+             default_model: :fast,
+             operation: :text,
+             messages: req_context.messages
+           }) do
       duration_native = System.monotonic_time() - start_time
 
       measurements = %{
@@ -104,13 +107,13 @@ defmodule Jido.AI.Actions.LLM.Complete do
       result_metadata =
         base_metadata
         |> Map.merge(%{
-          model: model,
-          usage: Helpers.extract_usage(response)
+          model: result.model,
+          usage: result.usage || Helpers.extract_usage(%{})
         })
         |> Observe.sanitize_sensitive()
 
       Observe.emit(obs_cfg, Observe.llm(:complete), measurements, result_metadata)
-      {:ok, format_result(response, model)}
+      {:ok, format_result(result)}
     else
       {:error, reason} ->
         duration_native = System.monotonic_time() - start_time
@@ -226,11 +229,11 @@ defmodule Jido.AI.Actions.LLM.Complete do
   defp normalize_context(context) when is_map(context), do: context
   defp normalize_context(_), do: %{}
 
-  defp format_result(response, model) do
+  defp format_result(result) do
     %{
-      text: Helpers.extract_text(response),
-      model: model,
-      usage: Helpers.extract_usage(response)
+      text: result.text,
+      model: result.model,
+      usage: result.usage || Helpers.extract_usage(%{})
     }
   end
 end

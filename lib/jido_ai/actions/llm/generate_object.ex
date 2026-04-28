@@ -117,17 +117,15 @@ defmodule Jido.AI.Actions.LLM.GenerateObject do
 
     with {:ok, validated_params} <- Helpers.validate_and_sanitize_input(params),
          {:ok, _schema} <- validate_object_schema(validated_params[:object_schema]),
-         {:ok, model} <- Helpers.resolve_model(validated_params[:model], :fast),
          {:ok, req_context} <-
            build_messages(validated_params[:prompt], validated_params[:system_prompt]),
-         opts = Helpers.build_opts(validated_params),
-         {:ok, response} <-
-           ReqLLM.Generation.generate_object(
-             model,
-             req_context.messages,
-             validated_params[:object_schema],
-             opts
-           ) do
+         {:ok, result} <-
+           Helpers.generate_backend_result(validated_params, %{
+             default_model: :fast,
+             operation: :object,
+             messages: req_context.messages,
+             response_schema: validated_params[:object_schema]
+           }) do
       duration_native = System.monotonic_time() - start_time
 
       measurements = %{
@@ -138,13 +136,13 @@ defmodule Jido.AI.Actions.LLM.GenerateObject do
       result_metadata =
         base_metadata
         |> Map.merge(%{
-          model: model,
-          usage: Helpers.extract_usage(response)
+          model: result.model,
+          usage: result.usage || Helpers.extract_usage(%{})
         })
         |> Observe.sanitize_sensitive()
 
       Observe.emit(obs_cfg, Observe.llm(:complete), measurements, result_metadata)
-      {:ok, format_result(response, model)}
+      {:ok, format_result(result)}
     else
       {:error, reason} ->
         duration_native = System.monotonic_time() - start_time
@@ -273,11 +271,11 @@ defmodule Jido.AI.Actions.LLM.GenerateObject do
   defp normalize_context(context) when is_map(context), do: context
   defp normalize_context(_), do: %{}
 
-  defp format_result(response, model) do
+  defp format_result(result) do
     %{
-      object: extract_object(response),
-      model: model,
-      usage: Helpers.extract_usage(response)
+      object: extract_object(result),
+      model: result.model,
+      usage: result.usage || Helpers.extract_usage(%{})
     }
   end
 
