@@ -26,6 +26,11 @@ surface:
   statement: Repo-owned quality checkpoint helpers shall define canonical fast/full gate command sets and traceability closure utilities for release hygiene.
   priority: should
   stability: evolving
+
+- id: jido_ai.examples_and_quality.executable_contract_regression_tests
+  statement: Repo-owned tests shall capture executable regression coverage for current-truth contracts as new internal seams or error boundaries are introduced.
+  priority: should
+  stability: evolving
 ```
 
 ## Verification
@@ -40,4 +45,14 @@ surface:
   target: lib/jido_ai/quality/checkpoint.ex
   covers:
     - jido_ai.examples_and_quality.quality_checkpoint_helpers
+
+- kind: source_file
+  target: test/jido_ai/backend_test.exs
+  covers:
+    - jido_ai.examples_and_quality.executable_contract_regression_tests
+
+- kind: source_file
+  target: test/jido_ai/error/model_test.exs
+  covers:
+    - jido_ai.examples_and_quality.executable_contract_regression_tests
 ```

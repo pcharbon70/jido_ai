@@ -5,6 +5,7 @@
 This folder is the package-local Spec Led layer.
 
 <!-- spec.workspace.readme_present -->
+<!-- covers: spec.workspace.planning_docs_supported -->
 
 ## Canonical Layout
 
@@ -12,6 +13,8 @@ This folder is the package-local Spec Led layer.
 - `AGENTS.md` (authored, local operating guidance for agents working in this folder)
 - `decisions/README.md` (authored ADR guidance for this workspace)
 - `decisions/*.md` (authored durable cross-cutting ADRs)
+- `planning/README.md` (authored index for phased implementation and migration plans kept beside the current-truth workspace)
+- `planning/*.md` (authored phased implementation or migration plans that complement, but do not replace, current-truth specs and ADRs)
 - `specs/spec_system.spec.md` (authored, meta-spec for this folder)
 - `specs/package.spec.md` (authored, package-level intent)
 - `specs/*.spec.md` (authored subject specs)
@@ -27,3 +30,9 @@ This folder is the package-local Spec Led layer.
 6. if it says `needs decision update`, add or revise an ADR only when the change is cross-cutting and durable
 7. when it says `ready for check`, run `mix spec.check --base ...`
 8. use `mix spec.status` when you need coverage or frontier summaries
+
+## Notes
+
+- Keep `.spec/specs` and `.spec/decisions` current-state only.
+- Use `.spec/planning/` for phased implementation and migration plans instead of embedding rollout detail into current-truth subjects or ADRs.
+- Keep planning docs complementary to specs and ADRs rather than treating them as the source of truth.

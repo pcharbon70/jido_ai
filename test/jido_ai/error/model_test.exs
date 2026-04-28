@@ -1,4 +1,5 @@
 defmodule Jido.AI.Error.ModelTest do
+  # covers: jido_ai.examples_and_quality.executable_contract_regression_tests
   use ExUnit.Case, async: true
 
   alias Jido.AI.Error
@@ -46,6 +47,29 @@ defmodule Jido.AI.Error.ModelTest do
                "Invalid field: prompt"
 
       assert Error.Validation.Invalid.message(%Error.Validation.Invalid{}) == "Validation error"
+    end
+  end
+
+  describe "backend errors" do
+    test "unsupported backend message variants" do
+      assert Error.Backend.UnsupportedBackend.message(%Error.Backend.UnsupportedBackend{backend: :harness}) ==
+               "Unsupported backend :harness"
+
+      assert Error.Backend.UnsupportedBackend.message(%Error.Backend.UnsupportedBackend{
+               backend: :harness,
+               supported_backends: [:req_llm, :harness]
+             }) == "Unsupported backend :harness. Supported backends: :req_llm, :harness"
+    end
+
+    test "unsupported capability message variants" do
+      assert Error.Backend.UnsupportedCapability.message(%Error.Backend.UnsupportedCapability{
+               backend: :harness,
+               capability: :embeddings,
+               operation: :embedding
+             }) == "Backend :harness does not support :embeddings for :embedding requests"
+
+      assert Error.Backend.UnsupportedCapability.message(%Error.Backend.UnsupportedCapability{capability: :streaming}) ==
+               "Unsupported backend capability: :streaming"
     end
   end
 end

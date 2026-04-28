@@ -2,7 +2,7 @@
 
 <!-- covers: jido_ai.security_and_errors.structured_error_taxonomy jido_ai.security_and_errors.sanitized_user_error_boundary -->
 
-You need consistent error taxonomy and retry behavior across provider, tool, and validation failures.
+You need consistent error taxonomy and retry behavior across provider, tool, backend-capability, and validation failures.
 
 After this guide, you can classify failures and pick the right recovery path.
 
@@ -15,6 +15,9 @@ After this guide, you can classify failures and pick the right recovery path.
   - `Auth`
   - `Request` (`:timeout`, `:network`, `:provider`)
 - Validation errors (`Jido.AI.Error.Validation.Invalid`)
+- Backend errors (`Jido.AI.Error.Backend.*`)
+  - `UnsupportedBackend`
+  - `UnsupportedCapability`
 - Unknown fallback (`Jido.AI.Error.Unknown`)
 
 ## Recovery Strategy
@@ -23,6 +26,7 @@ After this guide, you can classify failures and pick the right recovery path.
 - `Request` timeout/network: retry with capped attempts
 - `Auth`: fail fast, rotate credentials/config
 - Validation: fail fast and return actionable messages
+- Backend capability/selection: fail fast with explicit unsupported-backend or unsupported-capability feedback
 - Unknown: sanitize user response, log full detail
 
 ## Package Boundary

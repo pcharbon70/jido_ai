@@ -7,6 +7,8 @@ id: jido_ai.thread_context_projection
 kind: contract
 status: active
 summary: ReAct keeps append-only thread truth, deterministic Jido.AI.Context projection, and canonical Jido.AI.Turn normalization for follow-up execution.
+decisions:
+  - jido_ai.llm_backend_boundary
 surface:
   - lib/jido_ai/context.ex
   - lib/jido_ai/turn.ex
@@ -29,7 +31,7 @@ surface:
   stability: stable
 
 - id: jido_ai.thread_context_projection.turn_normalization
-  statement: Jido.AI.Turn shall normalize provider responses, extracted text, tool calls, usage metadata, and assistant/tool follow-up messages into one canonical turn contract.
+  statement: Jido.AI.Turn shall normalize provider or backend responses, extracted text, tool calls, usage metadata, and assistant/tool follow-up messages into one canonical turn contract.
   priority: must
   stability: stable
 ```
@@ -49,6 +51,11 @@ surface:
 
 - kind: guide_file
   target: guides/user/turn_and_tool_results.md
+  covers:
+    - jido_ai.thread_context_projection.turn_normalization
+
+- kind: source_file
+  target: .spec/decisions/jido_ai.llm_backend_boundary.md
   covers:
     - jido_ai.thread_context_projection.turn_normalization
 ```

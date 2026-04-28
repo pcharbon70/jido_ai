@@ -1,6 +1,6 @@
 # Jido AI Usage Rules
 
-<!-- covers: package.jido_ai.explicit_policy_boundaries -->
+<!-- covers: package.jido_ai.explicit_policy_boundaries package.jido_ai.public_api_surface_compatibility -->
 
 ## Intent
 Implement tool-using AI behavior with explicit model policy, bounded execution, and observable request flow.
@@ -10,7 +10,8 @@ Implement tool-using AI behavior with explicit model policy, bounded execution, 
 - Keep model alias, timeout, retry, and request policy explicit.
 - Use **Zoi-first** schemas for structured inputs/outputs and tool contracts.
 - Treat `ask`/`await` request handles as the safe concurrency boundary.
-- Keep provider-specific logic behind ReqLLM integration points.
+- Keep provider-specific or CLI-runtime-specific logic behind explicit LLM backend integration points.
+- Preserve the current public API surface when introducing alternate LLM backends.
 
 ## Library Author Patterns
 - Define tools as `Jido.Action` modules with small, deterministic behavior.

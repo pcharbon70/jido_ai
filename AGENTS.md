@@ -17,13 +17,14 @@ Build tool-using AI agents with explicit strategy, runtime policy, and reliable 
 ## Architecture Snapshot
 - `Jido.AI.Agent` + strategy agents (`CoD`, `CoT`, `AoT`, `ToT`, `GoT`, `TRM`, `Adaptive`)
 - `Jido.AI.Actions.*`: reusable runtime actions for chat/tool/structured flows
-- ReqLLM integration for provider abstraction and model routing
+- ReqLLM-backed provider/model integration today, with backend abstraction preserved at runtime boundaries
 - Policy/observability modules for retries, quotas, telemetry, and traceability
 
 ## Standards
 - Keep model selection, timeout, retry, and tool policy explicit
 - Use **Zoi-first** schemas for tool inputs and structured outputs
-- Keep provider-specific behavior behind ReqLLM integration boundaries
+- Keep provider-specific or CLI-runtime-specific behavior behind explicit LLM backend integration boundaries
+- Preserve the current public API surface while evolving internal LLM backends
 - Preserve tagged tuple and structured error contracts
 - Prefer deterministic fallback behavior over ad-hoc prompt pipelines
 

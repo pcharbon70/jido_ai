@@ -7,7 +7,11 @@ id: jido_ai.runtime_contracts
 kind: contract
 status: active
 summary: Runtime execution keeps strategy, directives, side effects, signals, and telemetry as explicit layers with canonical envelopes and event names.
+decisions:
+  - jido_ai.llm_backend_boundary
 surface:
+  - lib/jido_ai/backend.ex
+  - lib/jido_ai/backend/*.ex
   - lib/jido_ai/directive/*.ex
   - lib/jido_ai/runtime/*.ex
   - lib/jido_ai/signals/*.ex
@@ -35,6 +39,11 @@ surface:
   priority: must
   stability: stable
 
+- id: jido_ai.runtime_contracts.backend_normalization_boundary
+  statement: Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them.
+  priority: must
+  stability: evolving
+
 - id: jido_ai.runtime_contracts.canonical_signals_and_telemetry
   statement: Canonical signal namespaces and telemetry event paths shall stay stable across strategies, runtime, and tooling, with normalized metadata and measurements.
   priority: must
@@ -53,6 +62,21 @@ surface:
   target: guides/developer/directives_runtime_contract.md
   covers:
     - jido_ai.runtime_contracts.directive_signal_envelopes
+
+- kind: source_file
+  target: .spec/decisions/jido_ai.llm_backend_boundary.md
+  covers:
+    - jido_ai.runtime_contracts.backend_normalization_boundary
+
+- kind: source_file
+  target: lib/jido_ai/backend.ex
+  covers:
+    - jido_ai.runtime_contracts.backend_normalization_boundary
+
+- kind: source_file
+  target: lib/jido_ai/backend/result.ex
+  covers:
+    - jido_ai.runtime_contracts.backend_normalization_boundary
 
 - kind: guide_file
   target: guides/developer/signals_namespaces_contracts.md

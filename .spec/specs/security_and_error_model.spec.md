@@ -24,7 +24,7 @@ surface:
   stability: stable
 
 - id: jido_ai.security_and_errors.structured_error_taxonomy
-  statement: Jido.AI shall keep an AI-specific structured error taxonomy and recovery model across provider, validation, tool, and unknown failure classes.
+  statement: Jido.AI shall keep an AI-specific structured error taxonomy and recovery model across provider, validation, tool, backend capability, and unknown failure classes.
   priority: must
   stability: stable
 
@@ -47,4 +47,9 @@ surface:
   covers:
     - jido_ai.security_and_errors.structured_error_taxonomy
     - jido_ai.security_and_errors.sanitized_user_error_boundary
+
+- kind: source_file
+  target: lib/jido_ai/error.ex
+  covers:
+    - jido_ai.security_and_errors.structured_error_taxonomy
 ```
