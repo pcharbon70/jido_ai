@@ -66,7 +66,6 @@ defmodule Jido.AI.Actions.Planning.Plan do
       })
 
   alias Jido.AI.Actions.Helpers
-  alias ReqLLM.Context
 
   @planning_prompt """
   You are an expert strategic planner. Your task is to create detailed, actionable plans to achieve goals.
@@ -125,23 +124,18 @@ defmodule Jido.AI.Actions.Planning.Plan do
   def run(params, context) do
     params = apply_context_defaults(params, context)
 
-    with {:ok, req_context} <- build_plan_messages(params),
-         {:ok, result} <-
+    with {:ok, result} <-
            Helpers.generate_backend_result(params, %{
              default_model: :planning,
              operation: :text,
-             messages: req_context.messages
+             prompt: build_plan_user_prompt(params),
+             system_prompt: @planning_prompt
            }) do
       {:ok, format_result(result, params[:goal])}
     end
   end
 
   # Private Functions
-
-  defp build_plan_messages(params) do
-    user_prompt = build_plan_user_prompt(params)
-    Context.normalize(user_prompt, system_prompt: @planning_prompt)
-  end
 
   defp build_plan_user_prompt(params) do
     base = "Goal: #{params[:goal]}"
@@ -230,10 +224,10 @@ defmodule Jido.AI.Actions.Planning.Plan do
       ])
 
     workspace_default =
-      first_present([
-        normalize_optional_map(context[:workspace]),
-        normalize_optional_map(plugin_default(context, :workspace))
-      ])
+      merge_optional_maps(
+        normalize_optional_map(plugin_default(context, :workspace)),
+        normalize_optional_map(context[:workspace])
+      )
 
     backend_metadata_default =
       merge_optional_maps(

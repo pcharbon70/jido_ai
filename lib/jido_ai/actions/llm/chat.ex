@@ -69,7 +69,6 @@ defmodule Jido.AI.Actions.LLM.Chat do
   alias Jido.AI.Actions.Helpers
   alias Jido.AI.Error.Sanitize
   alias Jido.AI.Observe
-  alias ReqLLM.Context
 
   @doc """
   Executes the chat action.
@@ -109,13 +108,12 @@ defmodule Jido.AI.Actions.LLM.Chat do
     start_time = System.monotonic_time()
 
     with {:ok, validated_params} <- Helpers.validate_and_sanitize_input(params),
-         {:ok, req_context} <-
-           build_messages(validated_params[:prompt], validated_params[:system_prompt]),
          {:ok, result} <-
            Helpers.generate_backend_result(validated_params, %{
              default_model: :fast,
              operation: :text,
-             messages: req_context.messages
+             prompt: validated_params[:prompt],
+             system_prompt: validated_params[:system_prompt]
            }) do
       duration_native = System.monotonic_time() - start_time
 
@@ -173,14 +171,6 @@ defmodule Jido.AI.Actions.LLM.Chat do
 
   defp sanitize_error_for_user(_error), do: "An error occurred"
 
-  defp build_messages(prompt, nil) do
-    Context.normalize(prompt, [])
-  end
-
-  defp build_messages(prompt, system_prompt) when is_binary(system_prompt) do
-    Context.normalize(prompt, system_prompt: system_prompt)
-  end
-
   defp apply_context_defaults(params, context) when is_map(params) do
     context = normalize_context(context)
     provided = provided_params(context)
@@ -218,10 +208,10 @@ defmodule Jido.AI.Actions.LLM.Chat do
       ])
 
     workspace_default =
-      first_present([
-        normalize_optional_map(context[:workspace]),
-        normalize_optional_map(plugin_default(context, :workspace))
-      ])
+      merge_optional_maps(
+        normalize_optional_map(plugin_default(context, :workspace)),
+        normalize_optional_map(context[:workspace])
+      )
 
     backend_metadata_default =
       merge_optional_maps(

@@ -44,7 +44,7 @@
         "id": "jido_ai.actions.standalone_action_surface",
         "priority": "must",
         "stability": "stable",
-        "statement": "Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors and only additive backend/workspace metadata fields may be introduced.",
+        "statement": "Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors, only additive backend/workspace metadata fields may be introduced, and compatible prompt-oriented actions shall translate into backend-neutral prompt or system-prompt requests rather than requiring ReqLLM-shaped message lists.",
         "subject_id": "jido_ai.actions"
       },
       {
@@ -1003,6 +1003,15 @@
       },
       {
         "covers": [
+          "jido_ai.examples_and_quality.executable_contract_regression_tests"
+        ],
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/integration/backend_boundary_phase5_test.exs"
+      },
+      {
+        "covers": [
           "jido_ai.plugins.public_plugin_surface",
           "jido_ai.plugins.default_plugin_composition"
         ],
@@ -1465,7 +1474,7 @@
     "requirements": 46,
     "scenarios": 0,
     "subjects": 12,
-    "verifications": 83
+    "verifications": 84
   },
   "verification": {
     "claims": [
@@ -1875,6 +1884,17 @@
         "subject_id": "jido_ai.examples_and_quality",
         "target": "test/jido_ai/integration/backend_boundary_phase4_test.exs",
         "verification_index": 16
+      },
+      {
+        "cover_id": "jido_ai.examples_and_quality.executable_contract_regression_tests",
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/integration/backend_boundary_phase5_test.exs",
+        "verification_index": 17
       },
       {
         "cover_id": "jido_ai.plugins.default_plugin_composition",
@@ -2553,7 +2573,7 @@
     "strength_summary": {
       "claimed": 2,
       "executed": 0,
-      "linked": 96
+      "linked": 97
     },
     "threshold_failures": 0
   },

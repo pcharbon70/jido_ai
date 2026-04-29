@@ -24,7 +24,7 @@ surface:
 
 ```spec-requirements
 - id: jido_ai.actions.standalone_action_surface
-  statement: Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors and only additive backend/workspace metadata fields may be introduced.
+  statement: Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors, only additive backend/workspace metadata fields may be introduced, and compatible prompt-oriented actions shall translate into backend-neutral prompt or system-prompt requests rather than requiring ReqLLM-shaped message lists.
   priority: must
   stability: stable
 

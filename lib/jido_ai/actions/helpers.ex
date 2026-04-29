@@ -339,7 +339,7 @@ defmodule Jido.AI.Actions.Helpers do
   def telemetry_error_type(_), do: :llm_error
 
   defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, _key, %{}), do: map
+  defp maybe_put(map, _key, value) when is_map(value) and map_size(value) == 0, do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp normalize_request_attrs(attrs) when is_list(attrs), do: Map.new(attrs)

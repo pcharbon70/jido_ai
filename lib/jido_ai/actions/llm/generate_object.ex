@@ -237,10 +237,10 @@ defmodule Jido.AI.Actions.LLM.GenerateObject do
       ])
 
     workspace_default =
-      first_present([
-        normalize_optional_map(context[:workspace]),
-        normalize_optional_map(plugin_default(context, :workspace))
-      ])
+      merge_optional_maps(
+        normalize_optional_map(plugin_default(context, :workspace)),
+        normalize_optional_map(context[:workspace])
+      )
 
     backend_metadata_default =
       merge_optional_maps(

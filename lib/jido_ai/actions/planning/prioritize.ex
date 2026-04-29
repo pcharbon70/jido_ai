@@ -72,7 +72,6 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
       })
 
   alias Jido.AI.Actions.Helpers
-  alias ReqLLM.Context
 
   @prioritization_prompt """
   You are an expert project manager specializing in task prioritization.
@@ -140,12 +139,12 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
     params = apply_context_defaults(params, context)
 
     with :ok <- validate_tasks(params[:tasks]),
-         {:ok, req_context} <- build_prioritize_messages(params),
          {:ok, result} <-
            Helpers.generate_backend_result(params, %{
              default_model: :planning,
              operation: :text,
-             messages: req_context.messages
+             prompt: build_prioritize_user_prompt(params),
+             system_prompt: @prioritization_prompt
            }) do
       {:ok, format_result(result)}
     end
@@ -157,11 +156,6 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
   defp validate_tasks([]), do: {:error, :tasks_cannot_be_empty}
   defp validate_tasks(tasks) when is_list(tasks), do: :ok
   defp validate_tasks(_), do: {:error, :invalid_tasks_format}
-
-  defp build_prioritize_messages(params) do
-    user_prompt = build_prioritize_user_prompt(params)
-    Context.normalize(user_prompt, system_prompt: @prioritization_prompt)
-  end
 
   defp build_prioritize_user_prompt(params) do
     tasks_list =
@@ -295,10 +289,10 @@ defmodule Jido.AI.Actions.Planning.Prioritize do
       ])
 
     workspace_default =
-      first_present([
-        normalize_optional_map(context[:workspace]),
-        normalize_optional_map(plugin_default(context, :workspace))
-      ])
+      merge_optional_maps(
+        normalize_optional_map(plugin_default(context, :workspace)),
+        normalize_optional_map(context[:workspace])
+      )
 
     backend_metadata_default =
       merge_optional_maps(

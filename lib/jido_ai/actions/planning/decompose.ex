@@ -64,7 +64,6 @@ defmodule Jido.AI.Actions.Planning.Decompose do
       })
 
   alias Jido.AI.Actions.Helpers
-  alias ReqLLM.Context
 
   @decomposition_prompt """
   You are an expert at breaking down complex goals into manageable components.
@@ -126,23 +125,18 @@ defmodule Jido.AI.Actions.Planning.Decompose do
   def run(params, context) do
     params = apply_context_defaults(params, context)
 
-    with {:ok, req_context} <- build_decompose_messages(params),
-         {:ok, result} <-
+    with {:ok, result} <-
            Helpers.generate_backend_result(params, %{
              default_model: :planning,
              operation: :text,
-             messages: req_context.messages
+             prompt: build_decompose_user_prompt(params),
+             system_prompt: @decomposition_prompt
            }) do
       {:ok, format_result(result, params[:goal], clamp_depth(params[:max_depth] || 3))}
     end
   end
 
   # Private Functions
-
-  defp build_decompose_messages(params) do
-    user_prompt = build_decompose_user_prompt(params)
-    Context.normalize(user_prompt, system_prompt: @decomposition_prompt)
-  end
 
   defp build_decompose_user_prompt(params) do
     base = "Goal to decompose: #{params[:goal]}"
@@ -219,10 +213,10 @@ defmodule Jido.AI.Actions.Planning.Decompose do
       ])
 
     workspace_default =
-      first_present([
-        normalize_optional_map(context[:workspace]),
-        normalize_optional_map(plugin_default(context, :workspace))
-      ])
+      merge_optional_maps(
+        normalize_optional_map(plugin_default(context, :workspace)),
+        normalize_optional_map(context[:workspace])
+      )
 
     backend_metadata_default =
       merge_optional_maps(

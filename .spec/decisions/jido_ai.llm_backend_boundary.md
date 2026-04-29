@@ -143,3 +143,9 @@ must stay aligned with that contract. Documentation should state which paths
 remain ReqLLM-default, which can opt into Harness, and which stay typed
 unsupported, while verification helpers should make those compatibility
 assertions repeatable without re-encoding backend env setup in each test.
+
+When a public action is already prompt-oriented, widening backend support
+should prefer canonical `prompt` / `system_prompt` / `workspace` request
+shaping over reconstructing alternate backends from ReqLLM-specific message
+lists. That keeps ReqLLM parity intact while making compatible alternate
+backends executable instead of merely configurable.

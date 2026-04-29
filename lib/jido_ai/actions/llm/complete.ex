@@ -59,7 +59,6 @@ defmodule Jido.AI.Actions.LLM.Complete do
   alias Jido.AI.Actions.Helpers
   alias Jido.AI.Error.Sanitize
   alias Jido.AI.Observe
-  alias ReqLLM.Context
 
   @doc """
   Executes the completion action.
@@ -99,12 +98,11 @@ defmodule Jido.AI.Actions.LLM.Complete do
     start_time = System.monotonic_time()
 
     with {:ok, validated_params} <- Helpers.validate_and_sanitize_input(params),
-         {:ok, req_context} <- build_messages(validated_params[:prompt]),
          {:ok, result} <-
            Helpers.generate_backend_result(validated_params, %{
              default_model: :fast,
              operation: :text,
-             messages: req_context.messages
+             prompt: validated_params[:prompt]
            }) do
       duration_native = System.monotonic_time() - start_time
 
@@ -152,10 +150,6 @@ defmodule Jido.AI.Actions.LLM.Complete do
 
   # Private Functions
 
-  defp build_messages(prompt) do
-    Context.normalize(prompt, [])
-  end
-
   defp sanitize_error_for_user(error) when is_struct(error) do
     Sanitize.sanitize_error_message(error)
   end
@@ -196,10 +190,10 @@ defmodule Jido.AI.Actions.LLM.Complete do
       ])
 
     workspace_default =
-      first_present([
-        normalize_optional_map(context[:workspace]),
-        normalize_optional_map(plugin_default(context, :workspace))
-      ])
+      merge_optional_maps(
+        normalize_optional_map(plugin_default(context, :workspace)),
+        normalize_optional_map(context[:workspace])
+      )
 
     backend_metadata_default =
       merge_optional_maps(
