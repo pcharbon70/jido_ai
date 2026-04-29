@@ -71,5 +71,17 @@ defmodule Jido.AI.Error.ModelTest do
       assert Error.Backend.UnsupportedCapability.message(%Error.Backend.UnsupportedCapability{capability: :streaming}) ==
                "Unsupported backend capability: :streaming"
     end
+
+    test "provider and execution backend message variants" do
+      assert Error.Backend.ProviderUnavailable.message(%Error.Backend.ProviderUnavailable{
+               backend: :harness,
+               provider: :codex
+             }) == "Backend :harness provider :codex is not available"
+
+      assert Error.Backend.ExecutionFailed.message(%Error.Backend.ExecutionFailed{
+               backend: :harness,
+               provider: :codex
+             }) == "Backend :harness execution failed for provider :codex"
+    end
   end
 end

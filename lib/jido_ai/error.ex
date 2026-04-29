@@ -166,3 +166,52 @@ defmodule Jido.AI.Error.Backend.UnsupportedCapability do
 
   def message(_), do: "Unsupported backend capability"
 end
+
+defmodule Jido.AI.Error.Backend.ProviderUnavailable do
+  @moduledoc "Requested backend provider is not configured or not available"
+
+  use Splode.Error,
+    fields: [:backend, :provider, :message],
+    class: :backend
+
+  @impl true
+  def message(%{message: message}) when is_binary(message), do: message
+
+  def message(%{backend: backend, provider: provider})
+      when not is_nil(backend) and not is_nil(provider) do
+    "Backend #{inspect(backend)} provider #{inspect(provider)} is not available"
+  end
+
+  def message(%{backend: backend}) when not is_nil(backend) do
+    "Backend #{inspect(backend)} provider is not configured"
+  end
+
+  def message(_), do: "Backend provider is not available"
+end
+
+defmodule Jido.AI.Error.Backend.ExecutionFailed do
+  @moduledoc "Backend transport failed after request validation succeeded"
+
+  use Splode.Error,
+    fields: [:backend, :provider, :kind, :reason, :message],
+    class: :backend
+
+  @impl true
+  def message(%{message: message}) when is_binary(message), do: message
+
+  def message(%{backend: backend, provider: provider, kind: :cancelled})
+      when not is_nil(backend) and not is_nil(provider) do
+    "Backend #{inspect(backend)} execution was cancelled for provider #{inspect(provider)}"
+  end
+
+  def message(%{backend: backend, provider: provider})
+      when not is_nil(backend) and not is_nil(provider) do
+    "Backend #{inspect(backend)} execution failed for provider #{inspect(provider)}"
+  end
+
+  def message(%{backend: backend}) when not is_nil(backend) do
+    "Backend #{inspect(backend)} execution failed"
+  end
+
+  def message(_), do: "Backend execution failed"
+end

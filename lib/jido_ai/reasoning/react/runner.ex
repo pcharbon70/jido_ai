@@ -667,6 +667,8 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
 
   defp classify_request_failure(%Jido.AI.Error.Backend.UnsupportedBackend{}, _default), do: :backend
   defp classify_request_failure(%Jido.AI.Error.Backend.UnsupportedCapability{}, _default), do: :backend
+  defp classify_request_failure(%Jido.AI.Error.Backend.ProviderUnavailable{}, _default), do: :backend
+  defp classify_request_failure(%Jido.AI.Error.Backend.ExecutionFailed{}, _default), do: :backend
   defp classify_request_failure(_reason, default), do: default
 
   defp maybe_put_previous_response_id(llm_opts, nil), do: llm_opts

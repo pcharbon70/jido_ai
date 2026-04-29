@@ -4,9 +4,8 @@ defmodule Jido.AI.Backends do
   Additive backend-selection helpers for Jido.AI.
 
   This module keeps backend choice explicit without changing the existing
-  request-bearing public API surface. The current runtime still only supports
-  `:req_llm`, but alternate backend configuration is reserved here so later
-  phases can widen support behind the same entrypoints.
+  request-bearing public API surface. ReqLLM remains the default path, while
+  alternate backend configuration is additive and explicit.
   """
 
   alias Jido.AI.Backend
@@ -16,7 +15,13 @@ defmodule Jido.AI.Backends do
   @default_backend :req_llm
   @reserved_backends %{
     req_llm: %{transport: :api, adapter: Jido.AI.Backends.ReqLLM},
-    harness: %{transport: :exec, adapter: Jido.AI.Backends.Harness}
+    harness: %{
+      transport: :exec,
+      adapter: Jido.AI.Backends.Harness,
+      provider: nil,
+      request_defaults: %{},
+      run_opts: []
+    }
   }
 
   @type backend :: :req_llm | :harness | atom()

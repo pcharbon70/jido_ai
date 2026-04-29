@@ -61,6 +61,7 @@ defmodule JidoAi.MixProject do
       # Jido ecosystem
       {:jido, "~> 2.2"},
       {:jido_action, "~> 2.2"},
+      {:jido_harness, github: "agentjido/jido_harness", branch: "main"},
       {:req_llm, "~> 1.9"},
 
       # Runtime
