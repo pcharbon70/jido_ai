@@ -1,4 +1,5 @@
 defmodule Jido.AI.Directive.ExecRuntimeTest do
+  # covers: jido_ai.examples_and_quality.executable_contract_regression_tests
   use ExUnit.Case, async: false
   use Mimic
 
@@ -26,7 +27,9 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
 
       Mimic.stub(ReqLLM.Generation, :generate_text, fn model, messages, opts ->
         assert model == Jido.AI.resolve_model(:fast)
-        assert [%{role: :system, content: "Keep it brief"}, %{role: :user, content: "hello"}] = messages
+        assert Enum.map(messages, & &1.role) == [:system, :user]
+        assert hd(Enum.at(messages, 0).content).text == "Keep it brief"
+        assert hd(Enum.at(messages, 1).content).text == "hello"
         assert opts[:receive_timeout] == 321
 
         {:ok,
@@ -191,9 +194,11 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
 
       Mimic.copy(ReqLLM.StreamResponse)
 
-      Mimic.stub(ReqLLM, :stream_text, fn model, messages, opts ->
+      Mimic.stub(ReqLLM.Generation, :stream_text, fn model, messages, opts ->
         assert model == Jido.AI.resolve_model(:fast)
-        assert [%{role: :system, content: "Keep it brief"}, %{role: :user, content: "hello"}] = messages
+        assert Enum.map(messages, & &1.role) == [:system, :user]
+        assert hd(Enum.at(messages, 0).content).text == "Keep it brief"
+        assert hd(Enum.at(messages, 1).content).text == "hello"
         assert opts[:receive_timeout] == 321
         {:ok, :stream_response}
       end)
@@ -241,7 +246,7 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
 
       Mimic.copy(ReqLLM.StreamResponse)
 
-      Mimic.stub(ReqLLM, :stream_text, fn _model, _messages, _opts ->
+      Mimic.stub(ReqLLM.Generation, :stream_text, fn _model, _messages, _opts ->
         {:ok, :stream_response}
       end)
 
@@ -278,7 +283,7 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
 
       Mimic.copy(ReqLLM.StreamResponse)
 
-      Mimic.stub(ReqLLM, :stream_text, fn _model, _messages, _opts ->
+      Mimic.stub(ReqLLM.Generation, :stream_text, fn _model, _messages, _opts ->
         {:ok, :stream_response}
       end)
 
@@ -304,7 +309,7 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
       supervisor = DirectiveSupport.start_task_supervisor!()
       on_exit(fn -> DirectiveSupport.stop_task_supervisor(supervisor) end)
 
-      Mimic.stub(ReqLLM, :stream_text, fn _model, _messages, _opts ->
+      Mimic.stub(ReqLLM.Generation, :stream_text, fn _model, _messages, _opts ->
         {:error, :network}
       end)
 
@@ -326,7 +331,7 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
       supervisor = DirectiveSupport.start_task_supervisor!()
       on_exit(fn -> DirectiveSupport.stop_task_supervisor(supervisor) end)
 
-      Mimic.stub(ReqLLM, :stream_text, fn _model, _messages, _opts ->
+      Mimic.stub(ReqLLM.Generation, :stream_text, fn _model, _messages, _opts ->
         throw(:boom)
       end)
 

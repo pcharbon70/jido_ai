@@ -136,7 +136,9 @@ defmodule Jido.AI.Backend.Request do
   """
   @spec needs_local_tools?(t()) :: boolean()
   def needs_local_tools?(%__MODULE__{tool_intent: %ToolIntent{} = tool_intent}) do
-    not is_nil(tool_intent.tools) or tool_intent.allowed_tools != [] or not is_nil(tool_intent.tool_choice)
+    tool_list = normalize_tool_list(tool_intent.tools)
+
+    tool_list != [] or tool_intent.allowed_tools != [] or explicit_tool_choice?(tool_intent.tool_choice)
   end
 
   def needs_local_tools?(%__MODULE__{}), do: false
@@ -194,4 +196,13 @@ defmodule Jido.AI.Backend.Request do
     raise ArgumentError,
           "invalid backend request operation: #{inspect(operation)}; expected one of #{inspect(@operation_values)}"
   end
+
+  defp normalize_tool_list(tools) when is_list(tools), do: tools
+  defp normalize_tool_list(nil), do: []
+  defp normalize_tool_list(_tools), do: [:tool]
+
+  defp explicit_tool_choice?(nil), do: false
+  defp explicit_tool_choice?(:auto), do: false
+  defp explicit_tool_choice?(:none), do: false
+  defp explicit_tool_choice?(_tool_choice), do: true
 end

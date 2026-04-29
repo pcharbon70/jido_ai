@@ -1,4 +1,5 @@
 defmodule Jido.AI.Reasoning.ReAct.RuntimeRunnerTest do
+  # covers: jido_ai.examples_and_quality.executable_contract_regression_tests
   use ExUnit.Case, async: false
   use Mimic
 

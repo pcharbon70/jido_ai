@@ -7,6 +7,8 @@ id: jido_ai.strategies
 kind: feature
 status: active
 summary: Jido.AI ships multiple reasoning strategy families, convenience agent macros, standalone ReAct runtime, and explicit strategy internals instead of prompt-only orchestration.
+decisions:
+  - jido_ai.llm_backend_boundary
 surface:
   - lib/jido_ai/reasoning/**/*.ex
   - lib/jido_ai/agents/strategies/*.ex
@@ -35,7 +37,7 @@ surface:
   stability: evolving
 
 - id: jido_ai.strategies.standalone_react_runtime
-  statement: Jido.AI.Reasoning.ReAct shall remain a standalone streaming and checkpoint-aware runtime that can run, start, continue, collect, cancel, steer, and inject outside agent macros.
+  statement: Jido.AI.Reasoning.ReAct shall remain a standalone streaming and checkpoint-aware runtime that can run, start, continue, collect, cancel, steer, and inject outside agent macros while translating backend-neutral request and stream progress into the canonical ReAct runtime event surface.
   priority: should
   stability: evolving
 ```
@@ -60,6 +62,11 @@ surface:
 
 - kind: guide_file
   target: guides/user/standalone_react_runtime.md
+  covers:
+    - jido_ai.strategies.standalone_react_runtime
+
+- kind: source_file
+  target: lib/jido_ai/reasoning/react/runner.ex
   covers:
     - jido_ai.strategies.standalone_react_runtime
 ```

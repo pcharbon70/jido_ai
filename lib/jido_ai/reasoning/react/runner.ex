@@ -1,4 +1,5 @@
 defmodule Jido.AI.Reasoning.ReAct.Runner do
+  # covers: jido_ai.strategies.standalone_react_runtime jido_ai.runtime_contracts.backend_normalization_boundary
   @moduledoc """
   Task-based ReAct runner.
 
@@ -7,6 +8,8 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
   """
 
   alias Jido.AI.PendingInputServer
+  alias Jido.AI.Backend.Request
+  alias Jido.AI.Backends
   alias Jido.AI.Reasoning.ReAct.{Config, Event, PendingToolCall, State, Token, ToolSelection}
   alias Jido.AI.Effects
   alias Jido.AI.Context, as: AIContext
@@ -237,29 +240,12 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
     call_id = "call_#{state.run_id}_#{state.iteration}_#{Jido.Util.generate_id()}"
     state = State.put_llm_call_id(state, call_id)
 
-    {state, _} =
-      emit_event(
-        state,
-        owner,
-        ref,
-        :llm_started,
-        %{
-          call_id: call_id,
-          model: config.model,
-          message_count:
-            AIContext.length(state.context) +
-              case state.context.system_prompt do
-                nil -> 0
-                _ -> 1
-              end
-        },
-        llm_call_id: call_id
-      )
-
     with {:ok, request} <- build_turn_request(state, config, runtime_context) do
       state = %{state | active_tools: request.tools}
 
-      case request_turn(state, owner, ref, config, request.messages, request.llm_opts) do
+      {state, _} = translate_backend_event(state, owner, ref, call_id, backend_started_event(request.backend_request))
+
+      case request_turn(state, owner, ref, config, request.backend_request, call_id) do
         {:ok, state, turn, response_id} ->
           state =
             state
@@ -337,8 +323,9 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
     with {:ok, request} <- maybe_transform_request(base_request, state, config, runtime_context),
          {:ok, messages} <- normalize_request_messages(request),
          {:ok, tools} <- normalize_request_tools(request),
-         llm_opts <- sync_tools_in_llm_opts(config, request.llm_opts, tools) do
-      {:ok, %{messages: messages, llm_opts: llm_opts, tools: tools}}
+         llm_opts <- normalize_runtime_llm_opts(Map.get(request, :llm_opts)),
+         backend_request <- build_backend_request(state, config, messages, llm_opts, tools) do
+      {:ok, %{backend_request: backend_request, tools: tools}}
     end
   end
 
@@ -392,52 +379,37 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
 
   defp normalize_request_tools(_request), do: {:error, :invalid_request_tools}
 
-  defp sync_tools_in_llm_opts(%Config{} = config, llm_opts, tools) when is_list(llm_opts) and is_map(tools) do
-    reqllm_tools = Config.reqllm_tools(%{config | tools: tools})
-
-    llm_opts
-    |> Keyword.delete(:tools)
-    |> Keyword.put(:tools, reqllm_tools)
-  end
-
-  defp request_turn(%State{} = state, owner, ref, %Config{} = config, messages, llm_opts) do
+  defp request_turn(%State{} = state, owner, ref, %Config{} = config, %Request{} = backend_request, call_id) do
     case config.streaming do
       false ->
-        request_turn_generate(state, config, messages, llm_opts)
+        request_turn_generate(state, backend_request)
 
       _ ->
-        request_turn_stream(state, owner, ref, config, messages, llm_opts)
+        request_turn_stream(state, owner, ref, config, backend_request, call_id)
     end
   end
 
-  defp request_turn_stream(%State{} = state, owner, ref, %Config{} = config, messages, llm_opts) do
-    case ReqLLM.Generation.stream_text(config.model, messages, llm_opts) do
-      {:ok, stream_response} ->
-        announce_stream_control(owner, ref, stream_response)
+  defp request_turn_stream(%State{} = state, owner, ref, %Config{} = config, %Request{} = backend_request, call_id) do
+    case consume_stream(state, owner, ref, config, backend_request, call_id) do
+      {:ok, updated_state, turn, response_id} ->
+        {:ok, updated_state, turn, response_id}
 
-        case consume_stream(state, owner, ref, config, stream_response) do
-          {:ok, updated_state, turn, response_id} -> {:ok, updated_state, turn, response_id}
-          {:error, updated_state, reason} -> {:error, updated_state, reason, :llm_stream}
-        end
+      {:error, updated_state, reason} ->
+        {:error, updated_state, reason, classify_request_failure(reason, :llm_stream)}
+    end
+  end
+
+  defp request_turn_generate(%State{} = state, %Request{} = backend_request) do
+    case Backends.generate(backend_request) do
+      {:ok, result} ->
+        consume_generate(state, result)
 
       {:error, reason} ->
-        {:error, state, reason, :llm_request}
+        {:error, state, reason, classify_request_failure(reason, :llm_request)}
     end
   end
 
-  defp request_turn_generate(%State{} = state, %Config{} = config, messages, llm_opts) do
-    case ReqLLM.Generation.generate_text(config.model, messages, llm_opts) do
-      {:ok, response} ->
-        consume_generate(state, config, response)
-
-      {:error, reason} ->
-        {:error, state, reason, :llm_request}
-    end
-  end
-
-  defp consume_stream(%State{} = state, owner, ref, %Config{} = config, stream_response) do
-    check_cancel!(state, ref)
-
+  defp consume_stream(%State{} = state, owner, ref, %Config{} = config, %Request{} = backend_request, call_id) do
     trace_cfg = config.trace
     state_key = stream_state_key(ref)
     heartbeat_interval_ms = progress_interval_ms(config)
@@ -445,13 +417,12 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
     Process.put(state_key, state)
     Process.put(stream_signal_key(ref), monotonic_ms())
 
-    case ReqLLM.StreamResponse.process_stream(
-           stream_response,
-           stream_process_opts(owner, ref, trace_cfg, state_key, heartbeat_interval_ms)
-         ) do
-      {:ok, response} ->
-        {:ok, current_stream_state(state_key, state),
-         Turn.from_response(response, model: Jido.AI.model_label(config.model)), extract_response_id(response)}
+    case Backends.run_stream(backend_request, fn event ->
+           note_backend_stream_activity(event, state_key, owner, ref, trace_cfg, heartbeat_interval_ms)
+           emit_backend_stream_event(event, state_key, owner, ref, call_id, trace_cfg)
+         end) do
+      {:ok, result} ->
+        {:ok, current_stream_state(state_key, state), backend_result_to_turn(result), extract_response_id(result)}
 
       {:error, reason} ->
         {:error, current_stream_state(state_key, state), reason}
@@ -464,12 +435,16 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
     Process.delete(stream_signal_key(ref))
   end
 
-  defp consume_generate(%State{} = state, %Config{} = config, response) do
-    turn = Turn.from_response(response, model: Jido.AI.model_label(config.model))
-    {:ok, state, turn, extract_response_id(response)}
+  defp consume_generate(%State{} = state, result) do
+    turn = backend_result_to_turn(result)
+    {:ok, state, turn, extract_response_id(result)}
   rescue
     e ->
       {:error, state, %{error: Exception.message(e), type: e.__struct__}, :llm_response}
+  end
+
+  defp extract_response_id(%{message_metadata: metadata}) when is_map(metadata) do
+    metadata[:response_id] || metadata["response_id"]
   end
 
   defp extract_response_id(%ReqLLM.Response{message: %ReqLLM.Message{metadata: metadata}})
@@ -482,6 +457,231 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
   end
 
   defp extract_response_id(_), do: nil
+
+  defp build_backend_request(%State{} = state, %Config{} = config, messages, llm_opts, tools)
+       when is_list(messages) and is_list(llm_opts) and is_map(tools) do
+    Request.new(%{
+      request_id: state.request_id,
+      backend: Backends.default_backend(),
+      operation: :text,
+      stream?: config.streaming,
+      messages: messages,
+      model: config.model,
+      timeout_ms: Keyword.get(llm_opts, :receive_timeout, config.llm.timeout_ms),
+      max_tokens: Keyword.get(llm_opts, :max_tokens, config.llm.max_tokens),
+      temperature: Keyword.get(llm_opts, :temperature, config.llm.temperature),
+      tool_intent: build_backend_tool_intent(tools, llm_opts),
+      backend_metadata: build_backend_metadata(llm_opts),
+      metadata: %{
+        run_id: state.run_id,
+        iteration: state.iteration,
+        llm_call_id: state.llm_call_id
+      }
+    })
+  end
+
+  defp build_backend_tool_intent(tools, llm_opts) when is_map(tools) do
+    %{
+      tools: Map.values(tools),
+      tool_choice: Keyword.get(llm_opts, :tool_choice)
+    }
+  end
+
+  defp build_backend_metadata(llm_opts) when is_list(llm_opts) do
+    %{}
+    |> maybe_put_backend_metadata(:req_http_options, Keyword.get(llm_opts, :req_http_options))
+    |> maybe_put_backend_metadata(:opts, backend_extra_opts(llm_opts))
+  end
+
+  defp maybe_put_backend_metadata(metadata, _key, nil), do: metadata
+  defp maybe_put_backend_metadata(metadata, _key, []), do: metadata
+  defp maybe_put_backend_metadata(metadata, key, value), do: Map.put(metadata, key, value)
+
+  defp backend_extra_opts(llm_opts) when is_list(llm_opts) do
+    Keyword.drop(llm_opts, [:max_tokens, :temperature, :receive_timeout, :req_http_options, :tool_choice, :tools])
+  end
+
+  defp normalize_runtime_llm_opts(llm_opts) when is_list(llm_opts), do: Keyword.delete(llm_opts, :tools)
+  defp normalize_runtime_llm_opts(_llm_opts), do: []
+
+  defp backend_started_event(%Request{} = request) do
+    Jido.AI.Backend.Event.new(%{
+      backend: request.backend,
+      request_id: request.request_id,
+      operation: request.operation,
+      kind: :started,
+      data: %{
+        model: request.model,
+        message_count: length(request.messages)
+      }
+    })
+  end
+
+  defp emit_backend_stream_event(%Jido.AI.Backend.Event{} = event, state_key, owner, ref, call_id, trace_cfg) do
+    update_stream_state(state_key, fn
+      %State{} = current_state ->
+        cond do
+          event.kind == :started ->
+            maybe_announce_stream_control(owner, ref, event.data)
+            current_state
+
+          event.kind in [:delta, :thinking, :tool_call] and trace_cfg[:capture_deltas?] != true ->
+            current_state
+
+          true ->
+            {next_state, _} = translate_backend_event(current_state, owner, ref, call_id, event)
+            next_state
+        end
+
+      other ->
+        other
+    end)
+
+    :ok
+  end
+
+  defp translate_backend_event(
+         %State{} = state,
+         owner,
+         ref,
+         call_id,
+         %Jido.AI.Backend.Event{kind: :started, data: data}
+       ) do
+    maybe_announce_stream_control(owner, ref, data)
+
+    emit_event(
+      state,
+      owner,
+      ref,
+      :llm_started,
+      %{
+        call_id: call_id,
+        model: Map.get(data, :model),
+        message_count: Map.get(data, :message_count, 0)
+      },
+      llm_call_id: call_id
+    )
+  end
+
+  defp translate_backend_event(
+         %State{} = state,
+         owner,
+         ref,
+         call_id,
+         %Jido.AI.Backend.Event{kind: kind, data: data}
+       )
+       when kind in [:delta, :thinking, :tool_call] do
+    case backend_delta_payload(kind, data) do
+      nil ->
+        {state, nil}
+
+      payload ->
+        emit_event(state, owner, ref, :llm_delta, payload, llm_call_id: call_id)
+    end
+  end
+
+  defp translate_backend_event(
+         %State{} = state,
+         owner,
+         ref,
+         _call_id,
+         %Jido.AI.Backend.Event{kind: :metadata, data: data}
+       ) do
+    maybe_announce_stream_control(owner, ref, data)
+    {state, nil}
+  end
+
+  defp translate_backend_event(%State{} = state, _owner, _ref, _call_id, %Jido.AI.Backend.Event{}), do: {state, nil}
+
+  defp backend_delta_payload(_kind, %{delta: delta}) when delta in [nil, ""], do: nil
+
+  defp backend_delta_payload(:delta, %{delta: delta}) do
+    %{chunk_type: :content, delta: delta}
+  end
+
+  defp backend_delta_payload(:thinking, %{delta: delta}) do
+    %{chunk_type: :thinking, delta: delta}
+  end
+
+  defp backend_delta_payload(:tool_call, data) do
+    delta = Map.get(data, :name) || Map.get(data, :delta)
+
+    if delta in [nil, ""] do
+      nil
+    else
+      %{chunk_type: :tool_call, delta: delta}
+    end
+  end
+
+  defp maybe_announce_stream_control(owner, ref, %{control: %{cancel: cancel_fun}})
+       when is_function(cancel_fun, 0) do
+    send(owner, {:react_runner, ref, :stream_control, %{cancel: cancel_fun}})
+    :ok
+  end
+
+  defp maybe_announce_stream_control(_owner, _ref, _data), do: :ok
+
+  defp note_backend_stream_activity(
+         %Jido.AI.Backend.Event{} = event,
+         state_key,
+         owner,
+         ref,
+         trace_cfg,
+         heartbeat_interval_ms
+       ) do
+    case current_stream_state(state_key, nil) do
+      %State{} = current_state -> check_cancel!(current_state, ref)
+      _ -> :ok
+    end
+
+    last_owner_signal_ms = Process.get(stream_signal_key(ref), monotonic_ms())
+
+    last_owner_signal_ms =
+      maybe_note_owner_signal(
+        visible_backend_event?(event, trace_cfg),
+        owner,
+        ref,
+        last_owner_signal_ms,
+        heartbeat_interval_ms
+      )
+
+    Process.put(stream_signal_key(ref), last_owner_signal_ms)
+    :ok
+  end
+
+  defp visible_backend_event?(%Jido.AI.Backend.Event{kind: :delta, data: %{delta: text}}, trace_cfg),
+    do: delta_captured?(text, trace_cfg)
+
+  defp visible_backend_event?(%Jido.AI.Backend.Event{kind: :thinking, data: %{delta: text}}, trace_cfg),
+    do: delta_captured?(text, trace_cfg)
+
+  defp visible_backend_event?(%Jido.AI.Backend.Event{kind: :tool_call}, trace_cfg),
+    do: trace_cfg[:capture_deltas?] == true
+
+  defp visible_backend_event?(%Jido.AI.Backend.Event{kind: :started}, _trace_cfg), do: false
+  defp visible_backend_event?(%Jido.AI.Backend.Event{}, _trace_cfg), do: false
+
+  defp backend_result_to_turn(%{text: _text} = result) do
+    Turn.from_result_map(%{
+      type: backend_result_type(result),
+      text: Map.get(result, :text, ""),
+      thinking_content: Map.get(result, :thinking_content),
+      reasoning_details: Map.get(result, :reasoning_details),
+      tool_calls: Map.get(result, :tool_calls, []),
+      usage: Map.get(result, :usage),
+      model: Map.get(result, :model),
+      finish_reason: Map.get(result, :finish_reason),
+      message_metadata: Map.get(result, :message_metadata, %{})
+    })
+  end
+
+  defp backend_result_type(%{tool_calls: [_ | _]}), do: :tool_calls
+  defp backend_result_type(%{finish_reason: :tool_calls}), do: :tool_calls
+  defp backend_result_type(_result), do: :final_answer
+
+  defp classify_request_failure(%Jido.AI.Error.Backend.UnsupportedBackend{}, _default), do: :backend
+  defp classify_request_failure(%Jido.AI.Error.Backend.UnsupportedCapability{}, _default), do: :backend
+  defp classify_request_failure(_reason, default), do: default
 
   defp maybe_put_previous_response_id(llm_opts, nil), do: llm_opts
 
@@ -954,76 +1154,10 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
     max(1, div(Config.stream_timeout(config), 2))
   end
 
-  defp visible_chunk?(%ReqLLM.StreamChunk{type: :content, text: text}, trace_cfg), do: delta_captured?(text, trace_cfg)
-  defp visible_chunk?(%ReqLLM.StreamChunk{type: :thinking, text: text}, trace_cfg), do: delta_captured?(text, trace_cfg)
-  defp visible_chunk?(%ReqLLM.StreamChunk{type: :tool_call}, trace_cfg), do: trace_cfg[:capture_deltas?] == true
-  defp visible_chunk?(_chunk, _trace_cfg), do: false
-
   defp delta_captured?(text, trace_cfg), do: trace_cfg[:capture_deltas?] == true and is_binary(text) and text != ""
-
-  defp stream_process_opts(owner, ref, trace_cfg, state_key, heartbeat_interval_ms) do
-    []
-    |> Keyword.put(:on_chunk, fn chunk ->
-      note_stream_chunk_activity(chunk, state_key, owner, ref, trace_cfg, heartbeat_interval_ms)
-    end)
-    |> maybe_put_stream_callback(trace_cfg, :on_result, fn text ->
-      emit_stream_delta(state_key, owner, ref, :content, text)
-    end)
-    |> maybe_put_stream_callback(trace_cfg, :on_thinking, fn text ->
-      emit_stream_delta(state_key, owner, ref, :thinking, text)
-    end)
-    |> maybe_put_stream_callback(trace_cfg, :on_tool_call, fn chunk ->
-      emit_stream_delta(state_key, owner, ref, :tool_call, chunk.name || "")
-    end)
-  end
-
-  defp maybe_put_stream_callback(opts, trace_cfg, callback_key, callback_fun) do
-    case trace_cfg[:capture_deltas?] do
-      true -> Keyword.put(opts, callback_key, callback_fun)
-      _ -> opts
-    end
-  end
-
-  defp emit_stream_delta(_state_key, _owner, _ref, _chunk_type, text) when text in [nil, ""], do: :ok
-
-  defp emit_stream_delta(state_key, owner, ref, chunk_type, text) do
-    update_stream_state(state_key, fn
-      %State{} = current_state ->
-        {next_state, _} =
-          emit_event(current_state, owner, ref, :llm_delta, %{chunk_type: chunk_type, delta: text})
-
-        next_state
-
-      other ->
-        other
-    end)
-
-    :ok
-  end
 
   defp stream_state_key(ref), do: {__MODULE__, :stream_state, ref}
   defp stream_signal_key(ref), do: {__MODULE__, :stream_signal, ref}
-
-  defp note_stream_chunk_activity(chunk, state_key, owner, ref, trace_cfg, heartbeat_interval_ms) do
-    case current_stream_state(state_key, nil) do
-      %State{} = current_state -> check_cancel!(current_state, ref)
-      _ -> :ok
-    end
-
-    last_owner_signal_ms = Process.get(stream_signal_key(ref), monotonic_ms())
-
-    last_owner_signal_ms =
-      maybe_note_owner_signal(
-        visible_chunk?(chunk, trace_cfg),
-        owner,
-        ref,
-        last_owner_signal_ms,
-        heartbeat_interval_ms
-      )
-
-    Process.put(stream_signal_key(ref), last_owner_signal_ms)
-    :ok
-  end
 
   defp current_stream_state(state_key, default) do
     Process.get(state_key, default)
@@ -1199,18 +1333,6 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
     |> Map.put(:cancel_sent?, true)
   end
 
-  defp announce_stream_control(owner, ref, stream_response) do
-    case stream_cancel_fun(stream_response) do
-      cancel_fun when is_function(cancel_fun, 0) ->
-        send(owner, {:react_runner, ref, :stream_control, %{cancel: cancel_fun}})
-
-      _ ->
-        :ok
-    end
-
-    :ok
-  end
-
   defp apply_stream_control(state, %{cancel: cancel_fun}) when is_function(cancel_fun, 0) do
     %{state | stream_cancel: cancel_fun}
   end
@@ -1258,9 +1380,6 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
   end
 
   defp await_runner_shutdown(_state), do: :ok
-
-  defp stream_cancel_fun(%{cancel: cancel_fun}) when is_function(cancel_fun, 0), do: cancel_fun
-  defp stream_cancel_fun(_stream_response), do: nil
 
   defp safe_execute_module(module, params, context, opts) do
     Turn.execute_module(module, params, context, opts)

@@ -10,6 +10,7 @@ defmodule Jido.AI.Backends do
   """
 
   alias Jido.AI.Backend
+  alias Jido.AI.Backend.Event
   alias Jido.AI.Backend.Request
 
   @default_backend :req_llm
@@ -20,6 +21,7 @@ defmodule Jido.AI.Backends do
 
   @type backend :: :req_llm | :harness | atom()
   @type backend_config :: %{optional(atom()) => term()}
+  @type stream_event_handler :: (Event.t() -> any())
 
   @doc """
   Returns the configured default backend, falling back to `:req_llm`.
@@ -79,6 +81,17 @@ defmodule Jido.AI.Backends do
   def stream(%Request{} = request) do
     request = ensure_request_backend(request)
     dispatch(adapter_for(request.backend), :stream, request)
+  end
+
+  @doc """
+  Runs a streaming request through the resolved backend while translating raw
+  provider progress into backend-neutral events for the caller.
+  """
+  @spec run_stream(Request.t(), stream_event_handler()) ::
+          {:ok, Jido.AI.Backend.Result.t()} | {:error, term()}
+  def run_stream(%Request{} = request, on_event) when is_function(on_event, 1) do
+    request = ensure_request_backend(request)
+    dispatch_run_stream(adapter_for(request.backend), request, on_event)
   end
 
   @doc """
@@ -157,6 +170,24 @@ defmodule Jido.AI.Backends do
       apply(adapter, function_name, [request])
     else
       {:error, Jido.AI.Error.Backend.UnsupportedBackend.exception(backend: request.backend)}
+    end
+  end
+
+  defp dispatch_run_stream(adapter, %Request{} = request, on_event) when is_function(on_event, 1) do
+    cond do
+      not Code.ensure_loaded?(adapter) ->
+        {:error, Jido.AI.Error.Backend.UnsupportedBackend.exception(backend: request.backend)}
+
+      function_exported?(adapter, :run_stream, 2) ->
+        apply(adapter, :run_stream, [request, on_event])
+
+      true ->
+        {:error,
+         Jido.AI.Error.Backend.UnsupportedCapability.exception(
+           backend: request.backend,
+           capability: :streaming,
+           operation: request.operation
+         )}
     end
   end
 

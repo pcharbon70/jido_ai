@@ -10,12 +10,13 @@ defmodule Jido.AI.Backends.ReqLLM do
   @behaviour Jido.AI.Backend
 
   alias Jido.AI.Backend
-  alias Jido.AI.Backend.{Capabilities, Request, Result}
+  alias Jido.AI.Backend.{Capabilities, Event, Request, Result}
   alias Jido.AI.ToolAdapter
   alias Jido.AI.Turn
   alias ReqLLM.Context
 
   @type reqllm_opts :: keyword()
+  @type stream_event_handler :: (Event.t() -> any())
 
   @impl true
   def id, do: :req_llm
@@ -64,6 +65,42 @@ defmodule Jido.AI.Backends.ReqLLM do
        capability: :cancellation,
        operation: :text
      )}
+  end
+
+  @doc """
+  Processes a streaming request while projecting ReqLLM chunks into
+  backend-neutral events.
+  """
+  @spec run_stream(Request.t(), stream_event_handler()) :: {:ok, Result.t()} | {:error, term()}
+  def run_stream(%Request{} = request, on_event) when is_function(on_event, 1) do
+    request = %{request | stream?: true}
+
+    with {:ok, request} <- validate_request(request),
+         :ok <- ensure_text_operation(request),
+         {:ok, model} <- resolve_model(request),
+         {:ok, messages} <- build_messages(request),
+         {:ok, stream_response} <- ReqLLM.Generation.stream_text(model, messages, build_generation_opts(request)) do
+      emit_backend_event(
+        on_event,
+        request,
+        :started,
+        started_event_data(model, messages, stream_response),
+        stream_response
+      )
+
+      case ReqLLM.StreamResponse.process_stream(stream_response, build_stream_callbacks(on_event, request)) do
+        {:ok, response} ->
+          result = normalize_text_result(response, model)
+
+          maybe_emit_usage_event(on_event, request, result)
+          emit_backend_event(on_event, request, :completed, %{result: result}, response)
+          {:ok, result}
+
+        {:error, reason} ->
+          emit_backend_event(on_event, request, :failed, %{error: reason, error_type: classify_stream_error(reason)}, reason)
+          {:error, reason}
+      end
+    end
   end
 
   @doc """
@@ -203,6 +240,8 @@ defmodule Jido.AI.Backends.ReqLLM do
       operation: :text,
       content: response_content(response),
       text: turn.text,
+      thinking_content: turn.thinking_content,
+      reasoning_details: turn.reasoning_details,
       tool_calls: turn.tool_calls,
       usage: normalize_usage(turn.usage),
       model: turn.model,
@@ -279,7 +318,7 @@ defmodule Jido.AI.Backends.ReqLLM do
   defp maybe_put_req_http_options(opts, _), do: opts
 
   defp maybe_put_tools(opts, %Request.ToolIntent{tools: nil}), do: opts
-  defp maybe_put_tools(opts, %Request.ToolIntent{tools: []}), do: opts
+  defp maybe_put_tools(opts, %Request.ToolIntent{tools: []}), do: Keyword.put(opts, :tools, [])
 
   defp maybe_put_tools(opts, %Request.ToolIntent{tools: tools}) do
     Keyword.put(opts, :tools, normalize_reqllm_tools(tools))
@@ -351,4 +390,83 @@ defmodule Jido.AI.Backends.ReqLLM do
 
   defp normalize_optional_string(value) when is_binary(value) and value != "", do: value
   defp normalize_optional_string(_), do: nil
+
+  defp build_stream_callbacks(on_event, %Request{} = request) do
+    [
+      on_chunk: fn chunk ->
+        emit_backend_event(on_event, request, :metadata, %{activity: :chunk}, chunk)
+      end,
+      on_result: fn text ->
+        emit_backend_event(on_event, request, :delta, %{delta: text, chunk_type: :content}, text)
+      end,
+      on_thinking: fn text ->
+        emit_backend_event(on_event, request, :thinking, %{delta: text, chunk_type: :thinking}, text)
+      end,
+      on_tool_call: fn chunk ->
+        emit_backend_event(
+          on_event,
+          request,
+          :tool_call,
+          %{
+            delta: tool_call_chunk_name(chunk),
+            chunk_type: :tool_call,
+            id: tool_call_chunk_id(chunk),
+            name: tool_call_chunk_name(chunk),
+            arguments: tool_call_chunk_arguments(chunk)
+          },
+          chunk
+        )
+      end
+    ]
+  end
+
+  defp maybe_emit_usage_event(_on_event, _request, %Result{usage: nil}), do: :ok
+
+  defp maybe_emit_usage_event(on_event, %Request{} = request, %Result{} = result) do
+    emit_backend_event(on_event, request, :usage, %{usage: result.usage, model: result.model}, result.usage)
+  end
+
+  defp emit_backend_event(on_event, %Request{} = request, kind, data, raw) when is_function(on_event, 1) do
+    on_event.(
+      Event.new(%{
+        backend: request.backend || id(),
+        request_id: request.request_id,
+        operation: request.operation,
+        kind: kind,
+        data: data,
+        raw: raw
+      })
+    )
+
+    :ok
+  end
+
+  defp started_event_data(model, messages, stream_response) do
+    %{
+      model: Jido.AI.model_label(model),
+      message_count: length(messages)
+    }
+    |> maybe_put_control(stream_response)
+  end
+
+  defp maybe_put_control(data, %{cancel: cancel_fun}) when is_function(cancel_fun, 0) do
+    Map.put(data, :control, %{cancel: cancel_fun})
+  end
+
+  defp maybe_put_control(data, _stream_response), do: data
+
+  defp classify_stream_error(%{error_type: error_type}) when is_atom(error_type), do: error_type
+  defp classify_stream_error(%{reason: :timeout}), do: :timeout
+  defp classify_stream_error(:timeout), do: :timeout
+  defp classify_stream_error(_reason), do: :unknown
+
+  defp tool_call_chunk_id(%{id: id}) when is_binary(id), do: id
+  defp tool_call_chunk_id(_chunk), do: nil
+
+  defp tool_call_chunk_name(%{name: name}) when is_binary(name), do: name
+  defp tool_call_chunk_name(_chunk), do: ""
+
+  defp tool_call_chunk_arguments(%{arguments: arguments}) when is_map(arguments), do: arguments
+  defp tool_call_chunk_arguments(%{arguments: arguments}) when is_binary(arguments), do: arguments
+  defp tool_call_chunk_arguments(_chunk), do: %{}
 end

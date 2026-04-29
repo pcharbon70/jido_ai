@@ -17,6 +17,8 @@ defmodule Jido.AI.Backend.Result do
               operation: Zoi.enum(@operation_values) |> Zoi.default(:text),
               content: Zoi.any() |> Zoi.nullish(),
               text: Zoi.string() |> Zoi.default(""),
+              thinking_content: Zoi.string() |> Zoi.nullish(),
+              reasoning_details: Zoi.any() |> Zoi.nullish(),
               object: Zoi.any() |> Zoi.nullish(),
               embeddings: Zoi.list(Zoi.any()) |> Zoi.nullish(),
               tool_calls: Zoi.list(Zoi.any()) |> Zoi.default([]),

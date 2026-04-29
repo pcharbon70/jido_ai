@@ -35,7 +35,7 @@ surface:
   stability: stable
 
 - id: jido_ai.core_runtime.additive_backend_selection
-  statement: Backend selection for request-bearing entrypoints shall remain additive and explicit rather than replacing the current ask, await, generate, or stream API surface.
+  statement: Backend selection for request-bearing entrypoints shall remain additive and explicit rather than replacing the current ask, await, generate, or stream API surface, and backend-neutral request envelopes shall own transport-specific option shaping before execution reaches an adapter.
   priority: must
   stability: evolving
 
@@ -78,6 +78,11 @@ surface:
   target: lib/jido_ai/backends.ex
   covers:
     - jido_ai.core_runtime.additive_backend_selection
+
+- kind: source_file
+  target: lib/jido_ai/backends/req_llm.ex
+  covers:
+    - jido_ai.core_runtime.llm_facades
 
 - kind: guide_file
   target: guides/user/first_react_agent.md

@@ -1,10 +1,11 @@
 defmodule Jido.AI.Directive.LLMStream do
+  # covers: jido_ai.runtime_contracts.directive_signal_envelopes jido_ai.runtime_contracts.backend_normalization_boundary
   @moduledoc """
-  Directive asking the runtime to stream an LLM response via ReqLLM.
+  Directive asking the runtime to stream an LLM response.
 
-  Uses ReqLLM for streaming. The runtime will execute this asynchronously
-  and send partial tokens as `ai.llm.delta` signals and the final result
-  as a `ai.llm.response` signal.
+  The runtime executes this through the configured backend and sends partial
+  tokens as `ai.llm.delta` signals and the final result as a
+  `ai.llm.response` signal.
 
   ## New Fields
 
@@ -89,28 +90,19 @@ defimpl Jido.AgentServer.DirectiveExec, for: Jido.AI.Directive.LLMStream do
   when an agent is created.
   """
 
-  alias Jido.AI.{Observe, Signal, Turn}
+  alias Jido.AI.{Backends, Observe, Signal}
   alias Jido.AI.Directive.Helpers
   alias Jido.AI.Signal.Helpers, as: SignalHelpers
   alias Jido.Tracing.Context, as: TraceContext
 
   def exec(directive, _input_signal, state) do
-    %{
-      id: call_id,
-      context: context,
-      tools: tools,
-      tool_choice: tool_choice,
-      max_tokens: max_tokens,
-      temperature: temperature
-    } = directive
+    %{id: call_id} = directive
 
     # Resolve model from either model or model_alias
     model = Helpers.resolve_directive_model(directive)
-    system_prompt = Map.get(directive, :system_prompt)
-    timeout = Map.get(directive, :timeout)
-    req_http_options = Map.get(directive, :req_http_options, [])
     metadata = Map.get(directive, :metadata, %{})
     obs_cfg = metadata[:observability] || %{}
+    request = Helpers.build_llm_request(directive)
 
     event_meta = %{
       agent_id: metadata[:agent_id],
@@ -134,14 +126,7 @@ defimpl Jido.AgentServer.DirectiveExec, for: Jido.AI.Directive.LLMStream do
     stream_opts = %{
       call_id: call_id,
       model: model,
-      context: context,
-      system_prompt: system_prompt,
-      tools: tools,
-      tool_choice: tool_choice,
-      max_tokens: max_tokens,
-      temperature: temperature,
-      timeout: timeout,
-      req_http_options: req_http_options,
+      request: request,
       agent_pid: agent_pid,
       event_meta: event_meta,
       obs_cfg: obs_cfg
@@ -229,76 +214,54 @@ defimpl Jido.AgentServer.DirectiveExec, for: Jido.AI.Directive.LLMStream do
   defp stream_with_callbacks(%{
          call_id: call_id,
          model: model,
-         context: context,
-         system_prompt: system_prompt,
-         tools: tools,
-         tool_choice: tool_choice,
-         max_tokens: max_tokens,
-         temperature: temperature,
-         timeout: timeout,
-         req_http_options: req_http_options,
+         request: request,
          agent_pid: agent_pid,
          event_meta: event_meta,
          obs_cfg: obs_cfg
        }) do
-    opts =
-      []
-      |> Helpers.add_tools_opt(tools)
-      |> Keyword.put(:tool_choice, tool_choice)
-      |> Keyword.put(:max_tokens, max_tokens)
-      |> Keyword.put(:temperature, temperature)
-      |> Helpers.add_timeout_opt(timeout)
-      |> Helpers.add_req_http_options(req_http_options)
-
-    messages = Helpers.build_directive_messages(context, system_prompt)
-
-    case ReqLLM.stream_text(model, messages, opts) do
-      {:ok, stream_response} ->
-        on_content = fn text ->
-          partial_signal =
-            Signal.LLMDelta.new!(%{
-              call_id: call_id,
-              delta: text,
-              chunk_type: :content
-            })
-
-          Jido.AgentServer.cast(agent_pid, partial_signal)
-
-          maybe_emit_delta(obs_cfg, Observe.llm(:delta), %{duration_ms: 0}, event_meta)
-        end
-
-        on_thinking = fn text ->
-          partial_signal =
-            Signal.LLMDelta.new!(%{
-              call_id: call_id,
-              delta: text,
-              chunk_type: :thinking
-            })
-
-          Jido.AgentServer.cast(agent_pid, partial_signal)
-
-          maybe_emit_delta(obs_cfg, Observe.llm(:delta), %{duration_ms: 0}, event_meta)
-        end
-
-        case ReqLLM.StreamResponse.process_stream(stream_response,
-               on_result: on_content,
-               on_thinking: on_thinking
-             ) do
-          {:ok, response} ->
-            turn = Turn.from_response(response, model: model)
-
-            # Emit usage report signal for per-call tracking
-            emit_usage_report(agent_pid, call_id, model, turn.usage)
-
-            {:ok, turn}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+    case Backends.run_stream(request, fn event ->
+           handle_stream_event(event, agent_pid, call_id, model, obs_cfg, event_meta)
+         end) do
+      {:ok, result} ->
+        {:ok, Helpers.result_to_turn(result)}
 
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp handle_stream_event(event, agent_pid, call_id, model, obs_cfg, event_meta) do
+    case event.kind do
+      :delta ->
+        emit_delta(agent_pid, call_id, Map.get(event.data, :delta), :content, obs_cfg, event_meta)
+
+      :thinking ->
+        emit_delta(agent_pid, call_id, Map.get(event.data, :delta), :thinking, obs_cfg, event_meta)
+
+      :tool_call ->
+        emit_delta(agent_pid, call_id, Map.get(event.data, :name) || Map.get(event.data, :delta), :tool_call, obs_cfg, event_meta)
+
+      :usage ->
+        emit_usage_report(agent_pid, call_id, Map.get(event.data, :model) || model, Map.get(event.data, :usage))
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp emit_delta(_agent_pid, _call_id, text, _chunk_type, _obs_cfg, _event_meta) when text in [nil, ""], do: :ok
+
+  defp emit_delta(agent_pid, call_id, text, chunk_type, obs_cfg, event_meta) do
+    partial_signal =
+      Signal.LLMDelta.new!(%{
+        call_id: call_id,
+        delta: text,
+        chunk_type: chunk_type
+      })
+
+    Jido.AgentServer.cast(agent_pid, partial_signal)
+    maybe_emit_delta(obs_cfg, Observe.llm(:delta), %{duration_ms: 0}, event_meta)
+    :ok
   end
 
   # Emit ai.usage signal for per-call usage tracking

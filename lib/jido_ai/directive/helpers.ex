@@ -1,4 +1,5 @@
 defmodule Jido.AI.Directive.Helpers do
+  # covers: jido_ai.runtime_contracts.backend_normalization_boundary
   @moduledoc """
   Helper functions for DirectiveExec implementations.
 
@@ -6,9 +7,13 @@ defmodule Jido.AI.Directive.Helpers do
   - Task supervisor resolution
   - Model resolution from directive fields
   - Message normalization/building
-  - Request option assembly
+  - Backend request assembly
   - Error classification
   """
+
+  alias Jido.AI.Backend.{Request, Result}
+  alias Jido.AI.Backends
+  alias Jido.AI.Turn
 
   @doc """
   Gets the task supervisor from agent state.
@@ -101,6 +106,60 @@ defmodule Jido.AI.Directive.Helpers do
   def normalize_directive_messages(_context), do: []
 
   @doc """
+  Builds a backend-neutral text request for directive-driven LLM execution.
+  """
+  @spec build_llm_request(map()) :: Request.t()
+  def build_llm_request(directive) when is_map(directive) do
+    Request.new(%{
+      request_id: Map.get(directive, :id),
+      backend: Backends.default_backend(),
+      operation: :text,
+      messages: normalize_directive_messages(Map.get(directive, :context)),
+      system_prompt: Map.get(directive, :system_prompt),
+      model: resolve_directive_model(directive),
+      timeout_ms: Map.get(directive, :timeout),
+      max_tokens: Map.get(directive, :max_tokens),
+      temperature: Map.get(directive, :temperature),
+      tool_intent: build_tool_intent(directive),
+      backend_metadata: build_llm_backend_metadata(directive),
+      metadata: Map.get(directive, :metadata, %{})
+    })
+  end
+
+  @doc """
+  Builds a backend-neutral embedding request for directive-driven execution.
+  """
+  @spec build_embedding_request(map()) :: Request.t()
+  def build_embedding_request(directive) when is_map(directive) do
+    Request.new(%{
+      request_id: Map.get(directive, :id),
+      backend: Backends.default_backend(),
+      operation: :embedding,
+      model: Map.get(directive, :model),
+      inputs: List.wrap(Map.get(directive, :texts)),
+      timeout_ms: Map.get(directive, :timeout),
+      backend_metadata: build_embedding_backend_metadata(directive),
+      metadata: Map.get(directive, :metadata, %{})
+    })
+  end
+
+  @doc false
+  @spec result_to_turn(Result.t()) :: Turn.t()
+  def result_to_turn(%Result{} = result) do
+    Turn.from_result_map(%{
+      type: classify_result_type(result),
+      text: result.text,
+      thinking_content: result.thinking_content,
+      reasoning_details: result.reasoning_details,
+      tool_calls: result.tool_calls,
+      usage: result.usage,
+      model: result.model,
+      finish_reason: result.finish_reason,
+      message_metadata: result.message_metadata
+    })
+  end
+
+  @doc """
   Adds timeout option to a keyword list if timeout is specified.
   """
   @spec add_timeout_opt(keyword(), integer() | nil) :: keyword()
@@ -153,4 +212,38 @@ defmodule Jido.AI.Directive.Helpers do
   def classify_error(%Mint.HTTPError{}), do: :network
 
   def classify_error(_), do: :unknown
+
+  defp build_tool_intent(directive) do
+    tools = Map.get(directive, :tools, [])
+
+    if is_list(tools) and tools != [] do
+      %{
+        tools: tools,
+        tool_choice: Map.get(directive, :tool_choice)
+      }
+    else
+      nil
+    end
+  end
+
+  defp build_llm_backend_metadata(directive) do
+    directive
+    |> Map.get(:req_http_options, [])
+    |> case do
+      [] -> %{}
+      req_http_options when is_list(req_http_options) -> %{req_http_options: req_http_options}
+      _ -> %{}
+    end
+  end
+
+  defp build_embedding_backend_metadata(directive) do
+    case Map.get(directive, :dimensions) do
+      dimensions when is_integer(dimensions) -> %{dimensions: dimensions}
+      _ -> %{}
+    end
+  end
+
+  defp classify_result_type(%Result{tool_calls: [_ | _]}), do: :tool_calls
+  defp classify_result_type(%Result{finish_reason: :tool_calls}), do: :tool_calls
+  defp classify_result_type(_result), do: :final_answer
 end

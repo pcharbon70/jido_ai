@@ -1,10 +1,10 @@
 defmodule Jido.AI.Directive.LLMGenerate do
+  # covers: jido_ai.runtime_contracts.directive_signal_envelopes jido_ai.runtime_contracts.backend_normalization_boundary
   @moduledoc """
   Directive asking the runtime to generate an LLM response (non-streaming).
 
-  Uses `ReqLLM.Generation.generate_text/3` for non-streaming text generation.
-  The runtime will execute this asynchronously and send the result as a
-  `ai.llm.response` signal.
+  The runtime executes this asynchronously through the configured backend and
+  sends the result as an `ai.llm.response` signal.
 
   This is simpler than `LLMStream` for cases where streaming is not needed.
   """
@@ -63,8 +63,8 @@ defimpl Jido.AgentServer.DirectiveExec, for: Jido.AI.Directive.LLMGenerate do
   Spawns an async task to generate an LLM response (non-streaming) and sends
   the result back to the agent.
 
-  Uses `ReqLLM.Generation.generate_text/3` for non-streaming text generation.
-  The result is sent as a `ai.llm.response` signal.
+  Uses the internal backend boundary for non-streaming text generation. The
+  result is sent as an `ai.llm.response` signal.
 
   Supports:
   - `model_alias` resolution via `Jido.AI.resolve_model/1`
@@ -78,26 +78,17 @@ defimpl Jido.AgentServer.DirectiveExec, for: Jido.AI.Directive.LLMGenerate do
   when an agent is created.
   """
 
-  alias Jido.AI.{Observe, Signal, Turn}
+  alias Jido.AI.{Backends, Observe, Signal}
   alias Jido.AI.Directive.Helpers
   alias Jido.AI.Signal.Helpers, as: SignalHelpers
 
   def exec(directive, _input_signal, state) do
-    %{
-      id: call_id,
-      context: context,
-      tools: tools,
-      tool_choice: tool_choice,
-      max_tokens: max_tokens,
-      temperature: temperature
-    } = directive
+    %{id: call_id} = directive
 
     model = Helpers.resolve_directive_model(directive)
-    system_prompt = Map.get(directive, :system_prompt)
-    timeout = Map.get(directive, :timeout)
-    req_http_options = Map.get(directive, :req_http_options, [])
     metadata = Map.get(directive, :metadata, %{})
     obs_cfg = metadata[:observability] || %{}
+    request = Helpers.build_llm_request(directive)
 
     event_meta = %{
       agent_id: metadata[:agent_id],
@@ -130,14 +121,7 @@ defimpl Jido.AgentServer.DirectiveExec, for: Jido.AI.Directive.LLMGenerate do
                  agent_pid,
                  call_id,
                  model,
-                 context,
-                 system_prompt,
-                 tools,
-                 tool_choice,
-                 max_tokens,
-                 temperature,
-                 timeout,
-                 req_http_options
+                 request
                )
              rescue
                e ->
@@ -207,32 +191,14 @@ defimpl Jido.AgentServer.DirectiveExec, for: Jido.AI.Directive.LLMGenerate do
          agent_pid,
          call_id,
          model,
-         context,
-         system_prompt,
-         tools,
-         tool_choice,
-         max_tokens,
-         temperature,
-         timeout,
-         req_http_options
+         request
        ) do
-    opts =
-      []
-      |> Helpers.add_tools_opt(tools)
-      |> Keyword.put(:tool_choice, tool_choice)
-      |> Keyword.put(:max_tokens, max_tokens)
-      |> Keyword.put(:temperature, temperature)
-      |> Helpers.add_timeout_opt(timeout)
-      |> Helpers.add_req_http_options(req_http_options)
-
-    messages = Helpers.build_directive_messages(context, system_prompt)
-
-    case ReqLLM.Generation.generate_text(model, messages, opts) do
-      {:ok, response} ->
-        turn = Turn.from_response(response, model: model)
+    case Backends.generate(request) do
+      {:ok, result} ->
+        turn = Helpers.result_to_turn(result)
 
         # Emit usage report signal for per-call tracking
-        emit_usage_report(agent_pid, call_id, model, turn.usage)
+        emit_usage_report(agent_pid, call_id, turn.model || model, turn.usage)
 
         {:ok, turn}
 

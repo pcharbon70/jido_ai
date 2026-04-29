@@ -6,6 +6,7 @@ affects:
   - package.jido_ai
   - jido_ai.core_runtime
   - jido_ai.runtime_contracts
+  - jido_ai.strategies
   - jido_ai.thread_context_projection
 ---
 
@@ -93,6 +94,13 @@ When those cutovers happen, top-level facades should keep their historical raw
 ReqLLM-shaped default return values, and standalone actions should keep their
 historical normalized result maps even though transport execution now routes
 through the backend adapter.
+
+Directive execution and standalone ReAct runtime flow should move behind the
+same backend request and backend event boundary before any alternate backend is
+introduced for those paths. When that happens, canonical `ai.llm.*`,
+`ai.embed.*`, and ReAct runtime event names, correlation fields, timeout
+behavior, and cancellation semantics must remain stable even though backend
+stream callbacks are translated underneath them.
 
 `Jido.Harness` integration should begin where prompt/cwd/session semantics are a
 natural fit, rather than forcing every existing ReqLLM-shaped surface to become
