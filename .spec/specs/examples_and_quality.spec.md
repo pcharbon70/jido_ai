@@ -110,4 +110,9 @@ surface:
   target: test/jido_ai/integration/backend_boundary_phase3_test.exs
   covers:
     - jido_ai.examples_and_quality.executable_contract_regression_tests
+
+- kind: source_file
+  target: test/jido_ai/integration/backend_boundary_phase4_test.exs
+  covers:
+    - jido_ai.examples_and_quality.executable_contract_regression_tests
 ```
