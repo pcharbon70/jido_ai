@@ -71,14 +71,30 @@ defmodule Jido.AI.Directive.Helpers do
 
   Supports both direct model specification and model alias resolution.
   """
-  @spec resolve_directive_model(map()) :: String.t()
+  @spec resolve_directive_model(map()) :: term() | nil
   def resolve_directive_model(%{model: model}) when is_binary(model) and model != "", do: model
 
   def resolve_directive_model(%{model_alias: alias_atom}) when is_atom(alias_atom) and not is_nil(alias_atom) do
     Jido.AI.resolve_model(alias_atom)
   end
 
-  def resolve_directive_model(%{model: nil, model_alias: nil}) do
+  def resolve_directive_model(%{model: nil, model_alias: nil} = directive) do
+    if directive_backend(directive) == :harness do
+      nil
+    else
+      raise ArgumentError, "Either model or model_alias must be provided"
+    end
+  end
+
+  def resolve_directive_model(%{"model" => nil, "model_alias" => nil} = directive) do
+    if directive_backend(directive) == :harness do
+      nil
+    else
+      raise ArgumentError, "Either model or model_alias must be provided"
+    end
+  end
+
+  def resolve_directive_model(%{model: nil, model_alias: _alias}) do
     raise ArgumentError, "Either model or model_alias must be provided"
   end
 
@@ -110,17 +126,30 @@ defmodule Jido.AI.Directive.Helpers do
   """
   @spec build_llm_request(map()) :: Request.t()
   def build_llm_request(directive) when is_map(directive) do
+    backend = directive_backend(directive)
+    context = Map.get(directive, :context, Map.get(directive, "context"))
+    messages = normalize_directive_messages(context)
+    explicit_system_prompt = Map.get(directive, :system_prompt, Map.get(directive, "system_prompt"))
+
+    {prompt, messages, system_prompt} =
+      case maybe_prompt_only_request(backend, context, explicit_system_prompt) do
+        {:ok, prompt, system_prompt} -> {prompt, [], system_prompt}
+        :unsupported -> {nil, messages, explicit_system_prompt}
+      end
+
     Request.new(%{
       request_id: Map.get(directive, :id),
-      backend: Backends.default_backend(),
+      backend: backend,
       operation: :text,
-      messages: normalize_directive_messages(Map.get(directive, :context)),
-      system_prompt: Map.get(directive, :system_prompt),
+      prompt: prompt,
+      messages: messages,
+      system_prompt: system_prompt,
       model: resolve_directive_model(directive),
       timeout_ms: Map.get(directive, :timeout),
       max_tokens: Map.get(directive, :max_tokens),
       temperature: Map.get(directive, :temperature),
       tool_intent: build_tool_intent(directive),
+      workspace: build_workspace(directive),
       backend_metadata: build_llm_backend_metadata(directive),
       metadata: Map.get(directive, :metadata, %{})
     })
@@ -133,11 +162,12 @@ defmodule Jido.AI.Directive.Helpers do
   def build_embedding_request(directive) when is_map(directive) do
     Request.new(%{
       request_id: Map.get(directive, :id),
-      backend: Backends.default_backend(),
+      backend: directive_backend(directive),
       operation: :embedding,
       model: Map.get(directive, :model),
       inputs: List.wrap(Map.get(directive, :texts)),
       timeout_ms: Map.get(directive, :timeout),
+      workspace: build_workspace(directive),
       backend_metadata: build_embedding_backend_metadata(directive),
       metadata: Map.get(directive, :metadata, %{})
     })
@@ -216,19 +246,127 @@ defmodule Jido.AI.Directive.Helpers do
 
   defp build_llm_backend_metadata(directive) do
     directive
-    |> Map.get(:req_http_options, [])
-    |> case do
-      [] -> %{}
-      req_http_options when is_list(req_http_options) -> %{req_http_options: req_http_options}
-      _ -> %{}
-    end
+    |> explicit_backend_metadata()
+    |> maybe_put_backend_metadata(:req_http_options, Map.get(directive, :req_http_options, []))
   end
 
   defp build_embedding_backend_metadata(directive) do
-    case Map.get(directive, :dimensions) do
-      dimensions when is_integer(dimensions) -> %{dimensions: dimensions}
-      _ -> %{}
+    directive
+    |> explicit_backend_metadata()
+    |> maybe_put_backend_metadata(:dimensions, Map.get(directive, :dimensions))
+  end
+
+  defp directive_backend(directive) when is_map(directive) do
+    Backends.request_backend(directive)
+  end
+
+  defp explicit_backend_metadata(directive) when is_map(directive) do
+    directive
+    |> Map.get(:backend_metadata, Map.get(directive, "backend_metadata", %{}))
+    |> normalize_map_value()
+  end
+
+  defp build_workspace(directive) when is_map(directive) do
+    workspace =
+      directive
+      |> Map.get(:workspace, Map.get(directive, "workspace", %{}))
+      |> normalize_map_value()
+
+    if map_size(workspace) == 0, do: nil, else: workspace
+  end
+
+  defp maybe_prompt_only_request(:harness, context, fallback_system_prompt) do
+    extract_single_prompt(context, fallback_system_prompt)
+  end
+
+  defp maybe_prompt_only_request(_backend, _context, _fallback_system_prompt), do: :unsupported
+
+  defp extract_single_prompt(prompt, fallback_system_prompt) when is_binary(prompt) and prompt != "" do
+    {:ok, prompt, normalize_optional_text(fallback_system_prompt)}
+  end
+
+  defp extract_single_prompt(%{messages: messages}, fallback_system_prompt) when is_list(messages),
+    do: extract_single_prompt(messages, fallback_system_prompt)
+
+  defp extract_single_prompt(%{"messages" => messages}, fallback_system_prompt) when is_list(messages),
+    do: extract_single_prompt(messages, fallback_system_prompt)
+
+  defp extract_single_prompt([message], fallback_system_prompt) do
+    case message_role(message) do
+      role when role in [:user, "user"] ->
+        message
+        |> message_content()
+        |> content_to_text()
+        |> case do
+          nil -> :unsupported
+          prompt -> {:ok, prompt, normalize_optional_text(fallback_system_prompt)}
+        end
+
+      _ ->
+        :unsupported
     end
   end
 
+  defp extract_single_prompt([system_message, user_message], fallback_system_prompt) do
+    case {message_role(system_message), message_role(user_message)} do
+      {system_role, user_role} when system_role in [:system, "system"] and user_role in [:user, "user"] ->
+        with system_prompt when not is_nil(system_prompt) <-
+               normalize_optional_text(fallback_system_prompt) ||
+                 system_message |> message_content() |> content_to_text(),
+             prompt when not is_nil(prompt) <- user_message |> message_content() |> content_to_text() do
+          {:ok, prompt, system_prompt}
+        else
+          _ -> :unsupported
+        end
+
+      _ ->
+        :unsupported
+    end
+  end
+
+  defp extract_single_prompt(_context, _fallback_system_prompt), do: :unsupported
+
+  defp message_role(%{role: role}), do: role
+  defp message_role(%{"role" => role}), do: role
+  defp message_role(_), do: nil
+
+  defp message_content(%{content: content}), do: content
+  defp message_content(%{"content" => content}), do: content
+  defp message_content(_), do: nil
+
+  defp content_to_text(content) when is_binary(content) and content != "", do: content
+
+  defp content_to_text(parts) when is_list(parts) do
+    parts
+    |> Enum.map(fn
+      %{text: text} when is_binary(text) -> text
+      %{"text" => text} when is_binary(text) -> text
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join()
+    |> case do
+      "" -> nil
+      text -> text
+    end
+  end
+
+  defp content_to_text(_), do: nil
+
+  defp normalize_optional_text(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      text -> text
+    end
+  end
+
+  defp normalize_optional_text(_), do: nil
+
+  defp maybe_put_backend_metadata(metadata, _key, nil), do: metadata
+  defp maybe_put_backend_metadata(metadata, _key, []), do: metadata
+  defp maybe_put_backend_metadata(metadata, key, value), do: Map.put(metadata, key, value)
+
+  defp normalize_map_value(value) when is_list(value), do: Map.new(value)
+  defp normalize_map_value(value) when is_map(value), do: value
+  defp normalize_map_value(_), do: %{}
 end

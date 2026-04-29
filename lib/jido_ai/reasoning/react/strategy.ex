@@ -36,6 +36,7 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
   alias Jido.Agent
   alias Jido.Agent.Directive, as: AgentDirective
   alias Jido.Agent.Strategy.State, as: StratState
+  alias Jido.AI.Backends
   alias Jido.AI.Observe
   alias Jido.AI.Directive
   alias Jido.AI.Effects
@@ -60,6 +61,7 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
           actions_by_name: %{String.t() => module()},
           request_transformer: module() | nil,
           system_prompt: String.t(),
+          backend: atom(),
           model: String.t(),
           max_iterations: pos_integer(),
           max_tokens: pos_integer(),
@@ -80,6 +82,8 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
           observability: map(),
           runtime_adapter: true,
           runtime_task_supervisor: pid() | atom() | nil,
+          base_workspace: map(),
+          base_backend_metadata: map(),
           agent_id: String.t() | nil
         }
 
@@ -182,10 +186,13 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
         Zoi.object(%{
           query: Zoi.string(),
           request_id: Zoi.string() |> Zoi.optional(),
+          backend: Zoi.atom() |> Zoi.optional(),
           tool_context: Zoi.map() |> Zoi.optional(),
           tools: Zoi.any() |> Zoi.optional(),
           allowed_tools: Zoi.list(Zoi.string()) |> Zoi.optional(),
           request_transformer: Zoi.atom() |> Zoi.optional(),
+          workspace: Zoi.map() |> Zoi.optional(),
+          backend_metadata: Zoi.map() |> Zoi.optional(),
           stream_to: Zoi.any() |> Zoi.optional(),
           stream_receive_timeout_ms: Zoi.integer() |> Zoi.optional(),
           stream_timeout_ms: Zoi.integer() |> Zoi.optional(),
@@ -593,6 +600,10 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
       base_req_http_options = normalize_req_http_options(config[:base_req_http_options])
       effective_req_http_options = base_req_http_options ++ run_req_http_options
       run_llm_opts = Map.get(state, :run_llm_opts, [])
+      run_workspace = normalize_map_opt(Map.get(params, :workspace, %{}))
+      run_backend_metadata = normalize_map_opt(Map.get(params, :backend_metadata, %{}))
+      effective_workspace = Map.merge(config[:base_workspace] || %{}, run_workspace)
+      effective_backend_metadata = Map.merge(config[:base_backend_metadata] || %{}, run_backend_metadata)
       provider_opt_keys_by_string = config[:provider_opt_keys_by_string] || %{}
       base_llm_opts = normalize_llm_opts(config[:base_llm_opts], provider_opt_keys_by_string)
       effective_llm_opts = Keyword.merge(base_llm_opts, run_llm_opts)
@@ -604,6 +615,9 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
            {:ok, pending_input_server} <- PendingInput.start(request_id) do
         runtime_config =
           runtime_config_from_strategy(config,
+            backend: Map.get(params, :backend),
+            workspace: effective_workspace,
+            backend_metadata: effective_backend_metadata,
             req_http_options: effective_req_http_options,
             llm_opts: effective_llm_opts,
             tools: effective_tools,
@@ -1834,6 +1848,7 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
 
   defp runtime_config_from_strategy(config, opts) do
     provider_opt_keys_by_string = config[:provider_opt_keys_by_string] || %{}
+    backend = Keyword.get(opts, :backend, config[:backend] || Backends.default_backend())
 
     req_http_options =
       opts
@@ -1855,9 +1870,12 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
       )
 
     runtime_opts = %{
+      backend: backend,
       model: config[:model],
       system_prompt: config[:system_prompt],
       tools: tools,
+      workspace: Keyword.get(opts, :workspace, config[:base_workspace] || %{}),
+      backend_metadata: Keyword.get(opts, :backend_metadata, config[:base_backend_metadata] || %{}),
       request_transformer: request_transformer,
       max_iterations: config[:max_iterations],
       max_tokens: config[:max_tokens],
@@ -2137,9 +2155,10 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
     actions_by_name = Map.new(tools_modules, &{&1.name(), &1})
     reqllm_tools = ToolAdapter.from_actions(tools_modules)
 
-    raw_model = Keyword.get(opts, :model, Map.get(agent.state, :model, @default_model))
-    resolved_model = resolve_model_spec(raw_model)
-    provider_opt_keys_by_string = provider_opt_keys_by_string(resolved_model)
+    raw_backend = Backends.request_backend(opts)
+    raw_model = Keyword.get(opts, :model, Map.get(agent.state, :model, default_model_for_backend(raw_backend)))
+    resolved_model = resolve_model_spec(raw_model, raw_backend)
+    provider_opt_keys_by_string = provider_opt_keys_by_string(raw_backend, resolved_model)
 
     request_policy = validate_request_policy!(Keyword.get(opts, :request_policy, :reject))
     effect_policy = Effects.intersect_policies(agent_effect_policy, strategy_effect_policy)
@@ -2150,6 +2169,7 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
       actions_by_name: actions_by_name,
       request_transformer: validate_request_transformer_opt!(Keyword.get(opts, :request_transformer)),
       system_prompt: normalize_system_prompt_opt(opts),
+      backend: Backends.request_backend(opts),
       model: resolved_model,
       max_iterations: Keyword.get(opts, :max_iterations, @default_max_iterations),
       max_tokens: Keyword.get(opts, :max_tokens, @default_max_tokens),
@@ -2178,6 +2198,8 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
         ),
       agent_id: agent.id,
       base_tool_context: Map.get(agent.state, :tool_context) || tool_context_opt,
+      base_workspace: opts |> Keyword.get(:workspace, %{}) |> normalize_map_opt(),
+      base_backend_metadata: opts |> Keyword.get(:backend_metadata, %{}) |> normalize_map_opt(),
       base_req_http_options: opts |> Keyword.get(:req_http_options, []) |> normalize_req_http_options(),
       base_llm_opts: opts |> Keyword.get(:llm_opts, []) |> normalize_llm_opts(provider_opt_keys_by_string),
       provider_opt_keys_by_string: provider_opt_keys_by_string
@@ -2201,7 +2223,14 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
     end
   end
 
-  defp resolve_model_spec(model), do: Jido.AI.resolve_model(model)
+  defp resolve_model_spec(nil, :req_llm), do: Jido.AI.resolve_model(@default_model)
+  defp resolve_model_spec(model, :req_llm), do: Jido.AI.resolve_model(model)
+  defp resolve_model_spec(nil, _backend), do: nil
+  defp resolve_model_spec("", _backend), do: nil
+  defp resolve_model_spec(model, _backend), do: model
+
+  defp default_model_for_backend(:req_llm), do: @default_model
+  defp default_model_for_backend(_backend), do: nil
 
   defp validate_request_policy!(:reject), do: :reject
 
@@ -2522,8 +2551,10 @@ defmodule Jido.AI.Reasoning.ReAct.Strategy do
     end
   end
 
-  defp provider_opt_keys_by_string(model_spec),
+  defp provider_opt_keys_by_string(:req_llm, model_spec),
     do: Jido.AI.provider_opt_keys(model_spec)
+
+  defp provider_opt_keys_by_string(_backend, _model_spec), do: %{}
 
   defp generate_call_id, do: "req_#{Jido.Util.generate_id()}"
 

@@ -460,18 +460,24 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
 
   defp build_backend_request(%State{} = state, %Config{} = config, messages, llm_opts, tools)
        when is_list(messages) and is_list(llm_opts) and is_map(tools) do
+    {prompt, backend_messages, system_prompt} =
+      normalize_backend_messages(config.backend, messages, config.system_prompt)
+
     Request.new(%{
       request_id: state.request_id,
-      backend: Backends.default_backend(),
+      backend: config.backend,
       operation: :text,
       stream?: config.streaming,
-      messages: messages,
+      prompt: prompt,
+      messages: backend_messages,
+      system_prompt: system_prompt,
       model: config.model,
       timeout_ms: Keyword.get(llm_opts, :receive_timeout, config.llm.timeout_ms),
       max_tokens: Keyword.get(llm_opts, :max_tokens, config.llm.max_tokens),
       temperature: Keyword.get(llm_opts, :temperature, config.llm.temperature),
       tool_intent: build_backend_tool_intent(tools, llm_opts),
-      backend_metadata: build_backend_metadata(llm_opts),
+      workspace: build_backend_workspace(config),
+      backend_metadata: build_backend_metadata(config, llm_opts),
       metadata: %{
         run_id: state.run_id,
         iteration: state.iteration,
@@ -487,11 +493,21 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
     }
   end
 
-  defp build_backend_metadata(llm_opts) when is_list(llm_opts) do
-    %{}
+  defp build_backend_workspace(%Config{workspace: workspace}) when is_map(workspace) and map_size(workspace) > 0 do
+    workspace
+  end
+
+  defp build_backend_workspace(%Config{}), do: nil
+
+  defp build_backend_metadata(%Config{backend: :req_llm, backend_metadata: metadata}, llm_opts)
+       when is_list(llm_opts) do
+    metadata
     |> maybe_put_backend_metadata(:req_http_options, Keyword.get(llm_opts, :req_http_options))
     |> maybe_put_backend_metadata(:opts, backend_extra_opts(llm_opts))
   end
+
+  defp build_backend_metadata(%Config{backend_metadata: metadata}, _llm_opts) when is_map(metadata), do: metadata
+  defp build_backend_metadata(%Config{}, _llm_opts), do: %{}
 
   defp maybe_put_backend_metadata(metadata, _key, nil), do: metadata
   defp maybe_put_backend_metadata(metadata, _key, []), do: metadata
@@ -501,8 +517,87 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
     Keyword.drop(llm_opts, [:max_tokens, :temperature, :receive_timeout, :req_http_options, :tool_choice, :tools])
   end
 
+  defp normalize_backend_messages(:harness, messages, fallback_system_prompt) do
+    case harness_prompt_from_messages(messages, fallback_system_prompt) do
+      {:ok, prompt, system_prompt} -> {prompt, [], system_prompt}
+      :unsupported -> {nil, messages, nil}
+    end
+  end
+
+  defp normalize_backend_messages(_backend, messages, _fallback_system_prompt), do: {nil, messages, nil}
+
   defp normalize_runtime_llm_opts(llm_opts) when is_list(llm_opts), do: Keyword.delete(llm_opts, :tools)
   defp normalize_runtime_llm_opts(_llm_opts), do: []
+
+  defp harness_prompt_from_messages([message], fallback_system_prompt) do
+    case message_role(message) do
+      role when role in [:user, "user"] ->
+        message
+        |> message_content()
+        |> message_text()
+        |> case do
+          nil -> :unsupported
+          prompt -> {:ok, prompt, normalize_optional_text(fallback_system_prompt)}
+        end
+
+      _ ->
+        :unsupported
+    end
+  end
+
+  defp harness_prompt_from_messages([system_message, user_message], fallback_system_prompt) do
+    case {message_role(system_message), message_role(user_message)} do
+      {system_role, user_role} when system_role in [:system, "system"] and user_role in [:user, "user"] ->
+        with system_prompt when not is_nil(system_prompt) <-
+               normalize_optional_text(fallback_system_prompt) || system_message |> message_content() |> message_text(),
+             prompt when not is_nil(prompt) <- user_message |> message_content() |> message_text() do
+          {:ok, prompt, system_prompt}
+        else
+          _ -> :unsupported
+        end
+
+      _ ->
+        :unsupported
+    end
+  end
+
+  defp harness_prompt_from_messages(_messages, _fallback_system_prompt), do: :unsupported
+
+  defp message_role(%{role: role}), do: role
+  defp message_role(%{"role" => role}), do: role
+  defp message_role(_message), do: nil
+
+  defp message_content(%{content: content}), do: content
+  defp message_content(%{"content" => content}), do: content
+  defp message_content(_message), do: nil
+
+  defp message_text(content) when is_binary(content) and content != "", do: content
+
+  defp message_text(parts) when is_list(parts) do
+    parts
+    |> Enum.map(fn
+      %{text: text} when is_binary(text) -> text
+      %{"text" => text} when is_binary(text) -> text
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join()
+    |> case do
+      "" -> nil
+      text -> text
+    end
+  end
+
+  defp message_text(_content), do: nil
+
+  defp normalize_optional_text(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      text -> text
+    end
+  end
+
+  defp normalize_optional_text(_value), do: nil
 
   defp backend_started_event(%Request{} = request) do
     Jido.AI.Backend.Event.new(%{

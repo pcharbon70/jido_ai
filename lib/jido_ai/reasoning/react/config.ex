@@ -1,8 +1,10 @@
 defmodule Jido.AI.Reasoning.ReAct.Config do
+  # covers: jido_ai.strategies.standalone_react_runtime
   @moduledoc """
   Canonical configuration for the Task-based ReAct runtime.
   """
 
+  alias Jido.AI.Backends
   alias Jido.AI.Reasoning.ReAct.RequestTransformer
   alias Jido.AI.ToolAdapter
   require Logger
@@ -55,9 +57,12 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
             __MODULE__,
             %{
               version: Zoi.integer() |> Zoi.default(1),
-              model: Zoi.any(description: "Resolved ReqLLM model input"),
+              backend: Zoi.atom() |> Zoi.default(:req_llm),
+              model: Zoi.any(description: "Resolved backend model input") |> Zoi.nullish(),
               system_prompt: Zoi.string() |> Zoi.nullish(),
               tools: Zoi.map() |> Zoi.default(%{}),
+              workspace: Zoi.map() |> Zoi.default(%{}),
+              backend_metadata: Zoi.map() |> Zoi.default(%{}),
               request_transformer: Zoi.atom() |> Zoi.nullish(),
               pending_input_server: Zoi.any() |> Zoi.nullish(),
               max_iterations: Zoi.integer() |> Zoi.default(@default_max_iterations),
@@ -87,8 +92,10 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
   @spec new(map() | keyword()) :: t()
   def new(opts \\ %{}) do
     opts_map = normalize_opts(opts)
-    resolved_model = opts_map |> get_opt(:model, @default_model) |> Jido.AI.resolve_model()
-    provider_opt_keys_by_string = provider_opt_keys_by_string(resolved_model)
+    backend = Backends.request_backend(opts_map)
+    raw_model = get_opt(opts_map, :model, default_model_for_backend(backend))
+    resolved_model = resolve_model_for_backend(raw_model, backend)
+    provider_opt_keys_by_string = provider_opt_keys_by_string(backend, resolved_model)
 
     tools =
       opts_map
@@ -138,9 +145,12 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
 
     attrs = %{
       version: 1,
+      backend: backend,
       model: resolved_model,
       system_prompt: normalize_optional_binary(get_opt(opts_map, :system_prompt, nil)),
       tools: tools,
+      workspace: normalize_workspace(get_opt(opts_map, :workspace, %{})),
+      backend_metadata: normalize_backend_metadata(get_opt(opts_map, :backend_metadata, %{})),
       request_transformer: normalize_request_transformer(get_opt(opts_map, :request_transformer, nil)),
       pending_input_server: get_opt(opts_map, :pending_input_server, nil),
       max_iterations:
@@ -170,7 +180,8 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
 
     parts = [
       "v#{config.version}",
-      Jido.AI.model_fingerprint_segment(config.model),
+      Atom.to_string(config.backend),
+      backend_model_fingerprint_segment(config.backend, config.model),
       config.system_prompt || "",
       Integer.to_string(config.max_iterations),
       to_string(config.streaming),
@@ -179,7 +190,8 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
       Integer.to_string(config.tool_exec.retry_backoff_ms),
       Integer.to_string(config.tool_exec.concurrency),
       Enum.join(tool_names, ","),
-      RequestTransformer.fingerprint(config.request_transformer)
+      RequestTransformer.fingerprint(config.request_transformer),
+      backend_context_fingerprint(config)
     ]
 
     :crypto.hash(:sha256, Enum.join(parts, "|"))
@@ -216,7 +228,7 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
   and `ReqLLM.Generation.generate_text/3`.
   """
   @spec llm_opts(t()) :: keyword()
-  def llm_opts(%__MODULE__{} = config) do
+  def llm_opts(%__MODULE__{backend: :req_llm} = config) do
     opts = [
       max_tokens: config.llm.max_tokens,
       temperature: config.llm.temperature,
@@ -234,6 +246,21 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
     end
   end
 
+  def llm_opts(%__MODULE__{} = config) do
+    opts = [
+      max_tokens: config.llm.max_tokens,
+      temperature: config.llm.temperature
+    ]
+
+    opts = maybe_merge_llm_opts(opts, config.llm.llm_opts)
+
+    if is_integer(config.llm.timeout_ms) do
+      Keyword.put(opts, :receive_timeout, config.llm.timeout_ms)
+    else
+      opts
+    end
+  end
+
   @doc """
   Merge request-scoped LLM option overrides into an existing normalized option list.
   """
@@ -241,7 +268,7 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
   def merge_llm_opts(%__MODULE__{} = _config, base_opts, nil) when is_list(base_opts), do: base_opts
 
   def merge_llm_opts(%__MODULE__{} = config, base_opts, overrides) when is_list(base_opts) do
-    provider_opt_keys_by_string = provider_opt_keys_by_string(config.model)
+    provider_opt_keys_by_string = provider_opt_keys_by_string(config.backend, config.model)
     normalized_overrides = normalize_llm_opts(overrides, provider_opt_keys_by_string)
     maybe_merge_llm_opts(base_opts, normalized_overrides)
   end
@@ -249,6 +276,28 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
   defp normalize_opts(opts) when is_list(opts), do: Map.new(opts)
   defp normalize_opts(opts) when is_map(opts), do: opts
   defp normalize_opts(_), do: %{}
+
+  defp default_model_for_backend(:req_llm), do: @default_model
+  defp default_model_for_backend(_backend), do: nil
+
+  defp backend_model_fingerprint_segment(:req_llm, model), do: Jido.AI.model_fingerprint_segment(model)
+  defp backend_model_fingerprint_segment(_backend, nil), do: ""
+  defp backend_model_fingerprint_segment(_backend, model) when is_binary(model), do: model
+
+  defp backend_model_fingerprint_segment(_backend, model) when is_atom(model),
+    do: Atom.to_string(model)
+
+  defp backend_model_fingerprint_segment(_backend, model) do
+    model
+    |> :erlang.term_to_binary([:deterministic])
+    |> Base.url_encode64(padding: false)
+  end
+
+  defp resolve_model_for_backend(nil, :req_llm), do: Jido.AI.resolve_model(@default_model)
+  defp resolve_model_for_backend(model, :req_llm), do: Jido.AI.resolve_model(model)
+  defp resolve_model_for_backend(nil, _backend), do: nil
+  defp resolve_model_for_backend("", _backend), do: nil
+  defp resolve_model_for_backend(model, _backend), do: model
 
   defp get_opt(map, key, default) when is_map(map) do
     Map.get(map, key, Map.get(map, Atom.to_string(key), default))
@@ -310,6 +359,14 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
 
   defp normalize_optional_binary(value) when is_binary(value) and value != "", do: value
   defp normalize_optional_binary(_), do: nil
+
+  defp normalize_workspace(value) when is_list(value), do: value |> Map.new() |> normalize_workspace()
+  defp normalize_workspace(value) when is_map(value), do: value
+  defp normalize_workspace(_), do: %{}
+
+  defp normalize_backend_metadata(value) when is_list(value), do: value |> Map.new() |> normalize_backend_metadata()
+  defp normalize_backend_metadata(value) when is_map(value), do: value
+  defp normalize_backend_metadata(_), do: %{}
 
   defp normalize_request_transformer(request_transformer) do
     case RequestTransformer.validate(request_transformer) do
@@ -416,7 +473,17 @@ defmodule Jido.AI.Reasoning.ReAct.Config do
     end
   end
 
-  defp provider_opt_keys_by_string(model_spec), do: Jido.AI.provider_opt_keys(model_spec)
+  defp provider_opt_keys_by_string(:req_llm, model_spec), do: Jido.AI.provider_opt_keys(model_spec)
+  defp provider_opt_keys_by_string(_backend, _model_spec), do: %{}
+
+  defp backend_context_fingerprint(%__MODULE__{} = config) do
+    %{
+      workspace: config.workspace,
+      backend_metadata: config.backend_metadata
+    }
+    |> :erlang.term_to_binary([:deterministic])
+    |> Base.url_encode64(padding: false)
+  end
 
   defp maybe_merge_llm_opts(opts, llm_opts) when is_list(llm_opts) do
     if llm_opts == [] do

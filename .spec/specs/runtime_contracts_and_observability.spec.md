@@ -35,12 +35,12 @@ surface:
   stability: stable
 
 - id: jido_ai.runtime_contracts.directive_signal_envelopes
-  statement: Directives shall emit standardized request, llm, tool, and embed signal/result envelopes with explicit correlation, retry, and timeout semantics.
+  statement: Directives shall emit standardized request, llm, tool, and embed signal/result envelopes with explicit correlation, retry, and timeout semantics, even when backend-specific progress or capability failures are translated underneath them.
   priority: must
   stability: stable
 
 - id: jido_ai.runtime_contracts.backend_normalization_boundary
-  statement: Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them, including directive request building, canonical tool manifests, and stream-progress translation for ai.llm and ai.embed runtime paths.
+  statement: Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them, including directive request building, canonical tool manifests, prompt-plus-workspace Harness request shaping, and stream-progress translation for ai.llm and ai.embed runtime paths.
   priority: must
   stability: evolving
 
@@ -80,6 +80,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_ai/backend/result.ex
+  covers:
+    - jido_ai.runtime_contracts.backend_normalization_boundary
+
+- kind: source_file
+  target: lib/jido_ai/backends/harness.ex
   covers:
     - jido_ai.runtime_contracts.backend_normalization_boundary
 

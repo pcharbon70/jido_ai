@@ -245,6 +245,85 @@ defmodule Jido.AI.Reasoning.ReAct.RuntimeRunnerTest do
     assert Enum.any?(events, &(&1.kind == :request_completed))
   end
 
+  test "routes prompt-plus-workspace runs through harness when the runtime contract is compatible" do
+    expect(Jido.Harness, :capabilities, fn :codex ->
+      {:ok, %Jido.Harness.Capabilities{cancellation?: false}}
+    end)
+
+    expect(Jido.Harness, :run_request, fn :codex, %Jido.Harness.RunRequest{} = run_request, [] ->
+      assert run_request.prompt == "Say hello"
+      assert run_request.system_prompt == "Keep it brief"
+      assert run_request.cwd == "/tmp/project"
+      assert run_request.model == nil
+      assert run_request.metadata["request_id"] == "req_harness_runtime"
+      assert run_request.metadata["backend"] == "harness"
+
+      {:ok,
+       [
+         Jido.Harness.Event.new!(%{
+           type: :session_started,
+           provider: :codex,
+           session_id: "sess_react",
+           timestamp: "2026-04-29T12:30:00Z",
+           payload: %{}
+         }),
+         Jido.Harness.Event.new!(%{
+           type: :usage,
+           provider: :codex,
+           session_id: "sess_react",
+           payload: %{"input_tokens" => 4, "output_tokens" => 6}
+         }),
+         Jido.Harness.Event.new!(%{
+           type: :final,
+           provider: :codex,
+           session_id: "sess_react",
+           payload: %{"text" => "Hello from harness", "finish_reason" => "completed"}
+         })
+       ]}
+    end)
+
+    config =
+      Config.new(%{
+        backend: :harness,
+        system_prompt: "Keep it brief",
+        workspace: %{cwd: "/tmp/project"},
+        backend_metadata: %{provider: :codex},
+        tools: %{}
+      })
+
+    events =
+      ReAct.stream("Say hello", config, request_id: "req_harness_runtime", run_id: "run_harness_runtime")
+      |> Enum.to_list()
+
+    assert Enum.any?(events, &(&1.kind == :llm_started))
+    assert Enum.any?(events, &(&1.kind == :request_completed and &1.data.result == "Hello from harness"))
+  end
+
+  test "fails explicitly when harness-backed runs would require local tool execution" do
+    config =
+      Config.new(%{
+        backend: :harness,
+        system_prompt: "Use tools when needed",
+        workspace: %{cwd: "/tmp/project"},
+        backend_metadata: %{provider: :codex},
+        tools: %{CalculatorTool.name() => CalculatorTool}
+      })
+
+    events =
+      ReAct.stream("What is 2 + 2?", config, request_id: "req_harness_tools", run_id: "run_harness_tools")
+      |> Enum.to_list()
+
+    assert Enum.any?(events, &(&1.kind == :llm_started))
+
+    assert Enum.any?(events, fn
+             %{kind: :request_failed, data: %{error: %Jido.AI.Error.Backend.UnsupportedCapability{} = error}} ->
+               error.backend == :harness and error.capability == :local_tools and error.operation == :text
+
+             _ ->
+               false
+           end)
+  end
+
   test "drains pending input after a final answer before completing the request" do
     {:ok, pending_input_server} =
       PendingInputServer.start_link(owner: self(), request_id: "req_pending_after_final")

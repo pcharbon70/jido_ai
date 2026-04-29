@@ -1,4 +1,5 @@
 defmodule Jido.AI.Request do
+  # covers: jido_ai.core_runtime.additive_backend_selection jido_ai.core_runtime.request_handles
   @moduledoc """
   Request tracking for AI agents with per-request isolation and correlation.
 
@@ -153,11 +154,13 @@ defmodule Jido.AI.Request do
 
   ## Options
 
-  - `:backend` - Explicit additive backend override for this request path (`:req_llm` today)
+  - `:backend` - Explicit additive backend override for this request path (`:req_llm` by default)
   - `:tool_context` - Additional context merged with agent's tool_context
   - `:tools` - ReAct-only request-scoped tool registry override for this run
   - `:allowed_tools` - ReAct-only request-scoped allowlist of tool names
   - `:request_transformer` - ReAct-only module implementing per-turn request shaping
+  - `:workspace` - Backend-neutral workspace context such as `cwd`, `attachments`, and `session_id`
+  - `:backend_metadata` - Backend-specific additive metadata such as Harness provider or allowed CLI tools
   - `:stream_timeout_ms` - ReAct-only request-scoped runtime inactivity timeout.
     `:stream_receive_timeout_ms` is accepted as a compatibility alias.
   - `:req_http_options` - Per-request Req HTTP options forwarded to ReAct runtime
@@ -189,13 +192,15 @@ defmodule Jido.AI.Request do
     tools = Keyword.get(opts, :tools)
     allowed_tools = Keyword.get(opts, :allowed_tools)
     request_transformer = Keyword.get(opts, :request_transformer)
+    workspace = normalize_map_opt(Keyword.get(opts, :workspace, %{}))
+    backend_metadata = normalize_map_opt(Keyword.get(opts, :backend_metadata, %{}))
     stream_timeout_ms = Keyword.get(opts, :stream_timeout_ms, Keyword.get(opts, :stream_receive_timeout_ms))
     req_http_options = Keyword.get(opts, :req_http_options, [])
     llm_opts = Keyword.get(opts, :llm_opts, [])
     request_id = Keyword.get_lazy(opts, :request_id, &generate_id/0)
     stream_to = Keyword.get(opts, :stream_to)
 
-    with {:ok, :req_llm} <- Jido.AI.Backends.ensure_supported_backend(opts, [:req_llm]),
+    with {:ok, _backend} <- Jido.AI.Backends.ensure_supported_backend(opts, [:req_llm, :harness]),
          {:ok, stream_to} <- RequestStream.normalize_sink(stream_to) do
       # Build payload with request_id for correlation.
       # Keep both query and prompt keys so all strategy start schemas can consume it.
@@ -207,6 +212,8 @@ defmodule Jido.AI.Request do
         |> maybe_add_tools(tools)
         |> maybe_add_allowed_tools(allowed_tools)
         |> maybe_add_request_transformer(request_transformer)
+        |> maybe_add_workspace(workspace)
+        |> maybe_add_backend_metadata(backend_metadata)
         |> maybe_add_stream_timeout_ms(stream_timeout_ms)
         |> maybe_add_req_http_options(req_http_options)
         |> maybe_add_llm_opts(llm_opts)
@@ -577,6 +584,19 @@ defmodule Jido.AI.Request do
   defp maybe_add_request_transformer(payload, request_transformer),
     do: Map.put(payload, :request_transformer, request_transformer)
 
+  defp maybe_add_workspace(payload, workspace) when is_map(workspace) and map_size(workspace) > 0 do
+    Map.put(payload, :workspace, workspace)
+  end
+
+  defp maybe_add_workspace(payload, _), do: payload
+
+  defp maybe_add_backend_metadata(payload, backend_metadata)
+       when is_map(backend_metadata) and map_size(backend_metadata) > 0 do
+    Map.put(payload, :backend_metadata, backend_metadata)
+  end
+
+  defp maybe_add_backend_metadata(payload, _), do: payload
+
   defp maybe_add_req_http_options(payload, req_http_options)
        when is_list(req_http_options) and req_http_options != [] do
     Map.put(payload, :req_http_options, req_http_options)
@@ -602,6 +622,10 @@ defmodule Jido.AI.Request do
 
   defp maybe_add_request_stream_to(request, nil), do: request
   defp maybe_add_request_stream_to(request, stream_to), do: Map.put(request, :stream_to, stream_to)
+
+  defp normalize_map_opt(value) when is_list(value), do: Map.new(value)
+  defp normalize_map_opt(value) when is_map(value), do: value
+  defp normalize_map_opt(_), do: %{}
 
   @doc false
   @spec compat_text(any()) :: String.t()

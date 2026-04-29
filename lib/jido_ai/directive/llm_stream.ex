@@ -27,6 +27,9 @@ defmodule Jido.AI.Directive.LLMStream do
               model_alias:
                 Zoi.atom(description: "Model alias (e.g., :fast) resolved via Config")
                 |> Zoi.optional(),
+              backend:
+                Zoi.atom(description: "Optional backend override (:req_llm | :harness)")
+                |> Zoi.optional(),
               system_prompt:
                 Zoi.string(description: "Optional system prompt prepended to context")
                 |> Zoi.optional(),
@@ -42,6 +45,12 @@ defmodule Jido.AI.Directive.LLMStream do
               max_tokens: Zoi.integer(description: "Maximum tokens to generate") |> Zoi.default(1024),
               temperature: Zoi.number(description: "Sampling temperature (0.0–2.0)") |> Zoi.default(0.2),
               timeout: Zoi.integer(description: "Request timeout in milliseconds") |> Zoi.optional(),
+              workspace:
+                Zoi.map(description: "Backend-neutral workspace context such as cwd or attachments")
+                |> Zoi.default(%{}),
+              backend_metadata:
+                Zoi.map(description: "Backend-specific additive metadata such as Harness provider selection")
+                |> Zoi.default(%{}),
               req_http_options:
                 Zoi.list(Zoi.any(), description: "Req HTTP client options passed through to ReqLLM")
                 |> Zoi.default([]),

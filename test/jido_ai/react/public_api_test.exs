@@ -1,4 +1,5 @@
 defmodule Jido.AI.Reasoning.ReAct.PublicApiTest do
+  # covers: jido_ai.examples_and_quality.executable_contract_regression_tests
   use ExUnit.Case, async: false
   use Mimic
 
@@ -32,6 +33,24 @@ defmodule Jido.AI.Reasoning.ReAct.PublicApiTest do
       assert ReAct.build_config(%{model: inline_model, tools: %{}}).model == inline_model
       assert ReAct.build_config(%{model: tuple_model, tools: %{}}).model == tuple_model
       assert ReAct.build_config(%{model: struct_model, tools: %{}}).model == struct_model
+    end
+
+    test "accepts harness config without forcing a ReqLLM model" do
+      config =
+        ReAct.build_config(%{
+          backend: :harness,
+          system_prompt: "Stay focused",
+          workspace: %{cwd: "/tmp/project"},
+          backend_metadata: %{provider: :codex},
+          tools: %{}
+        })
+
+      assert %Config{} = config
+      assert config.backend == :harness
+      assert config.model == nil
+      assert config.system_prompt == "Stay focused"
+      assert config.workspace == %{cwd: "/tmp/project"}
+      assert config.backend_metadata == %{provider: :codex}
     end
   end
 

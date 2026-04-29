@@ -120,7 +120,9 @@ You can also reserve an explicit backend per call without changing the entrypoin
 {:ok, _response} = Jido.AI.generate_text("Default backend path", backend: :req_llm)
 ```
 
-At the current phase, any backend other than `:req_llm` returns a structured unsupported-backend error.
+These thin facades stay ReqLLM-only. Selecting any backend other than `:req_llm` returns a structured unsupported-backend error instead of silently switching execution models.
+
+If you need harness-backed execution, use a compatible request-bearing path such as the standalone ReAct runtime or directive-driven runtime with explicit `backend: :harness`, `workspace`, and `backend_metadata` values.
 
 ## Failure Mode: Unknown Model Alias
 

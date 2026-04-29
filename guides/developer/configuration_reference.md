@@ -23,7 +23,7 @@ config :jido_ai,
 ```
 
 Package defaults are built into `Jido.AI`; `model_aliases` is merged on top for overrides.
-`llm_backend` defaults to `:req_llm`, and `llm_backends` is additive reserved config for future alternate backends.
+`llm_backend` defaults to `:req_llm`, and `llm_backends` is additive backend config.
 
 ## Strategy/Macro Defaults
 
@@ -80,16 +80,18 @@ Package defaults are built into `Jido.AI`; `model_aliases` is merged on top for 
 
 - await timeout: `30_000ms`
 - max retained requests per agent state: `100`
-- request-scoped ReAct overrides: `tools`, `allowed_tools`, `request_transformer`, `tool_context`, `req_http_options`, `llm_opts`
+- request-scoped ReAct overrides: `tools`, `allowed_tools`, `request_transformer`, `tool_context`, `req_http_options`, `llm_opts`, `workspace`, `backend_metadata`
 - request-scoped additive backend override: `backend`
 
 ## Backend Compatibility Rules
 
-- `:req_llm` remains the only executing backend in the current package state.
+- `:req_llm` remains the default backend and still owns direct facade behavior, structured object generation, embeddings, and full ReqLLM message or tool semantics.
+- `:harness` is available on compatible prompt-plus-workspace request-bearing paths such as standalone ReAct runtime runs, delegated request flows, and directive execution.
 - `model_aliases`, `llm_defaults`, `llm_opts`, and `req_http_options` continue to apply to the ReqLLM path unchanged.
-- Alternate backends use distinct additive config under `llm_backends`; they do not overload `model_aliases`.
+- Harness-specific provider, cwd, attachment, session, and CLI-tool shaping stays under additive `llm_backends` and request-scoped `workspace` / `backend_metadata`; it does not overload `model_aliases`.
 - Passing `backend: ...` to public facades or request-bearing agent calls does not change names or arities.
-- Passing any backend other than `:req_llm` currently returns a structured unsupported-backend error instead of silently falling back.
+- Direct facades such as `generate_text/2`, `generate_object/3`, `stream_text/2`, and `ask/2` remain ReqLLM-only and return a structured unsupported-backend error when another backend is selected.
+- Harness capability gaps stay explicit: unsupported message history, local tool execution, structured output, and embeddings fail with typed unsupported-capability errors instead of silently degrading behavior.
 
 ## Security Defaults
 

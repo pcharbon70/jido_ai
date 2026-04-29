@@ -60,7 +60,7 @@
         "id": "jido_ai.core_runtime.additive_backend_selection",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Backend selection for request-bearing entrypoints shall remain additive and explicit rather than replacing the current ask, await, generate, or stream API surface, and backend-neutral request envelopes shall own transport-specific option shaping before execution reaches an adapter.",
+        "statement": "Backend selection for request-bearing entrypoints shall remain additive and explicit rather than replacing the current ask, await, generate, or stream API surface, and backend-neutral request envelopes shall own transport-specific option shaping before execution reaches an adapter, including additive workspace and backend-metadata shaping for Harness-compatible request paths.",
         "subject_id": "jido_ai.core_runtime"
       },
       {
@@ -68,7 +68,7 @@
         "id": "jido_ai.core_runtime.llm_facades",
         "priority": "must",
         "stability": "stable",
-        "statement": "Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts, preserve the previous default ReqLLM-facing return shapes, and keep transport-specific tool or result structs out of the public facade boundary.",
+        "statement": "Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts, preserve the previous default ReqLLM-facing return shapes, keep transport-specific tool or result structs out of the public facade boundary, and keep the thin public facades ReqLLM-only until another backend can satisfy that same stable contract.",
         "subject_id": "jido_ai.core_runtime"
       },
       {
@@ -148,7 +148,7 @@
         "id": "jido_ai.runtime_contracts.backend_normalization_boundary",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them, including directive request building, canonical tool manifests, and stream-progress translation for ai.llm and ai.embed runtime paths.",
+        "statement": "Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them, including directive request building, canonical tool manifests, prompt-plus-workspace Harness request shaping, and stream-progress translation for ai.llm and ai.embed runtime paths.",
         "subject_id": "jido_ai.runtime_contracts"
       },
       {
@@ -164,7 +164,7 @@
         "id": "jido_ai.runtime_contracts.directive_signal_envelopes",
         "priority": "must",
         "stability": "stable",
-        "statement": "Directives shall emit standardized request, llm, tool, and embed signal/result envelopes with explicit correlation, retry, and timeout semantics.",
+        "statement": "Directives shall emit standardized request, llm, tool, and embed signal/result envelopes with explicit correlation, retry, and timeout semantics, even when backend-specific progress or capability failures are translated underneath them.",
         "subject_id": "jido_ai.runtime_contracts"
       },
       {
@@ -244,7 +244,7 @@
         "id": "jido_ai.strategies.standalone_react_runtime",
         "priority": "should",
         "stability": "evolving",
-        "statement": "Jido.AI.Reasoning.ReAct shall remain a standalone streaming and checkpoint-aware runtime that can run, start, continue, collect, cancel, steer, and inject outside agent macros while translating backend-neutral request, canonical tool manifests, and stream progress into the canonical ReAct runtime event surface.",
+        "statement": "Jido.AI.Reasoning.ReAct shall remain a standalone streaming and checkpoint-aware runtime that can run, start, continue, collect, cancel, steer, and inject outside agent macros while translating backend-neutral request, canonical tool manifests, and stream progress into the canonical ReAct runtime event surface, including explicit capability-gated Harness execution for compatible prompt-plus-workspace runs.",
         "subject_id": "jido_ai.strategies"
       },
       {
@@ -284,7 +284,7 @@
         "id": "jido_ai.tooling_and_configuration.explicit_configuration_defaults",
         "priority": "must",
         "stability": "stable",
-        "statement": "Configuration documentation shall keep additive backend selection, model aliases, llm defaults, strategy defaults, request defaults, security defaults, and CLI defaults explicit instead of implicit runtime convention.",
+        "statement": "Configuration documentation shall keep additive backend selection, model aliases, llm defaults, strategy defaults, request defaults, security defaults, and CLI defaults explicit instead of implicit runtime convention, including which surfaces remain ReqLLM-only and which request-bearing paths can adopt Harness explicitly.",
         "subject_id": "jido_ai.tooling_and_configuration"
       },
       {
@@ -805,6 +805,25 @@
       },
       {
         "covers": [
+          "jido_ai.core_runtime.additive_backend_selection"
+        ],
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai/backends/harness.ex"
+      },
+      {
+        "covers": [
+          "jido_ai.core_runtime.request_handles",
+          "jido_ai.core_runtime.additive_backend_selection"
+        ],
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai/request.ex"
+      },
+      {
+        "covers": [
           "jido_ai.core_runtime.react_agent_entrypoint"
         ],
         "file": ".spec/specs/core_runtime_and_requests.spec.md",
@@ -882,6 +901,15 @@
         "file": ".spec/specs/examples_and_quality.spec.md",
         "kind": "source_file",
         "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/request_test.exs"
+      },
+      {
+        "covers": [
+          "jido_ai.examples_and_quality.executable_contract_regression_tests"
+        ],
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.examples_and_quality",
         "target": "test/jido_ai/tool_adapter_test.exs"
       },
       {
@@ -910,6 +938,15 @@
         "kind": "source_file",
         "subject_id": "jido_ai.examples_and_quality",
         "target": "test/jido_ai/react/runtime_runner_test.exs"
+      },
+      {
+        "covers": [
+          "jido_ai.examples_and_quality.executable_contract_regression_tests"
+        ],
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/react/public_api_test.exs"
       },
       {
         "covers": [
@@ -1028,6 +1065,15 @@
         "kind": "source_file",
         "subject_id": "jido_ai.runtime_contracts",
         "target": "lib/jido_ai/backend/result.ex"
+      },
+      {
+        "covers": [
+          "jido_ai.runtime_contracts.backend_normalization_boundary"
+        ],
+        "file": ".spec/specs/runtime_contracts_and_observability.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.runtime_contracts",
+        "target": "lib/jido_ai/backends/harness.ex"
       },
       {
         "covers": [
@@ -1169,6 +1215,15 @@
         "kind": "source_file",
         "subject_id": "jido_ai.strategies",
         "target": "lib/jido_ai/reasoning/react/runner.ex"
+      },
+      {
+        "covers": [
+          "jido_ai.strategies.standalone_react_runtime"
+        ],
+        "file": ".spec/specs/strategies_and_reasoning.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.strategies",
+        "target": "lib/jido_ai/reasoning/react/config.ex"
       },
       {
         "covers": [
@@ -1374,7 +1429,7 @@
     "requirements": 45,
     "scenarios": 0,
     "subjects": 12,
-    "verifications": 74
+    "verifications": 80
   },
   "verification": {
     "claims": [
@@ -1544,6 +1599,39 @@
         "verification_index": 5
       },
       {
+        "cover_id": "jido_ai.core_runtime.additive_backend_selection",
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai/backends/harness.ex",
+        "verification_index": 6
+      },
+      {
+        "cover_id": "jido_ai.core_runtime.additive_backend_selection",
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai/request.ex",
+        "verification_index": 7
+      },
+      {
+        "cover_id": "jido_ai.core_runtime.request_handles",
+        "file": ".spec/specs/core_runtime_and_requests.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.core_runtime",
+        "target": "lib/jido_ai/request.ex",
+        "verification_index": 7
+      },
+      {
         "cover_id": "jido_ai.core_runtime.react_agent_entrypoint",
         "file": ".spec/specs/core_runtime_and_requests.spec.md",
         "kind": "guide_file",
@@ -1552,7 +1640,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.core_runtime",
         "target": "guides/user/first_react_agent.md",
-        "verification_index": 6
+        "verification_index": 8
       },
       {
         "cover_id": "jido_ai.core_runtime.request_handles",
@@ -1563,7 +1651,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.core_runtime",
         "target": "guides/user/request_lifecycle_and_concurrency.md",
-        "verification_index": 7
+        "verification_index": 9
       },
       {
         "cover_id": "jido_ai.examples_and_quality.top_level_runnable_examples",
@@ -1639,7 +1727,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/tool_adapter_test.exs",
+        "target": "test/jido_ai/request_test.exs",
         "verification_index": 6
       },
       {
@@ -1650,7 +1738,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/turn_test.exs",
+        "target": "test/jido_ai/tool_adapter_test.exs",
         "verification_index": 7
       },
       {
@@ -1661,7 +1749,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/directive/exec_runtime_test.exs",
+        "target": "test/jido_ai/turn_test.exs",
         "verification_index": 8
       },
       {
@@ -1672,7 +1760,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/react/runtime_runner_test.exs",
+        "target": "test/jido_ai/directive/exec_runtime_test.exs",
         "verification_index": 9
       },
       {
@@ -1683,7 +1771,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/integration/backend_boundary_phase1_test.exs",
+        "target": "test/jido_ai/react/runtime_runner_test.exs",
         "verification_index": 10
       },
       {
@@ -1694,7 +1782,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/integration/backend_boundary_phase2_test.exs",
+        "target": "test/jido_ai/react/public_api_test.exs",
         "verification_index": 11
       },
       {
@@ -1705,8 +1793,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/integration/backend_boundary_phase3_test.exs",
+        "target": "test/jido_ai/integration/backend_boundary_phase1_test.exs",
         "verification_index": 12
+      },
+      {
+        "cover_id": "jido_ai.examples_and_quality.executable_contract_regression_tests",
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/integration/backend_boundary_phase2_test.exs",
+        "verification_index": 13
+      },
+      {
+        "cover_id": "jido_ai.examples_and_quality.executable_contract_regression_tests",
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/integration/backend_boundary_phase3_test.exs",
+        "verification_index": 14
       },
       {
         "cover_id": "jido_ai.plugins.default_plugin_composition",
@@ -1837,7 +1947,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.runtime_contracts",
-        "target": "lib/jido_ai/directive/helpers.ex",
+        "target": "lib/jido_ai/backends/harness.ex",
         "verification_index": 6
       },
       {
@@ -1848,18 +1958,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.runtime_contracts",
-        "target": "lib/jido_ai/directive/llm_generate.ex",
-        "verification_index": 7
-      },
-      {
-        "cover_id": "jido_ai.runtime_contracts.directive_signal_envelopes",
-        "file": ".spec/specs/runtime_contracts_and_observability.spec.md",
-        "kind": "source_file",
-        "meets_minimum": true,
-        "required_strength": "claimed",
-        "strength": "linked",
-        "subject_id": "jido_ai.runtime_contracts",
-        "target": "lib/jido_ai/directive/llm_generate.ex",
+        "target": "lib/jido_ai/directive/helpers.ex",
         "verification_index": 7
       },
       {
@@ -1870,7 +1969,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.runtime_contracts",
-        "target": "lib/jido_ai/directive/llm_stream.ex",
+        "target": "lib/jido_ai/directive/llm_generate.ex",
         "verification_index": 8
       },
       {
@@ -1881,7 +1980,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.runtime_contracts",
-        "target": "lib/jido_ai/directive/llm_stream.ex",
+        "target": "lib/jido_ai/directive/llm_generate.ex",
         "verification_index": 8
       },
       {
@@ -1892,7 +1991,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.runtime_contracts",
-        "target": "lib/jido_ai/directive/llm_embed.ex",
+        "target": "lib/jido_ai/directive/llm_stream.ex",
         "verification_index": 9
       },
       {
@@ -1903,18 +2002,29 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.runtime_contracts",
-        "target": "lib/jido_ai/directive/llm_embed.ex",
+        "target": "lib/jido_ai/directive/llm_stream.ex",
         "verification_index": 9
       },
       {
-        "cover_id": "jido_ai.runtime_contracts.canonical_signals_and_telemetry",
+        "cover_id": "jido_ai.runtime_contracts.backend_normalization_boundary",
         "file": ".spec/specs/runtime_contracts_and_observability.spec.md",
-        "kind": "guide_file",
+        "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.runtime_contracts",
-        "target": "guides/developer/signals_namespaces_contracts.md",
+        "target": "lib/jido_ai/directive/llm_embed.ex",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "jido_ai.runtime_contracts.directive_signal_envelopes",
+        "file": ".spec/specs/runtime_contracts_and_observability.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.runtime_contracts",
+        "target": "lib/jido_ai/directive/llm_embed.ex",
         "verification_index": 10
       },
       {
@@ -1925,8 +2035,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.runtime_contracts",
-        "target": "guides/user/observability_basics.md",
+        "target": "guides/developer/signals_namespaces_contracts.md",
         "verification_index": 11
+      },
+      {
+        "cover_id": "jido_ai.runtime_contracts.canonical_signals_and_telemetry",
+        "file": ".spec/specs/runtime_contracts_and_observability.spec.md",
+        "kind": "guide_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.runtime_contracts",
+        "target": "guides/user/observability_basics.md",
+        "verification_index": 12
       },
       {
         "cover_id": "jido_ai.security_and_errors.validation_and_sanitization",
@@ -2059,6 +2180,17 @@
         "subject_id": "jido_ai.strategies",
         "target": "lib/jido_ai/reasoning/react/runner.ex",
         "verification_index": 4
+      },
+      {
+        "cover_id": "jido_ai.strategies.standalone_react_runtime",
+        "file": ".spec/specs/strategies_and_reasoning.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.strategies",
+        "target": "lib/jido_ai/reasoning/react/config.ex",
+        "verification_index": 5
       },
       {
         "cover_id": "jido_ai.thread_context_projection.dual_thread_and_context_model",
@@ -2341,7 +2473,7 @@
     "strength_summary": {
       "claimed": 2,
       "executed": 0,
-      "linked": 85
+      "linked": 92
     },
     "threshold_failures": 0
   },

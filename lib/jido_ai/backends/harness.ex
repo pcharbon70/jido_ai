@@ -361,7 +361,7 @@ defmodule Jido.AI.Backends.Harness do
   defp initial_state(%{run_request: %HarnessRunRequest{} = run_request, provider: provider}) do
     %{
       provider: provider,
-      model: run_request.model,
+      model: result_model(provider, run_request.model),
       session_id: nil,
       timestamp: nil,
       text_parts: [],
@@ -611,7 +611,7 @@ defmodule Jido.AI.Backends.Harness do
       thinking_content: thinking,
       tool_calls: state.tool_calls,
       usage: state.usage,
-      model: state.model || run_request.model,
+      model: state.model || result_model(provider, run_request.model),
       finish_reason: state.finish_reason,
       message_metadata:
         %{
@@ -643,6 +643,18 @@ defmodule Jido.AI.Backends.Harness do
 
   defp final_text(state), do: Enum.join(state.text_parts)
   defp final_thinking(state), do: state.thinking_parts |> Enum.join() |> normalize_optional_string()
+
+  defp result_model(provider, model) when is_binary(model) do
+    case String.trim(model) do
+      "" -> Atom.to_string(provider)
+      normalized -> normalized
+    end
+  end
+
+  defp result_model(provider, nil), do: Atom.to_string(provider)
+
+  defp result_model(provider, model),
+    do: normalize_optional_string(Jido.AI.model_label(model)) || Atom.to_string(provider)
 
   defp wrap_harness_error(provider, %Jido.Harness.Error.ProviderNotFoundError{} = error) do
     Error.Backend.ProviderUnavailable.exception(

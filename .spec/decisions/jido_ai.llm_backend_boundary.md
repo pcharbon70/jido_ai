@@ -83,6 +83,12 @@ Until a non-ReqLLM backend is implemented for a given call path, explicit
 selection of that backend shall return a structured unsupported-backend or
 unsupported-capability outcome instead of silently falling back to ReqLLM.
 
+The first additive `Jido.Harness` adoption slice is bounded:
+
+- direct facades remain ReqLLM-only
+- compatible prompt-plus-workspace directive, request, and standalone ReAct runtime paths may opt into Harness explicitly
+- unsupported Harness capabilities such as embeddings, structured objects, local Jido tool execution, and unreduced message history remain typed failures
+
 ## Consequences
 
 Jido.AI can introduce a backend abstraction incrementally without forcing a
@@ -116,6 +122,11 @@ projection.
 `Jido.Harness` integration should begin where prompt/cwd/session semantics are a
 natural fit, rather than forcing every existing ReqLLM-shaped surface to become
 immediately dual-backed.
+
+That means early Harness adoption is intentionally asymmetric. The package may
+support Harness on compatible request-bearing runtime paths before it supports
+the top-level facades or ReqLLM-specific capabilities, as long as those gaps
+stay explicit and non-breaking.
 
 Future spec and code changes that widen backend support should update the
 normalization boundaries and capability contracts instead of creating

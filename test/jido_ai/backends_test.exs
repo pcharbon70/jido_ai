@@ -103,18 +103,22 @@ defmodule Jido.AI.BackendsTest do
       assert signal.data.query == "What is 2+2?"
     end
 
-    test "create_and_send/3 fails fast for unsupported request backends" do
+    test "create_and_send/3 accepts harness overrides on request-bearing paths" do
       {:ok, server} = FakeRuntimeServer.start_link()
 
-      assert {:error, %Error.Backend.UnsupportedBackend{} = error} =
+      assert {:ok, _handle} =
                Request.create_and_send(server, "What is 2+2?",
                  signal_type: "ai.test.query",
                  source: "/ai/test",
-                 backend: :harness
+                 backend: :harness,
+                 workspace: %{cwd: "/tmp/project"},
+                 backend_metadata: %{provider: :codex}
                )
 
-      assert error.backend == :harness
-      assert FakeRuntimeServer.last_signal(server) == nil
+      signal = FakeRuntimeServer.last_signal(server)
+      assert signal.data.backend == :harness
+      assert signal.data.workspace == %{cwd: "/tmp/project"}
+      assert signal.data.backend_metadata == %{provider: :codex}
     end
   end
 

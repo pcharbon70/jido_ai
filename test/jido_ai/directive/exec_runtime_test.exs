@@ -63,6 +63,60 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
       assert response_signal.data.metadata == %{origin: :directive, operation: :generate_text}
     end
 
+    test "routes prompt-plus-workspace requests through harness when compatible" do
+      supervisor = DirectiveSupport.start_task_supervisor!()
+      on_exit(fn -> DirectiveSupport.stop_task_supervisor(supervisor) end)
+
+      expect(Jido.Harness, :capabilities, fn :codex ->
+        {:ok, %Jido.Harness.Capabilities{cancellation?: false}}
+      end)
+
+      expect(Jido.Harness, :run_request, fn :codex, %Jido.Harness.RunRequest{} = run_request, [] ->
+        assert run_request.prompt == "hello"
+        assert run_request.system_prompt == "Keep it brief"
+        assert run_request.cwd == "/tmp/project"
+        assert run_request.attachments == ["/tmp/project/notes.md"]
+        assert run_request.metadata["request_id"] == "llm_gen_harness"
+
+        {:ok,
+         [
+           Jido.Harness.Event.new!(%{
+             type: :usage,
+             provider: :codex,
+             session_id: "sess_directive_gen",
+             payload: %{"input_tokens" => 3, "output_tokens" => 4}
+           }),
+           Jido.Harness.Event.new!(%{
+             type: :final,
+             provider: :codex,
+             session_id: "sess_directive_gen",
+             payload: %{"text" => "hello from harness", "finish_reason" => "completed"}
+           })
+         ]}
+      end)
+
+      directive =
+        LLMGenerate.new!(%{
+          id: "llm_gen_harness",
+          backend: :harness,
+          system_prompt: "Keep it brief",
+          context: [%{role: :user, content: "hello"}],
+          workspace: %{cwd: "/tmp/project", attachments: [%{path: "/tmp/project/notes.md"}]},
+          backend_metadata: %{provider: :codex}
+        })
+
+      state = DirectiveSupport.state_with_supervisor(supervisor)
+
+      assert {:async, nil, ^state} = DirectiveExec.exec(directive, nil, state)
+
+      usage_signal = DirectiveSupport.assert_signal_cast("ai.usage")
+      assert usage_signal.data.call_id == "llm_gen_harness"
+      assert usage_signal.data.total_tokens == 7
+
+      response_signal = DirectiveSupport.assert_signal_cast("ai.llm.response")
+      assert %Jido.AI.Turn{text: "hello from harness"} = assert_ok_result(response_signal.data.result)
+    end
+
     test "returns sync ok with supervisor error envelope when task cannot start" do
       Mimic.copy(Task.Supervisor)
 
@@ -185,6 +239,31 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
       assert {:error, %{exception: "embed boom", type: RuntimeError, error_type: :unknown}} =
                embed_signal.data.result
     end
+
+    test "returns typed unsupported capability errors when harness is selected" do
+      supervisor = DirectiveSupport.start_task_supervisor!()
+      on_exit(fn -> DirectiveSupport.stop_task_supervisor(supervisor) end)
+
+      directive =
+        LLMEmbed.new!(%{
+          id: "embed_harness_unsupported",
+          backend: :harness,
+          model: "text-embedding-3-small",
+          texts: "hello",
+          workspace: %{cwd: "/tmp/project"}
+        })
+
+      state = DirectiveSupport.state_with_supervisor(supervisor)
+
+      assert {:async, nil, ^state} = DirectiveExec.exec(directive, nil, state)
+
+      embed_signal = DirectiveSupport.assert_signal_cast("ai.embed.result")
+
+      assert {:error, %Jido.AI.Error.Backend.UnsupportedCapability{} = error} = embed_signal.data.result
+      assert error.backend == :harness
+      assert error.capability == :embeddings
+      assert error.operation == :embedding
+    end
   end
 
   describe "LLMStream DirectiveExec" do
@@ -234,6 +313,69 @@ defmodule Jido.AI.Directive.ExecRuntimeTest do
 
       usage_signal = DirectiveSupport.assert_signal_cast("ai.usage")
       assert usage_signal.data.call_id == "llm_stream_ok"
+      assert usage_signal.data.total_tokens == 5
+
+      response_signal = DirectiveSupport.assert_signal_cast("ai.llm.response")
+      assert %Jido.AI.Turn{text: "hello world"} = assert_ok_result(response_signal.data.result)
+    end
+
+    test "streams harness-backed prompt requests through canonical delta and response signals" do
+      supervisor = DirectiveSupport.start_task_supervisor!()
+      on_exit(fn -> DirectiveSupport.stop_task_supervisor(supervisor) end)
+
+      expect(Jido.Harness, :capabilities, fn :codex ->
+        {:ok, %Jido.Harness.Capabilities{cancellation?: false}}
+      end)
+
+      expect(Jido.Harness, :run_request, fn :codex, %Jido.Harness.RunRequest{} = run_request, [] ->
+        assert run_request.prompt == "hello"
+        assert run_request.system_prompt == "Keep it brief"
+        assert run_request.cwd == "/tmp/project"
+
+        {:ok,
+         [
+           Jido.Harness.Event.new!(%{
+             type: :text_delta,
+             provider: :codex,
+             session_id: "sess_directive_stream",
+             payload: %{"delta" => "hello "}
+           }),
+           Jido.Harness.Event.new!(%{
+             type: :usage,
+             provider: :codex,
+             session_id: "sess_directive_stream",
+             payload: %{"input_tokens" => 2, "output_tokens" => 3}
+           }),
+           Jido.Harness.Event.new!(%{
+             type: :final,
+             provider: :codex,
+             session_id: "sess_directive_stream",
+             payload: %{"text" => "hello world"}
+           })
+         ]}
+      end)
+
+      directive =
+        LLMStream.new!(%{
+          id: "llm_stream_harness",
+          backend: :harness,
+          system_prompt: "Keep it brief",
+          context: [%{role: :user, content: "hello"}],
+          workspace: %{cwd: "/tmp/project"},
+          backend_metadata: %{provider: :codex}
+        })
+
+      state = DirectiveSupport.state_with_supervisor(supervisor)
+
+      assert {:async, nil, ^state} = DirectiveExec.exec(directive, nil, state)
+
+      delta_signal = DirectiveSupport.assert_signal_cast("ai.llm.delta")
+      assert delta_signal.data.call_id == "llm_stream_harness"
+      assert delta_signal.data.chunk_type == :content
+      assert delta_signal.data.delta == "hello "
+
+      usage_signal = DirectiveSupport.assert_signal_cast("ai.usage")
+      assert usage_signal.data.call_id == "llm_stream_harness"
       assert usage_signal.data.total_tokens == 5
 
       response_signal = DirectiveSupport.assert_signal_cast("ai.llm.response")

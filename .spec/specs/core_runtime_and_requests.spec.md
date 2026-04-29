@@ -30,12 +30,12 @@ surface:
 
 ```spec-requirements
 - id: jido_ai.core_runtime.llm_facades
-  statement: Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts, preserve the previous default ReqLLM-facing return shapes, and keep transport-specific tool or result structs out of the public facade boundary.
+  statement: Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts, preserve the previous default ReqLLM-facing return shapes, keep transport-specific tool or result structs out of the public facade boundary, and keep the thin public facades ReqLLM-only until another backend can satisfy that same stable contract.
   priority: must
   stability: stable
 
 - id: jido_ai.core_runtime.additive_backend_selection
-  statement: Backend selection for request-bearing entrypoints shall remain additive and explicit rather than replacing the current ask, await, generate, or stream API surface, and backend-neutral request envelopes shall own transport-specific option shaping before execution reaches an adapter.
+  statement: Backend selection for request-bearing entrypoints shall remain additive and explicit rather than replacing the current ask, await, generate, or stream API surface, and backend-neutral request envelopes shall own transport-specific option shaping before execution reaches an adapter, including additive workspace and backend-metadata shaping for Harness-compatible request paths.
   priority: must
   stability: evolving
 
@@ -83,6 +83,17 @@ surface:
   target: lib/jido_ai/backends/req_llm.ex
   covers:
     - jido_ai.core_runtime.llm_facades
+
+- kind: source_file
+  target: lib/jido_ai/backends/harness.ex
+  covers:
+    - jido_ai.core_runtime.additive_backend_selection
+
+- kind: source_file
+  target: lib/jido_ai/request.ex
+  covers:
+    - jido_ai.core_runtime.request_handles
+    - jido_ai.core_runtime.additive_backend_selection
 
 - kind: guide_file
   target: guides/user/first_react_agent.md

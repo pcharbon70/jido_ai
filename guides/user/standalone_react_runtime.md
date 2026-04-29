@@ -84,6 +84,29 @@ config = Jido.AI.Reasoning.ReAct.build_config(%{
 
 `effect_policy` (and nested `constraints`, when provided) accepts atom keys, string keys, or keyword lists. Runtime policy normalization handles all three shapes.
 
+### Harness-Backed Runs
+
+The standalone runtime can also use `backend: :harness` for compatible prompt-plus-workspace runs:
+
+```elixir
+config =
+  Jido.AI.Reasoning.ReAct.build_config(%{
+    backend: :harness,
+    system_prompt: "Summarize the repo state briefly.",
+    workspace: %{cwd: "/path/to/project"},
+    backend_metadata: %{provider: :codex},
+    tools: %{},
+    token_secret: "my-32-byte-minimum-secret-here!!"
+  })
+```
+
+First-slice harness rules:
+
+- prompt-plus-workspace runs are supported
+- local Jido tool execution is not supported and fails explicitly
+- multi-message history that cannot be reduced to one prompt fails explicitly
+- direct facades like `Jido.AI.generate_text/2` remain ReqLLM-only
+
 You can also set the token secret globally:
 
 ```elixir

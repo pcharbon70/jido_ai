@@ -14,11 +14,20 @@ defmodule Jido.AI.Directive.LLMEmbed do
             %{
               id: Zoi.string(description: "Unique call ID for correlation"),
               model: Zoi.string(description: "Embedding model spec, e.g. 'openai:text-embedding-3-small'"),
+              backend:
+                Zoi.atom(description: "Optional backend override (:req_llm | :harness)")
+                |> Zoi.optional(),
               texts: Zoi.any(description: "Text string or list of text strings to embed"),
               dimensions:
                 Zoi.integer(description: "Number of dimensions for embedding vector")
                 |> Zoi.optional(),
               timeout: Zoi.integer(description: "Request timeout in milliseconds") |> Zoi.optional(),
+              workspace:
+                Zoi.map(description: "Backend-neutral workspace context such as cwd or attachments")
+                |> Zoi.default(%{}),
+              backend_metadata:
+                Zoi.map(description: "Backend-specific additive metadata such as Harness provider selection")
+                |> Zoi.default(%{}),
               metadata: Zoi.map(description: "Arbitrary metadata for tracking") |> Zoi.default(%{})
             },
             coerce: true
