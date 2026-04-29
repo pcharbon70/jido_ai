@@ -2,7 +2,7 @@
 
 <!-- covers: jido_ai.runtime_contracts.layered_runtime_flow -->
 
-You need a mental model of how a query moves through strategy, directives, signals, and runtime execution.
+You need a mental model of how a query moves through strategy, directives, backend adapters, signals, and runtime execution.
 
 After this guide, you can trace one request end-to-end and debug failures at the correct layer.
 
@@ -11,7 +11,7 @@ After this guide, you can trace one request end-to-end and debug failures at the
 1. Agent receives query signal (for example `ai.react.query`).
 2. Strategy (`Jido.AI.Reasoning.*.Strategy`) translates instruction into machine message.
 3. Machine emits directives (`Jido.AI.Directive.*`).
-4. Runtime executes directives (LLM, tools, embedding, emits lifecycle signals).
+4. Runtime executes directives through backend adapters (LLM, tools, embedding, emits lifecycle signals).
 5. Signals (`Jido.AI.Signal.*`) route back into strategy commands.
 6. Strategy updates state and eventually completes request.
 
@@ -19,7 +19,8 @@ After this guide, you can trace one request end-to-end and debug failures at the
 
 - Strategy: state transitions and orchestration policy
 - Directive: side-effect intent only
-- Runtime: side-effect execution and signal emission
+- Runtime: side-effect execution and canonical signal emission
+- Backend adapter: transport-specific request shaping, provider or CLI execution, and result normalization
 - Signal: typed contract between runtime and strategy
 
 ## Minimal Trace Setup
@@ -47,8 +48,9 @@ Symptom:
 
 Fix:
 - keep strategy pure and orchestration-focused
-- fix provider behavior at the direct `ReqLLM` call-site
-- fix execution semantics in directive runtime path
+- fix transport or provider behavior at the backend adapter or request-shaping boundary
+- on the default path, that usually means the ReqLLM adapter rather than strategy code
+- fix execution semantics in the directive runtime path when canonical signals or events are wrong
 
 ## Defaults You Should Know
 

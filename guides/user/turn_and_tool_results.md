@@ -2,10 +2,11 @@
 
 <!-- covers: jido_ai.thread_context_projection.turn_normalization jido_ai.actions.tool_calling_loop_contract -->
 
-You want to normalize raw LLM responses, classify them, execute tool calls, and project messages for follow-up LLM turns.
+You want to normalize raw LLM responses or normalized backend result maps, classify them, execute tool calls, and project messages for follow-up LLM turns.
 
 After this guide, you can:
 - Build a `Jido.AI.Turn` from any provider response
+- Build a `Jido.AI.Turn` from normalized backend result maps
 - Check whether a turn requests tool execution
 - Execute all requested tools and collect results
 - Project assistant + tool messages for multi-turn LLM loops
@@ -26,7 +27,7 @@ defmodule MyApp.Actions.Multiply do
 end
 ```
 
-## Build A Turn From A Raw LLM Response
+## Build A Turn From A Response Or Result Map
 
 `from_response/2` normalizes any `ReqLLM.Response`, raw provider map, or existing turn into a canonical `%Jido.AI.Turn{}`.
 
@@ -41,6 +42,18 @@ turn = Turn.from_response(response)
 turn = Turn.from_response(response, model: "my-custom-tag")
 ```
 
+Use `from_result_map/1` when a backend or runtime layer has already classified the
+result into backend-neutral shape before turn projection:
+
+```elixir
+turn =
+  Turn.from_result_map(%{
+    type: :final_answer,
+    text: "42",
+    usage: %{input_tokens: 10, output_tokens: 2}
+  })
+```
+
 The turn struct contains:
 - `type` — `:tool_calls` or `:final_answer`
 - `text` — extracted text content
@@ -50,11 +63,9 @@ The turn struct contains:
 - `model` — model identifier
 - `tool_results` — populated after tool execution
 
-You can also build from an already-classified map:
-
-```elixir
-turn = Turn.from_result_map(%{type: :final_answer, text: "42", usage: %{input_tokens: 10}})
-```
+That split keeps raw response parsing explicit while still allowing alternate
+backends to hand `Jido.AI.Turn` a normalized result map instead of a
+transport-specific response struct.
 
 ## Check If Tools Are Needed
 
