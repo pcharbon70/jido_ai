@@ -44,7 +44,7 @@
         "id": "jido_ai.actions.standalone_action_surface",
         "priority": "must",
         "stability": "stable",
-        "statement": "Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors.",
+        "statement": "Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors and only additive backend/workspace metadata fields may be introduced.",
         "subject_id": "jido_ai.actions"
       },
       {
@@ -52,7 +52,7 @@
         "id": "jido_ai.actions.tool_calling_loop_contract",
         "priority": "must",
         "stability": "stable",
-        "statement": "Tool-calling actions and turn helpers shall normalize tool schemas into canonical tool manifests, execute registered Jido.Action tools, and project assistant or tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior at the transport edge.",
+        "statement": "Tool-calling actions and turn helpers shall normalize tool schemas into canonical tool manifests, execute registered Jido.Action tools, and project assistant or tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior at the transport edge and failing explicitly when a selected backend cannot satisfy the tool-call contract.",
         "subject_id": "jido_ai.actions"
       },
       {
@@ -92,7 +92,7 @@
         "id": "jido_ai.examples_and_quality.executable_contract_regression_tests",
         "priority": "should",
         "stability": "evolving",
-        "statement": "Repo-owned tests shall capture executable regression coverage for current-truth contracts as new internal seams or error boundaries are introduced.",
+        "statement": "Repo-owned tests shall capture executable regression coverage for current-truth contracts as new internal seams or error boundaries are introduced, including plugin and skill suites that lock additive backend selection and typed unsupported outcomes to the stable public surface.",
         "subject_id": "jido_ai.examples_and_quality"
       },
       {
@@ -110,6 +110,14 @@
         "stability": "stable",
         "statement": "Runnable agents, tools, skills, and demo scripts shall live in the top-level examples/ tree and stay out of the core package compile path by default.",
         "subject_id": "jido_ai.examples_and_quality"
+      },
+      {
+        "file": ".spec/specs/plugins_and_capabilities.spec.md",
+        "id": "jido_ai.plugins.capability_gated_backend_adoption",
+        "priority": "must",
+        "stability": "evolving",
+        "statement": "Capability plugins shall keep stable signal routes while surfacing backend selection explicitly, allowing compatible plain-text flows to use alternate backends and forcing strategy or tool-heavy routes to fail with typed unsupported outcomes until their runtime contract is normalized.",
+        "subject_id": "jido_ai.plugins"
       },
       {
         "file": ".spec/specs/plugins_and_capabilities.spec.md",
@@ -132,7 +140,7 @@
         "id": "jido_ai.plugins.public_plugin_surface",
         "priority": "must",
         "stability": "stable",
-        "statement": "The public plugin surface shall center on Chat, Planning, and per-strategy reasoning plugins, while TaskSupervisor remains internal runtime infrastructure rather than a public capability recommendation.",
+        "statement": "The public plugin surface shall center on Chat, Planning, and per-strategy reasoning plugins, while TaskSupervisor remains internal runtime infrastructure rather than a public capability recommendation and plugin-level backend/workspace defaults remain additive instead of renaming routes or result contracts.",
         "subject_id": "jido_ai.plugins"
       },
       {
@@ -404,7 +412,7 @@
           "id": "jido_ai.actions",
           "kind": "feature",
           "status": "active",
-          "summary": "Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers and canonical tool manifests.",
+          "summary": "Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers, additive backend selectors, and canonical tool manifests.",
           "surface": [
             "lib/jido_ai/actions/**/*.ex",
             "lib/jido_ai/tool_manifest.ex",
@@ -507,7 +515,7 @@
           "id": "jido_ai.plugins",
           "kind": "feature",
           "status": "active",
-          "summary": "Public capability plugins package chat, planning, and strategy invocation while cross-cutting plugins handle routing, policy, retrieval, quota, and internal task-supervisor support.",
+          "summary": "Public capability plugins package chat, planning, and strategy invocation while cross-cutting plugins handle routing, policy, retrieval, quota, and internal task-supervisor support without changing the stable signal surface as backend selection becomes additive.",
           "surface": [
             "lib/jido_ai/plugin_stack.ex",
             "lib/jido_ai/plugins/**/*.ex",
@@ -996,6 +1004,16 @@
       },
       {
         "covers": [
+          "jido_ai.plugins.public_plugin_surface",
+          "jido_ai.plugins.capability_gated_backend_adoption"
+        ],
+        "file": ".spec/specs/plugins_and_capabilities.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.plugins",
+        "target": "lib/jido_ai/plugins/chat.ex"
+      },
+      {
+        "covers": [
           "jido_ai.plugins.cross_cutting_runtime_plugins"
         ],
         "file": ".spec/specs/plugins_and_capabilities.spec.md",
@@ -1435,10 +1453,10 @@
     "decisions": 2,
     "exceptions": 0,
     "findings": 0,
-    "requirements": 45,
+    "requirements": 46,
     "scenarios": 0,
     "subjects": 12,
-    "verifications": 81
+    "verifications": 82
   },
   "verification": {
     "claims": [
@@ -1861,14 +1879,25 @@
         "verification_index": 0
       },
       {
-        "cover_id": "jido_ai.plugins.cross_cutting_runtime_plugins",
+        "cover_id": "jido_ai.plugins.capability_gated_backend_adoption",
         "file": ".spec/specs/plugins_and_capabilities.spec.md",
-        "kind": "guide_file",
+        "kind": "source_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.plugins",
-        "target": "guides/user/model_routing_and_policy.md",
+        "target": "lib/jido_ai/plugins/chat.ex",
+        "verification_index": 1
+      },
+      {
+        "cover_id": "jido_ai.plugins.public_plugin_surface",
+        "file": ".spec/specs/plugins_and_capabilities.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.plugins",
+        "target": "lib/jido_ai/plugins/chat.ex",
         "verification_index": 1
       },
       {
@@ -1879,8 +1908,19 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.plugins",
-        "target": "guides/user/retrieval_and_quota.md",
+        "target": "guides/user/model_routing_and_policy.md",
         "verification_index": 2
+      },
+      {
+        "cover_id": "jido_ai.plugins.cross_cutting_runtime_plugins",
+        "file": ".spec/specs/plugins_and_capabilities.spec.md",
+        "kind": "guide_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.plugins",
+        "target": "guides/user/retrieval_and_quota.md",
+        "verification_index": 3
       },
       {
         "cover_id": "jido_ai.plugins.v3_migration_surface",
@@ -1891,7 +1931,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.plugins",
         "target": "guides/user/migration_plugins_and_signals_v3.md",
-        "verification_index": 3
+        "verification_index": 4
       },
       {
         "cover_id": "jido_ai.runtime_contracts.layered_runtime_flow",
@@ -2493,7 +2533,7 @@
     "strength_summary": {
       "claimed": 2,
       "executed": 0,
-      "linked": 93
+      "linked": 95
     },
     "threshold_failures": 0
   },

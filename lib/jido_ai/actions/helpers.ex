@@ -111,10 +111,16 @@ defmodule Jido.AI.Actions.Helpers do
     default_model = Map.get(attrs, :default_model)
     attrs = Map.delete(attrs, :default_model)
 
+    workspace =
+      merge_optional_maps(
+        normalize_optional_map(Map.get(attrs, :workspace)),
+        normalize_optional_map(Map.get(params, :workspace))
+      )
+
     backend_metadata =
-      Map.merge(
-        normalize_backend_metadata(Map.get(params, :backend_metadata)),
-        normalize_backend_metadata(Map.get(attrs, :backend_metadata))
+      merge_optional_maps(
+        normalize_backend_metadata(Map.get(attrs, :backend_metadata)),
+        normalize_backend_metadata(Map.get(params, :backend_metadata))
       )
 
     params
@@ -123,6 +129,7 @@ defmodule Jido.AI.Actions.Helpers do
     |> Map.put(:timeout_ms, params[:timeout])
     |> Map.put(:max_tokens, params[:max_tokens])
     |> Map.put(:temperature, params[:temperature])
+    |> maybe_put(:workspace, workspace)
     |> Map.put(:backend_metadata, backend_metadata)
     |> Map.merge(attrs)
     |> Request.new()
@@ -331,9 +338,20 @@ defmodule Jido.AI.Actions.Helpers do
   def telemetry_error_type(:timeout), do: :timeout
   def telemetry_error_type(_), do: :llm_error
 
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, %{}), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
   defp normalize_request_attrs(attrs) when is_list(attrs), do: Map.new(attrs)
   defp normalize_request_attrs(attrs) when is_map(attrs), do: attrs
   defp normalize_request_attrs(_), do: %{}
+
+  defp normalize_optional_map(nil), do: %{}
+  defp normalize_optional_map(map) when is_map(map), do: map
+  defp normalize_optional_map(map) when is_list(map), do: Map.new(map)
+  defp normalize_optional_map(_), do: %{}
+
+  defp merge_optional_maps(left, right), do: Map.merge(left, right)
 
   defp normalize_backend_metadata(nil), do: %{}
   defp normalize_backend_metadata(metadata) when is_map(metadata), do: metadata

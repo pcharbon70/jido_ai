@@ -8,6 +8,7 @@ require Jido.AI.Actions.ToolCalling.ExecuteTool
 require Jido.AI.Actions.ToolCalling.ListTools
 
 defmodule Jido.AI.Plugins.Chat do
+  # covers: jido_ai.plugins.public_plugin_surface jido_ai.plugins.capability_gated_backend_adoption
   @moduledoc """
   Conversational capability plugin with built-in tool calling support.
 
@@ -27,6 +28,9 @@ defmodule Jido.AI.Plugins.Chat do
   - `default_max_tokens`: `4096`
   - `default_temperature`: `0.7`
   - `default_system_prompt`: `nil`
+  - `backend`: `nil` (falls through to the configured package default)
+  - `workspace`: `%{}`
+  - `backend_metadata`: `%{}`
   - `auto_execute`: `true`
   - `max_turns`: `10`
   - `tool_policy`: `:allow_all`
@@ -68,6 +72,9 @@ defmodule Jido.AI.Plugins.Chat do
       default_max_tokens: Map.get(config, :default_max_tokens, 4096),
       default_temperature: Map.get(config, :default_temperature, 0.7),
       default_system_prompt: Map.get(config, :default_system_prompt),
+      backend: Map.get(config, :backend),
+      workspace: Map.get(config, :workspace, %{}),
+      backend_metadata: Map.get(config, :backend_metadata, %{}),
       auto_execute: Map.get(config, :auto_execute, true),
       max_turns: Map.get(config, :max_turns, 10),
       tool_policy: Map.get(config, :tool_policy, :allow_all),
@@ -84,6 +91,15 @@ defmodule Jido.AI.Plugins.Chat do
       default_max_tokens: Zoi.integer(description: "Default max tokens") |> Zoi.default(4096),
       default_temperature: Zoi.float(description: "Default sampling temperature") |> Zoi.default(0.7),
       default_system_prompt: Zoi.string(description: "Default system prompt") |> Zoi.optional(),
+      backend:
+        Zoi.any(description: "Optional plugin-level backend selector such as :req_llm or :harness")
+        |> Zoi.nullish(),
+      workspace:
+        Zoi.map(description: "Optional default backend-neutral workspace context")
+        |> Zoi.default(%{}),
+      backend_metadata:
+        Zoi.map(description: "Optional default backend-specific additive metadata")
+        |> Zoi.default(%{}),
       auto_execute:
         Zoi.boolean(description: "Automatically execute tool calls by default")
         |> Zoi.default(true),

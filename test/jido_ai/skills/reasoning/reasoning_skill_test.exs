@@ -1,8 +1,15 @@
 defmodule Jido.AI.Plugins.ReasoningTest do
   use ExUnit.Case, async: true
+  use Mimic
 
   alias Jido.AI.Plugins.Reasoning.TreeOfThoughts, as: Reasoning
   alias Jido.AI.Actions.Reasoning.{Analyze, Explain, Infer}
+  alias Jido.AI.TestSupport.FakeReqLLM
+
+  setup :set_mimic_from_context
+  setup :stub_req_llm
+
+  defp stub_req_llm(context), do: FakeReqLLM.setup_stubs(context)
 
   describe "plugin_spec/1" do
     test "returns valid skill specification" do
@@ -29,13 +36,27 @@ defmodule Jido.AI.Plugins.ReasoningTest do
       assert {:ok, state} = Reasoning.mount(nil, %{})
       assert state.strategy == :tot
       assert state.default_model == :reasoning
+      assert state.backend == :req_llm
       assert state.timeout == 30_000
+      assert state.workspace == %{}
+      assert state.backend_metadata == %{}
     end
 
     test "accepts custom configuration" do
-      assert {:ok, state} = Reasoning.mount(nil, %{default_model: :capable, timeout: 15_000})
+      assert {:ok, state} =
+               Reasoning.mount(nil, %{
+                 default_model: :capable,
+                 backend: :req_llm,
+                 timeout: 15_000,
+                 workspace: %{cwd: "/tmp/reasoning"},
+                 backend_metadata: %{provider: :codex}
+               })
+
       assert state.default_model == :capable
+      assert state.backend == :req_llm
       assert state.timeout == 15_000
+      assert state.workspace == %{cwd: "/tmp/reasoning"}
+      assert state.backend_metadata == %{provider: :codex}
     end
   end
 
@@ -90,9 +111,8 @@ defmodule Jido.AI.Plugins.ReasoningTest do
         context: "Consider that Fluffy might be a dog"
       }
 
-      # Should not error on validation, but may error on LLM call in real scenario
-      # In test we just check validation passes
-      assert {:error, _} = Infer.run(params, %{})
+      assert {:ok, result} = Infer.run(params, %{})
+      assert result.result =~ "Premises:"
     end
 
     test "rejects dangerous characters in context" do

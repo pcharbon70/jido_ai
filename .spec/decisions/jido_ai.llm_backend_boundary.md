@@ -89,6 +89,12 @@ The first additive `Jido.Harness` adoption slice is bounded:
 - compatible prompt-plus-workspace directive, request, and standalone ReAct runtime paths may opt into Harness explicitly
 - unsupported Harness capabilities such as embeddings, structured objects, local Jido tool execution, and unreduced message history remain typed failures
 
+Later capability-plugin and strategy adoption follows the same asymmetry:
+
+- standalone Chat and Planning actions plus compatible plugin routes may surface additive `backend`, `workspace`, and `backend_metadata` inputs without changing route names or normalized result maps
+- tool-calling routes may surface the same additive inputs, but alternate backends must fail explicitly until they can satisfy the local Jido tool-loop contract
+- per-strategy reasoning plugins and `RunStrategy` remain ReqLLM-default and capability-gated until each underlying strategy runtime is normalized beyond transport-specific streaming or message-history assumptions
+
 ## Consequences
 
 Jido.AI can introduce a backend abstraction incrementally without forcing a

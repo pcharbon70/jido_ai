@@ -28,7 +28,7 @@ surface:
   stability: evolving
 
 - id: jido_ai.examples_and_quality.executable_contract_regression_tests
-  statement: Repo-owned tests shall capture executable regression coverage for current-truth contracts as new internal seams or error boundaries are introduced.
+  statement: Repo-owned tests shall capture executable regression coverage for current-truth contracts as new internal seams or error boundaries are introduced, including plugin and skill suites that lock additive backend selection and typed unsupported outcomes to the stable public surface.
   priority: should
   stability: evolving
 ```

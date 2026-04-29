@@ -27,6 +27,9 @@ defmodule Jido.AI.Plugins.Planning do
   - `default_model`: `:planning`
   - `default_max_tokens`: `4096`
   - `default_temperature`: `0.7`
+  - `backend`: `nil` (falls through to the configured package default)
+  - `workspace`: `%{}`
+  - `backend_metadata`: `%{}`
 
   Action-specific inputs remain action-owned:
 
@@ -66,7 +69,8 @@ defmodule Jido.AI.Plugins.Planning do
 
   ## Architecture Notes
 
-  **Direct ReqLLM Calls**: Planning actions call ReqLLM directly.
+  **Backend-aware Runtime**: Planning actions route through the normalized backend boundary.
+  Compatible text-generation flows may opt into Harness, while unsupported capability selections fail explicitly.
   **Specialized Prompts**: Each action uses a task-specific system prompt.
   **Lightweight State**: Plugin state only stores execution defaults.
   """
@@ -94,7 +98,10 @@ defmodule Jido.AI.Plugins.Planning do
     initial_state = %{
       default_model: Map.get(config, :default_model, :planning),
       default_max_tokens: Map.get(config, :default_max_tokens, 4096),
-      default_temperature: Map.get(config, :default_temperature, 0.7)
+      default_temperature: Map.get(config, :default_temperature, 0.7),
+      backend: Map.get(config, :backend),
+      workspace: Map.get(config, :workspace, %{}),
+      backend_metadata: Map.get(config, :backend_metadata, %{})
     }
 
     {:ok, initial_state}
@@ -113,7 +120,16 @@ defmodule Jido.AI.Plugins.Planning do
       default_max_tokens: Zoi.integer(description: "Default max tokens for generation") |> Zoi.default(4096),
       default_temperature:
         Zoi.float(description: "Default sampling temperature (0.0-2.0)")
-        |> Zoi.default(0.7)
+        |> Zoi.default(0.7),
+      backend:
+        Zoi.any(description: "Optional plugin-level backend selector such as :req_llm or :harness")
+        |> Zoi.nullish(),
+      workspace:
+        Zoi.map(description: "Optional default backend-neutral workspace context")
+        |> Zoi.default(%{}),
+      backend_metadata:
+        Zoi.map(description: "Optional default backend-specific additive metadata")
+        |> Zoi.default(%{})
     })
   end
 

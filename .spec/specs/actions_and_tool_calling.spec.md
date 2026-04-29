@@ -6,7 +6,7 @@ Current-truth contract for standalone Jido.AI actions, tool execution loops, and
 id: jido_ai.actions
 kind: feature
 status: active
-summary: Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers and canonical tool manifests.
+summary: Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers, additive backend selectors, and canonical tool manifests.
 decisions:
   - jido_ai.llm_backend_boundary
 surface:
@@ -24,12 +24,12 @@ surface:
 
 ```spec-requirements
 - id: jido_ai.actions.standalone_action_surface
-  statement: Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors.
+  statement: Jido.AI shall provide standalone action modules for LLM generation, tool orchestration, planning, retrieval, quota, and reasoning execution so AI work can run via Jido.Exec without a long-lived agent, while their public params and normalized result maps remain stable across backend-boundary refactors and only additive backend/workspace metadata fields may be introduced.
   priority: must
   stability: stable
 
 - id: jido_ai.actions.tool_calling_loop_contract
-  statement: Tool-calling actions and turn helpers shall normalize tool schemas into canonical tool manifests, execute registered Jido.Action tools, and project assistant or tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior at the transport edge.
+  statement: Tool-calling actions and turn helpers shall normalize tool schemas into canonical tool manifests, execute registered Jido.Action tools, and project assistant or tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior at the transport edge and failing explicitly when a selected backend cannot satisfy the tool-call contract.
   priority: must
   stability: stable
 

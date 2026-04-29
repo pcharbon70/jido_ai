@@ -23,7 +23,10 @@ defmodule Jido.AI.Plugins.Reasoning.ChainOfDraft do
 
   - `strategy`: `:cod`
   - `default_model`: `:reasoning`
+  - `backend`: `:req_llm`
   - `timeout`: `30_000`
+  - `workspace`: `%{}`
+  - `backend_metadata`: `%{}`
   - `options`: `%{}`
   """
 
@@ -42,7 +45,10 @@ defmodule Jido.AI.Plugins.Reasoning.ChainOfDraft do
      %{
        strategy: :cod,
        default_model: Map.get(config, :default_model, :reasoning),
+       backend: Map.get(config, :backend, :req_llm),
        timeout: Map.get(config, :timeout, 30_000),
+       workspace: Map.get(config, :workspace, %{}),
+       backend_metadata: Map.get(config, :backend_metadata, %{}),
        options: Map.get(config, :options, %{})
      }}
   end
@@ -51,7 +57,10 @@ defmodule Jido.AI.Plugins.Reasoning.ChainOfDraft do
     Zoi.object(%{
       strategy: Zoi.atom(description: "Fixed strategy id") |> Zoi.default(:cod),
       default_model: Zoi.any(description: "Default model alias/spec") |> Zoi.default(:reasoning),
+      backend: Zoi.any(description: "Default backend for this strategy route") |> Zoi.default(:req_llm),
       timeout: Zoi.integer(description: "Default timeout in ms") |> Zoi.default(30_000),
+      workspace: Zoi.map(description: "Default backend-neutral workspace context") |> Zoi.default(%{}),
+      backend_metadata: Zoi.map(description: "Default backend-specific additive metadata") |> Zoi.default(%{}),
       options: Zoi.map(description: "Default strategy options") |> Zoi.default(%{})
     })
   end

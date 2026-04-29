@@ -31,15 +31,27 @@ defmodule Jido.AI.Plugins.PlanningTest do
       assert state.default_model == :planning
       assert state.default_max_tokens == 4096
       assert state.default_temperature == 0.7
+      assert is_nil(state.backend)
+      assert state.workspace == %{}
+      assert state.backend_metadata == %{}
     end
 
     test "merges custom config into initial state" do
       {:ok, state} =
-        Planning.mount(%Jido.Agent{}, %{default_model: :fast, default_max_tokens: 1024})
+        Planning.mount(%Jido.Agent{}, %{
+          default_model: :fast,
+          default_max_tokens: 1024,
+          backend: :harness,
+          workspace: %{cwd: "/tmp/planning"},
+          backend_metadata: %{provider: :codex}
+        })
 
       assert state.default_model == :fast
       assert state.default_max_tokens == 1024
       assert state.default_temperature == 0.7
+      assert state.backend == :harness
+      assert state.workspace == %{cwd: "/tmp/planning"}
+      assert state.backend_metadata == %{provider: :codex}
     end
   end
 

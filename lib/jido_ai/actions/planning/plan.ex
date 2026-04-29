@@ -43,6 +43,9 @@ defmodule Jido.AI.Actions.Planning.Plan do
         model:
           Zoi.any(description: "Model alias (e.g., :planning) or direct model spec string")
           |> Zoi.optional(),
+        backend:
+          Zoi.any(description: "Optional additive backend selector such as :req_llm or :harness")
+          |> Zoi.optional(),
         goal: Zoi.string(description: "The goal to achieve"),
         constraints:
           Zoi.list(Zoi.string(), description: "List of constraints/limitations")
@@ -53,6 +56,12 @@ defmodule Jido.AI.Actions.Planning.Plan do
         max_steps: Zoi.integer(description: "Maximum number of steps in the plan") |> Zoi.default(10),
         max_tokens: Zoi.integer(description: "Maximum tokens to generate") |> Zoi.default(4096),
         temperature: Zoi.float(description: "Sampling temperature") |> Zoi.default(0.7),
+        workspace:
+          Zoi.map(description: "Optional backend-neutral workspace context such as cwd or attachments")
+          |> Zoi.optional(),
+        backend_metadata:
+          Zoi.map(description: "Optional backend-specific additive metadata")
+          |> Zoi.optional(),
         timeout: Zoi.integer(description: "Request timeout in milliseconds") |> Zoi.optional()
       })
 
@@ -214,11 +223,32 @@ defmodule Jido.AI.Actions.Planning.Plan do
         plugin_default(context, :default_temperature)
       ])
 
+    backend_default =
+      first_present([
+        context[:backend],
+        plugin_default(context, :backend)
+      ])
+
+    workspace_default =
+      first_present([
+        normalize_optional_map(context[:workspace]),
+        normalize_optional_map(plugin_default(context, :workspace))
+      ])
+
+    backend_metadata_default =
+      merge_optional_maps(
+        normalize_optional_map(plugin_default(context, :backend_metadata)),
+        normalize_optional_map(context[:backend_metadata])
+      )
+
     params
     |> put_default_param(:model, model_default, provided)
     |> put_default_param(:max_steps, max_steps_default, provided)
     |> put_default_param(:max_tokens, max_tokens_default, provided)
     |> put_default_param(:temperature, temperature_default, provided)
+    |> put_default_param(:backend, backend_default, provided)
+    |> merge_map_default(:workspace, workspace_default, provided)
+    |> merge_map_default(:backend_metadata, backend_metadata_default, provided)
   end
 
   defp apply_context_defaults(params, _context), do: params
@@ -241,6 +271,29 @@ defmodule Jido.AI.Actions.Planning.Plan do
     end
   end
 
+  defp merge_map_default(params, _key, defaults, _provided) when defaults == %{}, do: params
+
+  defp merge_map_default(params, key, defaults, provided) do
+    current = normalize_optional_map(Map.get(params, key))
+
+    merged =
+      cond do
+        provided == :unknown and current == %{} ->
+          defaults
+
+        provided == :unknown ->
+          Map.merge(defaults, current)
+
+        provided_param?(provided, key) ->
+          Map.merge(defaults, current)
+
+        true ->
+          defaults
+      end
+
+    Map.put(params, key, merged)
+  end
+
   defp provided_params(%{provided_params: provided}) when is_list(provided), do: provided
   defp provided_params(_), do: :unknown
 
@@ -256,6 +309,13 @@ defmodule Jido.AI.Actions.Planning.Plan do
       get_in(context, [:agent, :state, :planning, key])
     ])
   end
+
+  defp normalize_optional_map(nil), do: %{}
+  defp normalize_optional_map(map) when is_map(map), do: map
+  defp normalize_optional_map(map) when is_list(map), do: Map.new(map)
+  defp normalize_optional_map(_), do: %{}
+
+  defp merge_optional_maps(left, right), do: Map.merge(left, right)
 
   defp first_present(values), do: Enum.find(values, &(not is_nil(&1)))
   defp normalize_context(context) when is_map(context), do: context

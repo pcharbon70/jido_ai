@@ -54,6 +54,9 @@ defmodule Jido.AI.Plugins.ChatTest do
       assert parsed.default_model == :capable
       assert parsed.default_max_tokens == 4096
       assert parsed.default_temperature == 0.7
+      assert Map.get(parsed, :backend) == nil
+      assert parsed.workspace == %{}
+      assert parsed.backend_metadata == %{}
       assert parsed.auto_execute == true
       assert parsed.max_turns == 10
       assert parsed.tool_policy == :allow_all
@@ -67,6 +70,9 @@ defmodule Jido.AI.Plugins.ChatTest do
       assert state.default_max_tokens == 4096
       assert state.default_temperature == 0.7
       assert is_nil(state.default_system_prompt)
+      assert is_nil(state.backend)
+      assert state.workspace == %{}
+      assert state.backend_metadata == %{}
       assert state.auto_execute == true
       assert state.max_turns == 10
       assert state.tool_policy == :allow_all
@@ -89,6 +95,9 @@ defmodule Jido.AI.Plugins.ChatTest do
         default_max_tokens: 1024,
         default_temperature: 0.1,
         default_system_prompt: "You are concise",
+        backend: :harness,
+        workspace: %{cwd: "/tmp/chat"},
+        backend_metadata: %{provider: :codex},
         auto_execute: false,
         max_turns: 3,
         tool_policy: :deny_all
@@ -100,6 +109,9 @@ defmodule Jido.AI.Plugins.ChatTest do
       assert state.default_max_tokens == 1024
       assert state.default_temperature == 0.1
       assert state.default_system_prompt == "You are concise"
+      assert state.backend == :harness
+      assert state.workspace == %{cwd: "/tmp/chat"}
+      assert state.backend_metadata == %{provider: :codex}
       assert state.auto_execute == false
       assert state.max_turns == 3
       assert state.tool_policy == :deny_all

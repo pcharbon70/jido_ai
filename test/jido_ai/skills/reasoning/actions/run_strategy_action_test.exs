@@ -115,7 +115,10 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategyTest do
         plugin_state: %{
           reasoning_cot: %{
             default_model: :fast,
+            backend: :req_llm,
             timeout: 400,
+            workspace: %{cwd: "/tmp/reasoning"},
+            backend_metadata: %{provider: :codex},
             options: %{system_prompt: "Reason carefully"}
           }
         }
@@ -124,6 +127,15 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategyTest do
       payload = assert_strategy_response(RunStrategy.run(params, context), :cot)
       assert payload.diagnostics.timeout == 400
       assert payload.diagnostics.options[:system_prompt] == "Reason carefully"
+    end
+
+    test "returns a typed backend error for unsupported harness strategy execution" do
+      assert {:error, error} =
+               RunStrategy.run(%{strategy: :cot, prompt: "Explain 2+2", backend: :harness}, %{})
+
+      assert error.__struct__ == Jido.AI.Error.Backend.UnsupportedBackend
+      assert error.backend == :harness
+      assert error.supported_backends == [:req_llm]
     end
 
     test "returns error for invalid strategy request" do

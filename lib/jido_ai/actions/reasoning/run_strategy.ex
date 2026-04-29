@@ -22,9 +22,18 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategy do
         model:
           Zoi.any(description: "Optional model alias (atom) or model spec (string)")
           |> Zoi.optional(),
+        backend:
+          Zoi.any(description: "Optional additive backend selector such as :req_llm or :harness")
+          |> Zoi.optional(),
         timeout:
           Zoi.integer(description: "Request timeout in milliseconds")
           |> Zoi.default(30_000)
+          |> Zoi.optional(),
+        workspace:
+          Zoi.map(description: "Optional backend-neutral workspace context such as cwd or attachments")
+          |> Zoi.optional(),
+        backend_metadata:
+          Zoi.map(description: "Optional backend-specific additive metadata")
           |> Zoi.optional(),
         options:
           Zoi.map(description: "Strategy-specific runtime options")
@@ -83,6 +92,7 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategy do
       })
 
   alias Jido.AI.Actions.Helpers
+  alias Jido.AI.Backends
   alias Jido
 
   alias Jido.AI.Actions.Reasoning.Runner.{
@@ -141,6 +151,7 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategy do
 
     with true <- is_binary(params[:prompt]) and params[:prompt] != "",
          true <- not is_nil(runner),
+         {:ok, _backend} <- ensure_strategy_backend(params, strategy),
          {:ok, result} <- run_in_runner(runner, strategy, params) do
       {:ok, result}
     else
@@ -195,6 +206,24 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategy do
         Map.get(strategy_defaults, :timeout)
       ])
 
+    backend_default =
+      first_present([
+        context[:backend],
+        Map.get(strategy_defaults, :backend)
+      ]) || :req_llm
+
+    workspace_default =
+      first_present([
+        normalize_optional_map(context[:workspace]),
+        normalize_optional_map(Map.get(strategy_defaults, :workspace))
+      ])
+
+    backend_metadata_default =
+      merge_optional_maps(
+        normalize_optional_map(Map.get(strategy_defaults, :backend_metadata)),
+        normalize_optional_map(context[:backend_metadata])
+      )
+
     options_default =
       first_present([
         context[:options],
@@ -204,6 +233,9 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategy do
     params
     |> put_default_param(:model, model_default, provided)
     |> put_default_param(:timeout, timeout_default, provided)
+    |> put_default_param(:backend, backend_default, provided)
+    |> merge_map_default(:workspace, workspace_default, provided)
+    |> merge_map_default(:backend_metadata, backend_metadata_default, provided)
     |> merge_options_default(options_default, provided)
   end
 
@@ -398,6 +430,29 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategy do
     Map.put(params, :options, merged)
   end
 
+  defp merge_map_default(params, _key, defaults, _provided) when defaults == %{}, do: params
+
+  defp merge_map_default(params, key, defaults, provided) do
+    current = normalize_optional_map(Map.get(params, key))
+
+    merged =
+      cond do
+        provided == :unknown and current == %{} ->
+          defaults
+
+        provided == :unknown ->
+          Map.merge(defaults, current)
+
+        provided_param?(provided, key) ->
+          Map.merge(defaults, current)
+
+        true ->
+          defaults
+      end
+
+    Map.put(params, key, merged)
+  end
+
   defp strategy_plugin_defaults(context, strategy) do
     key = strategy_state_key(strategy)
 
@@ -427,6 +482,26 @@ defmodule Jido.AI.Actions.Reasoning.RunStrategy do
 
   defp normalize_context(context) when is_map(context), do: context
   defp normalize_context(_), do: %{}
+
+  defp ensure_strategy_backend(params, strategy) do
+    Backends.ensure_supported_backend(params, supported_backends_for_strategy(strategy))
+  end
+
+  defp supported_backends_for_strategy(:cod), do: [:req_llm]
+  defp supported_backends_for_strategy(:cot), do: [:req_llm]
+  defp supported_backends_for_strategy(:tot), do: [:req_llm]
+  defp supported_backends_for_strategy(:got), do: [:req_llm]
+  defp supported_backends_for_strategy(:trm), do: [:req_llm]
+  defp supported_backends_for_strategy(:aot), do: [:req_llm]
+  defp supported_backends_for_strategy(:adaptive), do: [:req_llm]
+  defp supported_backends_for_strategy(_), do: [:req_llm]
+
+  defp normalize_optional_map(nil), do: %{}
+  defp normalize_optional_map(map) when is_map(map), do: map
+  defp normalize_optional_map(map) when is_list(map), do: Map.new(map)
+  defp normalize_optional_map(_), do: %{}
+
+  defp merge_optional_maps(left, right), do: Map.merge(left, right)
 
   defp first_present(values), do: Enum.find(values, &(not is_nil(&1)))
 end
