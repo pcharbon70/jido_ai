@@ -662,22 +662,8 @@ defmodule Jido.AI.Reasoning.ReAct.Runner do
   defp visible_backend_event?(%Jido.AI.Backend.Event{}, _trace_cfg), do: false
 
   defp backend_result_to_turn(%{text: _text} = result) do
-    Turn.from_result_map(%{
-      type: backend_result_type(result),
-      text: Map.get(result, :text, ""),
-      thinking_content: Map.get(result, :thinking_content),
-      reasoning_details: Map.get(result, :reasoning_details),
-      tool_calls: Map.get(result, :tool_calls, []),
-      usage: Map.get(result, :usage),
-      model: Map.get(result, :model),
-      finish_reason: Map.get(result, :finish_reason),
-      message_metadata: Map.get(result, :message_metadata, %{})
-    })
+    Turn.from_result_map(result)
   end
-
-  defp backend_result_type(%{tool_calls: [_ | _]}), do: :tool_calls
-  defp backend_result_type(%{finish_reason: :tool_calls}), do: :tool_calls
-  defp backend_result_type(_result), do: :final_answer
 
   defp classify_request_failure(%Jido.AI.Error.Backend.UnsupportedBackend{}, _default), do: :backend
   defp classify_request_failure(%Jido.AI.Error.Backend.UnsupportedCapability{}, _default), do: :backend

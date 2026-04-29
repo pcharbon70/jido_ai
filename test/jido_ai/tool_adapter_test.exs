@@ -1,7 +1,8 @@
 defmodule Jido.AI.ToolAdapterTest do
+  # covers: jido_ai.examples_and_quality.executable_contract_regression_tests
   use ExUnit.Case, async: true
 
-  alias Jido.AI.ToolAdapter
+  alias Jido.AI.{ToolAdapter, ToolManifest}
 
   # Test action with empty schema
   defmodule EmptySchemaAction do
@@ -135,6 +136,40 @@ defmodule Jido.AI.ToolAdapterTest do
       tools = ToolAdapter.from_actions([EmptySchemaAction, ParamAction], prefix: "v2_")
 
       assert Enum.all?(tools, fn tool -> String.starts_with?(tool.name, "v2_") end)
+    end
+  end
+
+  describe "tool manifests" do
+    test "builds canonical manifests from actions" do
+      manifest = ToolAdapter.to_manifest(ParamAction, prefix: "v2_")
+
+      assert %ToolManifest{} = manifest
+      assert manifest.name == "v2_param_action"
+      assert manifest.description == "An action with parameters"
+      assert manifest.module == ParamAction
+      assert manifest.strict == false
+      assert manifest.parameter_schema["type"] == "object"
+    end
+
+    test "converts manifests into ReqLLM.Tool structs" do
+      manifest = ToolAdapter.to_manifest(ParamAction)
+      [tool] = ToolAdapter.from_manifests([manifest])
+
+      assert %ReqLLM.Tool{} = tool
+      assert tool.name == "param_action"
+      assert tool.description == "An action with parameters"
+    end
+
+    test "normalizes manifest inputs into action maps" do
+      manifest = ToolAdapter.to_manifest(ParamAction)
+
+      assert ToolAdapter.to_action_map([manifest]) == %{
+               "param_action" => ParamAction
+             }
+
+      assert ToolAdapter.to_action_map(%{"param_action" => manifest}) == %{
+               "param_action" => ParamAction
+             }
     end
   end
 

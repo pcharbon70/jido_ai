@@ -1,4 +1,5 @@
 defmodule Jido.AI.Turn do
+  # covers: jido_ai.thread_context_projection.turn_normalization jido_ai.actions.tool_calling_loop_contract
   @moduledoc """
   Canonical representation of a single LLM turn.
 
@@ -124,15 +125,19 @@ defmodule Jido.AI.Turn do
   def from_result_map(%__MODULE__{} = turn), do: turn
 
   def from_result_map(%{} = map) do
+    content = get_field(map, :content)
+    finish_reason = map |> get_field(:finish_reason) |> normalize_finish_reason()
+    tool_calls = map |> get_field(:tool_calls, []) |> normalize_tool_calls()
+
     %__MODULE__{
-      type: normalize_type(get_field(map, :type, :final_answer)),
-      text: normalize_text(get_field(map, :text, "")),
-      thinking_content: normalize_optional_string(get_field(map, :thinking_content)),
+      type: classify_result_map_type(get_field(map, :type), tool_calls, finish_reason),
+      text: normalize_result_map_text(get_field(map, :text), content),
+      thinking_content: normalize_result_map_thinking(get_field(map, :thinking_content), content),
       reasoning_details: normalize_reasoning_details(get_field(map, :reasoning_details)),
-      tool_calls: map |> get_field(:tool_calls, []) |> normalize_tool_calls(),
+      tool_calls: tool_calls,
       usage: normalize_usage(get_field(map, :usage)),
       model: normalize_optional_string(get_field(map, :model)),
-      finish_reason: normalize_finish_reason(get_field(map, :finish_reason)),
+      finish_reason: finish_reason,
       message_metadata: normalize_metadata(get_field(map, :message_metadata)),
       tool_results: map |> get_field(:tool_results, []) |> normalize_tool_results()
     }
@@ -447,6 +452,21 @@ defmodule Jido.AI.Turn do
   defp normalize_text(text) when is_binary(text), do: text
   defp normalize_text(_), do: ""
 
+  defp normalize_result_map_text(nil, content), do: extract_from_content(content)
+
+  defp normalize_result_map_text("", content) do
+    case extract_from_content(content) do
+      "" -> ""
+      extracted -> extracted
+    end
+  end
+
+  defp normalize_result_map_text(text, _content), do: normalize_text(text)
+
+  defp normalize_result_map_thinking(nil, content), do: extract_thinking_content(content)
+  defp normalize_result_map_thinking("", content), do: extract_thinking_content(content)
+  defp normalize_result_map_thinking(thinking_content, _content), do: normalize_optional_string(thinking_content)
+
   defp normalize_optional_string(value) when is_binary(value) and value != "", do: value
   defp normalize_optional_string(_), do: nil
 
@@ -536,6 +556,9 @@ defmodule Jido.AI.Turn do
 
   defp normalize_metadata(%{} = metadata), do: metadata
   defp normalize_metadata(_), do: %{}
+
+  defp classify_result_map_type(nil, tool_calls, finish_reason), do: classify_type(tool_calls, finish_reason)
+  defp classify_result_map_type(type, _tool_calls, _finish_reason), do: normalize_type(type)
 
   defp normalize_usage_key("input_tokens"), do: :input_tokens
   defp normalize_usage_key("output_tokens"), do: :output_tokens

@@ -37,7 +37,7 @@ surface:
   stability: evolving
 
 - id: jido_ai.strategies.standalone_react_runtime
-  statement: Jido.AI.Reasoning.ReAct shall remain a standalone streaming and checkpoint-aware runtime that can run, start, continue, collect, cancel, steer, and inject outside agent macros while translating backend-neutral request and stream progress into the canonical ReAct runtime event surface.
+  statement: Jido.AI.Reasoning.ReAct shall remain a standalone streaming and checkpoint-aware runtime that can run, start, continue, collect, cancel, steer, and inject outside agent macros while translating backend-neutral request, canonical tool manifests, and stream progress into the canonical ReAct runtime event surface.
   priority: should
   stability: evolving
 ```

@@ -52,7 +52,7 @@
         "id": "jido_ai.actions.tool_calling_loop_contract",
         "priority": "must",
         "stability": "stable",
-        "statement": "Tool-calling actions and turn helpers shall normalize tool schemas, execute registered Jido.Action tools, and project assistant/tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior until a later runtime phase widens tool normalization.",
+        "statement": "Tool-calling actions and turn helpers shall normalize tool schemas into canonical tool manifests, execute registered Jido.Action tools, and project assistant or tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior at the transport edge.",
         "subject_id": "jido_ai.actions"
       },
       {
@@ -68,7 +68,7 @@
         "id": "jido_ai.core_runtime.llm_facades",
         "priority": "must",
         "stability": "stable",
-        "statement": "Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts and preserve the previous default ReqLLM-facing return shapes.",
+        "statement": "Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts, preserve the previous default ReqLLM-facing return shapes, and keep transport-specific tool or result structs out of the public facade boundary.",
         "subject_id": "jido_ai.core_runtime"
       },
       {
@@ -148,7 +148,7 @@
         "id": "jido_ai.runtime_contracts.backend_normalization_boundary",
         "priority": "must",
         "stability": "evolving",
-        "statement": "Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them, including directive request building and stream-progress translation for ai.llm and ai.embed runtime paths.",
+        "statement": "Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them, including directive request building, canonical tool manifests, and stream-progress translation for ai.llm and ai.embed runtime paths.",
         "subject_id": "jido_ai.runtime_contracts"
       },
       {
@@ -244,7 +244,7 @@
         "id": "jido_ai.strategies.standalone_react_runtime",
         "priority": "should",
         "stability": "evolving",
-        "statement": "Jido.AI.Reasoning.ReAct shall remain a standalone streaming and checkpoint-aware runtime that can run, start, continue, collect, cancel, steer, and inject outside agent macros while translating backend-neutral request and stream progress into the canonical ReAct runtime event surface.",
+        "statement": "Jido.AI.Reasoning.ReAct shall remain a standalone streaming and checkpoint-aware runtime that can run, start, continue, collect, cancel, steer, and inject outside agent macros while translating backend-neutral request, canonical tool manifests, and stream progress into the canonical ReAct runtime event surface.",
         "subject_id": "jido_ai.strategies"
       },
       {
@@ -276,7 +276,7 @@
         "id": "jido_ai.thread_context_projection.turn_normalization",
         "priority": "must",
         "stability": "stable",
-        "statement": "Jido.AI.Turn shall normalize provider or backend responses, extracted text, tool calls, usage metadata, and assistant/tool follow-up messages into one canonical turn contract.",
+        "statement": "Jido.AI.Turn shall normalize provider responses, backend result maps, extracted text, canonical tool-call records, usage metadata, and assistant or tool follow-up messages into one canonical turn contract.",
         "subject_id": "jido_ai.thread_context_projection"
       },
       {
@@ -404,9 +404,10 @@
           "id": "jido_ai.actions",
           "kind": "feature",
           "status": "active",
-          "summary": "Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers.",
+          "summary": "Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers and canonical tool manifests.",
           "surface": [
             "lib/jido_ai/actions/**/*.ex",
+            "lib/jido_ai/tool_manifest.ex",
             "lib/jido_ai/tool_adapter.ex",
             "lib/jido_ai/effects.ex",
             "lib/jido_ai/effects/*.ex",
@@ -716,6 +717,24 @@
           "jido_ai.actions.tool_calling_loop_contract"
         ],
         "file": ".spec/specs/actions_and_tool_calling.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.actions",
+        "target": "lib/jido_ai/tool_manifest.ex"
+      },
+      {
+        "covers": [
+          "jido_ai.actions.tool_calling_loop_contract"
+        ],
+        "file": ".spec/specs/actions_and_tool_calling.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.actions",
+        "target": "lib/jido_ai/tool_adapter.ex"
+      },
+      {
+        "covers": [
+          "jido_ai.actions.tool_calling_loop_contract"
+        ],
+        "file": ".spec/specs/actions_and_tool_calling.spec.md",
         "kind": "guide_file",
         "subject_id": "jido_ai.actions",
         "target": "guides/user/tool_calling_with_actions.md"
@@ -855,6 +874,24 @@
         "kind": "source_file",
         "subject_id": "jido_ai.examples_and_quality",
         "target": "test/jido_ai/backends/req_llm_test.exs"
+      },
+      {
+        "covers": [
+          "jido_ai.examples_and_quality.executable_contract_regression_tests"
+        ],
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/tool_adapter_test.exs"
+      },
+      {
+        "covers": [
+          "jido_ai.examples_and_quality.executable_contract_regression_tests"
+        ],
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/turn_test.exs"
       },
       {
         "covers": [
@@ -1162,6 +1199,15 @@
       },
       {
         "covers": [
+          "jido_ai.thread_context_projection.turn_normalization"
+        ],
+        "file": ".spec/specs/thread_context_projection.spec.md",
+        "kind": "source_file",
+        "subject_id": "jido_ai.thread_context_projection",
+        "target": "lib/jido_ai/turn.ex"
+      },
+      {
+        "covers": [
           "jido_ai.tooling_and_configuration.explicit_configuration_defaults"
         ],
         "file": ".spec/specs/tooling_and_configuration.spec.md",
@@ -1319,7 +1365,7 @@
     "requirements": 45,
     "scenarios": 0,
     "subjects": 12,
-    "verifications": 68
+    "verifications": 73
   },
   "verification": {
     "claims": [
@@ -1370,13 +1416,35 @@
       {
         "cover_id": "jido_ai.actions.tool_calling_loop_contract",
         "file": ".spec/specs/actions_and_tool_calling.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.actions",
+        "target": "lib/jido_ai/tool_manifest.ex",
+        "verification_index": 3
+      },
+      {
+        "cover_id": "jido_ai.actions.tool_calling_loop_contract",
+        "file": ".spec/specs/actions_and_tool_calling.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.actions",
+        "target": "lib/jido_ai/tool_adapter.ex",
+        "verification_index": 4
+      },
+      {
+        "cover_id": "jido_ai.actions.tool_calling_loop_contract",
+        "file": ".spec/specs/actions_and_tool_calling.spec.md",
         "kind": "guide_file",
         "meets_minimum": true,
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.actions",
         "target": "guides/user/tool_calling_with_actions.md",
-        "verification_index": 3
+        "verification_index": 5
       },
       {
         "cover_id": "jido_ai.actions.retrieval_and_quota_actions",
@@ -1387,7 +1455,7 @@
         "strength": "linked",
         "subject_id": "jido_ai.actions",
         "target": "guides/user/retrieval_and_quota.md",
-        "verification_index": 4
+        "verification_index": 6
       },
       {
         "cover_id": "jido_ai.core_runtime.llm_facades",
@@ -1562,7 +1630,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/directive/exec_runtime_test.exs",
+        "target": "test/jido_ai/tool_adapter_test.exs",
         "verification_index": 6
       },
       {
@@ -1573,7 +1641,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/react/runtime_runner_test.exs",
+        "target": "test/jido_ai/turn_test.exs",
         "verification_index": 7
       },
       {
@@ -1584,7 +1652,7 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/integration/backend_boundary_phase1_test.exs",
+        "target": "test/jido_ai/directive/exec_runtime_test.exs",
         "verification_index": 8
       },
       {
@@ -1595,8 +1663,30 @@
         "required_strength": "claimed",
         "strength": "linked",
         "subject_id": "jido_ai.examples_and_quality",
-        "target": "test/jido_ai/integration/backend_boundary_phase2_test.exs",
+        "target": "test/jido_ai/react/runtime_runner_test.exs",
         "verification_index": 9
+      },
+      {
+        "cover_id": "jido_ai.examples_and_quality.executable_contract_regression_tests",
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/integration/backend_boundary_phase1_test.exs",
+        "verification_index": 10
+      },
+      {
+        "cover_id": "jido_ai.examples_and_quality.executable_contract_regression_tests",
+        "file": ".spec/specs/examples_and_quality.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.examples_and_quality",
+        "target": "test/jido_ai/integration/backend_boundary_phase2_test.exs",
+        "verification_index": 11
       },
       {
         "cover_id": "jido_ai.plugins.default_plugin_composition",
@@ -1995,6 +2085,17 @@
         "verification_index": 3
       },
       {
+        "cover_id": "jido_ai.thread_context_projection.turn_normalization",
+        "file": ".spec/specs/thread_context_projection.spec.md",
+        "kind": "source_file",
+        "meets_minimum": true,
+        "required_strength": "claimed",
+        "strength": "linked",
+        "subject_id": "jido_ai.thread_context_projection",
+        "target": "lib/jido_ai/turn.ex",
+        "verification_index": 4
+      },
+      {
         "cover_id": "jido_ai.tooling_and_configuration.explicit_configuration_defaults",
         "file": ".spec/specs/tooling_and_configuration.spec.md",
         "kind": "guide_file",
@@ -2220,7 +2321,7 @@
     "strength_summary": {
       "claimed": 2,
       "executed": 0,
-      "linked": 79
+      "linked": 84
     },
     "threshold_failures": 0
   },

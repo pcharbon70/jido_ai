@@ -67,6 +67,16 @@ surface:
     - jido_ai.examples_and_quality.executable_contract_regression_tests
 
 - kind: source_file
+  target: test/jido_ai/tool_adapter_test.exs
+  covers:
+    - jido_ai.examples_and_quality.executable_contract_regression_tests
+
+- kind: source_file
+  target: test/jido_ai/turn_test.exs
+  covers:
+    - jido_ai.examples_and_quality.executable_contract_regression_tests
+
+- kind: source_file
   target: test/jido_ai/directive/exec_runtime_test.exs
   covers:
     - jido_ai.examples_and_quality.executable_contract_regression_tests

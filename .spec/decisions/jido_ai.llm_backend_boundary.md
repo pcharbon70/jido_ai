@@ -65,6 +65,11 @@ Backend-specific provider, CLI session, tool, and stream semantics must be
 normalized before they cross into public Jido.AI turn, request, signal, or
 runtime-event contracts.
 
+Canonical tool descriptions must likewise be normalized before transport
+conversion. Jido-owned action metadata, parameter schemas, and tool lookup
+should flow through backend-neutral tool manifests, with ReqLLM tool structs
+treated as adapter output rather than the internal source of truth.
+
 Capability gaps are explicit. If a backend cannot support a required contract
 such as embeddings, structured object generation, local tool calling, or some
 other existing stable surface, Jido.AI shall fail with a structured
@@ -101,6 +106,12 @@ introduced for those paths. When that happens, canonical `ai.llm.*`,
 `ai.embed.*`, and ReAct runtime event names, correlation fields, timeout
 behavior, and cancellation semantics must remain stable even though backend
 stream callbacks are translated underneath them.
+
+Canonical turn shaping should accept normalized backend result maps and
+canonical tool-call records directly. ReqLLM response structs remain supported,
+but they should no longer be required at the point where Jido.AI decides
+whether a turn is a final answer, a tool loop, or a follow-up message
+projection.
 
 `Jido.Harness` integration should begin where prompt/cwd/session semantics are a
 natural fit, rather than forcing every existing ReqLLM-shaped surface to become

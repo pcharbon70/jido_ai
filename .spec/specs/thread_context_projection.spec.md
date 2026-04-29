@@ -31,7 +31,7 @@ surface:
   stability: stable
 
 - id: jido_ai.thread_context_projection.turn_normalization
-  statement: Jido.AI.Turn shall normalize provider or backend responses, extracted text, tool calls, usage metadata, and assistant/tool follow-up messages into one canonical turn contract.
+  statement: Jido.AI.Turn shall normalize provider responses, backend result maps, extracted text, canonical tool-call records, usage metadata, and assistant or tool follow-up messages into one canonical turn contract.
   priority: must
   stability: stable
 ```
@@ -56,6 +56,11 @@ surface:
 
 - kind: source_file
   target: .spec/decisions/jido_ai.llm_backend_boundary.md
+  covers:
+    - jido_ai.thread_context_projection.turn_normalization
+
+- kind: source_file
+  target: lib/jido_ai/turn.ex
   covers:
     - jido_ai.thread_context_projection.turn_normalization
 ```

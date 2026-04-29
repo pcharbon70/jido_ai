@@ -1,15 +1,18 @@
 defmodule Jido.AI.ToolAdapter do
+  # covers: jido_ai.actions.tool_calling_loop_contract jido_ai.runtime_contracts.backend_normalization_boundary
   @moduledoc """
-  Adapts Jido Actions into ReqLLM.Tool structs for LLM consumption.
+  Adapts canonical Jido.AI tool manifests into ReqLLM transport structs.
 
-  This module bridges Jido domain concepts (actions with schemas) to ReqLLM's
-  tool representation.
+  This module keeps `ReqLLM.Tool` conversion as an edge concern. The canonical
+  internal tool description is `Jido.AI.ToolManifest`, which can be derived from
+  `Jido.Action` modules and then projected into transport-specific tool structs
+  only when a backend requires that representation.
 
   ## Design
 
-  - **Schema-focused**: Tools use a noop callback; Jido owns execution via `Directive.ToolExec`
-  - **Adapter pattern**: Converts `Jido.Action` behaviour → `ReqLLM.Tool` struct
-  - **Single source of truth**: All action→tool conversion goes through this module
+  - **Manifest-first**: Jido actions are normalized into `Jido.AI.ToolManifest`
+  - **Adapter pattern**: Converts tool manifests into `ReqLLM.Tool` structs
+  - **Execution stays local**: Jido owns tool execution via runtime actions/directives
 
   ## Usage
 
@@ -29,7 +32,7 @@ defmodule Jido.AI.ToolAdapter do
       ReqLLM.stream_text(model, messages, tools: tools)
   """
 
-  alias Jido.Action.Schema, as: ActionSchema
+  alias Jido.AI.ToolManifest
 
   # ============================================================================
   # Action Conversion
@@ -75,34 +78,9 @@ defmodule Jido.AI.ToolAdapter do
   def from_actions(action_modules, opts \\ [])
 
   def from_actions(action_modules, opts) when is_list(action_modules) do
-    prefix = Keyword.get(opts, :prefix)
-    filter_fn = Keyword.get(opts, :filter)
-    explicit_strict = Keyword.fetch(opts, :strict)
-
-    tools =
-      action_modules
-      |> maybe_filter(filter_fn)
-      |> Enum.map(fn module ->
-        strict =
-          case explicit_strict do
-            {:ok, val} -> val
-            :error -> infer_strict?(module)
-          end
-
-        from_action(module, prefix: prefix, strict: strict)
-      end)
-
-    # Check for duplicate tool names
-    names = Enum.map(tools, & &1.name)
-    duplicates = names -- Enum.uniq(names)
-
-    if duplicates != [] do
-      raise ArgumentError,
-            "Duplicate tool names detected: #{inspect(Enum.uniq(duplicates))}. " <>
-              "Each action must have a unique name."
-    end
-
-    tools
+    action_modules
+    |> to_manifests(opts)
+    |> from_manifests()
   end
 
   @doc """
@@ -128,21 +106,77 @@ defmodule Jido.AI.ToolAdapter do
       tool = Jido.AI.ToolAdapter.from_action(MyApp.Actions.Calculator, prefix: "v2_")
       # => %ReqLLM.Tool{name: "v2_calculator", ...}
   """
-  @spec from_action(module(), keyword()) :: ReqLLM.Tool.t()
+  @spec from_action(module() | ToolManifest.t(), keyword()) :: ReqLLM.Tool.t()
   def from_action(action_module, opts \\ [])
 
+  def from_action(%ToolManifest{} = manifest, _opts), do: from_manifest(manifest)
+
   def from_action(action_module, opts) when is_atom(action_module) do
-    prefix = Keyword.get(opts, :prefix)
+    action_module
+    |> to_manifest(opts)
+    |> from_manifest()
+  end
 
-    strict =
-      Keyword.get_lazy(opts, :strict, fn -> infer_strict?(action_module) end)
+  @doc """
+  Converts a single action module into a backend-neutral tool manifest.
+  """
+  @spec to_manifest(module() | ToolManifest.t(), keyword()) :: ToolManifest.t()
+  def to_manifest(action_module, opts \\ [])
 
+  def to_manifest(%ToolManifest{} = manifest, _opts), do: manifest
+  def to_manifest(action_module, opts) when is_atom(action_module), do: ToolManifest.from_action(action_module, opts)
+
+  @doc """
+  Converts modules or existing manifests into canonical tool manifests.
+  """
+  @spec to_manifests(nil | map() | [module() | ToolManifest.t()] | module() | ToolManifest.t(), keyword()) :: [ToolManifest.t()]
+  def to_manifests(tools, opts \\ [])
+
+  def to_manifests(nil, _opts), do: []
+
+  def to_manifests(%{} = tools, opts) do
+    tools
+    |> Map.values()
+    |> to_manifests(opts)
+  end
+
+  def to_manifests(tools, _opts) when is_list(tools) and tools == [], do: []
+
+  def to_manifests(tools, opts) when is_list(tools) do
+    cond do
+      Enum.all?(tools, &match?(%ToolManifest{}, &1)) ->
+        ensure_unique_manifest_names(tools)
+
+      true ->
+        ToolManifest.from_actions(tools, opts)
+    end
+  end
+
+  def to_manifests(%ToolManifest{} = manifest, _opts), do: [manifest]
+  def to_manifests(action_module, opts) when is_atom(action_module), do: [to_manifest(action_module, opts)]
+  def to_manifests(_tools, _opts), do: []
+
+  @doc """
+  Converts canonical tool manifests into ReqLLM.Tool structs.
+  """
+  @spec from_manifests([ToolManifest.t()]) :: [ReqLLM.Tool.t()]
+  def from_manifests(manifests) when is_list(manifests) do
+    manifests
+    |> ensure_unique_manifest_names()
+    |> Enum.map(&from_manifest/1)
+  end
+
+  @doc """
+  Converts one canonical tool manifest into a ReqLLM.Tool struct.
+  """
+  @spec from_manifest(ToolManifest.t()) :: ReqLLM.Tool.t()
+  def from_manifest(%ToolManifest{} = manifest) do
     ReqLLM.Tool.new!(
-      name: apply_prefix(action_module.name(), prefix),
-      description: action_module.description(),
-      parameter_schema: build_json_schema(action_module.schema()),
+      name: manifest.name,
+      description: manifest.description,
+      parameter_schema: manifest.parameter_schema,
       callback: &noop_callback/1,
-      strict: strict
+      strict: manifest.strict
     )
   end
 
@@ -157,13 +191,16 @@ defmodule Jido.AI.ToolAdapter do
   - `[MyAction, OtherAction]` -> `%{"my_action" => MyAction, "other_action" => OtherAction}`
   - `MyAction` -> `%{"my_action" => MyAction}`
   """
-  @spec to_action_map(nil | map() | [module()] | module()) :: %{String.t() => module()}
+  @spec to_action_map(nil | map() | [module() | ToolManifest.t()] | module() | ToolManifest.t()) :: %{String.t() => module()}
   def to_action_map(nil), do: %{}
 
   def to_action_map(%{} = tools) do
     cond do
       Enum.all?(tools, fn {name, mod} -> is_binary(name) and valid_action_module?(mod) end) ->
         tools
+
+      Enum.all?(tools, fn {name, manifest} -> is_binary(name) and match?(%ToolManifest{}, manifest) end) ->
+        Map.new(tools, fn {name, manifest} -> {name, manifest.module} end)
 
       true ->
         tools
@@ -174,9 +211,20 @@ defmodule Jido.AI.ToolAdapter do
 
   def to_action_map(modules) when is_list(modules) do
     modules
-    |> Enum.filter(&valid_action_module?/1)
-    |> Map.new(fn module -> {module.name(), module} end)
+    |> Enum.reduce(%{}, fn
+      %ToolManifest{name: name, module: module}, acc ->
+        Map.put(acc, name, module)
+
+      module, acc ->
+        if is_atom(module) and valid_action_module?(module) do
+          Map.put(acc, module.name(), module)
+        else
+          acc
+        end
+    end)
   end
+
+  def to_action_map(%ToolManifest{name: name, module: module}), do: %{name => module}
 
   def to_action_map(module) when is_atom(module) do
     if valid_action_module?(module) do
@@ -261,74 +309,20 @@ defmodule Jido.AI.ToolAdapter do
 
   defp valid_action_module?(_), do: false
 
-  # ============================================================================
-  # Private Functions - Schema and Filtering
-  # ============================================================================
-
-  defp maybe_filter(modules, nil), do: modules
-
-  defp maybe_filter(modules, filter_fn) when is_function(filter_fn, 1) do
-    Enum.filter(modules, filter_fn)
-  end
-
-  defp build_json_schema(schema) do
-    case schema |> action_schema_to_json_schema() |> enforce_no_additional_properties() do
-      empty when empty == %{} ->
-        %{"type" => "object", "properties" => %{}, "required" => [], "additionalProperties" => false}
-
-      json_schema ->
-        json_schema
-    end
-  end
-
-  # Support released jido_action API (`to_json_schema/1`) and
-  # newer branch API (`to_json_schema/2`) used by some dev setups.
-  defp action_schema_to_json_schema(schema) do
-    cond do
-      function_exported?(ActionSchema, :to_json_schema, 2) ->
-        apply(ActionSchema, :to_json_schema, [schema, [strict: true]])
-
-      function_exported?(ActionSchema, :to_json_schema, 1) ->
-        ActionSchema.to_json_schema(schema)
-
-      true ->
-        %{}
-    end
-  end
-
-  defp enforce_no_additional_properties(schema) when is_map(schema) do
-    schema
-    |> Enum.map(fn {key, value} -> {key, enforce_no_additional_properties(value)} end)
-    |> Map.new()
-    |> maybe_put_additional_properties_false()
-  end
-
-  defp enforce_no_additional_properties(schema) when is_list(schema) do
-    Enum.map(schema, &enforce_no_additional_properties/1)
-  end
-
-  defp enforce_no_additional_properties(schema), do: schema
-
-  defp maybe_put_additional_properties_false(%{"type" => "object"} = schema) do
-    Map.put_new(schema, "additionalProperties", false)
-  end
-
-  defp maybe_put_additional_properties_false(%{"properties" => _properties} = schema) do
-    Map.put_new(schema, "additionalProperties", false)
-  end
-
-  defp maybe_put_additional_properties_false(schema), do: schema
-
-  # Infers whether an action should use strict mode for LLM tool calling.
-  #
-  # Checks for a `strict?/0` callback on the action module, defaulting to false.
-  # This callback is not part of the Jido.Action behaviour; it is detected via
-  # `function_exported?/3` to keep this adapter decoupled from the action library.
-  defp infer_strict?(module) do
-    if function_exported?(module, :strict?, 0), do: module.strict?(), else: false
-  end
-
   defp noop_callback(_args), do: {:ok, %{}}
+
+  defp ensure_unique_manifest_names(manifests) do
+    names = Enum.map(manifests, & &1.name)
+    duplicates = names -- Enum.uniq(names)
+
+    if duplicates != [] do
+      raise ArgumentError,
+            "Duplicate tool names detected: #{inspect(Enum.uniq(duplicates))}. " <>
+              "Each action must have a unique name."
+    end
+
+    manifests
+  end
 
   defp apply_prefix(name, nil), do: name
   defp apply_prefix(name, prefix) when is_binary(prefix), do: prefix <> name

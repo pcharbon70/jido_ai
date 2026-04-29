@@ -6,11 +6,12 @@ Current-truth contract for standalone Jido.AI actions, tool execution loops, and
 id: jido_ai.actions
 kind: feature
 status: active
-summary: Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers.
+summary: Built-in standalone actions cover LLM generation, tool calling, planning, retrieval, quota, and reasoning execution outside long-lived agents while transport execution stays behind backend-neutral helpers and canonical tool manifests.
 decisions:
   - jido_ai.llm_backend_boundary
 surface:
   - lib/jido_ai/actions/**/*.ex
+  - lib/jido_ai/tool_manifest.ex
   - lib/jido_ai/tool_adapter.ex
   - lib/jido_ai/effects.ex
   - lib/jido_ai/effects/*.ex
@@ -28,7 +29,7 @@ surface:
   stability: stable
 
 - id: jido_ai.actions.tool_calling_loop_contract
-  statement: Tool-calling actions and turn helpers shall normalize tool schemas, execute registered Jido.Action tools, and project assistant/tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior until a later runtime phase widens tool normalization.
+  statement: Tool-calling actions and turn helpers shall normalize tool schemas into canonical tool manifests, execute registered Jido.Action tools, and project assistant or tool follow-up messages for iterative loops, while preserving the ReqLLM-compatible multi-turn default behavior at the transport edge.
   priority: must
   stability: stable
 
@@ -54,6 +55,16 @@ surface:
 
 - kind: source_file
   target: lib/jido_ai/actions/tool_calling/call_with_tools.ex
+  covers:
+    - jido_ai.actions.tool_calling_loop_contract
+
+- kind: source_file
+  target: lib/jido_ai/tool_manifest.ex
+  covers:
+    - jido_ai.actions.tool_calling_loop_contract
+
+- kind: source_file
+  target: lib/jido_ai/tool_adapter.ex
   covers:
     - jido_ai.actions.tool_calling_loop_contract
 

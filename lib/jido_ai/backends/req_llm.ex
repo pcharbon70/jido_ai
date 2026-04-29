@@ -11,7 +11,7 @@ defmodule Jido.AI.Backends.ReqLLM do
 
   alias Jido.AI.Backend
   alias Jido.AI.Backend.{Capabilities, Event, Request, Result}
-  alias Jido.AI.ToolAdapter
+  alias Jido.AI.{ToolAdapter, ToolManifest}
   alias Jido.AI.Turn
   alias ReqLLM.Context
 
@@ -345,14 +345,21 @@ defmodule Jido.AI.Backends.ReqLLM do
       Enum.all?(tools, &reqllm_tool?/1) ->
         tools
 
+      Enum.all?(tools, &match?(%ToolManifest{}, &1)) ->
+        ToolAdapter.from_manifests(tools)
+
       true ->
         ToolAdapter.from_actions(tools)
     end
   end
 
   defp normalize_reqllm_tools(tools) when is_map(tools) do
-    tools |> Map.values() |> ToolAdapter.from_actions()
+    tools
+    |> Map.values()
+    |> normalize_reqllm_tools()
   end
+
+  defp normalize_reqllm_tools(%ToolManifest{} = manifest), do: [ToolAdapter.from_manifest(manifest)]
 
   defp normalize_reqllm_tools(tool) when is_atom(tool) do
     [ToolAdapter.from_action(tool)]

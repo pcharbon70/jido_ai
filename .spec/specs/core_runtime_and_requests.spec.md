@@ -30,7 +30,7 @@ surface:
 
 ```spec-requirements
 - id: jido_ai.core_runtime.llm_facades
-  statement: Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts and preserve the previous default ReqLLM-facing return shapes.
+  statement: Jido.AI shall expose direct LLM facade entrypoints with explicit model alias resolution and merged runtime defaults for text, object, and streaming generation, while backend dispatch changes stay behind those stable entrypoint contracts, preserve the previous default ReqLLM-facing return shapes, and keep transport-specific tool or result structs out of the public facade boundary.
   priority: must
   stability: stable
 

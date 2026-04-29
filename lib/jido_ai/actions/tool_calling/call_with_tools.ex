@@ -79,7 +79,7 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
          tools = get_tools(validated_params[:tools], context),
          execution_tools = resolve_execution_tools(validated_params[:tools], context),
          {:ok, result} <- generate_turn_result(validated_params, llm_context.messages, tools) do
-      turn = classify_and_format_response(result.raw, result.model)
+      turn = classify_and_format_response(result)
 
       if validated_params[:auto_execute] && Turn.needs_tools?(turn) do
         execute_tool_turns(
@@ -110,8 +110,10 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
   end
 
   defp get_tools(nil, context) do
-    tools_input = resolve_tools_input(context)
-    convert_to_reqllm_tools(tools_input)
+    context
+    |> resolve_tools_input()
+    |> ToolAdapter.to_manifests()
+    |> ToolAdapter.from_manifests()
   end
 
   defp get_tools(tool_names, context) when is_list(tool_names) do
@@ -134,20 +136,10 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
     end
   end
 
-  defp convert_to_reqllm_tools(tools) when is_list(tools) do
-    Enum.map(tools, &ToolAdapter.from_action/1)
-  end
-
-  defp convert_to_reqllm_tools(tools) when is_map(tools) do
-    tools |> Map.values() |> convert_to_reqllm_tools()
-  end
-
-  defp convert_to_reqllm_tools(_), do: []
-
   defp get_tool_name(%{name: name}), do: name
   defp get_tool_name(_), do: nil
 
-  defp classify_and_format_response(response, model), do: Turn.from_response(response, model: model)
+  defp classify_and_format_response(result), do: Turn.from_result_map(result)
 
   # Multi-turn execution for auto_execute
   defp execute_tool_turns(
@@ -233,7 +225,7 @@ defmodule Jido.AI.Actions.ToolCalling.CallWithTools do
            Turn.run_tools(turn, context, timeout: params[:timeout], tools: execution_tools),
          {:ok, result} <- generate_turn_result(params, messages ++ Turn.tool_messages(turn_with_results), llm_tools) do
       updated_messages = messages ++ Turn.tool_messages(turn_with_results)
-      next_turn = classify_and_format_response(result.raw, result.model)
+      next_turn = classify_and_format_response(result)
       next_messages = append_assistant_message(updated_messages, next_turn)
 
       if Turn.needs_tools?(next_turn) do

@@ -145,19 +145,7 @@ defmodule Jido.AI.Directive.Helpers do
 
   @doc false
   @spec result_to_turn(Result.t()) :: Turn.t()
-  def result_to_turn(%Result{} = result) do
-    Turn.from_result_map(%{
-      type: classify_result_type(result),
-      text: result.text,
-      thinking_content: result.thinking_content,
-      reasoning_details: result.reasoning_details,
-      tool_calls: result.tool_calls,
-      usage: result.usage,
-      model: result.model,
-      finish_reason: result.finish_reason,
-      message_metadata: result.message_metadata
-    })
-  end
+  def result_to_turn(%Result{} = result), do: Turn.from_result_map(result)
 
   @doc """
   Adds timeout option to a keyword list if timeout is specified.
@@ -243,7 +231,4 @@ defmodule Jido.AI.Directive.Helpers do
     end
   end
 
-  defp classify_result_type(%Result{tool_calls: [_ | _]}), do: :tool_calls
-  defp classify_result_type(%Result{finish_reason: :tool_calls}), do: :tool_calls
-  defp classify_result_type(_result), do: :final_answer
 end

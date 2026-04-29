@@ -1,4 +1,5 @@
 defmodule Jido.AI.TurnTest do
+  # covers: jido_ai.examples_and_quality.executable_contract_regression_tests
   use ExUnit.Case, async: true
 
   import ExUnit.CaptureLog
@@ -178,6 +179,36 @@ defmodule Jido.AI.TurnTest do
       assert turn.finish_reason == :content_filter
     end
 
+    test "classifies normalized backend result maps without an explicit type" do
+      turn =
+        Turn.from_result_map(%{
+          text: "",
+          tool_calls: [%{id: "tc_1", name: "calculator", arguments: %{"a" => 1, "b" => 2}}],
+          finish_reason: :tool_calls,
+          usage: %{input_tokens: 3, output_tokens: 2}
+        })
+
+      assert turn.type == :tool_calls
+      assert Turn.needs_tools?(turn)
+      assert turn.tool_calls == [%{id: "tc_1", name: "calculator", arguments: %{"a" => 1, "b" => 2}}]
+    end
+
+    test "falls back to normalized content when backend result text is omitted" do
+      turn =
+        Turn.from_result_map(%{
+          content: [
+            %{type: :thinking, thinking: "considering options"},
+            %{type: :text, text: "hello"},
+            %{type: :text, text: "world"}
+          ],
+          usage: %{input_tokens: 5, output_tokens: 2}
+        })
+
+      assert turn.type == :final_answer
+      assert turn.text == "hello\nworld"
+      assert turn.thinking_content == "considering options"
+    end
+
     test "finish_reason is :stop for normal successful responses" do
       response = %{
         message: %{content: "Hello!", tool_calls: nil},
@@ -242,6 +273,24 @@ defmodule Jido.AI.TurnTest do
                "ok" => true,
                "result" => %{"result" => 8}
              }
+    end
+
+    test "projects assistant tool calls from normalized backend result maps" do
+      assistant_message =
+        %{
+          tool_calls: [%{id: "tc_1", name: "calculator", arguments: %{"a" => 5, "b" => 3}}],
+          finish_reason: :tool_calls,
+          message_metadata: %{response_id: "resp_backend_turn"}
+        }
+        |> Turn.from_result_map()
+        |> Turn.assistant_message()
+
+      assert %ReqLLM.Message{} = assistant_message
+      assert assistant_message.metadata == %{response_id: "resp_backend_turn"}
+      assert [%ReqLLM.ToolCall{} = tool_call] = assistant_message.tool_calls
+      assert tool_call.id == "tc_1"
+      assert ReqLLM.ToolCall.name(tool_call) == "calculator"
+      assert ReqLLM.ToolCall.args_map(tool_call) == %{"a" => 5, "b" => 3}
     end
   end
 

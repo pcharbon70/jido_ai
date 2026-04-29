@@ -40,7 +40,7 @@ surface:
   stability: stable
 
 - id: jido_ai.runtime_contracts.backend_normalization_boundary
-  statement: Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them, including directive request building and stream-progress translation for ai.llm and ai.embed runtime paths.
+  statement: Backend-specific provider, CLI session, tool, and stream semantics shall be normalized into canonical Jido.AI directives, signals, runtime events, and turn inputs before strategy logic or public runtime consumers depend on them, including directive request building, canonical tool manifests, and stream-progress translation for ai.llm and ai.embed runtime paths.
   priority: must
   stability: evolving
 
