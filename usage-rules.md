@@ -11,7 +11,9 @@ Implement tool-using AI behavior with explicit model policy, bounded execution, 
 - Use **Zoi-first** schemas for structured inputs/outputs and tool contracts.
 - Treat `ask`/`await` request handles as the safe concurrency boundary.
 - Keep provider-specific or CLI-runtime-specific logic behind explicit LLM backend integration points.
+- Keep backend selection additive through `backend`, `workspace`, and `backend_metadata`; do not overload `model_aliases` to express CLI/runtime transport concerns.
 - Preserve the current public API surface when introducing alternate LLM backends.
+- Return typed unsupported-backend or unsupported-capability outcomes instead of silently falling back across incompatible execution models.
 
 ## Library Author Patterns
 - Define tools as `Jido.Action` modules with small, deterministic behavior.

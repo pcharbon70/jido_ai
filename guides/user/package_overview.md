@@ -175,7 +175,7 @@ User/App Query
   -> Agent Macro (Jido.AI.Agent or strategy-specific agent)
   -> Strategy (ReAct/CoD/CoT/AoT/ToT/GoT/TRM/Adaptive)
   -> Directives (LLM, tool, control intents)
-  -> Runtime Execution (ReqLLM + tool execution)
+  -> Runtime Execution (backend boundary: ReqLLM default, Harness on compatible prompt/workspace paths, local tool execution where supported)
   -> Signals (ai.request.*, ai.llm.*, ai.tool.*, ai.usage)
   -> Strategy state updates
   -> Request completion/await result

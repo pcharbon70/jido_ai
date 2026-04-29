@@ -10,6 +10,7 @@ defmodule Jido.AI.Integration.BackendBoundaryPhase4Test do
   alias Jido.AI.Error
   alias Jido.AI.Reasoning.ReAct
   alias Jido.AI.Reasoning.ReAct.Config
+  alias Jido.AI.TestSupport.BackendMatrix
   alias Jido.AI.TestSupport.DirectiveExec, as: DirectiveSupport
   alias Jido.AI.TestSupport.FakeReqLLM
   alias Jido.AgentServer.DirectiveExec
@@ -33,16 +34,10 @@ defmodule Jido.AI.Integration.BackendBoundaryPhase4Test do
   setup :set_mimic_from_context
 
   setup do
-    old_backend = Application.get_env(:jido_ai, :llm_backend)
-    old_backends = Application.get_env(:jido_ai, :llm_backends)
-    old_aliases = Application.get_env(:jido_ai, :model_aliases)
-    old_defaults = Application.get_env(:jido_ai, :llm_defaults)
+    old_env = BackendMatrix.snapshot_jido_ai_env()
 
     on_exit(fn ->
-      restore_env(:llm_backend, old_backend)
-      restore_env(:llm_backends, old_backends)
-      restore_env(:model_aliases, old_aliases)
-      restore_env(:llm_defaults, old_defaults)
+      BackendMatrix.restore_jido_ai_env(old_env)
     end)
 
     FakeReqLLM.setup_stubs(%{})
@@ -312,9 +307,6 @@ defmodule Jido.AI.Integration.BackendBoundaryPhase4Test do
       assert error.backend == :harness
     end
   end
-
-  defp restore_env(key, nil), do: Application.delete_env(:jido_ai, key)
-  defp restore_env(key, value), do: Application.put_env(:jido_ai, key, value)
 
   defp wait_until(fun, attempts \\ 40)
   defp wait_until(_fun, 0), do: false

@@ -24,7 +24,9 @@ Build tool-using AI agents with explicit strategy, runtime policy, and reliable 
 - Keep model selection, timeout, retry, and tool policy explicit
 - Use **Zoi-first** schemas for tool inputs and structured outputs
 - Keep provider-specific or CLI-runtime-specific behavior behind explicit LLM backend integration boundaries
+- Keep backend selection additive through `backend`, `workspace`, and `backend_metadata`; do not overload `model_aliases` to express transport/runtime choices
 - Preserve the current public API surface while evolving internal LLM backends
+- Keep ReqLLM as the default for strategy runners and any capability that still depends on structured output, embeddings, or local Jido tool-loop semantics until the runtime contract changes explicitly
 - Preserve tagged tuple and structured error contracts
 - Prefer deterministic fallback behavior over ad-hoc prompt pipelines
 

@@ -82,16 +82,22 @@ Package defaults are built into `Jido.AI`; `model_aliases` is merged on top for 
 - max retained requests per agent state: `100`
 - request-scoped ReAct overrides: `tools`, `allowed_tools`, `request_transformer`, `tool_context`, `req_http_options`, `llm_opts`, `workspace`, `backend_metadata`
 - request-scoped additive backend override: `backend`
+- plugin-level additive backend defaults:
+  - `Jido.AI.Plugins.Chat`: `backend`, `workspace`, `backend_metadata`
+  - `Jido.AI.Plugins.Planning`: `backend`, `workspace`, `backend_metadata`
+  - reasoning plugins keep `backend: :req_llm` by default and may add `workspace` / `backend_metadata` without changing their signal contracts
 
 ## Backend Compatibility Rules
 
 - `:req_llm` remains the default backend and still owns direct facade behavior, structured object generation, embeddings, and full ReqLLM message or tool semantics.
 - `:harness` is available on compatible prompt-plus-workspace request-bearing paths such as standalone ReAct runtime runs, delegated request flows, and directive execution.
+- Backend-aware chat/planning actions and plugin routes surface the same `backend`, `workspace`, and `backend_metadata` fields without changing their result maps.
+- Strategy plugins and `Jido.AI.Actions.Reasoning.RunStrategy` stay ReqLLM-default even when another backend is configured globally; explicit alternate backends must fail typed until those runtimes support them directly.
 - `model_aliases`, `llm_defaults`, `llm_opts`, and `req_http_options` continue to apply to the ReqLLM path unchanged.
 - Harness-specific provider, cwd, attachment, session, and CLI-tool shaping stays under additive `llm_backends` and request-scoped `workspace` / `backend_metadata`; it does not overload `model_aliases`.
 - Passing `backend: ...` to public facades or request-bearing agent calls does not change names or arities.
 - Direct facades such as `generate_text/2`, `generate_object/3`, `stream_text/2`, and `ask/2` remain ReqLLM-only and return a structured unsupported-backend error when another backend is selected.
-- Harness capability gaps stay explicit: unsupported message history, local tool execution, structured output, and embeddings fail with typed unsupported-capability errors instead of silently degrading behavior.
+- Harness capability gaps stay explicit: unsupported message history, local tool execution, strategy runners, structured output, and embeddings fail with typed unsupported-capability errors instead of silently degrading behavior.
 
 ## Security Defaults
 

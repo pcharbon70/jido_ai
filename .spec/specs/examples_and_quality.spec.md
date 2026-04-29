@@ -23,7 +23,7 @@ surface:
   stability: stable
 
 - id: jido_ai.examples_and_quality.quality_checkpoint_helpers
-  statement: Repo-owned quality checkpoint helpers shall define canonical fast/full gate command sets and traceability closure utilities for release hygiene.
+  statement: Repo-owned quality checkpoint helpers shall define canonical fast/full gate command sets, backend-matrix test support primitives, and traceability closure utilities for release hygiene.
   priority: should
   stability: evolving
 
@@ -43,6 +43,11 @@ surface:
 
 - kind: source_file
   target: lib/jido_ai/quality/checkpoint.ex
+  covers:
+    - jido_ai.examples_and_quality.quality_checkpoint_helpers
+
+- kind: source_file
+  target: test/support/backend_matrix.ex
   covers:
     - jido_ai.examples_and_quality.quality_checkpoint_helpers
 

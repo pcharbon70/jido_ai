@@ -39,7 +39,7 @@ surface:
   stability: stable
 
 - id: package.jido_ai.explicit_policy_boundaries
-  statement: jido_ai shall keep model routing, timeout, retry, structured I/O, and tool policy explicit while keeping provider-specific or CLI-runtime-specific behavior behind explicit LLM backend integration boundaries.
+  statement: jido_ai shall keep model routing, timeout, retry, structured I/O, and tool policy explicit while keeping provider-specific or CLI-runtime-specific behavior behind explicit LLM backend integration boundaries, with repo-owned package guidance keeping the current backend matrix and compatibility guarantees explicit for contributors and callers.
   priority: must
   stability: stable
 

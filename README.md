@@ -85,6 +85,11 @@ Configure model aliases and at least one provider credential:
 ```elixir
 # config/config.exs
 config :jido_ai,
+  llm_backend: :req_llm,
+  llm_backends: %{
+    req_llm: %{transport: :api},
+    harness: %{transport: :exec}
+  },
   model_aliases: %{
     fast: "provider:fast-model",
     capable: "provider:capable-model"
@@ -94,6 +99,8 @@ config :req_llm,
   anthropic_api_key: System.get_env("ANTHROPIC_API_KEY"),
   openai_api_key: System.get_env("OPENAI_API_KEY")
 ```
+
+`llm_backend` defaults to `:req_llm`. `llm_backends` is additive configuration for alternate runtimes such as `:harness`; it does not replace `model_aliases` or change any public entrypoint names or arities.
 
 ## Quick Start
 
@@ -152,6 +159,17 @@ Need one-shot text generation without an agent process?
 ```elixir
 {:ok, text} = Jido.AI.ask("Summarize Phoenix PubSub in one paragraph.", model: :fast)
 ```
+
+## Backend Selection
+
+ReqLLM remains the default execution path and still owns the full direct-facade, structured-output, embedding, and local tool-calling surface.
+
+- Additive backend selection uses `config :jido_ai, llm_backend: ...`, `llm_backends: %{...}`, or request-scoped `backend: ...`.
+- Compatible prompt-plus-workspace paths can opt into Harness with explicit `workspace` and `backend_metadata` values. Today that primarily means standalone ReAct runtime flows plus backend-aware chat or planning action/plugin routes.
+- Strategy plugins and `Jido.AI.Actions.Reasoning.RunStrategy` remain ReqLLM-default until each strategy runtime is normalized beyond its current transport-specific assumptions.
+- Unsupported backend selections fail with typed unsupported-backend or unsupported-capability errors instead of silently changing behavior.
+
+That keeps the public API stable while allowing backend support to widen incrementally behind the same entrypoints.
 
 ## Choose Your Integration Surface
 

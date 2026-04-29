@@ -35,7 +35,7 @@ surface:
   stability: stable
 
 - id: jido_ai.core_runtime.additive_backend_selection
-  statement: Backend selection for request-bearing entrypoints shall remain additive and explicit rather than replacing the current ask, await, generate, or stream API surface, and backend-neutral request envelopes shall own transport-specific option shaping before execution reaches an adapter, including additive workspace and backend-metadata shaping for Harness-compatible request paths.
+  statement: Backend selection for request-bearing entrypoints shall remain additive and explicit rather than replacing the current ask, await, generate, or stream API surface, and backend-neutral request envelopes shall own transport-specific option shaping before execution reaches an adapter, including additive workspace and backend-metadata shaping for Harness-compatible request paths and user-facing runtime docs that keep that backend boundary explicit.
   priority: must
   stability: evolving
 

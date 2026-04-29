@@ -137,3 +137,9 @@ stay explicit and non-breaking.
 Future spec and code changes that widen backend support should update the
 normalization boundaries and capability contracts instead of creating
 backend-specific public APIs that fragment the package surface.
+
+Contributor docs, package guides, and repo-owned backend-matrix test helpers
+must stay aligned with that contract. Documentation should state which paths
+remain ReqLLM-default, which can opt into Harness, and which stay typed
+unsupported, while verification helpers should make those compatibility
+assertions repeatable without re-encoding backend env setup in each test.

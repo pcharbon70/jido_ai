@@ -38,7 +38,7 @@ surface:
   stability: stable
 
 - id: jido_ai.plugins.capability_gated_backend_adoption
-  statement: Capability plugins shall keep stable signal routes while surfacing backend selection explicitly, allowing compatible plain-text flows to use alternate backends and forcing strategy or tool-heavy routes to fail with typed unsupported outcomes until their runtime contract is normalized.
+  statement: Capability plugins shall keep stable signal routes while surfacing backend selection explicitly, allowing compatible plain-text flows to use alternate backends and forcing strategy or tool-heavy routes to fail with typed unsupported outcomes until their runtime contract is normalized, and plugin-composition guidance shall describe those compatibility rules as part of the public contract.
   priority: must
   stability: evolving
 

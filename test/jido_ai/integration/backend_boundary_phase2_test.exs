@@ -8,6 +8,7 @@ defmodule Jido.AI.Integration.BackendBoundaryPhase2Test do
   alias Jido.AI.Actions.Planning.{Decompose, Plan, Prioritize}
   alias Jido.AI.Actions.Reasoning.{Analyze, Explain, Infer}
   alias Jido.AI.Actions.ToolCalling.CallWithTools
+  alias Jido.AI.TestSupport.BackendMatrix
   alias Jido.AI.TestSupport.FakeReqLLM
 
   defmodule CalculatorTool do
@@ -29,12 +30,10 @@ defmodule Jido.AI.Integration.BackendBoundaryPhase2Test do
   setup :set_mimic_from_context
 
   setup do
-    old_aliases = Application.get_env(:jido_ai, :model_aliases)
-    old_defaults = Application.get_env(:jido_ai, :llm_defaults)
+    old_env = BackendMatrix.snapshot_jido_ai_env([:model_aliases, :llm_defaults])
 
     on_exit(fn ->
-      restore_env(:model_aliases, old_aliases)
-      restore_env(:llm_defaults, old_defaults)
+      BackendMatrix.restore_jido_ai_env(old_env)
     end)
 
     FakeReqLLM.setup_stubs(%{})
@@ -175,7 +174,4 @@ defmodule Jido.AI.Integration.BackendBoundaryPhase2Test do
       assert result.usage.total_tokens > 0
     end
   end
-
-  defp restore_env(key, nil), do: Application.delete_env(:jido_ai, key)
-  defp restore_env(key, value), do: Application.put_env(:jido_ai, key, value)
 end

@@ -1,6 +1,6 @@
 # Plugins And Actions Composition
 
-<!-- covers: jido_ai.plugins.public_plugin_surface jido_ai.plugins.default_plugin_composition -->
+<!-- covers: jido_ai.plugins.public_plugin_surface jido_ai.plugins.default_plugin_composition jido_ai.plugins.capability_gated_backend_adoption -->
 
 You need a reliable way to compose mountable capabilities (plugins) with executable primitives (actions) without coupling to strategy internals.
 
@@ -27,6 +27,8 @@ end
 ```
 
 Plugins give you lifecycle hooks (`mount/2`), capability-level defaults, and stable signal contracts (`chat.message`, `chat.simple`, etc.) that the rest of your app can rely on. When you need the same capability across many agents, plugins are the answer.
+
+Plugin defaults now also accept additive backend-routing fields such as `backend`, `workspace`, and `backend_metadata` where the routed action/runtime can consume them without changing the public signal surface.
 
 ### Scenario B: You're adding LLM calls to a background job
 
@@ -62,6 +64,7 @@ end
 ```
 
 Strategies own the multi-step execution loop. Reasoning plugins provide signal routing and defaults on top of strategies so you can trigger them via `reasoning.cot.run` and friends.
+Today those reasoning plugins remain ReqLLM-default and capability-gated until each strategy runtime is normalized beyond its current transport-specific assumptions.
 
 ### Decision Table
 
@@ -126,10 +129,12 @@ end
   - `chat.generate_object` -> schema-constrained structured output
   - `chat.execute_tool` -> direct tool execution by tool name
   - `chat.list_tools` -> tool inventory for the active chat capability
+  - plugin defaults may add `backend`, `workspace`, and `backend_metadata`
 - `Jido.AI.Plugins.Planning`
   - `planning.plan` -> structured plan generation (`Jido.AI.Actions.Planning.Plan`)
   - `planning.decompose` -> goal decomposition (`Jido.AI.Actions.Planning.Decompose`)
   - `planning.prioritize` -> task ordering (`Jido.AI.Actions.Planning.Prioritize`)
+  - plugin defaults may add `backend`, `workspace`, and `backend_metadata`
 - `Jido.AI.Plugins.Reasoning.*`
   - `reasoning.cod.run`
   - `reasoning.cot.run`
@@ -139,6 +144,35 @@ end
   - `reasoning.trm.run`
   - `reasoning.adaptive.run`
   - All route to `Jido.AI.Actions.Reasoning.RunStrategy` with fixed strategy identity.
+  - Plugin defaults keep `backend: :req_llm` unless the underlying strategy runtime gains explicit support for another backend.
+
+## Backend-Aware Plugin Defaults
+
+Additive backend routing does not create new plugin names or new signal contracts. It only widens the defaults each plugin may carry.
+
+```elixir
+defmodule MyApp.WorkspaceAssistant do
+  use Jido.Agent,
+    name: "workspace_assistant",
+    plugins: [
+      {Jido.AI.Plugins.Chat,
+       %{
+         default_model: :capable,
+         backend: :harness,
+         workspace: %{cwd: "/tmp/project"},
+         backend_metadata: %{provider: :codex}
+       }},
+      {Jido.AI.Plugins.Planning, %{default_model: :planning}}
+    ]
+end
+```
+
+Compatibility rules:
+
+- Plain text chat/planning routes can opt into alternate backends when the backend supports prompt-plus-workspace execution.
+- `chat.message` stays capability-gated because the local Jido tool loop still requires the ReqLLM-compatible contract.
+- `chat.embed` and `chat.generate_object` stay capability-gated until an alternate backend can satisfy embeddings or structured output directly.
+- Reasoning plugin routes stay ReqLLM-default and return typed unsupported outcomes if an explicit unsupported backend is selected.
 
 ### TaskSupervisor Internal Runtime Contract
 
